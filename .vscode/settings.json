@@ -1,0 +1,12 @@
+{
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnSaveMode": "file",
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "always"
+    },
+  },
+  "python.languageServer": "Pylance",
+  "python.analysis.typeCheckingMode": "standard",
+}
