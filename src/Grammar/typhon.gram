@@ -962,7 +962,7 @@ else_block[list]:
 
 while_stmt[ast.While]:
     | invalid_while_stmt
-    | 'while' a=named_expression ':' b=block c=[else_block] {
+    | 'while' '(' a=named_expression ')' b=block c=[else_block] {
         ast.While(test=a, body=b, orelse=c or [], LOCATIONS)
      }
 
