@@ -829,7 +829,7 @@ function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
             )
         )
      }
-    | 'async' 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] &&':' tc=[func_type_comment] b=block NEWLINE* {
+    | 'async' 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] tc=[func_type_comment] NEWLINE* b=block {
        (
             self.check_version(
                 (3, 5),
