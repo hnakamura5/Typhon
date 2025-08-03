@@ -947,12 +947,12 @@ default: '=' a=expression { a } | invalid_default
 
 if_stmt[ast.If]:
     | invalid_if_stmt
-    | 'if' a=named_expression b=block c=elif_stmt { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
+    | 'if' '(' a=named_expression ')' b=block c=elif_stmt { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
     | 'if' a=named_expression b=block c=[else_block] { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
 elif_stmt[List[ast.If]]:
     | invalid_elif_stmt
-    | 'elif' a=named_expression b=block c=elif_stmt { [ast.If(test=a, body=b, orelse=c, LOCATIONS)] }
-    | 'elif' a=named_expression b=block c=[else_block] { [ast.If(test=a, body=b, orelse=c or [], LOCATIONS)] }
+    | 'elif' '(' a=named_expression ')' b=block c=elif_stmt { [ast.If(test=a, body=b, orelse=c, LOCATIONS)] }
+    | 'elif' '(' a=named_expression ')' b=block c=[else_block] { [ast.If(test=a, body=b, orelse=c or [], LOCATIONS)] }
 else_block[list]:
     | invalid_else_stmt
     | 'else' b=block { b }
@@ -971,9 +971,9 @@ while_stmt[ast.While]:
 
 for_stmt[Union[ast.For, ast.AsyncFor]]:
     | invalid_for_stmt
-    | 'for' t=star_targets 'in' ~ ex=star_expressions &&':' tc=[TYPE_COMMENT] b=block el=[else_block] {
+    | 'for' '(' t=star_targets 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] b=block el=[else_block] {
         ast.For(target=t, iter=ex, body=b, orelse=el or [], type_comment=tc, LOCATIONS) }
-    | 'async' 'for' t=star_targets 'in' ~ ex=star_expressions ':' tc=[TYPE_COMMENT] b=block el=[else_block] {
+    | 'async' 'for' '(' t=star_targets 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] b=block el=[else_block] {
         self.check_version(
             (3, 5),
             "Async for loops are",

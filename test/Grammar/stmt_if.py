@@ -1,11 +1,9 @@
-import ast
-from ...src.Grammar.parser import parse_string
+from .assertion_utils import assert_ast_equals
 
 code_empty_if = """
-if True {
+if (True) {
 }
 """
-
 result_empty_if = """
 if True:
     pass
@@ -13,19 +11,16 @@ if True:
 
 
 def test_stmt_if_empty():
-    parsed = parse_string(code_empty_if, mode="exec", verbose=True)
-    assert isinstance(parsed, ast.Module)
-    assert ast.unparse(parsed) == result_empty_if.strip()
+    assert_ast_equals(code_empty_if, result_empty_if)
 
 
 code_if_else = """
-if True {
-} elif False {
+if (True) {
+} elif (False) {
   return 0;
 } else {
 }
 """
-
 result_if_else = """
 if True:
     pass
@@ -37,16 +32,14 @@ else:
 
 
 def test_stmt_if_else():
-    parsed = parse_string(code_if_else, mode="exec", verbose=True)
-    assert isinstance(parsed, ast.Module)
-    assert ast.unparse(parsed) == result_if_else.strip()
+    assert_ast_equals(code_if_else, result_if_else)
 
 
 code_if_nested = """
-if True {
+if (True) {
     if (False) {
         return 1;
-    } elif True {
+    } elif (True) {
         return 2;
     }
     return 3;
@@ -54,7 +47,6 @@ if True {
     return 4;
 }
 """
-
 result_if_nested = """
 if True:
     if False:
@@ -68,6 +60,4 @@ else:
 
 
 def test_stmt_if_nested():
-    parsed = parse_string(code_if_nested, mode="exec", verbose=True)
-    assert isinstance(parsed, ast.Module)
-    assert ast.unparse(parsed) == result_if_nested.strip()
+    assert_ast_equals(code_if_nested, result_if_nested)

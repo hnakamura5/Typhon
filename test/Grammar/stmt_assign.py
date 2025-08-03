@@ -1,5 +1,4 @@
-import ast
-from ...src.Grammar.parser import parse_string
+from .assertion_utils import assert_ast_equals
 
 assign_code = """
 x = 1;
@@ -10,9 +9,7 @@ x = 1
 
 
 def test_stmt_assign():
-    parsed = parse_string(assign_code, mode="exec", verbose=True)
-    assert isinstance(parsed, ast.Module)
-    assert ast.unparse(parsed) == assign_result.strip()
+    assert_ast_equals(assign_code, assign_result)
 
 
 assign_code_type_annotation = """
@@ -24,9 +21,7 @@ x: int = 1
 
 
 def test_stmt_assign_type_annotation():
-    parsed = parse_string(assign_code_type_annotation, mode="exec", verbose=True)
-    assert isinstance(parsed, ast.Module)
-    assert ast.unparse(parsed) == assign_result_type_annotation.strip()
+    assert_ast_equals(assign_code_type_annotation, assign_result_type_annotation)
 
 
 code_stmt_assign_in_func = """
@@ -43,6 +38,4 @@ def func(x: int=1):
 
 
 def test_stmt_assign_in_func():
-    parsed = parse_string(code_stmt_assign_in_func, mode="exec", verbose=True)
-    assert isinstance(parsed, ast.Module)
-    assert ast.unparse(parsed) == result_stmt_assign_in_func.strip()
+    assert_ast_equals(code_stmt_assign_in_func, result_stmt_assign_in_func)
