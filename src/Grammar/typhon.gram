@@ -749,8 +749,7 @@ dotted_name[str]:
 # ---------------
 
 block[list] (memo):
-    | '{' a=statements '}' { a }
-    | simple_stmt
+    | '{' a=statements* '}' { a if len(a) > 0 else [ast.Pass(LOCATIONS)]  }
     | invalid_block
 
 decorators: decorator+
@@ -948,15 +947,15 @@ default: '=' a=expression { a } | invalid_default
 
 if_stmt[ast.If]:
     | invalid_if_stmt
-    | 'if' a=named_expression ':' b=block c=elif_stmt { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
-    | 'if' a=named_expression ':' b=block c=[else_block] { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
+    | 'if' a=named_expression b=block c=elif_stmt { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
+    | 'if' a=named_expression b=block c=[else_block] { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
 elif_stmt[List[ast.If]]:
     | invalid_elif_stmt
-    | 'elif' a=named_expression ':' b=block c=elif_stmt { [ast.If(test=a, body=b, orelse=c, LOCATIONS)] }
-    | 'elif' a=named_expression ':' b=block c=[else_block] { [ast.If(test=a, body=b, orelse=c or [], LOCATIONS)] }
+    | 'elif' a=named_expression b=block c=elif_stmt { [ast.If(test=a, body=b, orelse=c, LOCATIONS)] }
+    | 'elif' a=named_expression b=block c=[else_block] { [ast.If(test=a, body=b, orelse=c or [], LOCATIONS)] }
 else_block[list]:
     | invalid_else_stmt
-    | 'else' &&':' b=block { b }
+    | 'else' b=block { b }
 
 # While statement
 # ---------------
