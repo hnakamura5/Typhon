@@ -21,10 +21,11 @@ def run_grammar_tests():
         return
 
     print(f"Running tests {test_files} in {root}/test/Grammar")
-    subprocess.run(
+    result = subprocess.run(
         [sys.executable, "-m", "pytest"] + test_files,
     )
+    return result.returncode
 
 
 if __name__ == "__main__":
-    run_grammar_tests()
+    exit(run_grammar_tests())

@@ -577,7 +577,7 @@ fstring[ast.Expr]: star_expressions
 
 statements[list]: a=statement+ { list(itertools.chain.from_iterable(a)) }
 
-statement[list]: a=compound_stmt { [a] } | a=simple_stmts { a }
+statement[list]: a=compound_stmt NEWLINE* { [a] } | a=simple_stmts NEWLINE* { a }
 
 statement_newline[list]:
     | a=compound_stmt NEWLINE { [a] }
@@ -586,8 +586,8 @@ statement_newline[list]:
     | ENDMARKER { None }
 
 simple_stmts[list]:
-    | a=simple_stmt !';' NEWLINE { [a] } # Not needed, there for speedup
-    | a=';'.simple_stmt+ [';'] NEWLINE { a }
+    # | a=simple_stmt !';' NEWLINE { [a] } # Not needed, there for speedup
+    | a=';'.simple_stmt+ [';'] { a }
 
 # NOTE: assignment MUST precede expression, else parsing a simple assignment
 # will throw a SyntaxError.
@@ -749,8 +749,8 @@ dotted_name[str]:
 # ---------------
 
 block[list] (memo):
-    | NEWLINE INDENT a=statements DEDENT { a }
-    | simple_stmts
+    | '{' a=statements '}' { a }
+    | simple_stmt
     | invalid_block
 
 decorators: decorator+
@@ -809,7 +809,7 @@ function_def[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
 
 function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
     | invalid_def_raw
-    | 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] &&':' tc=[func_type_comment] b=block {
+    | 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] tc=[func_type_comment] NEWLINE* b=block {
         (
             ast.FunctionDef(
                 name=n.string,
@@ -830,7 +830,7 @@ function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
             )
         )
      }
-    | 'async' 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] &&':' tc=[func_type_comment] b=block {
+    | 'async' 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] &&':' tc=[func_type_comment] b=block NEWLINE* {
        (
             self.check_version(
                 (3, 5),
