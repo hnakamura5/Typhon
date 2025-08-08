@@ -9,4 +9,13 @@
   },
   "python.languageServer": "Pylance",
   "python.analysis.typeCheckingMode": "standard",
+  "python.autoComplete.extraPaths": [
+    "${workspaceFolder}/src",
+    "${workspaceFolder}/.venv/Lib/site-packages"
+  ],
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/src",
+    "${workspaceFolder}/.venv/Lib/site-packages"
+  ],
+  "python.analysis.indexing": true,
 }
