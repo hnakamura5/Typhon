@@ -16,6 +16,9 @@ from typing import (
 
 from pegen.tokenizer import Tokenizer
 
+from .typhon_ast import (
+    LetAssign, LetAnnAssign, ConstAssign, ConstAnnAssign, TypeExpr
+)
 from .parser_helper import Parser, Load, Store, Del
 
 def parse_file(

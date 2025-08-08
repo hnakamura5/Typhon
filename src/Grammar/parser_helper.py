@@ -241,7 +241,7 @@ class Parser(PegenParser):
 
         return name
 
-    def _concat_strings_in_constant(self, parts) -> Union[str, bytes]:
+    def _concat_strings_in_constant(self, parts) -> ast.Constant:
         s = ast.literal_eval(parts[0].string)
         for ss in parts[1:]:
             s += ast.literal_eval(ss.string)
@@ -267,7 +267,7 @@ class Parser(PegenParser):
 
         # Combine the different parts
         seen_joined = False
-        values = []
+        values: list[ast.Constant] = []
         ss = []
         for p in parts:
             if isinstance(p, ast.JoinedStr):
@@ -379,7 +379,7 @@ class Parser(PegenParser):
         self,
         pos_only: Optional[List[Tuple[ast.arg, None]]],
         pos_only_with_default: List[Tuple[ast.arg, Any]],
-        param_no_default: Optional[List[Tuple[ast.arg, None]]],
+        param_no_default: Optional[List[ast.arg]],
         param_default: Optional[List[Tuple[ast.arg, Any]]],
         after_star: Optional[
             Tuple[Optional[ast.arg], List[Tuple[ast.arg, Any]], Optional[ast.arg]]
@@ -399,7 +399,7 @@ class Parser(PegenParser):
 
         # Because we need to combine pos only with and without default even
         # the version with no default is a tuple
-        pos_only = [p for p, _ in pos_only]
+        pos_only_args = [p for p, _ in pos_only]
         params = (param_no_default or []) + (
             [p for p, _ in param_default] if param_default else []
         )
@@ -408,7 +408,7 @@ class Parser(PegenParser):
         after_star = after_star or (None, [], None)
 
         return ast.arguments(
-            posonlyargs=pos_only,
+            posonlyargs=pos_only_args,
             args=params,
             defaults=defaults,
             vararg=after_star[0],
