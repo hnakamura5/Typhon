@@ -1,46 +1,80 @@
 # Ast Extensions for Typhon
 
 import ast
+from typing import Union
 
-# Use isinstance checks to distinguish the type of assignments
-# Normal assignments, let assignments for variable definitions
+# Normal assignments, let assignments for variable declarations,
 # and constant assignments for constant definitions.
+# They all are Assign/AnnAssign in Python, we distinguish them by
+# additional attribute which the user can only access by API here.
 
 
-class LetAssign(ast.Assign):
-    """
-    Represents a let assignment in Typhon.
-    """
-
-    def __repr__(self):
-        return f"Let-{super().__repr__()}"
+# Note that inheriting from ast.Assign or ast.AnnAssign is not recommended
+# because that breaks AST visitor (e.g.unparse method) that use type name
+# directly to distinguish nodes.
 
 
-class LetAnnAssign(ast.AnnAssign):
-    """
-    Represents a let assignment with type annotation in Typhon.
-    """
-
-    def __repr__(self):
-        return f"Let-{super().__repr__()}"
+def is_let_assign(node: ast.AST) -> bool:
+    if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+        return False
+    return getattr(node, "is_let", False)
 
 
-class ConstAssign(ast.Assign):
-    """
-    Represents a constant assignment in Typhon.
-    """
-
-    def __repr__(self):
-        return f"Const-{super().__repr__()}"
+def is_const_assign(node: ast.AST) -> bool:
+    if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+        return False
+    return getattr(node, "is_const", False)
 
 
-class ConstAnnAssign(ast.AnnAssign):
-    """
-    Represents a constant assignment with type annotation in Typhon.
-    """
+def is_decl_assign(node: ast.AST) -> bool:
+    """Check if the node is a declaration assignment (let or const)."""
+    return is_let_assign(node) or is_const_assign(node)
 
-    def __repr__(self):
-        return f"Const-{super().__repr__()}"
+
+def _set_is_let(node: Union[ast.Assign, ast.AnnAssign]):
+    setattr(node, "is_let", True)
+
+
+def _set_is_const(node: Union[ast.Assign, ast.AnnAssign]):
+    setattr(node, "is_const", True)
+
+
+def assign_as_declaration(
+    decl_type: str,
+    assign: Union[ast.Assign, ast.AnnAssign],
+    lineno: int,
+    col_offset: int,
+    end_lineno: int,
+    end_col_offset: int,
+) -> ast.AST:
+    if isinstance(assign, ast.AnnAssign):
+        result = ast.AnnAssign(
+            target=assign.target,
+            annotation=assign.annotation,
+            value=assign.value,
+            simple=assign.simple,
+            lineno=lineno,
+            col_offset=col_offset,
+            end_lineno=end_lineno,
+            end_col_offset=end_col_offset,
+        )
+    else:
+        result = ast.Assign(
+            targets=assign.targets,
+            value=assign.value,
+            type_comment=assign.type_comment,
+            lineno=lineno,
+            col_offset=col_offset,
+            end_lineno=end_lineno,
+            end_col_offset=end_col_offset,
+        )
+    if decl_type == "let":
+        _set_is_let(result)
+    elif decl_type == "const":
+        _set_is_const(result)
+    else:
+        raise ValueError(f"Unknown declaration type: {decl_type}")
+    return result
 
 
 class TypeExpr(ast.expr):

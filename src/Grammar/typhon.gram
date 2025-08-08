@@ -17,7 +17,7 @@ from typing import (
 from pegen.tokenizer import Tokenizer
 
 from .typhon_ast import (
-    LetAssign, LetAnnAssign, ConstAssign, ConstAnnAssign, TypeExpr
+    assign_as_declaration
 )
 from .parser_helper import Parser, Load, Store, Del
 
@@ -54,7 +54,7 @@ def parse_string(
         Callable[[Callable[[], str]], Iterator[tokenize.TokenInfo]]
     ] = None,
     verbose:bool = False,
-) -> Any:
+) -> ast.AST | None:
     """Parse a string."""
     tok_stream = (
         token_stream_factory(io.StringIO(source).readline)
@@ -100,6 +100,7 @@ simple_stmts[list]:
 # NOTE: assignment MUST precede expression, else parsing a simple assignment
 # will throw a SyntaxError.
 simple_stmt (memo):
+    | &('let'|'const') declaration_assignment
     | assignment
     | &"type" type_alias
     | e=star_expressions { ast.Expr(value=e, LOCATIONS) }
@@ -128,8 +129,8 @@ compound_stmt:
 # SIMPLE STATEMENTS
 # =================
 
-# NOTE: annotated_rhs may start with 'yield'; yield_expr must start with 'yield'
-assignment:
+
+simple_assignment:
     | a=NAME ':' b=expression c=['=' d=annotated_rhs { d }] {
         self.check_version(
             (3, 6),
@@ -166,10 +167,15 @@ assignment:
     | a=(z=star_targets '=' { z })+ b=(yield_expr | star_expressions) !'=' tc=[TYPE_COMMENT] {
          ast.Assign(targets=a, value=b, type_comment=tc, LOCATIONS)
      }
+
+# NOTE: annotated_rhs may start with 'yield'; yield_expr must start with 'yield'
+assignment:
+    | simple_assignment
     | a=single_target b=augassign ~ c=(yield_expr | star_expressions) {
         ast.AugAssign(target = a, op=b, value=c, LOCATIONS)
      }
     | invalid_assignment
+
 
 annotated_rhs: yield_expr | star_expressions
 
@@ -187,6 +193,12 @@ augassign:
     | '>>=' { ast.RShift() }
     | '**=' { ast.Pow() }
     | '//=' { ast.FloorDiv() }
+
+
+# Typhon let/const declarations
+declaration_assignment:
+    | d=('let'|'const') a=simple_assignment { assign_as_declaration(d.string, a, LOCATIONS) }
+
 
 return_stmt[ast.Return]:
     | 'return' a=[star_expressions] { ast.Return(value=a, LOCATIONS) }

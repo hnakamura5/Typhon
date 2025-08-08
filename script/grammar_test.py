@@ -20,7 +20,7 @@ def run_grammar_tests():
         print("No test files found.")
         return
 
-    print(f"Running tests {test_files} in {root}/test/Grammar")
+    # print(f"Running tests {test_files} in {root}/test/Grammar")
     result = subprocess.run(
         [sys.executable, "-m", "pytest"] + test_files,
     )

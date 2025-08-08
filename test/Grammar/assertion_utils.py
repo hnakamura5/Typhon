@@ -8,10 +8,11 @@ def assert_token(token: tokenize.TokenInfo, type_: int, string: str):
     assert token.string == string, f"Expected '{string}', got '{token.string}'"
 
 
-def assert_ast_equals(typhon_code: str, python_code: str):
+def assert_ast_equals(typhon_code: str, python_code: str) -> ast.Module:
     parsed = parse_string(typhon_code, mode="exec", verbose=True)
     assert isinstance(parsed, ast.Module)
     assert ast.unparse(parsed) == python_code.strip()
+    return parsed
 
 
 def show_token(source: str):
