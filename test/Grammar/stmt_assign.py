@@ -110,6 +110,72 @@ def test_stmt_assign_const_type_annotation():
     assert_is_const(parsed.body[0])
 
 
+assign_code_let_multiple = """
+let x = 1, y = 2;
+"""
+assign_result_let_multiple = """
+x = 1
+y = 2
+"""
+
+
+def test_stmt_assign_let_multiple():
+    parsed = assert_ast_equals(assign_code_let_multiple, assign_result_let_multiple)
+    assert_is_let(parsed.body[0])
+    assert_is_let(parsed.body[1])
+
+
+assign_code_let_type_annotation_multiple = """
+let x: int = 1, y: int = 2;
+"""
+assign_result_let_type_annotation_multiple = """
+x: int = 1
+y: int = 2
+"""
+
+
+def test_stmt_assign_let_type_annotation_multiple():
+    parsed = assert_ast_equals(
+        assign_code_let_type_annotation_multiple,
+        assign_result_let_type_annotation_multiple,
+    )
+    assert_is_let(parsed.body[0])
+    assert_is_let(parsed.body[1])
+
+
+assign_code_const_multiple = """
+const x = 1, y = 2;
+"""
+assign_result_const_multiple = """
+x = 1
+y = 2
+"""
+
+
+def test_stmt_assign_const_multiple():
+    parsed = assert_ast_equals(assign_code_const_multiple, assign_result_const_multiple)
+    assert_is_const(parsed.body[0])
+    assert_is_const(parsed.body[1])
+
+
+assign_code_const_type_annotation_multiple = """
+const x: int = 1, y: int = 2;
+"""
+assign_result_const_type_annotation_multiple = """
+x: int = 1
+y: int = 2
+"""
+
+
+def test_stmt_assign_const_type_annotation_multiple():
+    parsed = assert_ast_equals(
+        assign_code_const_type_annotation_multiple,
+        assign_result_const_type_annotation_multiple,
+    )
+    assert_is_const(parsed.body[0])
+    assert_is_const(parsed.body[1])
+
+
 code_stmt_assign_in_func = """
 def func(x: int = 1) {
     y = x;

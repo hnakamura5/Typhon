@@ -85,7 +85,7 @@ fstring[ast.Expr]: star_expressions
 
 statements[list]: a=statement+ { list(itertools.chain.from_iterable(a)) }
 
-statement[list]: a=compound_stmt NEWLINE* { [a] } | a=simple_stmts NEWLINE* { a }
+statement[list]: a=expansive_stmt NEWLINE* { a } | a=compound_stmt NEWLINE* { [a] } | a=simple_stmts NEWLINE* { a }
 
 statement_newline[list]:
     | a=compound_stmt NEWLINE { [a] }
@@ -100,7 +100,6 @@ simple_stmts[list]:
 # NOTE: assignment MUST precede expression, else parsing a simple assignment
 # will throw a SyntaxError.
 simple_stmt (memo):
-    | &('let'|'const') declaration_assignment
     | assignment
     | &"type" type_alias
     | e=star_expressions { ast.Expr(value=e, LOCATIONS) }
@@ -125,6 +124,10 @@ compound_stmt:
     | &'try' try_stmt
     | &'while' while_stmt
     | match_stmt
+
+# Statement expanded into several Python statements. Including single and compound.
+expansive_stmt[list]:
+    | &('let'|'const') a=declaration_assignment [';'] { a }
 
 # SIMPLE STATEMENTS
 # =================
@@ -197,7 +200,7 @@ augassign:
 
 # Typhon let/const declarations
 declaration_assignment:
-    | d=('let'|'const') a=simple_assignment { assign_as_declaration(d.string, a, LOCATIONS) }
+    | d=('let'|'const') a=','.simple_assignment+ { list(map(lambda a1: assign_as_declaration(d.string, a1, LOCATIONS), a)) }
 
 
 return_stmt[ast.Return]:
@@ -885,7 +888,7 @@ type_param_bound: ":" e=expression { e }
 # -----------
 
 expressions:
-    | a=expression b=(',' c=expression { c })+ [','] {
+    | '(' a=expression b=(',' c=expression { c })+ [','] ')' {
         ast.Tuple(elts=[a] + b, ctx=Load, LOCATIONS) }
     | a=expression ',' { ast.Tuple(elts=[a], ctx=Load, LOCATIONS) }
     | expression
@@ -904,9 +907,9 @@ yield_expr:
     | 'yield' a=[star_expressions] { ast.Yield(value=a, LOCATIONS) }
 
 star_expressions:
-    | a=star_expression b=(',' c=star_expression { c })+ [','] {
+    | '(' a=star_expression b=(',' c=star_expression { c })+ [','] ')' {
         ast.Tuple(elts=[a] + b, ctx=Load, LOCATIONS) }
-    | a=star_expression ',' { ast.Tuple(elts=[a], ctx=Load, LOCATIONS) }
+    | '(' a=star_expression ',' ')' { ast.Tuple(elts=[a], ctx=Load, LOCATIONS) }
     | star_expression
 
 star_expression (memo):

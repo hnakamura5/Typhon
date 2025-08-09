@@ -15,6 +15,15 @@ def assert_ast_equals(typhon_code: str, python_code: str) -> ast.Module:
     return parsed
 
 
+def assert_ast_error(typhon_code: str, error_message: str = ""):
+    # TODO: Support error type
+    try:
+        parse_string(typhon_code, mode="exec", verbose=True)
+        assert False, f"Expected error: {error_message}"
+    except Exception:
+        pass
+
+
 def show_token(source: str):
     import io
     from pegen.tokenizer import Tokenizer

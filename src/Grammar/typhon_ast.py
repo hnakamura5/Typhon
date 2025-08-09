@@ -14,14 +14,18 @@ from typing import Union
 # directly to distinguish nodes.
 
 
+def is_decl_stmt(node: ast.AST) -> bool:
+    return isinstance(node, (ast.Assign, ast.AnnAssign))
+
+
 def is_let_assign(node: ast.AST) -> bool:
-    if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+    if not is_decl_stmt(node):
         return False
     return getattr(node, "is_let", False)
 
 
 def is_const_assign(node: ast.AST) -> bool:
-    if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+    if not is_decl_stmt(node):
         return False
     return getattr(node, "is_const", False)
 
