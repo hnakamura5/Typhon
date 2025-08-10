@@ -17,7 +17,7 @@ from typing import (
 from pegen.tokenizer import Tokenizer
 
 from .typhon_ast import (
-    assign_as_declaration
+    assign_as_declaration, withitem_from_assignment
 )
 from .parser_helper import Parser, Load, Store, Del
 
@@ -511,24 +511,10 @@ for_stmt[Union[ast.For, ast.AsyncFor]]:
 
 with_stmt[Union[ast.With, ast.AsyncWith]]:
     | invalid_with_stmt_indent
-    | 'with' '(' a=','.with_item+ ','? ')' ':' b=block {
-        self.check_version(
-           (3, 9),
-           "Parenthesized with items",
-            ast.With(items=a, body=b, LOCATIONS)
-        )
-     }
-    | 'with' a=','.with_item+ ':' tc=[TYPE_COMMENT] b=block {
+    | 'with' '(' a=';'.with_item+ [';'] ')' tc=[TYPE_COMMENT] b=block {
         ast.With(items=a, body=b, type_comment=tc, LOCATIONS)
      }
-    | 'async' 'with' '(' a=','.with_item+ ','? ')' ':' b=block {
-       self.check_version(
-           (3, 9),
-           "Parenthesized with items",
-           ast.AsyncWith(items=a, body=b, LOCATIONS)
-        )
-     }
-    | 'async' 'with' a=','.with_item+ ':' tc=[TYPE_COMMENT] b=block {
+    | 'async' 'with' '(' a=';'.with_item+ [';'] ')' tc=[TYPE_COMMENT] b=block {
        self.check_version(
            (3, 5),
            "Async with statements are",
@@ -538,8 +524,8 @@ with_stmt[Union[ast.With, ast.AsyncWith]]:
     | invalid_with_stmt
 
 with_item[ast.withitem]:
-    | e=expression 'as' t=star_target &(',' | ')' | ':') {
-        ast.withitem(context_expr=e, optional_vars=t)
+    | a=assignment &(',' | ')' | ':') {
+        withitem_from_assignment(a)
      }
     | invalid_with_item
     | e=expression { ast.withitem(context_expr=e, optional_vars=None) }
