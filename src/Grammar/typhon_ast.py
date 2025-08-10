@@ -1,6 +1,7 @@
 # Ast Extensions for Typhon
 
 import ast
+from typing import Union
 
 # Use isinstance checks to distinguish the type of assignments
 # Normal assignments, let assignments for variable definitions
@@ -50,3 +51,23 @@ class TypeExpr(ast.expr):
 
     def __repr__(self):
         return f"TypeExpr-{super().__repr__()}"
+
+
+def set_type_annotation(node: ast.AST, type_node: ast.expr):
+    setattr(node, "type_annotation", type_node)
+
+
+def get_type_annotation(node: ast.AST):
+    return getattr(node, "type_annotation")
+
+
+def withitem_from_assignment(assign: Union[ast.Assign, ast.AnnAssign]):
+    if isinstance(assign, ast.Assign):
+        # TODO when assignment target has several target?
+        return ast.withitem(context_expr=assign.value, optional_vars=assign.targets[0])
+    else:
+        if not assign.value:
+            raise (SyntaxError)  # TODO: what message?
+        result = ast.withitem(context_expr=assign.value, optional_vars=assign.target)
+        set_type_annotation(result, assign.annotation)
+        return result
