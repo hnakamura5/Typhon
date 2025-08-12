@@ -18,25 +18,27 @@ from pegen.tokenizer import Tokenizer
 
 from .typhon_ast import (
     LetAssign, LetAnnAssign, ConstAssign, ConstAnnAssign, TypeExpr,
-    withitem_from_assignment
+    withitem_from_assignment, make_function_literal
 )
 from .parser_helper import Parser, Load, Store, Del
+from .tokenizer_custom import token_stream_factory
 
 def parse_file(
     path: str,
     py_version: Optional[tuple]=None,
-    token_stream_factory: Optional[
-        Callable[[Callable[[], str]], Iterator[tokenize.TokenInfo]]
-    ] = None,
+    # token_stream_factory: Optional[
+    #     Callable[[Callable[[], str]], Iterator[tokenize.TokenInfo]]
+    # ] = None,
     verbose:bool = False,
 ) -> ast.Module:
     """Parse a file."""
     with open(path) as f:
-        tok_stream = (
-            token_stream_factory(f.readline)
-            if token_stream_factory else
-            tokenize.generate_tokens(f.readline)
-        )
+        # tok_stream = (
+        #     token_stream_factory(f.readline)
+        #     if token_stream_factory else
+        #     tokenize.generate_tokens(f.readline)
+        # )
+        tok_stream = token_stream_factory(f.readline)
         tokenizer = Tokenizer(tok_stream, verbose=verbose, path=path)
         parser = TyphonParser(
             tokenizer,
@@ -51,17 +53,18 @@ def parse_string(
     source: str,
     mode: Union[Literal["eval"], Literal["exec"]],
     py_version: Optional[tuple]=None,
-    token_stream_factory: Optional[
-        Callable[[Callable[[], str]], Iterator[tokenize.TokenInfo]]
-    ] = None,
+    # token_stream_factory: Optional[
+    #     Callable[[Callable[[], str]], Iterator[tokenize.TokenInfo]]
+    # ] = None,
     verbose:bool = False,
 ) -> Any:
     """Parse a string."""
-    tok_stream = (
-        token_stream_factory(io.StringIO(source).readline)
-        if token_stream_factory else
-        tokenize.generate_tokens(io.StringIO(source).readline)
-    )
+    # tok_stream = (
+    #     token_stream_factory(io.StringIO(source).readline)
+    #     if token_stream_factory else
+    #     tokenize.generate_tokens(io.StringIO(source).readline)
+    # )
+    tok_stream = token_stream_factory(io.StringIO(source).readline)
     tokenizer = Tokenizer(tok_stream, verbose=verbose)
     parser = TyphonParser(tokenizer, verbose=verbose, py_version=py_version)
     return parser.parse(mode if mode == "eval" else "file")
@@ -1088,7 +1091,7 @@ atom:
         if sys.version_info >= (3, 9) else
         ast.Constant(value=ast.literal_eval(a.string), kind=None, LOCATIONS)
      }
-    | &'(' (tuple | group | genexp)
+    | &'(' (function_literal | tuple | group | genexp)
     | &'[' (list | listcomp)
     | &'{' (dict | set | dictcomp | setcomp)
     | '...' {
@@ -1168,6 +1171,9 @@ lambda_param[ast.arg]: a=NAME {
     if sys.version_info >= (3, 9) else
     ast.arg(arg=a.string, annotation=None, type_comment=None, LOCATIONS)
  }
+
+function_literal:
+    | '(' p=params ')' a=['->' z=expression { z }] '=>' ~ b=(block | expression) { make_function_literal(args=p, returns=a, body=b, LOCATIONS) }
 
 # LITERALS
 # ========

@@ -1,5 +1,6 @@
 {
   "[python]": {
+    "editor.tabSize": 4,
     "editor.formatOnSave": true,
     "editor.formatOnSaveMode": "file",
     "editor.defaultFormatter": "charliermarsh.ruff",
