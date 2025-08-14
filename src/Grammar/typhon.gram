@@ -450,8 +450,8 @@ param: a=NAME b=annotation? { ast.arg(arg=a.string, annotation=b, LOCATIONS) }
 param_star_annotation: a=NAME b=star_annotation {
     ast.arg(arg=a.string, annotations=b, LOCATIONS)
  }
-annotation: ':' a=expression { a }
-star_annotation: ':' a=star_expression { a }
+annotation: ':' a=typing_expression { a }
+star_annotation: ':' a=typing_star_expression { a }
 default: '=' a=expression { a } | invalid_default
 
 # If statement
@@ -787,7 +787,7 @@ keyword_pattern:
 # ---------------
 
 type_alias["ast.TypeAlias"]:
-    | "type" n=NAME t=[type_params] '=' b=expression {
+    | "type" n=NAME t=[type_params] '=' b=typing_expression {
         self.check_version(
             (3, 12),
             "Type statement is",
@@ -830,7 +830,7 @@ type_param (memo):
         if sys.version_info >= (3, 12)
         else object()
      }
-    | '*' a=NAME colon=":" e=expression {
+    | '*' a=NAME colon=":" e=typing_expression {
         self.raise_syntax_error_starting_from(
             "cannot use constraints with TypeVarTuple"
             if isinstance(e, ast.Tuple)
@@ -843,7 +843,7 @@ type_param (memo):
         if sys.version_info >= (3, 12)
         else object()
      }
-    | '**' a=NAME colon=":" e=expression {
+    | '**' a=NAME colon=":" e=typing_expression {
         self.raise_syntax_error_starting_from(
             "cannot use constraints with ParamSpec"
             if isinstance(e, ast.Tuple)
@@ -857,7 +857,49 @@ type_param (memo):
         else object()
      }
 
-type_param_bound: ":" e=expression { e }
+type_param_bound: ":" e=typing_expression { e }
+
+# TYPING EXPRESSION (EXPRESSION without 'in', 'is', 'lambda').
+typing_star_expression (memo):
+    | '*' a=bitwise_or { ast.Starred(value=a, ctx=Load, LOCATIONS) }
+    | typing_expression
+
+typing_expression (memo):
+    | invalid_expression
+    | invalid_legacy_expression
+    | a=typing_disjunction 'if' b=typing_disjunction 'else' c=typing_expression {
+        ast.IfExp(body=a, test=b, orelse=c, LOCATIONS)
+     }
+    | typing_disjunction
+    # TODO: Function arrow type
+    | typing_expression '->' typing_expression
+
+typing_disjunction (memo):
+    | a=typing_conjunction b=('or' c=typing_conjunction { c })+ { ast.BoolOp(op=ast.Or(), values=[a] + b, LOCATIONS) }
+    | typing_conjunction
+
+typing_conjunction (memo):
+    | a=typing_inversion b=('and' c=typing_inversion { c })+ { ast.BoolOp(op=ast.And(), values=[a] + b, LOCATIONS) }
+    | typing_inversion
+
+typing_inversion (memo):
+    | 'not' a=typing_inversion { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
+    | typing_comparison
+
+typing_comparison:
+    | a=bitwise_or b=typing_compare_op_bitwise_or_pair+ {
+        ast.Compare(left=a, ops=self.get_comparison_ops(b), comparators=self.get_comparators(b), LOCATIONS)
+     }
+    | bitwise_or
+
+typing_compare_op_bitwise_or_pair:
+    | eq_bitwise_or
+    | noteq_bitwise_or
+    | lte_bitwise_or
+    | lt_bitwise_or
+    | gte_bitwise_or
+    | gt_bitwise_or
+    # No is_bitwise_or nor in_bitwise_or
 
 # EXPRESSIONS
 # -----------
