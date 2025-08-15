@@ -1,7 +1,7 @@
 # Ast Extensions for Typhon
 
 import ast
-from typing import Union, Unpack, TypedDict
+from typing import Union, Unpack, TypedDict, Tuple
 
 # Normal assignments, let assignments for variable declarations,
 # and constant assignments for constant definitions.
@@ -155,3 +155,43 @@ def make_function_literal(
     name = ast.Name(func_id, **kwargs)
     set_function_literal_def(name, func_def)
     return name
+
+
+def is_function_type(node: ast.Name) -> bool:
+    return getattr(node, "arg_types", None) is not None
+
+
+def get_args_of_function_type(node: ast.Name) -> list[ast.arg]:
+    return getattr(node, "arg_types")
+
+
+def set_args_of_function_type(node: ast.Name, args: list[ast.arg]):
+    setattr(node, "arg_types", args)
+
+
+def get_star_arg_of_function_type(node: ast.Name) -> ast.arg | None:
+    return getattr(node, "star_arg", None)
+
+
+def set_star_arg_of_function_type(node: ast.Name, star_arg: ast.arg):
+    setattr(node, "star_arg", star_arg)
+
+
+def get_star_kwds_of_function_type(node: ast.Name) -> ast.arg | None:
+    return getattr(node, "star_kwds", None)
+
+
+def set_star_kwds_of_function_type(node: ast.Name, star_kwds: ast.arg):
+    setattr(node, "star_kwds", star_kwds)
+
+
+def make_arrow_type(
+    args: list[ast.arg], star_etc: Tuple[ast.arg, ast.arg] | None, returns: ast.expr
+) -> ast.expr:
+    # TODO: temporal name
+    result = ast.Name("arrow_type")
+    set_args_of_function_type(result, args)
+    if star_etc:
+        set_star_arg_of_function_type(result, star_etc[0])
+        set_star_kwds_of_function_type(result, star_etc[1])
+    return result
