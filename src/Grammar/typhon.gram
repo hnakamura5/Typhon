@@ -18,7 +18,7 @@ from pegen.tokenizer import Tokenizer
 
 from .typhon_ast import (
     LetAssign, LetAnnAssign, ConstAssign, ConstAnnAssign, TypeExpr,
-    withitem_from_assignment, make_function_literal
+    withitem_from_assignment, make_function_literal, make_arrow_type
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory
@@ -134,7 +134,7 @@ compound_stmt:
 
 # NOTE: annotated_rhs may start with 'yield'; yield_expr must start with 'yield'
 assignment:
-    | a=NAME ':' b=expression c=['=' d=annotated_rhs { d }] {
+    | a=NAME ':' b=typing_expression c=['=' d=annotated_rhs { d }] {
         self.check_version(
             (3, 6),
             "Variable annotation syntax is",
@@ -154,7 +154,7 @@ assignment:
             )
         ) }
     | a=('(' b=single_target ')' { b }
-         | single_subscript_attribute_target) ':' b=expression c=['=' d=annotated_rhs { d }] {
+         | single_subscript_attribute_target) ':' b=typing_expression c=['=' d=annotated_rhs { d }] {
         self.check_version(
             (3, 6),
             "Variable annotation syntax is",
@@ -867,12 +867,11 @@ typing_star_expression (memo):
 typing_expression (memo):
     | invalid_expression
     | invalid_legacy_expression
+    | typing_arrow_type
     | a=typing_disjunction 'if' b=typing_disjunction 'else' c=typing_expression {
         ast.IfExp(body=a, test=b, orelse=c, LOCATIONS)
      }
     | typing_disjunction
-    # TODO: Function arrow type
-    | typing_expression '->' typing_expression
 
 typing_disjunction (memo):
     | a=typing_conjunction b=('or' c=typing_conjunction { c })+ { ast.BoolOp(op=ast.Or(), values=[a] + b, LOCATIONS) }
@@ -900,6 +899,30 @@ typing_compare_op_bitwise_or_pair:
     | gte_bitwise_or
     | gt_bitwise_or
     # No is_bitwise_or nor in_bitwise_or
+
+typing_arrow_param_annot_or_type[ast.arg]:
+    | a=NAME b=annotation { ast.arg(arg=a.string, annotation=b, LOCATIONS) }
+    | b=typing_expression {ast.arg(arg="", annotation=b, LOCATIONS)}
+
+typing_arrow_param[ast.arg]:
+    | a=typing_arrow_param_annot_or_type ',' { a }
+    | a=typing_arrow_param_annot_or_type &')' { a }
+
+typing_arrow_kwds[ast.arg]:
+    | '**' a=typing_arrow_param { a }
+
+typing_arrow_param_star_annotation:
+    | a=param_star_annotation ',' tc=TYPE_COMMENT? { self.set_arg_type_comment(a, tc) }
+    | a=param_star_annotation tc=TYPE_COMMENT? &')' { self.set_arg_type_comment(a, tc) }
+
+typing_arrow_star_etc[Tuple[ast.arg, ast.arg]]:
+    | '*' a=typing_arrow_param c=[typing_arrow_kwds] { (a,c) }
+    | '*' a=typing_arrow_param_star_annotation c=[typing_arrow_kwds] { (a,c) }
+
+typing_arrow_type[ast.expr]:
+    | '(' a=typing_arrow_param* c=[typing_arrow_star_etc] ')' '->' ~ r=typing_expression {
+        make_arrow_type(a, c, r)
+    }
 
 # EXPRESSIONS
 # -----------
