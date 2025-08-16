@@ -521,13 +521,13 @@ with_item[ast.withitem]:
 
 try_stmt[ast.Try]:
     | invalid_try_stmt
-    | 'try' &&':' b=block f=finally_block {
+    | 'try' b=block f=finally_block {
         ast.Try(body=b, handlers=[], orelse=[], finalbody=f, LOCATIONS)
      }
-    | 'try' &&':' b=block ex=except_block+ el=[else_block] f=[finally_block] {
+    | 'try' b=block ex=except_block+ el=[else_block] f=[finally_block] {
         ast.Try(body=b, handlers=ex, orelse=el or [], finalbody=f or [], LOCATIONS)
      }
-    | 'try' &&':' b=block ex=except_star_block+ el=[else_block] f=[finally_block] {
+    | 'try' b=block ex=except_star_block+ el=[else_block] f=[finally_block] {
         self.check_version(
             (3, 11),
             "Exception groups are",
@@ -544,19 +544,19 @@ try_stmt[ast.Try]:
 
 except_block[ast.ExceptHandler]:
     | invalid_except_stmt_indent
-    | 'except' e=expression t=['as' z=NAME { z.string }] ':' b=block {
-        ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS) }
-    | 'except' ':' b=block { ast.ExceptHandler(type=None, name=None, body=b, LOCATIONS) }
+    | 'except' '(' t=NAME e=annotation ')' b=block {
+        ast.ExceptHandler(type=e, name=t.string, body=b, LOCATIONS) }
+    | 'except' b=block { ast.ExceptHandler(type=None, name=None, body=b, LOCATIONS) }
     | invalid_except_stmt
 except_star_block[ast.ExceptHandler]:
     | invalid_except_star_stmt_indent
-    | 'except' '*' e=expression t=['as' z=NAME { z.string }] ':' b=block {
-        ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS)
+    | 'except' '*' '(' t=NAME e=annotation')' b=block {
+        ast.ExceptHandler(type=e, name=t.string, body=b, LOCATIONS)
      }
     | invalid_except_stmt
 finally_block[list]:
     | invalid_finally_stmt
-    | 'finally' &&':' a=block { a }
+    | 'finally' a=block { a }
 
 # Match statement
 # ---------------
