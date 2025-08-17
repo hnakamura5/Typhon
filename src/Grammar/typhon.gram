@@ -125,9 +125,12 @@ compound_stmt:
     | &'while' while_stmt
     | match_stmt
 
+
+decl_keyword: 'let' | 'const'
+
 # Statement expanded into several Python statements. Including single and compound.
 expansive_stmt[list]:
-    | &('let'|'const') a=declaration_assignment [';'] { a }
+    | &decl_keyword a=declaration_assignment [';'] { a }
 
 # SIMPLE STATEMENTS
 # =================
@@ -200,7 +203,7 @@ augassign:
 
 # Typhon let/const declarations
 declaration_assignment:
-    | d=('let'|'const') a=','.simple_assignment+ { list(map(lambda a1: assign_as_declaration(d.string, a1, LOCATIONS), a)) }
+    | d=decl_keyword a=','.simple_assignment+ { list(map(lambda a1: assign_as_declaration(d.string, a1, LOCATIONS), a)) }
 
 
 return_stmt[ast.Return]:

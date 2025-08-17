@@ -20,8 +20,8 @@ Also, small design changes are included.
   The place we can write type annotations is expanded beyond the limit of Python [PEP 526](https://peps.python.org/pep-0526/#specification). TODO
 
 - Function Types
-  `(T1, T2)=>R` is syntax sugar of `Callable[[T1, T2], R]`.
-  such as `(x1: T1, x2: T2) => R` is syntax sugar of `Protocol` subtype.
+  `(T1, T2)->R` is syntax sugar of `Callable[[T1, T2], R]`.
+  such as `(x1: T1, x2: T2) -> R` is syntax sugar of `Protocol` subtype.
   ```python
   class MyProtocol(Protocol):
       def __call__(self, x1: T1, x2: T2) -> R: ...
