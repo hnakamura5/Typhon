@@ -261,7 +261,7 @@ dotted_name[str]:
 # ---------------
 
 block[list] (memo):
-    | '{' a=statements* '}' { a if len(a) > 0 else [ast.Pass(LOCATIONS)]  }
+    | NEWLINE* '{' a=statements* '}' { a if len(a) > 0 else [ast.Pass(LOCATIONS)]  }
     | invalid_block
 
 decorators: decorator+
@@ -320,7 +320,7 @@ function_def[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
 
 function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
     | invalid_def_raw
-    | 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] tc=[func_type_comment] NEWLINE* b=block {
+    | 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] tc=[func_type_comment] b=block {
         (
             ast.FunctionDef(
                 name=n.string,
@@ -341,7 +341,7 @@ function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
             )
         )
      }
-    | 'async' 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] tc=[func_type_comment] NEWLINE* b=block {
+    | 'async' 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] tc=[func_type_comment] b=block {
        (
             self.check_version(
                 (3, 5),
@@ -564,7 +564,7 @@ finally_block[list]:
 # We cannot do version checks here since the production will occur after any other
 # production which will have failed since the ast module does not have the right nodes.
 match_stmt["ast.Match"]:
-    | "match" subject=subject_expr ':' NEWLINE INDENT cases=case_block+ DEDENT {
+    | "match" '(' subject=subject_expr ')' NEWLINE* '{' cases=case_block+  '}' {
         ast.Match(subject=subject, cases=cases, LOCATIONS)
      }
     | invalid_match_stmt
@@ -582,11 +582,11 @@ subject_expr:
 
 case_block["ast.match_case"]:
     | invalid_case_block
-    | "case" pattern=patterns guard=guard? ':' body=block {
+    | "case" '(' pattern=patterns ')' guard=guard?  body=block {
         ast.match_case(pattern=pattern, guard=guard, body=body)
      }
 
-guard: 'if' guard=named_expression { guard }
+guard: 'if' '(' guard=named_expression ')' { guard }
 
 patterns:
     | patterns=open_sequence_pattern {
