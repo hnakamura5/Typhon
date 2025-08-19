@@ -305,7 +305,7 @@ class_def[ast.ClassDef]:
 
 class_def_raw[ast.ClassDef]:
     | invalid_class_def_raw
-    | 'class' a=NAME t=[type_params] b=['(' z=[arguments] ')' { z }] &&':' c=block {
+    | 'class' a=NAME t=[type_params] b=['(' z=[arguments] ')' { z }] c=block {
         (
             ast.ClassDef(
                 a.string,
