@@ -17,7 +17,7 @@ from typing import (
 from pegen.tokenizer import Tokenizer
 
 from .typhon_ast import (
-    assign_as_declaration, withitem_from_assignment, make_function_literal, make_arrow_type
+    assign_as_declaration, make_function_literal, make_arrow_type,  declaration_as_withitem
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory
@@ -515,23 +515,21 @@ for_stmt[Union[ast.For, ast.AsyncFor]]:
 with_stmt[Union[ast.With, ast.AsyncWith]]:
     | invalid_with_stmt_indent
     | 'with' '(' a=';'.with_item+ [';'] ')' tc=[TYPE_COMMENT] b=block {
-        ast.With(items=a, body=b, type_comment=tc, LOCATIONS)
+        ast.With(items=sum(a, []), body=b, type_comment=tc, LOCATIONS)
      }
     | 'async' 'with' '(' a=';'.with_item+ [';'] ')' tc=[TYPE_COMMENT] b=block {
        self.check_version(
            (3, 5),
            "Async with statements are",
-           ast.AsyncWith(items=a, body=b, type_comment=tc, LOCATIONS)
+           ast.AsyncWith(items=sum(a, []), body=b, type_comment=tc, LOCATIONS)
         )
      }
     | invalid_with_stmt
 
-with_item[ast.withitem]:
-    | a=assignment &(',' | ')' | ':') {
-        withitem_from_assignment(a)
-     }
+with_item[list[ast.withitem]]:
+    | a=declaration_assignment &(',' | ')' | ';') { list(map(declaration_as_withitem, a)) }
     | invalid_with_item
-    | e=expression { ast.withitem(context_expr=e, optional_vars=None) }
+    | e=expression { [ast.withitem(context_expr=e, optional_vars=None)] }
 
 # Try statement
 # -------------

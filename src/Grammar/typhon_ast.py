@@ -18,10 +18,21 @@ def is_decl_stmt(node: ast.AST) -> bool:
     return isinstance(node, (ast.Assign, ast.AnnAssign))
 
 
+DeclarationType = Union[ast.Assign, ast.AnnAssign, ast.withitem]
+
+
+def is_let(node: DeclarationType) -> bool:
+    return getattr(node, "is_let", False)
+
+
 def is_let_assign(node: ast.AST) -> bool:
     if not is_decl_stmt(node):
         return False
     return getattr(node, "is_let", False)
+
+
+def is_const(node: DeclarationType) -> bool:
+    return getattr(node, "is_const", False)
 
 
 def is_const_assign(node: ast.AST) -> bool:
@@ -35,12 +46,19 @@ def is_decl_assign(node: ast.AST) -> bool:
     return is_let_assign(node) or is_const_assign(node)
 
 
-def _set_is_let(node: Union[ast.Assign, ast.AnnAssign]):
+def _set_is_let(node: DeclarationType):
     setattr(node, "is_let", True)
 
 
-def _set_is_const(node: Union[ast.Assign, ast.AnnAssign]):
+def _set_is_const(node: DeclarationType):
     setattr(node, "is_const", True)
+
+
+def copy_is_let_const(src: DeclarationType, dest: DeclarationType) -> None:
+    if is_let_assign(src):
+        _set_is_let(dest)
+    if is_const_assign(src):
+        _set_is_const(dest)
 
 
 def assign_as_declaration(
@@ -50,7 +68,7 @@ def assign_as_declaration(
     col_offset: int,
     end_lineno: int,
     end_col_offset: int,
-) -> ast.AST:
+) -> Union[ast.Assign, ast.AnnAssign]:
     if isinstance(assign, ast.AnnAssign):
         result = ast.AnnAssign(
             target=assign.target,
@@ -81,15 +99,6 @@ def assign_as_declaration(
     return result
 
 
-class TypeExpr(ast.expr):
-    """
-    Represents a type in Typhon. Originally type is represented as ast.expr in Python,
-    """
-
-    def __repr__(self):
-        return f"TypeExpr-{super().__repr__()}"
-
-
 def set_type_annotation(node: ast.AST, type_node: ast.expr):
     setattr(node, "type_annotation", type_node)
 
@@ -98,16 +107,19 @@ def get_type_annotation(node: ast.AST):
     return getattr(node, "type_annotation")
 
 
-def withitem_from_assignment(assign: Union[ast.Assign, ast.AnnAssign]) -> ast.withitem:
+def declaration_as_withitem(assign: Union[ast.Assign, ast.AnnAssign]) -> ast.withitem:
     if isinstance(assign, ast.Assign):
         # TODO when assignment target has several target?
-        return ast.withitem(context_expr=assign.value, optional_vars=assign.targets[0])
+        item = ast.withitem(context_expr=assign.value, optional_vars=assign.targets[0])
+        copy_is_let_const(assign, item)
+        return item
     else:
         if not assign.value:
             raise (SyntaxError)  # TODO: what message?
-        result = ast.withitem(context_expr=assign.value, optional_vars=assign.target)
-        set_type_annotation(result, assign.annotation)
-        return result
+        item = ast.withitem(context_expr=assign.value, optional_vars=assign.target)
+        set_type_annotation(item, assign.annotation)
+        copy_is_let_const(assign, item)
+        return item
 
 
 class PosAttributes(TypedDict):
