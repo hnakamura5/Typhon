@@ -17,7 +17,7 @@ from typing import (
 from pegen.tokenizer import Tokenizer
 
 from .typhon_ast import (
-    assign_as_declaration, make_function_literal, make_arrow_type,  declaration_as_withitem
+    assign_as_declaration, make_function_literal, make_arrow_type,  declaration_as_withitem, make_for_stmt,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory
@@ -500,13 +500,12 @@ while_stmt[ast.While]:
 
 for_stmt[Union[ast.For, ast.AsyncFor]]:
     | invalid_for_stmt
-    | 'for' '(' t=star_targets 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] b=block el=[else_block] {
-        ast.For(target=t, iter=ex, body=b, orelse=el or [], type_comment=tc, LOCATIONS) }
-    | 'async' 'for' '(' t=star_targets 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] b=block el=[else_block] {
-        self.check_version(
-            (3, 5),
-            "Async for loops are",
-            ast.AsyncFor(target=t, iter=ex, body=b, orelse=el or [], type_comment=tc, LOCATIONS)) }
+    | 'for' '(' d=decl_keyword t=star_targets a=[star_annotation] 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] b=block el=[else_block] {
+        make_for_stmt(decl_type=d.string, target=t, type_annotation=a, iter=ex, body=b, orelse=el or [], type_comment=tc, is_async=False, LOCATIONS)
+    }
+    | 'async' 'for' '(' d=decl_keyword t=star_targets a=[star_annotation] 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] b=block el=[else_block] {
+        make_for_stmt(decl_type=d.string, target=t, type_annotation=a, iter=ex, body=b, orelse=el or [], type_comment=tc, is_async=True, LOCATIONS)
+    }
     | invalid_for_target
 
 # With statement

@@ -18,10 +18,12 @@ def is_decl_stmt(node: ast.AST) -> bool:
     return isinstance(node, (ast.Assign, ast.AnnAssign))
 
 
-DeclarationType = Union[ast.Assign, ast.AnnAssign, ast.withitem]
+type DeclarableStmt = Union[
+    ast.Assign, ast.AnnAssign, ast.withitem, ast.For, ast.AsyncFor
+]
 
 
-def is_let(node: DeclarationType) -> bool:
+def is_let(node: DeclarableStmt) -> bool:
     return getattr(node, "is_let", False)
 
 
@@ -31,7 +33,7 @@ def is_let_assign(node: ast.AST) -> bool:
     return getattr(node, "is_let", False)
 
 
-def is_const(node: DeclarationType) -> bool:
+def is_const(node: DeclarableStmt) -> bool:
     return getattr(node, "is_const", False)
 
 
@@ -46,15 +48,24 @@ def is_decl_assign(node: ast.AST) -> bool:
     return is_let_assign(node) or is_const_assign(node)
 
 
-def _set_is_let(node: DeclarationType):
+def _set_is_let(node: DeclarableStmt):
     setattr(node, "is_let", True)
 
 
-def _set_is_const(node: DeclarationType):
+def _set_is_const(node: DeclarableStmt):
     setattr(node, "is_const", True)
 
 
-def copy_is_let_const(src: DeclarationType, dest: DeclarationType) -> None:
+def _set_is_let_const(node: DeclarableStmt, decl_type: str):
+    if decl_type == "let":
+        _set_is_let(node)
+    elif decl_type == "const":
+        _set_is_const(node)
+    else:
+        raise ValueError(f"Unknown declaration type: {decl_type}")
+
+
+def copy_is_let_const(src: DeclarableStmt, dest: DeclarableStmt) -> None:
     if is_let_assign(src):
         _set_is_let(dest)
     if is_const_assign(src):
@@ -90,21 +101,16 @@ def assign_as_declaration(
             end_lineno=end_lineno,
             end_col_offset=end_col_offset,
         )
-    if decl_type == "let":
-        _set_is_let(result)
-    elif decl_type == "const":
-        _set_is_const(result)
-    else:
-        raise ValueError(f"Unknown declaration type: {decl_type}")
+    _set_is_let_const(result, decl_type)
     return result
 
 
-def set_type_annotation(node: ast.AST, type_node: ast.expr):
+def set_type_annotation(node: ast.AST, type_node: ast.expr | None) -> None:
     setattr(node, "type_annotation", type_node)
 
 
-def get_type_annotation(node: ast.AST):
-    return getattr(node, "type_annotation")
+def get_type_annotation(node: ast.AST) -> ast.expr | None:
+    return getattr(node, "type_annotation", None)
 
 
 def declaration_as_withitem(assign: Union[ast.Assign, ast.AnnAssign]) -> ast.withitem:
@@ -129,7 +135,11 @@ class PosAttributes(TypedDict):
     end_col_offset: int | None
 
 
-def get_function_literal_def(name: ast.Name) -> ast.FunctionDef:
+# Use Name as a function literal. Replaced to name of FunctionDef.
+type FunctionLiteral = ast.Name
+
+
+def get_function_literal_def(name: FunctionLiteral) -> ast.FunctionDef:
     return getattr(name, "func_def")
 
 
@@ -137,7 +147,7 @@ def is_function_literal(name: ast.Name) -> bool:
     return getattr(name, "func_def", None) is not None
 
 
-def set_function_literal_def(name: ast.Name, func_def: ast.FunctionDef):
+def set_function_literal_def(name: FunctionLiteral, func_def: ast.FunctionDef):
     setattr(name, "func_def", func_def)
 
 
@@ -146,7 +156,7 @@ def make_function_literal(
     returns: ast.expr,
     body: Union[list[ast.stmt], ast.expr],
     **kwargs: Unpack[PosAttributes],
-) -> ast.Name:
+) -> FunctionLiteral:
     func_id = "temp"  # TODO: Get unique name
     body_stmts: list[ast.stmt]
     if isinstance(body, list):
@@ -169,37 +179,41 @@ def make_function_literal(
     return name
 
 
+# Use Name as a function type. Replaced to name of Protocol.
+type FunctionType = ast.Name
+
+
 def is_function_type(node: ast.Name) -> bool:
     return getattr(node, "arg_types", None) is not None
 
 
-def get_args_of_function_type(node: ast.Name) -> list[ast.arg]:
+def get_args_of_function_type(node: FunctionType) -> list[ast.arg]:
     return getattr(node, "arg_types")
 
 
-def set_args_of_function_type(node: ast.Name, args: list[ast.arg]):
+def set_args_of_function_type(node: FunctionType, args: list[ast.arg]):
     setattr(node, "arg_types", args)
 
 
-def get_star_arg_of_function_type(node: ast.Name) -> ast.arg | None:
+def get_star_arg_of_function_type(node: FunctionType) -> ast.arg | None:
     return getattr(node, "star_arg", None)
 
 
-def set_star_arg_of_function_type(node: ast.Name, star_arg: ast.arg):
+def set_star_arg_of_function_type(node: FunctionType, star_arg: ast.arg):
     setattr(node, "star_arg", star_arg)
 
 
-def get_star_kwds_of_function_type(node: ast.Name) -> ast.arg | None:
+def get_star_kwds_of_function_type(node: FunctionType) -> ast.arg | None:
     return getattr(node, "star_kwds", None)
 
 
-def set_star_kwds_of_function_type(node: ast.Name, star_kwds: ast.arg):
+def set_star_kwds_of_function_type(node: FunctionType, star_kwds: ast.arg):
     setattr(node, "star_kwds", star_kwds)
 
 
 def make_arrow_type(
     args: list[ast.arg], star_etc: Tuple[ast.arg, ast.arg] | None, returns: ast.expr
-) -> ast.expr:
+) -> FunctionType:
     # TODO: temporal name
     result = ast.Name("arrow_type")
     set_args_of_function_type(result, args)
@@ -207,3 +221,40 @@ def make_arrow_type(
         set_star_arg_of_function_type(result, star_etc[0])
         set_star_kwds_of_function_type(result, star_etc[1])
     return result
+
+
+def make_for_stmt(
+    decl_type: str,
+    target: ast.expr,
+    type_annotation: ast.expr | None,
+    iter: ast.expr,
+    body: list[ast.stmt],
+    orelse: list[ast.stmt] | None,
+    type_comment: str | None,
+    is_async: bool,
+    **kwargs: Unpack[PosAttributes],
+) -> Union[ast.For, ast.AsyncFor]:
+    if is_async:
+        result = ast.AsyncFor(
+            target=target,
+            iter=iter,
+            body=body,
+            orelse=orelse or [],
+            type_comment=type_comment,
+            **kwargs,
+        )
+        _set_is_let_const(result, decl_type)
+        set_type_annotation(result, type_annotation)
+        return result
+    else:
+        result = ast.For(
+            target=target,
+            iter=iter,
+            body=body,
+            orelse=orelse or [],
+            type_comment=type_comment,
+            **kwargs,
+        )
+        _set_is_let_const(result, decl_type)
+        set_type_annotation(result, type_annotation)
+        return result

@@ -1,4 +1,4 @@
-from .assertion_utils import assert_ast_equals
+from .assertion_utils import assert_ast_equals, assert_ast_type
 import ast
 from ...src.Grammar.typhon_ast import is_let, is_const
 
@@ -15,10 +15,8 @@ with open(name) as f:
 
 
 def test_stmt_with():
-    result = assert_ast_equals(code_with, result_with)
-    stmt = result.body[0]
-    assert isinstance(stmt, ast.With)
-    with_stmt: ast.With = stmt
+    parsed = assert_ast_equals(code_with, result_with)
+    with_stmt = assert_ast_type(parsed.body[0], ast.With)
     assert len(with_stmt.items) == 1
     item = with_stmt.items[0]
     assert is_const(item)
@@ -36,10 +34,8 @@ with open(name) as f:
 
 
 def test_stmt_with_let():
-    result = assert_ast_equals(code_with_let, result_with_let)
-    stmt = result.body[0]
-    assert isinstance(stmt, ast.With)
-    with_stmt: ast.With = stmt
+    parsed = assert_ast_equals(code_with_let, result_with_let)
+    with_stmt = assert_ast_type(parsed.body[0], ast.With)
     assert len(with_stmt.items) == 1
     item = with_stmt.items[0]
     assert is_let(item)
@@ -59,10 +55,8 @@ with open(name) as f, open(name2) as g:
 
 
 def test_stmt_with_multi_const():
-    result = assert_ast_equals(code_with_multi_const, result_with_multi_const)
-    stmt = result.body[0]
-    assert isinstance(stmt, ast.With)
-    with_stmt: ast.With = stmt
+    parsed = assert_ast_equals(code_with_multi_const, result_with_multi_const)
+    with_stmt = assert_ast_type(parsed.body[0], ast.With)
     assert len(with_stmt.items) == 2
     item1, item2 = with_stmt.items
     assert is_const(item1)
@@ -85,10 +79,8 @@ with open(name) as f, open(name2) as g, open(name3) as h:
 
 
 def test_stmt_with_multi_decl():
-    result = assert_ast_equals(code_with_multi_decl, result_with_multi_decl)
-    stmt = result.body[0]
-    assert isinstance(stmt, ast.With)
-    with_stmt: ast.With = stmt
+    parsed = assert_ast_equals(code_with_multi_decl, result_with_multi_decl)
+    with_stmt = assert_ast_type(parsed.body[0], ast.With)
     assert len(with_stmt.items) == 3
     item1, item2, item3 = with_stmt.items
     assert is_const(item1)
@@ -112,10 +104,8 @@ async with open(name) as f, open(name2) as g, open(name3) as h:
 
 
 def test_stmt_async_with():
-    result = assert_ast_equals(code_async_with, result_async_with)
-    stmt = result.body[0]
-    assert isinstance(stmt, ast.AsyncWith)
-    with_stmt: ast.AsyncWith = stmt
+    parsed = assert_ast_equals(code_async_with, result_async_with)
+    with_stmt = assert_ast_type(parsed.body[0], ast.AsyncWith)
     assert len(with_stmt.items) == 3
     item1, item2, item3 = with_stmt.items
     assert is_const(item1)

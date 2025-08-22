@@ -1,6 +1,7 @@
 import ast
 from ...src.Grammar.parser import parse_string
 import tokenize
+from typing import Type, Union
 
 
 def assert_token(token: tokenize.TokenInfo, type_: int, string: str):
@@ -22,6 +23,11 @@ def assert_ast_error(typhon_code: str, error_message: str = ""):
         assert False, f"Expected error: {error_message}"
     except Exception:
         pass
+
+
+def assert_ast_type[T](node: ast.AST, t: Type[T]) -> T:
+    assert isinstance(node, t), f"Expected {t}, got {type(node)}"
+    return node
 
 
 def show_token(source: str):
