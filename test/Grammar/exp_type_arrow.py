@@ -4,7 +4,7 @@ type_arrow_annot_code = """
 x: (int) -> int;
 """
 type_arrow_annot_result = """
-x: arrow_type
+x: __arrow_type
 """
 
 
@@ -17,7 +17,7 @@ type_arrow_param_annot_code = """
 a: (x: int, y: str) -> int;
 """
 type_arrow_param_annot_result = """
-a: arrow_type
+a: __arrow_type
 """
 
 
@@ -32,7 +32,7 @@ def h(x: int, f: (int) -> int) -> int {
 }
 """
 type_arrow_def_param_result = """
-def h(x: int, f: arrow_type) -> int:
+def h(x: int, f: __arrow_type) -> int:
     return f(x)
 """
 
@@ -48,7 +48,7 @@ f: (x: int) -> int = (x:int) -> int => {
 };
 """
 type_arrow_func_literal_result = """
-f: arrow_type = temp
+f: __arrow_type = __function_literal
 """
 
 

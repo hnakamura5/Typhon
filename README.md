@@ -30,6 +30,10 @@ Also, small design changes are included.
 - Assignment in with and except statement
   Apply normal assignment or declaration syntax to with and except. e.g. `with(const f=open(...)) {}`, `except(e: IOError){}`
 
+## Restriction
+
+- Identifier with prefix `_typh_` is all reserved.
+
 ## Bundled Libraries
 
 TBD

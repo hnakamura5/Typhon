@@ -1,5 +1,6 @@
 import ast
 from ...src.Grammar.parser import parse_string
+from ...src.Transform.transform import transform
 import tokenize
 from typing import Type, Union
 
@@ -14,6 +15,12 @@ def assert_ast_equals(typhon_code: str, python_code: str) -> ast.Module:
     assert isinstance(parsed, ast.Module)
     assert ast.unparse(parsed) == python_code.strip()
     return parsed
+
+
+def assert_transform_equals(typhon_ast: ast.Module, python_code: str):
+    assert isinstance(typhon_ast, ast.Module)
+    transform(typhon_ast)
+    assert ast.unparse(typhon_ast) == python_code.strip()
 
 
 def assert_ast_error(typhon_code: str, error_message: str = ""):

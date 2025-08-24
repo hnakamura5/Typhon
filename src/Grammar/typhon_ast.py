@@ -151,13 +151,18 @@ def set_function_literal_def(name: FunctionLiteral, func_def: ast.FunctionDef):
     setattr(name, "func_def", func_def)
 
 
+def clear_function_literal_def(name: FunctionLiteral):
+    if hasattr(name, "func_def"):
+        delattr(name, "func_def")
+
+
 def make_function_literal(
     args: ast.arguments,
     returns: ast.expr,
     body: Union[list[ast.stmt], ast.expr],
     **kwargs: Unpack[PosAttributes],
 ) -> FunctionLiteral:
-    func_id = "temp"  # TODO: Get unique name
+    func_id = "__function_literal"  # TODO: Get unique name
     body_stmts: list[ast.stmt]
     if isinstance(body, list):
         body_stmts = body
@@ -211,11 +216,20 @@ def set_star_kwds_of_function_type(node: FunctionType, star_kwds: ast.arg):
     setattr(node, "star_kwds", star_kwds)
 
 
+def clear_function_type(node: FunctionType):
+    if hasattr(node, "arg_types"):
+        delattr(node, "arg_types")
+    if hasattr(node, "star_arg"):
+        delattr(node, "star_arg")
+    if hasattr(node, "star_kwds"):
+        delattr(node, "star_kwds")
+
+
 def make_arrow_type(
     args: list[ast.arg], star_etc: Tuple[ast.arg, ast.arg] | None, returns: ast.expr
 ) -> FunctionType:
     # TODO: temporal name
-    result = ast.Name("arrow_type")
+    result = ast.Name("__arrow_type")
     set_args_of_function_type(result, args)
     if star_etc:
         set_star_arg_of_function_type(result, star_etc[0])
