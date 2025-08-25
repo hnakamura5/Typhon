@@ -162,7 +162,7 @@ def make_function_literal(
     body: Union[list[ast.stmt], ast.expr],
     **kwargs: Unpack[PosAttributes],
 ) -> FunctionLiteral:
-    func_id = "__function_literal"  # TODO: Get unique name
+    func_id = "__function_literal"  # TODO: Get unique name?
     body_stmts: list[ast.stmt]
     if isinstance(body, list):
         body_stmts = body

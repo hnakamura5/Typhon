@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any, Union, override
 import ast
 from ..Grammar.typhon_ast import (
     is_function_literal,
@@ -27,8 +27,8 @@ class TyphonASTVisitor(ast.NodeTransformer):
         self.parent_classes = []
         self.parent_functions = []
         self.name_gen = UniqueNameGenerator()
-        print(f"TyphonASTVisitor {super().__dict__}")
 
+    @override
     def visit(self, node: ast.AST) -> ast.AST | list[ast.AST] | None:
         if isinstance(node, ast.stmt):
             self.parent_stmts.append(node)
@@ -62,8 +62,8 @@ class TyphonASTVisitor(ast.NodeTransformer):
             return super().visit(node)
 
     def visit_FunctionLiteral(self, node: FunctionLiteral):
-        self.generic_visit(node)
         self.visit(get_function_literal_def(node))
+        self.generic_visit(node)
         return node
 
     def visit_FunctionType(self, node: FunctionType):

@@ -86,7 +86,7 @@ fstring[ast.Expr]: star_expressions
 # GENERAL STATEMENTS
 # ==================
 
-statements[list]: a=statement+ { list(itertools.chain.from_iterable(a)) }
+statements[list]: a=statement* { sum(a, []) }
 
 statement[list]: a=expansive_stmt NEWLINE* { a } | a=compound_stmt NEWLINE* { [a] } | a=simple_stmts NEWLINE* { a }
 
@@ -278,7 +278,7 @@ dotted_name[str]:
 # ---------------
 
 block[list] (memo):
-    | NEWLINE* '{' a=statements* '}' { a if len(a) > 0 else [ast.Pass(LOCATIONS)]  }
+    | NEWLINE* '{' a=statements* '}' { sum(a, []) if len(a) > 0 else [ast.Pass(LOCATIONS)]  }
     | invalid_block
 
 decorators: decorator+

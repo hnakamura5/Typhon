@@ -18,6 +18,9 @@ class _Gather(TyphonASTVisitor):
         self.func_literals.append((node, self.parent_stmts[-1]))
         return super().visit_FunctionLiteral(node)
 
+    def visit(self, node: ast.AST):
+        return super().visit(node)
+
 
 class _Transform(TyphonASTVisitor):
     func_literals: dict[FunctionLiteral, ast.stmt]
@@ -34,6 +37,7 @@ class _Transform(TyphonASTVisitor):
         self.def_for_literal = {}
 
     def visit(self, node: ast.AST):
+        print(f"_Transform visit: {node} {node.__dict__}")
         if isinstance(node, ast.stmt) and node in self.parent_stmts_for_literals:
             # Expand the def of function literals before the parent statement.
             result: list[ast.AST] = []
@@ -41,14 +45,15 @@ class _Transform(TyphonASTVisitor):
                 func_def = get_function_literal_def(func_literal)
                 func_def.name = self.name_gen.new_func_literal_name()
                 func_literal.id = func_def.name
-                # Remove back to the name reference.
-                clear_function_literal_def(func_literal)
                 result.append(func_def)
             node_result = super().visit(node)
             if isinstance(node_result, ast.AST):
                 result.append(node_result)
             elif node_result is not None:
                 result.extend(node_result)
+            for func_literal in self.parent_stmts_for_literals[node]:
+                # Remove back to the name reference.
+                clear_function_literal_def(func_literal)
             return result
         return super().visit(node)
 

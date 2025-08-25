@@ -79,3 +79,53 @@ def test_exp_func_literal_block_typed():
         func_literal_block_typed_code, func_literal_block_typed_result
     )
     assert_transform_equals(parsed, func_literal_block_typed_transformed)
+
+
+func_literal_nested_code = """
+def test_exp_func_literal_nested() {
+    f = (x: int) -> (int) -> int => {
+        if (x > 0) {
+            return (x: int) -> int => {
+                return x + 1;
+            };
+        } else {
+            return (x: int) -> int => {
+                return x - 1;
+            };
+        }
+    };
+    g = (x: int) -> int => {
+        return x * 2;
+    };
+}
+"""
+func_literal_nested_result = """
+def test_exp_func_literal_nested():
+    f = __function_literal
+    g = __function_literal
+"""
+func_literal_nested_transformed = """
+def test_exp_func_literal_nested():
+
+    def _typh_fn_f1_0(x: int) -> __arrow_type:
+        if x > 0:
+
+            def _typh_fn_f2_0(x: int) -> int:
+                return x + 1
+            return _typh_fn_f2_0
+        else:
+
+            def _typh_fn_f2_1(x: int) -> int:
+                return x - 1
+            return _typh_fn_f2_1
+    f = _typh_fn_f1_0
+
+    def _typh_fn_f1_1(x: int) -> int:
+        return x * 2
+    g = _typh_fn_f1_1
+"""
+
+
+def test_exp_func_literal_nested():
+    parsed = assert_ast_equals(func_literal_nested_code, func_literal_nested_result)
+    assert_transform_equals(parsed, func_literal_nested_transformed)
