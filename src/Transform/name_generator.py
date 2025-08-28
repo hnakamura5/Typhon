@@ -7,6 +7,10 @@ typhon_prefix = "_typh_"
 PythonScope = Union[ast.Module, ast.ClassDef, ast.FunctionDef]
 
 
+def get_protocol_name() -> str:
+    return f"{typhon_prefix}_Protocol"
+
+
 class UniqueNameGenerator:
     scope_id_counter: int
     scope_stack: list[tuple[PythonScope, str]] = []
@@ -52,6 +56,10 @@ class UniqueNameGenerator:
     def new_variable_rename_name(self, original_name: str) -> str:
         scope_id = self._get_next_id()
         return f"{typhon_prefix}vr_{scope_id}_{original_name}"
+
+    def new_const_rename_name(self, original_name: str) -> str:
+        scope_id = self._get_next_id()
+        return f"{typhon_prefix}cn_{scope_id}_{original_name}"
 
     def new_arrow_type_name(self) -> str:
         scope_id = self._get_next_id()

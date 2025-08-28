@@ -914,6 +914,7 @@ typing_compare_op_bitwise_or_pair:
     | gt_bitwise_or
     # No is_bitwise_or nor in_bitwise_or
 
+# Does not include default arguments.
 typing_arrow_param_annot_or_type[ast.arg]:
     | a=NAME b=annotation { ast.arg(arg=a.string, annotation=b, LOCATIONS) }
     | b=typing_expression {ast.arg(arg="", annotation=b, LOCATIONS)}
@@ -938,7 +939,7 @@ typing_arrow_return_type[ast.expr]:
 
 typing_arrow_type[ast.expr]:
     | '(' a=typing_arrow_param* c=[typing_arrow_star_etc] ')' r=[typing_arrow_return_type] {
-        make_arrow_type(a, c, r)
+        make_arrow_type(a, c, r, LOCATIONS)
     }
 
 # EXPRESSIONS

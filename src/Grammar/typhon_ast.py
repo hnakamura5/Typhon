@@ -216,6 +216,14 @@ def set_star_kwds_of_function_type(node: FunctionType, star_kwds: ast.arg):
     setattr(node, "star_kwds", star_kwds)
 
 
+def get_return_of_function_type(node: FunctionType) -> ast.expr | None:
+    return getattr(node, "returns", None)
+
+
+def set_return_of_function_type(node: FunctionType, returns: ast.expr):
+    setattr(node, "returns", returns)
+
+
 def clear_function_type(node: FunctionType):
     if hasattr(node, "arg_types"):
         delattr(node, "arg_types")
@@ -223,14 +231,41 @@ def clear_function_type(node: FunctionType):
         delattr(node, "star_arg")
     if hasattr(node, "star_kwds"):
         delattr(node, "star_kwds")
+    if hasattr(node, "returns"):
+        delattr(node, "returns")
+
+
+def _check_arrow_type_args(
+    args: list[ast.arg],
+    star_etc: Tuple[ast.arg, ast.arg] | None,
+):
+    # TODO* args check (args without name first, with name later, only one star arg, etc)
+    kwarg_found = False
+    for arg in args:
+        if arg.arg.startswith("**"):
+            # TODO: Source place
+            raise SyntaxError("Only one keyword argument is allowed")
+        elif arg.arg.startswith("*"):
+            if kwarg_found:
+                raise SyntaxError("Keyword argument must be last")
+        if len(arg.arg) > 0:
+            kwarg_found = True
+        else:
+            if kwarg_found:
+                raise SyntaxError("Non-keyword argument must be first")
 
 
 def make_arrow_type(
-    args: list[ast.arg], star_etc: Tuple[ast.arg, ast.arg] | None, returns: ast.expr
+    args: list[ast.arg],
+    star_etc: Tuple[ast.arg, ast.arg] | None,
+    returns: ast.expr,
+    **kwargs: Unpack[PosAttributes],
 ) -> FunctionType:
     # TODO: temporal name
-    result = ast.Name("__arrow_type")
+    result = ast.Name("__arrow_type", **kwargs)
     set_args_of_function_type(result, args)
+    set_return_of_function_type(result, returns)
+    _check_arrow_type_args(args, star_etc)
     if star_etc:
         set_star_arg_of_function_type(result, star_etc[0])
         set_star_kwds_of_function_type(result, star_etc[1])

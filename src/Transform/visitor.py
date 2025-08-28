@@ -102,5 +102,8 @@ class TyphonASTVisitor(ast.NodeTransformer):
     def new_variable_rename_name(self, original_name: str) -> str:
         return self.name_gen.new_variable_rename_name(original_name)
 
+    def new_const_rename_name(self, original_name: str) -> str:
+        return self.name_gen.new_const_rename_name(original_name)
+
     def new_arrow_type_name(self) -> str:
         return self.name_gen.new_arrow_type_name()
