@@ -127,6 +127,11 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             self.visit(node)
         return node
 
+    def visit_list_scoped[T: ast.AST](self, nodes: list[T]):
+        with self.scope():
+            for node in nodes:
+                self.visit(node)
+
     def visit_Import(self, node: ast.Import):
         for alias in node.names:
             self.add_symbol_declaration(
@@ -166,34 +171,36 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         self.add_symbol_declaration(
             node.name, is_mutable=False, pos=get_pos_attributes(node)
         )
-        with self.scope():
-            # TODO: Allow arguments to be mutable?
-            for arg in node.args.args + node.args.posonlyargs:
-                self.add_symbol_declaration(
-                    arg.arg, is_mutable=False, pos=get_pos_attributes(arg)
-                )
-            if node.args.vararg:
-                self.add_symbol_declaration(
-                    node.args.vararg.arg,
-                    is_mutable=False,
-                    pos=get_pos_attributes(node.args.vararg),
-                )
-            for arg in node.args.kwonlyargs:
-                self.add_symbol_declaration(
-                    arg.arg, is_mutable=False, pos=get_pos_attributes(arg)
-                )
-            if node.args.kwarg:
-                self.add_symbol_declaration(
-                    node.args.kwarg.arg,
-                    is_mutable=False,
-                    pos=get_pos_attributes(node.args.kwarg),
-                )
+        with self.scope():  # Type parameters scope
             for tp in node.type_params or []:
                 if isinstance(tp, (ast.TypeVar, ast.TypeVarTuple, ast.ParamSpec)):
                     self.add_symbol_declaration(
                         tp.name, is_mutable=False, pos=get_pos_attributes(tp)
                     )
-            self.generic_visit(node)
+            with self.scope():  # Function arguments scope
+                # TODO: Allow arguments to be mutable?
+                for arg in node.args.args + node.args.posonlyargs:
+                    self.add_symbol_declaration(
+                        arg.arg, is_mutable=False, pos=get_pos_attributes(arg)
+                    )
+                if node.args.vararg:
+                    self.add_symbol_declaration(
+                        node.args.vararg.arg,
+                        is_mutable=False,
+                        pos=get_pos_attributes(node.args.vararg),
+                    )
+                for arg in node.args.kwonlyargs:
+                    self.add_symbol_declaration(
+                        arg.arg, is_mutable=False, pos=get_pos_attributes(arg)
+                    )
+                if node.args.kwarg:
+                    self.add_symbol_declaration(
+                        node.args.kwarg.arg,
+                        is_mutable=False,
+                        pos=get_pos_attributes(node.args.kwarg),
+                    )
+                with self.scope():  # Function body scope
+                    self.generic_visit(node)
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
@@ -205,24 +212,17 @@ class SymbolScopeVisitor(TyphonASTVisitor):
     def visit_If(self, node: ast.If):
         # TODO: Handle "if let" syntax for optional unwrapping
         self.visit(node.test)
-        with self.scope():
-            for stmt in node.body:
-                self.visit(stmt)
-        with self.scope():
-            for stmt in node.orelse:
-                self.visit(stmt)
+        self.visit_list_scoped(node.body)
+        self.visit_list_scoped(node.orelse)
         return node
 
     def visit_For_AsyncFor(self, node: ast.For | ast.AsyncFor):
         self.visit(node.iter)
-        with self.scope():
+        with self.scope():  # for initializer scope
             # Assuming target is a simple variable name for now
             self.visit_declaration(node.target, is_mutable=is_let(node))
-            for stmt in node.body:
-                self.visit(stmt)
-        with self.scope():
-            for stmt in node.orelse:
-                self.visit(stmt)
+            self.visit_list_scoped(node.body)
+            self.visit_list_scoped(node.orelse)
         return node
 
     def visit_For(self, node: ast.For):
@@ -234,22 +234,17 @@ class SymbolScopeVisitor(TyphonASTVisitor):
     def visit_While(self, node: ast.While):
         # TODO: Handle "while let" syntax for optional unwrapping
         self.visit(node.test)
-        with self.scope():
-            for stmt in node.body:
-                self.visit(stmt)
-        with self.scope():
-            for stmt in node.orelse:
-                self.visit(stmt)
+        self.visit_list_scoped(node.body)
+        self.visit_list_scoped(node.orelse)
         return node
 
     def visit_With_AsyncWith(self, node: ast.With | ast.AsyncWith):
-        with self.scope():
+        with self.scope():  # with contexts scope
             for item in node.items:
                 self.visit(item.context_expr)
                 if item.optional_vars:
                     self.visit_declaration(item.optional_vars, is_mutable=is_let(item))
-            for stmt in node.body:
-                self.visit(stmt)
+            self.visit_list_scoped(node.body)
         return node
 
     def visit_With(self, node: ast.With):
@@ -258,7 +253,31 @@ class SymbolScopeVisitor(TyphonASTVisitor):
     def visit_AsyncWith(self, node: ast.AsyncWith):
         return self.visit_With_AsyncWith(node)
 
+    def visit_Try(self, node: ast.Try):
+        self.visit_list_scoped(node.body)
+        self.visit_list_scoped(node.handlers)
+        self.visit_list_scoped(node.orelse)
+        self.visit_list_scoped(node.finalbody)
+        return node
+
+    def visit_ExceptHandler(self, node: ast.ExceptHandler):
+        if node.type:
+            self.visit(node.type)
+        with self.scope():  # except handler scope
+            if node.name:
+                name = ast.Name(
+                    id=node.name, ctx=ast.Store(), **get_pos_attributes(node)
+                )
+                self.visit_declaration(
+                    name,
+                    is_mutable=False,
+                )
+                node.name = name.id
+            self.visit_list_scoped(node.body)
+        return node
+
     def visit_Assign(self, node: ast.Assign):
+        self.visit(node.value)
         if is_decl_assign(node):
             for target in node.targets:
                 self.visit_declaration(target, is_mutable=is_let(node))
@@ -266,33 +285,32 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             with self.non_declaration_assign():
                 for target in node.targets:
                     self.visit(target)
-        self.visit(node.value)
         return node
 
     def visit_AnnAssign(self, node: ast.AnnAssign):
+        if node.value:
+            self.visit(node.value)
+        if node.annotation:
+            self.visit(node.annotation)
         if node.target:
             if is_decl_assign(node):
                 self.visit_declaration(node.target, is_mutable=is_let(node))
             else:  # LHS of non-declaration assignment is just reference
                 with self.non_declaration_assign():
                     self.visit(node.target)
-        if node.value:
-            self.visit(node.value)
-        if node.annotation:
-            self.visit(node.annotation)
         return node
 
     def visit_AugAssign(self, node: ast.AugAssign):
+        self.visit(node.value)
         # LHS of non-declaration assignment is just reference
         with self.non_declaration_assign():
             self.visit(node.target)
-        self.visit(node.value)
         return node
 
     def visit_NamedExpr(self, node: ast.NamedExpr):
+        self.visit(node.value)
         with self.non_declaration_assign():
             self.visit(node.target)
-        self.visit(node.value)
         return node
 
     def visit_Name(self, node: ast.Name):

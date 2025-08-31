@@ -135,7 +135,9 @@ class PosAttributes(TypedDict):
     end_col_offset: int | None
 
 
-type PosNode = ast.stmt | ast.expr | ast.alias | ast.arg | ast.type_param
+type PosNode = (
+    ast.stmt | ast.expr | ast.alias | ast.arg | ast.type_param | ast.excepthandler
+)
 
 
 def get_pos_attributes(node: PosNode) -> PosAttributes:

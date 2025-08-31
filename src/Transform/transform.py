@@ -10,3 +10,4 @@ def transform(mod: ast.Module):
     func_type_to_protocol(mod)
     print(f"After func_type_to_protocol:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     scope_check_rename(mod)
+    print(f"After scope_check_rename:\n{ast.unparse(mod)}\n")  # [HN] For debug.
