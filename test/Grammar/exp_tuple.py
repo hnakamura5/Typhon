@@ -1,4 +1,4 @@
-from .assertion_utils import assert_ast_equals, assert_ast_error
+from ..assertion_utils import assert_ast_equals, assert_ast_error
 
 
 tuple_code = """

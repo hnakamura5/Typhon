@@ -135,6 +135,27 @@ class PosAttributes(TypedDict):
     end_col_offset: int | None
 
 
+type PosNode = ast.stmt | ast.expr | ast.alias | ast.arg | ast.type_param
+
+
+def get_pos_attributes(node: PosNode) -> PosAttributes:
+    return PosAttributes(
+        lineno=node.lineno,
+        col_offset=node.col_offset,
+        end_lineno=getattr(node, "end_lineno", None),
+        end_col_offset=getattr(node, "end_col_offset", None),
+    )
+
+
+def get_empty_pos_attributes() -> PosAttributes:
+    return PosAttributes(
+        lineno=0,
+        col_offset=0,
+        end_lineno=0,
+        end_col_offset=0,
+    )
+
+
 # Use Name as a function literal. Replaced to name of FunctionDef.
 type FunctionLiteral = ast.Name
 
@@ -187,52 +208,55 @@ def make_function_literal(
 # Use Name as a function type. Replaced to name of Protocol.
 type FunctionType = ast.Name
 
+_arg_types = "arg_types"
+_star_arg = "star_arg"
+_star_kwds = "star_kwds"
+_returns = "returns"
+
 
 def is_function_type(node: ast.Name) -> bool:
-    return getattr(node, "arg_types", None) is not None
+    return getattr(node, _arg_types, None) is not None
 
 
 def get_args_of_function_type(node: FunctionType) -> list[ast.arg]:
-    return getattr(node, "arg_types")
+    return getattr(node, _arg_types)
 
 
 def set_args_of_function_type(node: FunctionType, args: list[ast.arg]):
-    setattr(node, "arg_types", args)
+    setattr(node, _arg_types, args)
 
 
 def get_star_arg_of_function_type(node: FunctionType) -> ast.arg | None:
-    return getattr(node, "star_arg", None)
+    return getattr(node, _star_arg, None)
 
 
 def set_star_arg_of_function_type(node: FunctionType, star_arg: ast.arg):
-    setattr(node, "star_arg", star_arg)
+    setattr(node, _star_arg, star_arg)
 
 
 def get_star_kwds_of_function_type(node: FunctionType) -> ast.arg | None:
-    return getattr(node, "star_kwds", None)
+    return getattr(node, _star_kwds, None)
 
 
 def set_star_kwds_of_function_type(node: FunctionType, star_kwds: ast.arg):
-    setattr(node, "star_kwds", star_kwds)
+    setattr(node, _star_kwds, star_kwds)
 
 
 def get_return_of_function_type(node: FunctionType) -> ast.expr | None:
-    return getattr(node, "returns", None)
+    return getattr(node, _returns, None)
 
 
 def set_return_of_function_type(node: FunctionType, returns: ast.expr):
-    setattr(node, "returns", returns)
+    setattr(node, _returns, returns)
+
+
+fieldsOfFunctionType = [_arg_types, _star_arg, _star_kwds, _returns]
 
 
 def clear_function_type(node: FunctionType):
-    if hasattr(node, "arg_types"):
-        delattr(node, "arg_types")
-    if hasattr(node, "star_arg"):
-        delattr(node, "star_arg")
-    if hasattr(node, "star_kwds"):
-        delattr(node, "star_kwds")
-    if hasattr(node, "returns"):
-        delattr(node, "returns")
+    for field in fieldsOfFunctionType:
+        if hasattr(node, field):
+            delattr(node, field)
 
 
 def _check_arrow_type_args(

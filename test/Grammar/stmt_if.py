@@ -1,4 +1,4 @@
-from .assertion_utils import assert_ast_equals
+from ..assertion_utils import assert_ast_equals
 
 code_empty_if = """
 if (True) {

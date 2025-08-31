@@ -917,7 +917,7 @@ typing_compare_op_bitwise_or_pair:
 # Does not include default arguments.
 typing_arrow_param_annot_or_type[ast.arg]:
     | a=NAME b=annotation { ast.arg(arg=a.string, annotation=b, LOCATIONS) }
-    | b=typing_expression {ast.arg(arg="", annotation=b, LOCATIONS)}
+    | b=typing_expression { ast.arg(arg="", annotation=b, LOCATIONS) }
 
 typing_arrow_param[ast.arg]:
     | a=typing_arrow_param_annot_or_type ',' { a }

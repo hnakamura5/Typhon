@@ -1,8 +1,7 @@
-from .assertion_utils import assert_ast_equals, show_token
-from .assertion_utils import assert_transform_equals
+from ..assertion_utils import assert_ast_equals, show_token, assert_transform_equals
 
 type_arrow_annot_code = """
-x: (int) -> int;
+let x: (int) -> int;
 """
 type_arrow_annot_result = """
 x: __arrow_type
@@ -19,13 +18,12 @@ x: _typh_ar_m0_0
 
 
 def test_type_arrow_annot():
-    show_token(type_arrow_annot_code)
     parsed = assert_ast_equals(type_arrow_annot_code, type_arrow_annot_result)
     assert_transform_equals(parsed, type_arrow_annot_transformed)
 
 
 type_arrow_param_annot_code = """
-a: (x: int, y: str) -> int;
+let a: (x: int, y: str) -> int;
 """
 type_arrow_param_annot_result = """
 a: __arrow_type
@@ -42,7 +40,6 @@ a: _typh_ar_m0_0
 
 
 def test_type_arrow_param_annot():
-    show_token(type_arrow_param_annot_code)
     parsed = assert_ast_equals(
         type_arrow_param_annot_code, type_arrow_param_annot_result
     )
@@ -72,13 +69,12 @@ def h(x: int, f: _typh_ar_f1_0) -> int:
 
 
 def test_type_arrow_def_param():
-    show_token(type_arrow_def_param_code)
     parsed = assert_ast_equals(type_arrow_def_param_code, type_arrow_def_param_result)
     assert_transform_equals(parsed, type_arrow_def_param_transformed)
 
 
 type_arrow_func_literal_code = """
-f: (x: int) -> int = (x:int) -> int => {
+let f: (x: int) -> int = (x:int) -> int => {
     return x + 1;
 };
 """
@@ -100,7 +96,6 @@ f: _typh_ar_m0_0 = _typh_fn_m0_0
 
 
 def test_type_arrow_func_literal():
-    show_token(type_arrow_func_literal_code)
     parsed = assert_ast_equals(
         type_arrow_func_literal_code, type_arrow_func_literal_result
     )
@@ -108,7 +103,7 @@ def test_type_arrow_func_literal():
 
 
 type_arrow_star_etc_code = """
-f: (float, x: int, *args: str, **kwds: int) -> int;
+let f: (float, x: int, *args: str, **kwds: int) -> int;
 """
 type_arrow_star_etc_result = """
 f: __arrow_type
@@ -125,6 +120,5 @@ f: _typh_ar_m0_0
 
 
 def test_type_arrow_star_etc():
-    show_token(type_arrow_star_etc_code)
     parsed = assert_ast_equals(type_arrow_star_etc_code, type_arrow_star_etc_result)
     assert_transform_equals(parsed, type_arrow_star_etc_transformed)

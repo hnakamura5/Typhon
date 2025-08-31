@@ -1,4 +1,4 @@
-from .assertion_utils import assert_ast_equals, show_token, assert_token
+from ..assertion_utils import assert_ast_equals, show_token, assert_token
 
 code_def = """
 def func() {

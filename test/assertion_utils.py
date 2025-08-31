@@ -1,8 +1,10 @@
 import ast
-from ...src.Grammar.parser import parse_string
-from ...src.Transform.transform import transform
+from ..src.Grammar.parser import parse_string
+from ..src.Transform.transform import transform
 import tokenize
 from typing import Type, Union
+
+PARSER_VERBOSE = False
 
 
 def assert_token(token: tokenize.TokenInfo, type_: int, string: str):
@@ -11,7 +13,7 @@ def assert_token(token: tokenize.TokenInfo, type_: int, string: str):
 
 
 def assert_ast_equals(typhon_code: str, python_code: str) -> ast.Module:
-    parsed = parse_string(typhon_code, mode="exec", verbose=True)
+    parsed = parse_string(typhon_code, mode="exec", verbose=PARSER_VERBOSE)
     assert isinstance(parsed, ast.Module)
     assert ast.unparse(parsed) == python_code.strip()
     return parsed
@@ -24,13 +26,41 @@ def assert_transform_equals(typhon_ast: ast.Module, python_code: str):
     assert ast.unparse(typhon_ast) == python_code.strip()
 
 
-def assert_ast_error(typhon_code: str, error_message: str = ""):
-    # TODO: Support error type
+def assert_ast_transform(typhon_code: str, python_code: str):
+    parsed = parse_string(typhon_code, mode="exec")
+    assert isinstance(parsed, ast.Module)
+    transform(parsed)
+    print(ast.unparse(parsed))
+    assert ast.unparse(parsed) == python_code.strip()
+    return parsed
+
+
+def _assert_exception(e: Exception, exception: type, error_message: str):
+    assert isinstance(e, exception)
+    if error_message:
+        assert error_message in str(e), (
+            f"Expected error message: '{error_message}', got: '{str(e)}'"
+        )
+
+
+def assert_ast_error(
+    typhon_code: str, exception: type = Exception, error_message: str = ""
+):
     try:
-        parse_string(typhon_code, mode="exec", verbose=True)
-        assert False, f"Expected error: {error_message}"
-    except Exception:
-        pass
+        parse_string(typhon_code, mode="exec", verbose=PARSER_VERBOSE)
+    except Exception as e:
+        _assert_exception(e, exception, error_message)
+
+
+def assert_transform_error(
+    typhon_ast: str, exception: type = Exception, error_message: str = ""
+):
+    parsed = parse_string(typhon_ast, mode="exec")
+    assert isinstance(parsed, ast.Module)
+    try:
+        transform(parsed)
+    except Exception as e:
+        _assert_exception(e, exception, error_message)
 
 
 def assert_ast_type[T](node: ast.AST, t: Type[T]) -> T:

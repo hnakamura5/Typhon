@@ -1,4 +1,4 @@
-from .assertion_utils import assert_ast_equals, assert_ast_type
+from ..assertion_utils import assert_ast_equals, assert_ast_type
 from ...src.Grammar.typhon_ast import is_let, is_const
 import ast
 

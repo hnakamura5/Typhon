@@ -1,7 +1,7 @@
-from .assertion_utils import assert_ast_equals, show_token, assert_transform_equals
+from ..assertion_utils import assert_ast_equals, show_token, assert_transform_equals
 
 func_literal_exp_code = """
-f = (x) => x + 1;
+let f = (x) => x + 1;
 """
 func_literal_exp_result = """
 f = __function_literal
@@ -14,13 +14,12 @@ f = _typh_fn_m0_0
 
 
 def test_exp_func_literal_exp():
-    show_token(func_literal_exp_code)
     parsed = assert_ast_equals(func_literal_exp_code, func_literal_exp_result)
     assert_transform_equals(parsed, func_literal_exp_transformed)
 
 
 func_literal_exp_typed_code = """
-f = (x: int) -> int => x + 1;
+let f = (x: int) -> int => x + 1;
 """
 func_literal_exp_typed_result = """
 f = __function_literal
@@ -60,7 +59,7 @@ def test_exp_func_literal_block_():
 
 
 func_literal_block_typed_code = """
-f = (x: int) -> int => {
+let f = (x: int) -> int => {
     return x + 1;
 };
 """
@@ -83,7 +82,7 @@ def test_exp_func_literal_block_typed():
 
 func_literal_nested_code = """
 def test_exp_func_literal_nested() {
-    f = (x: int) -> (int) -> int => {
+    const f = (x: int) -> (int) -> int => {
         if (x > 0) {
             return (x: int) -> int => {
                 return x + 1;
@@ -94,7 +93,7 @@ def test_exp_func_literal_nested() {
             };
         }
     };
-    g = (x: int) -> int => {
+    let g = (x: int) -> int => {
         return x * 2;
     };
 }

@@ -4,7 +4,7 @@ from ..Grammar.typhon_ast import (
     get_function_literal_def,
     clear_function_literal_def,
 )
-from .visitor import TyphonASTVisitor
+from .visitor import TyphonASTVisitor, TyphonASTTransformer
 
 
 class _Gather(TyphonASTVisitor):
@@ -15,14 +15,12 @@ class _Gather(TyphonASTVisitor):
         self.func_literals = []
 
     def visit_FunctionLiteral(self, node: FunctionLiteral):
+        print(f"func_literal_to_def _Gather visit: {node} {node.__dict__}")
         self.func_literals.append((node, self.parent_stmts[-1]))
-        return super().visit_FunctionLiteral(node)
-
-    def visit(self, node: ast.AST):
-        return super().visit(node)
+        return self.generic_visit(node)
 
 
-class _Transform(TyphonASTVisitor):
+class _Transform(TyphonASTTransformer):
     func_literals: dict[FunctionLiteral, ast.stmt]
     parent_stmts_for_literals: dict[ast.stmt, list[FunctionLiteral]]
 
@@ -37,8 +35,8 @@ class _Transform(TyphonASTVisitor):
         self.def_for_literal = {}
 
     def visit(self, node: ast.AST):
-        print(f"_Transform visit: {node} {node.__dict__}")
         if isinstance(node, ast.stmt) and node in self.parent_stmts_for_literals:
+            print(f"func_literal_to_def _Transform visit: {node} {node.__dict__}")
             # Expand the def of function literals before the parent statement.
             result: list[ast.AST] = []
             for func_literal in self.parent_stmts_for_literals[node]:
@@ -46,6 +44,7 @@ class _Transform(TyphonASTVisitor):
                 func_def.name = self.name_gen.new_func_literal_name()
                 func_literal.id = func_def.name
                 result.append(func_def)
+            print("result, before parent stmt:", result, node)
             node_result = super().visit(node)
             if isinstance(node_result, ast.AST):
                 result.append(node_result)

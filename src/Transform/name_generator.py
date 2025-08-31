@@ -4,7 +4,7 @@ from typing import Union, Any
 
 typhon_prefix = "_typh_"
 
-PythonScope = Union[ast.Module, ast.ClassDef, ast.FunctionDef]
+PythonScope = Union[ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef]
 
 
 def get_protocol_name() -> str:

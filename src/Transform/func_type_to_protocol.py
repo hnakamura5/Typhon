@@ -5,6 +5,8 @@ from ..Grammar.typhon_ast import (
     get_star_arg_of_function_type,
     get_star_kwds_of_function_type,
     get_return_of_function_type,
+    get_empty_pos_attributes,
+    get_pos_attributes,
 )
 from .visitor import TyphonASTVisitor
 from .name_generator import get_protocol_name
@@ -19,15 +21,22 @@ class _Gather(TyphonASTVisitor):
 
     def visit_FunctionType(self, node: FunctionType):
         self.func_types.append((node, self.new_arrow_type_name()))
-        return super().visit_FunctionType(node)
+        return self.generic_visit(node)
 
 
 def add_import_for_protocol(mod: ast.Module):
     # Duplicate import is NOT a problem, but better to avoid it for speed.
     import_stmt = ast.ImportFrom(
         module="typing",
-        names=[ast.alias(name="Protocol", asname=get_protocol_name())],
+        names=[
+            ast.alias(
+                name="Protocol",
+                asname=get_protocol_name(),
+                **get_empty_pos_attributes(),
+            )
+        ],
         level=0,
+        **get_empty_pos_attributes(),
     )
     mod.body.insert(0, import_stmt)
 
@@ -46,9 +55,13 @@ def protocol_for_function_type(
             break
     named_args = args[len(posonlyargs) :]
     if not posonlyargs:
-        named_args.insert(0, ast.arg(arg="self", annotation=None))
+        named_args.insert(
+            0, ast.arg(arg="self", annotation=None, **get_pos_attributes(func_type))
+        )
     else:
-        posonlyargs.insert(0, ast.arg(arg="self", annotation=None))
+        posonlyargs.insert(
+            0, ast.arg(arg="self", annotation=None, **get_pos_attributes(func_type))
+        )
 
     func_def = ast.FunctionDef(
         name="__call__",
