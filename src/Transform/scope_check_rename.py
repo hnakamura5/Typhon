@@ -178,7 +178,6 @@ class SymbolScopeVisitor(TyphonASTVisitor):
                         tp.name, is_mutable=False, pos=get_pos_attributes(tp)
                     )
             with self.scope():  # Function arguments scope
-                # TODO: Allow arguments to be mutable?
                 for arg in node.args.args + node.args.posonlyargs:
                     self.add_symbol_declaration(
                         arg.arg, is_mutable=False, pos=get_pos_attributes(arg)
@@ -277,7 +276,6 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         return node
 
     def visit_Match(self, node: ast.Match):
-        # TODO: Handle "match let" syntax for optional unwrapping?
         self.visit(node.subject)
         self.visit_list_scoped(node.cases)
         return node

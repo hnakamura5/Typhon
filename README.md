@@ -4,35 +4,69 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 
 ## Syntax Changes
 
+### Main changes
+
 - Replacing offside rule by standard brace scope and semicolon delimiter.
-- Type checking and compile time error.
+
+- Type checking and compile time syntax/type error.
+
 - Forced variable/constant declaration and scoping by `let` and `const`
+
+- Unrestricted lambda function in the form of `(x)=>{}`. With type annotation it have the form `(x:int)->int => { return x + 1; }`.
+
 - Nullable/Optional chain operators `??`, `?.`, `?:` and so on.
-- `self` is keyword. First parameter of method definition is NOT self anymore.
-- Unrestricted lambda function in the form of `(x)=>{}`
 
-Also, small design changes are included.
+- `self` is keyword. First parameter of method definition is NOT self anymore. Use `static def` to prevent this feature.
 
-- Logical operators
-  `and`, `or`, `not` operators are replaced by `&&`,`||`, `!`, though they are still reserved as keyword (Note `in`, `not in`, `is`, `is not` are supported).
+### Syntax Extension
 
-- Type annotations
+- Type annotations extension
   The place we can write type annotations is expanded beyond the limit of Python [PEP 526](https://peps.python.org/pep-0526/#specification). TODO
 
 - Function Types
-  `(T1, T2)->R` is syntax sugar of `Callable[[T1, T2], R]`.
-  such as `(x1: T1, x2: T2) -> R` is syntax sugar of `Protocol` subtype.
+  Arrow types `(T1, T2) -> R` are syntax sugar for Protocol. For example `(x1: T1, x2: T2) -> R` is translated into the following form.
   ```python
   class MyProtocol(Protocol):
       def __call__(self, x1: T1, x2: T2) -> R: ...
   ```
 
-- Assignment in with and except statement
+- Scoped `with` statement.
+  `with const f = open("file");` exits at the end of current scope. This is the same as with statement including the rest of current scope as its block.
+
+- `if-let` statement for checking optional/condition
+  `if (const x = f()){...}` is same as `{const x = f(); if (x is not None){...}}`
+  `if (const x = f(); x > 0){...}` is same as `{const x = f(); if (x > 10){...}}`
+
+- `while-let` statement for checking optional/condition
+  `while (const x = f()) {...}` behaves as `while((x := f()) is not None)`
+  `while (const x = f(); x > 0) {...}` behaves as `while((x := f()) > 0)`
+
+- Const member of class
+  `const x:int` in class is immutable member. Translated into `@property`.
+
+### Detail design changes
+
+- Logical operators
+  `and`, `or`, `not` operators are replaced by `&&`,`||`, `!`, though they are still reserved as keyword (Note `in`, `not in`, `is`, `is not` are supported).
+
+- Assignment style in with and except statement
   Apply normal assignment or declaration syntax to with and except. e.g. `with(const f=open(...)) {}`, `except(e: IOError){}`
 
-## Restriction
+- Static Temporal Dead Zone(TDZ) is introduced in module top-level for recursive definition.
+  - Reference to symbol declared after is allowed in function (`def` and function literal). Such function symbol is marked as DEAD until all the declaration is completed.
+  - Reference to DEAD symbol in function is also allowed. The DEAD mark is propagated.
+  - Otherwise reference to symbol is error if that is DEAD or not declared yet.
 
-- Identifier with prefix `_typh_` is all reserved.
+- Parameters are const, you can shadow it using `let/const`.
+
+- Builtin symbols are all const, you can shadow it using `let/const`.
+
+### Syntax Restrictions
+
+- Identifiers with prefix `_typh_` are all reserved.
+- `del`, `global`, `nonlocal` are forbidden.
+- Wildcard import `from m import *` is  forbidden.
+- Control statements inside class definition are forbidden. Only `class`, `def`, `let/const`, `import` are allowed.
 
 ## Bundled Libraries
 
@@ -47,4 +81,5 @@ TBD
       .filter((x) => x > 2);
   ```
 
+- `typhon.traceback` is drop in replacement for builtin `traceback` to provide traceback display in Typhon's syntax.
 
