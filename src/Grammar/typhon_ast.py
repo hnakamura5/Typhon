@@ -136,7 +136,13 @@ class PosAttributes(TypedDict):
 
 
 type PosNode = (
-    ast.stmt | ast.expr | ast.alias | ast.arg | ast.type_param | ast.excepthandler
+    ast.stmt
+    | ast.expr
+    | ast.alias
+    | ast.arg
+    | ast.type_param
+    | ast.excepthandler
+    | ast.pattern
 )
 
 

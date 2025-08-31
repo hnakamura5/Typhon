@@ -694,7 +694,7 @@ pattern_capture_target[str]:
     | !"_" name=NAME !('.' | '(' | '=') { name.string }
 
 wildcard_pattern["ast.MatchAs"]:
-    | "_" { ast.MatchAs(pattern=None, target=None, LOCATIONS) }
+    | "_" { ast.MatchAs(pattern=None, name=None, LOCATIONS) }
 
 value_pattern["ast.MatchValue"]:
     | attr=attr !('.' | '(' | '=') { ast.MatchValue(value=attr, LOCATIONS) }
@@ -719,6 +719,7 @@ open_sequence_pattern:
     | pattern=maybe_star_pattern ',' patterns=maybe_sequence_pattern? {
         [pattern] + (patterns or [])
      }
+     # TODO: invalid case for the case ',' does not exist?
 
 maybe_sequence_pattern:
     | patterns=','.maybe_star_pattern+ ','? { patterns }
@@ -1871,13 +1872,13 @@ invalid_except_star_stmt_indent:
         )
      }
 invalid_match_stmt[NoReturn]:
-    | "match" subject_expr !':' {
-        self.check_version(
-            (3, 10),
-            "Pattern matching is",
-            self.raise_syntax_error("expected ':'")
-        )
-     }
+    # | "match" subject_expr !':' {
+    #     self.check_version(
+    #         (3, 10),
+    #         "Pattern matching is",
+    #         self.raise_syntax_error("expected ':'")
+    #     )
+    #  }
     | a="match" subject=subject_expr ':' NEWLINE !INDENT {
         self.check_version(
             (3, 10),
@@ -1888,7 +1889,7 @@ invalid_match_stmt[NoReturn]:
         )
      }
 invalid_case_block[NoReturn]:
-    | "case" patterns guard? !':' { self.raise_syntax_error("expected ':'") }
+    # | "case" patterns guard? !':' { self.raise_syntax_error("expected ':'") }
     | a="case" patterns guard? ':' NEWLINE !INDENT {
         self.raise_indentation_error(
             f"expected an indented block after 'case' statement on line {a.start[0]}"

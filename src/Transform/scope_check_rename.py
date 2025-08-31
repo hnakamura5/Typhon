@@ -276,6 +276,45 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             self.visit_list_scoped(node.body)
         return node
 
+    def visit_Match(self, node: ast.Match):
+        # TODO: Handle "match let" syntax for optional unwrapping?
+        self.visit(node.subject)
+        self.visit_list_scoped(node.cases)
+        return node
+
+    # Match patterns. Basis of declarative patterns are MatchAs, MatchStar.
+    # Other patterns are composed of these.
+    # Declarations in patterns are immutable.
+    def visit_match_case(self, node: ast.match_case):
+        with self.scope():
+            self.visit(node.pattern)
+            if node.guard:
+                self.visit(node.guard)
+            self.visit_list_scoped(node.body)
+
+    def visit_MatchAs(self, node: ast.MatchAs):
+        if node.pattern:
+            self.visit(node.pattern)
+        if node.name:
+            name = ast.Name(id=node.name, ctx=ast.Store(), **get_pos_attributes(node))
+            self.visit_declaration(
+                name,
+                is_mutable=False,
+            )
+            node.name = name.id
+        return node
+
+    def visit_MatchStar(self, node: ast.MatchStar):
+        if node.name:
+            name = ast.Name(id=node.name, ctx=ast.Store(), **get_pos_attributes(node))
+            self.visit_declaration(
+                name,
+                is_mutable=False,
+            )
+            node.name = name.id
+        return node
+
+    # Assignments
     def visit_Assign(self, node: ast.Assign):
         self.visit(node.value)
         if is_decl_assign(node):

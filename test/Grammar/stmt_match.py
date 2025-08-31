@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_equals
+from ..assertion_utils import assert_ast_equals, assert_ast_error
 
 match_code = """
 match (x) {
@@ -67,3 +67,35 @@ match (x, y):
 
 def test_stmt_match_sequence():
     assert_ast_equals(match_sequence_code, match_sequence_result)
+
+
+match_star_code = """
+match (x, y, z) {
+    case (1, *rest) {
+        w = rest
+    }
+}
+"""
+match_star_result = """
+match (x, y, z):
+    case [1, *rest]:
+        w = rest
+"""
+
+
+def test_stmt_match_star():
+    assert_ast_equals(match_star_code, match_star_result)
+
+
+match_star_error_code = """
+match (x, y, z) {
+    case (*rest) {
+        w = rest
+    }
+}
+"""
+
+
+# TODO: Make this message better.
+def test_stmt_match_star_error():
+    assert_ast_error(match_star_error_code, SyntaxError)
