@@ -1,10 +1,10 @@
 from ..assertion_utils import assert_ast_transform
 
 block_for_code = """
-let x = range(5);
-for (const x in x) {
+var x = range(5);
+for (let x in x) {
     print(x);
-    let x = x + 1;
+    var x = x + 1;
     print(x);
     x = x + 2;
 }

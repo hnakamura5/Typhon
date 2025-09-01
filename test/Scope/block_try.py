@@ -2,15 +2,15 @@ from ..assertion_utils import assert_ast_transform, assert_transform_error
 from ...src.Grammar.syntax_errors import ScopeError
 
 block_try_code = """
-let x = 10;
+var x = 10;
 try {
     print(x);
-    let x = 20;
+    var x = 20;
     x = x + 5;
     print(x);
 } except (x: Exception) {
     print(x);
-    let x = 5;
+    var x = 5;
     print(x);
     x = x * 2;
 }

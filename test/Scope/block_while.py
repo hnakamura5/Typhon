@@ -2,10 +2,10 @@ from ..assertion_utils import assert_ast_transform, assert_transform_error
 
 
 block_while_code = """
-let x = 10;
+var x = 10;
 while (x > 0) {
     print(x);
-    let x = x - 1;
+    var x = x - 1;
     print(x);
     x = x - 2;
 }

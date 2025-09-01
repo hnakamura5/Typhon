@@ -1,24 +1,24 @@
 from ..assertion_utils import assert_ast_transform, assert_transform_error
 from ...src.Grammar.syntax_errors import ScopeError
 
-decl_let_code = """
-let x = 10;
+decl_var_code = """
+var x = 10;
 x = x + 5;
 print(x);
 """
-decl_let_result = """
+decl_var_result = """
 x = 10
 x = x + 5
 print(x)
 """
 
 
-def test_decl_let():
-    assert_ast_transform(decl_let_code, decl_let_result)
+def test_decl_var():
+    assert_ast_transform(decl_var_code, decl_var_result)
 
 
 decl_immutable_error_code = """
-const y = 20;
+let y = 20;
 y = y + 5;
 """
 
@@ -28,8 +28,8 @@ def test_decl_immutable_error():
 
 
 decl_duplicate_error_code = """
-let z = 30;
-let z = 40;
+var z = 30;
+var z = 40;
 """
 
 

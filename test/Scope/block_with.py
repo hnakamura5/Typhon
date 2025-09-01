@@ -3,9 +3,9 @@ from ...src.Grammar.syntax_errors import ScopeError
 
 block_with_code = """
 let x = 10;
-with (const x = open('file.txt')) {
+with (let x = open('file.txt')) {
     print(x);
-    let x = 20;
+    var x = 20;
     x = x * 2;
     print(x);
 }
@@ -27,8 +27,8 @@ def test_block_with():
 
 
 block_with_immutable_error_code = """
-let x = 10;
-with (const x = open('file.txt')) {
+var x = 10;
+with (let x = open('file.txt')) {
     x = open('another_file.txt');
 }
 """

@@ -10,7 +10,7 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 
 - Type checking and compile time syntax/type error.
 
-- Forced variable/constant declaration and scoping by `let` and `const`
+- Forced variable/constant declaration and scoping by `var` and `let`
 
 - Unrestricted lambda function in the form of `(x)=>{}`. With type annotation it have the form `(x:int)->int => { return x + 1; }`.
 
@@ -31,18 +31,18 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
   ```
 
 - Scoped `with` statement.
-  `with const f = open("file");` exits at the end of current scope. This is the same as with statement including the rest of current scope as its block.
+  `with let f = open("file");` exits at the end of current scope. This is the same as with statement including the rest of current scope as its block.
 
 - `if-let` statement for checking optional/condition
-  `if (const x = f()){...}` is same as `{const x = f(); if (x is not None){...}}`
-  `if (const x = f(); x > 0){...}` is same as `{const x = f(); if (x > 10){...}}`
+  `if (let x = f()){...}` is same as `{let x = f(); if (x is not None){...}}`
+  `if (let x = f(); x > 0){...}` is same as `{let x = f(); if (x > 0){...}}`
 
 - `while-let` statement for checking optional/condition
-  `while (const x = f()) {...}` behaves as `while((x := f()) is not None)`
-  `while (const x = f(); x > 0) {...}` behaves as `while((x := f()) > 0)`
+  `while (let x = f()) {...}` behaves as `{let x = f(); while(x is not None){...}`
+  `while (let x = f(); x > 0) {...}` behaves as `{let x = f(); while(x > 0)}{...}`
 
 - Const member of class
-  `const x:int` in class is immutable member. Translated into `@property`.
+  `let x:int` in class is immutable member. Translated into `@property`.
 
 ### Detail design changes
 
@@ -50,23 +50,23 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
   `and`, `or`, `not` operators are replaced by `&&`,`||`, `!`, though they are still reserved as keyword (Note `in`, `not in`, `is`, `is not` are supported).
 
 - Assignment style in with and except statement
-  Apply normal assignment or declaration syntax to with and except. e.g. `with(const f=open(...)) {}`, `except(e: IOError){}`
+  Apply normal assignment or declaration syntax to with and except. e.g. `with(let f=open(...)) {}`, `except(e: IOError){}`
 
 - Static Temporal Dead Zone(TDZ) is introduced in module top-level for recursive definition.
   - Reference to symbol declared after is allowed in function (`def` and function literal). Such function symbol is marked as DEAD until all the declaration is completed.
   - Reference to DEAD symbol in function is also allowed. The DEAD mark is propagated.
   - Otherwise reference to symbol is error if that is DEAD or not declared yet.
 
-- Parameters are const, you can shadow it using `let/const`.
+- Parameters are const, you can shadow it using `var/let`.
 
-- Builtin symbols are all const, you can shadow it using `let/const`.
+- Builtin symbols are all const, you can shadow it using `var/let`.
 
 ### Syntax Restrictions
 
 - Identifiers with prefix `_typh_` are all reserved.
 - `del`, `global`, `nonlocal` are forbidden.
 - Wildcard import `from m import *` is  forbidden.
-- Control statements inside class definition are forbidden. Only `class`, `def`, `let/const`, `import` are allowed.
+- Control statements inside class definition are forbidden. Only `class`, `def`, `var/let`, `import` are allowed.
 
 ## Bundled Libraries
 

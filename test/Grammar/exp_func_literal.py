@@ -82,7 +82,7 @@ def test_exp_func_literal_block_typed():
 
 func_literal_nested_code = """
 def test_exp_func_literal_nested() {
-    const f = (x: int) -> (int) -> int => {
+    let f = (x: int) -> (int) -> int => {
         if (x > 0) {
             return (x: int) -> int => {
                 return x + 1;

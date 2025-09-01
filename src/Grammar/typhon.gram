@@ -129,7 +129,7 @@ compound_stmt:
     | match_stmt
 
 
-decl_keyword: 'let' | 'const'
+decl_keyword: 'var' | 'let'
 
 # Statement expanded into several Python statements. Including single and compound.
 expansive_stmt[list]:
@@ -204,7 +204,7 @@ augassign:
     | '//=' { ast.FloorDiv() }
 
 
-# Typhon let/const declarations
+# Typhon var/let declarations
 declaration_assignment:
     | d=decl_keyword a=','.simple_assignment+ { list(map(lambda a1: assign_as_declaration(d.string, a1, LOCATIONS), a)) }
 

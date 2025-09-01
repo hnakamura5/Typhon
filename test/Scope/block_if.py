@@ -1,14 +1,14 @@
 from ..assertion_utils import assert_ast_transform
 
 block_if_code = """
-let x = 10;
+var x = 10;
 if (x > 5) {
     print(x);
-    let x = 20;
+    var x = 20;
     print(x + 1);
     x = 30
 } else {
-    let x = 5;
+    var x = 5;
     print(x);
     x = 40
 }
@@ -32,14 +32,14 @@ def test_block_if():
 
 
 block_if_nested_code = """
-let x = 10;
+var x = 10;
 if (x >= 10) {
     print(x);
-    let x = 20;
+    var x = 20;
     if (x <= 20) {
         print(x);
         x = 15;
-        let x = 5;
+        var x = 5;
         print(x);
     }
 }

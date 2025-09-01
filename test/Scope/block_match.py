@@ -6,13 +6,13 @@ let x = 10;
 match (x) {
     case (x, y) if (x > 5) {
         print(x);
-        let x = 20;
+        var x = 20;
         x = x + y;
         print(x);
     }
     case (y, *x) if (len(x) > 2) {
         print(x);
-        let x = 5;
+        var x = 5;
         print(x);
         x = x * 2;
     }

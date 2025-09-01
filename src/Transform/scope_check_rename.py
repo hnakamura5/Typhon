@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 
 from ..Grammar.typhon_ast import (
-    is_let,
+    is_var,
     is_decl_assign,
     PosAttributes,
     get_pos_attributes,
@@ -219,7 +219,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         self.visit(node.iter)
         with self.scope():  # for initializer scope
             # Assuming target is a simple variable name for now
-            self.visit_declaration(node.target, is_mutable=is_let(node))
+            self.visit_declaration(node.target, is_mutable=is_var(node))
             self.visit_list_scoped(node.body)
             self.visit_list_scoped(node.orelse)
         return node
@@ -242,7 +242,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             for item in node.items:
                 self.visit(item.context_expr)
                 if item.optional_vars:
-                    self.visit_declaration(item.optional_vars, is_mutable=is_let(item))
+                    self.visit_declaration(item.optional_vars, is_mutable=is_var(item))
             self.visit_list_scoped(node.body)
         return node
 
@@ -317,7 +317,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         self.visit(node.value)
         if is_decl_assign(node):
             for target in node.targets:
-                self.visit_declaration(target, is_mutable=is_let(node))
+                self.visit_declaration(target, is_mutable=is_var(node))
         else:  # LHS of non-declaration assignment is just reference
             with self.non_declaration_assign():
                 for target in node.targets:
@@ -331,7 +331,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             self.visit(node.annotation)
         if node.target:
             if is_decl_assign(node):
-                self.visit_declaration(node.target, is_mutable=is_let(node))
+                self.visit_declaration(node.target, is_mutable=is_var(node))
             else:  # LHS of non-declaration assignment is just reference
                 with self.non_declaration_assign():
                     self.visit(node.target)

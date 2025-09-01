@@ -1,7 +1,7 @@
 from ..assertion_utils import assert_ast_equals
 from ...src.Grammar.typhon_ast import (
+    is_var_assign,
     is_let_assign,
-    is_const_assign,
     is_decl_assign,
 )
 import ast
@@ -9,20 +9,20 @@ import ast
 
 def assert_not_decl_assign(node: ast.AST):
     assert not is_decl_assign(node)
+    assert not is_var_assign(node)
     assert not is_let_assign(node)
-    assert not is_const_assign(node)
+
+
+def assert_is_var(node: ast.AST):
+    assert is_decl_assign(node)
+    assert is_var_assign(node)
+    assert not is_let_assign(node)
 
 
 def assert_is_let(node: ast.AST):
     assert is_decl_assign(node)
     assert is_let_assign(node)
-    assert not is_const_assign(node)
-
-
-def assert_is_const(node: ast.AST):
-    assert is_decl_assign(node)
-    assert is_const_assign(node)
-    assert not is_let_assign(node)
+    assert not is_var_assign(node)
 
 
 assign_code = """
@@ -53,10 +53,38 @@ def test_stmt_assign_type_annotation():
     assert_not_decl_assign(parsed.body[0])
 
 
+assign_code_var = """
+var x = 1;
+"""
+
+assign_result_var = """
+x = 1
+"""
+
+
+def test_stmt_assign_var():
+    parsed = assert_ast_equals(assign_code_var, assign_result_var)
+    assert_is_var(parsed.body[0])
+
+
+assign_code_var_type_annotation = """
+var x: int = 1;
+"""
+assign_result_var_type_annotation = """
+x: int = 1
+"""
+
+
+def test_stmt_assign_var_type_annotation():
+    parsed = assert_ast_equals(
+        assign_code_var_type_annotation, assign_result_var_type_annotation
+    )
+    assert_is_var(parsed.body[0])
+
+
 assign_code_let = """
 let x = 1;
 """
-
 assign_result_let = """
 x = 1
 """
@@ -82,32 +110,37 @@ def test_stmt_assign_let_type_annotation():
     assert_is_let(parsed.body[0])
 
 
-assign_code_const = """
-const x = 1;
+assign_code_var_multiple = """
+var x = 1, y = 2;
 """
-assign_result_const = """
+assign_result_var_multiple = """
 x = 1
+y = 2
 """
 
 
-def test_stmt_assign_const():
-    parsed = assert_ast_equals(assign_code_const, assign_result_const)
-    assert_is_const(parsed.body[0])
+def test_stmt_assign_var_multiple():
+    parsed = assert_ast_equals(assign_code_var_multiple, assign_result_var_multiple)
+    assert_is_var(parsed.body[0])
+    assert_is_var(parsed.body[1])
 
 
-assign_code_const_type_annotation = """
-const x: int = 1;
+assign_code_var_type_annotation_multiple = """
+var x: int = 1, y: int = 2;
 """
-assign_result_const_type_annotation = """
+assign_result_var_type_annotation_multiple = """
 x: int = 1
+y: int = 2
 """
 
 
-def test_stmt_assign_const_type_annotation():
+def test_stmt_assign_var_type_annotation_multiple():
     parsed = assert_ast_equals(
-        assign_code_const_type_annotation, assign_result_const_type_annotation
+        assign_code_var_type_annotation_multiple,
+        assign_result_var_type_annotation_multiple,
     )
-    assert_is_const(parsed.body[0])
+    assert_is_var(parsed.body[0])
+    assert_is_var(parsed.body[1])
 
 
 assign_code_let_multiple = """
@@ -141,39 +174,6 @@ def test_stmt_assign_let_type_annotation_multiple():
     )
     assert_is_let(parsed.body[0])
     assert_is_let(parsed.body[1])
-
-
-assign_code_const_multiple = """
-const x = 1, y = 2;
-"""
-assign_result_const_multiple = """
-x = 1
-y = 2
-"""
-
-
-def test_stmt_assign_const_multiple():
-    parsed = assert_ast_equals(assign_code_const_multiple, assign_result_const_multiple)
-    assert_is_const(parsed.body[0])
-    assert_is_const(parsed.body[1])
-
-
-assign_code_const_type_annotation_multiple = """
-const x: int = 1, y: int = 2;
-"""
-assign_result_const_type_annotation_multiple = """
-x: int = 1
-y: int = 2
-"""
-
-
-def test_stmt_assign_const_type_annotation_multiple():
-    parsed = assert_ast_equals(
-        assign_code_const_type_annotation_multiple,
-        assign_result_const_type_annotation_multiple,
-    )
-    assert_is_const(parsed.body[0])
-    assert_is_const(parsed.body[1])
 
 
 code_stmt_assign_in_func = """

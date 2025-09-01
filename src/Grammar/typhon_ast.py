@@ -23,6 +23,16 @@ type DeclarableStmt = Union[
 ]
 
 
+def is_var(node: DeclarableStmt) -> bool:
+    return getattr(node, "is_var", False)
+
+
+def is_var_assign(node: ast.AST) -> bool:
+    if not is_decl_stmt(node):
+        return False
+    return getattr(node, "is_var", False)
+
+
 def is_let(node: DeclarableStmt) -> bool:
     return getattr(node, "is_let", False)
 
@@ -33,43 +43,33 @@ def is_let_assign(node: ast.AST) -> bool:
     return getattr(node, "is_let", False)
 
 
-def is_const(node: DeclarableStmt) -> bool:
-    return getattr(node, "is_const", False)
-
-
-def is_const_assign(node: ast.AST) -> bool:
-    if not is_decl_stmt(node):
-        return False
-    return getattr(node, "is_const", False)
-
-
 def is_decl_assign(node: ast.AST) -> bool:
-    """Check if the node is a declaration assignment (let or const)."""
-    return is_let_assign(node) or is_const_assign(node)
+    """Check if the node is a declaration assignment (let or var)."""
+    return is_var_assign(node) or is_let_assign(node)
+
+
+def _set_is_var(node: DeclarableStmt):
+    setattr(node, "is_var", True)
 
 
 def _set_is_let(node: DeclarableStmt):
     setattr(node, "is_let", True)
 
 
-def _set_is_const(node: DeclarableStmt):
-    setattr(node, "is_const", True)
-
-
-def _set_is_let_const(node: DeclarableStmt, decl_type: str):
-    if decl_type == "let":
+def _set_is_let_var(node: DeclarableStmt, decl_type: str):
+    if decl_type == "var":
+        _set_is_var(node)
+    elif decl_type == "let":
         _set_is_let(node)
-    elif decl_type == "const":
-        _set_is_const(node)
     else:
         raise ValueError(f"Unknown declaration type: {decl_type}")
 
 
-def copy_is_let_const(src: DeclarableStmt, dest: DeclarableStmt) -> None:
+def copy_is_let_var(src: DeclarableStmt, dest: DeclarableStmt) -> None:
+    if is_var_assign(src):
+        _set_is_var(dest)
     if is_let_assign(src):
         _set_is_let(dest)
-    if is_const_assign(src):
-        _set_is_const(dest)
 
 
 def assign_as_declaration(
@@ -101,7 +101,7 @@ def assign_as_declaration(
             end_lineno=end_lineno,
             end_col_offset=end_col_offset,
         )
-    _set_is_let_const(result, decl_type)
+    _set_is_let_var(result, decl_type)
     return result
 
 
@@ -117,14 +117,14 @@ def declaration_as_withitem(assign: Union[ast.Assign, ast.AnnAssign]) -> ast.wit
     if isinstance(assign, ast.Assign):
         # TODO when assignment target has several target?
         item = ast.withitem(context_expr=assign.value, optional_vars=assign.targets[0])
-        copy_is_let_const(assign, item)
+        copy_is_let_var(assign, item)
         return item
     else:
         if not assign.value:
             raise (SyntaxError)  # TODO: what message?
         item = ast.withitem(context_expr=assign.value, optional_vars=assign.target)
         set_type_annotation(item, assign.annotation)
-        copy_is_let_const(assign, item)
+        copy_is_let_var(assign, item)
         return item
 
 
@@ -324,7 +324,7 @@ def make_for_stmt(
             type_comment=type_comment,
             **kwargs,
         )
-        _set_is_let_const(result, decl_type)
+        _set_is_let_var(result, decl_type)
         set_type_annotation(result, type_annotation)
         return result
     else:
@@ -336,6 +336,6 @@ def make_for_stmt(
             type_comment=type_comment,
             **kwargs,
         )
-        _set_is_let_const(result, decl_type)
+        _set_is_let_var(result, decl_type)
         set_type_annotation(result, type_annotation)
         return result
