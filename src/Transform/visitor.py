@@ -41,16 +41,6 @@ class _ScopeManagerMixin:
             yield
 
     @contextmanager
-    def _parent_function(self, node: ast.AST):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            func_def = node
-            self.parent_functions.append(func_def)
-            yield
-            self.parent_functions.pop()
-        else:
-            yield
-
-    @contextmanager
     def _parent_stmt(self, node: ast.AST):
         if isinstance(node, ast.stmt):
             self.parent_stmts.append(node)
@@ -100,12 +90,11 @@ class _ScopeManagerMixin:
     def _visit_scope(self, node: ast.AST):
         with self._parent_stmt(node):
             with self._parent_class(node):
-                with self._parent_function(node):
-                    with self._parent_expr(node):
-                        with self._parent_function(node):
-                            with self._name_scope(node):
-                                with self._parent_python_scope(node):
-                                    yield
+                with self._parent_expr(node):
+                    with self._parent_function(node):
+                        with self._name_scope(node):
+                            with self._parent_python_scope(node):
+                                yield
 
     def new_func_literal_name(self) -> str:
         return self.name_gen.new_func_literal_name()

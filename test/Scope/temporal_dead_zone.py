@@ -116,6 +116,7 @@ f()
 """
 tdz_mutation_result = """
 def f():
+    global x
     x = 20
 x = 10
 f()
@@ -154,6 +155,7 @@ f()
 """
 tdz_shadow_result = """
 def f():
+    global x
     x = x + 1
     _typh_vr_f1_0_x = x + 1
     return _typh_vr_f1_0_x
