@@ -14,12 +14,12 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 
 - Unrestricted lambda function in the form of `(x) => {}`. With type annotation it have the form `(x: int) -> int => { return x + 1; }`. Abbreviation for single expr `(x) => x + 1` is also supported.
 
-- `self` is keyword. First parameter of method definition is NOT self anymore. Use `static def` to prevent this feature.
+- `self` is keyword. First parameter of method definition is NOT self anymore. Use `static def` to prevent this feature. (TODO)
 
 ### Syntax Extension
 
 - Type annotations extension
-  The place we can write type annotations is expanded beyond the limit of Python [PEP 526](https://peps.python.org/pep-0526/#specification). TODO
+  The place we can write type annotations is expanded beyond the limit of Python [PEP 526](https://peps.python.org/pep-0526/#specification). (TODO)
 
 - Function Types
   Arrow types `(T1, T2) -> R` are syntax sugar for Protocol. For example `(x1: T1, x2: T2) -> R` is translated into the following form.
@@ -28,22 +28,22 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
       def __call__(self, x1: T1, x2: T2) -> R: ...
   ```
 
-- Nullable/Optional chain operators `??`, `?.`, `?:` and so on.
+- Nullable/Optional chain operators `??`, `?.`, `?:` and so on. (TODO)
 
-- `if-let` statement for checking optional/condition/matching.
+- `if-let` statement for checking optional/condition/matching. (TODO)
   - `if (let x = f()) {...}` is same as `{ let x = f(); if (x is not None) {...} }`
   - `if (let x = f(); x > 0) {...}` is same as `{ let x = f(); if (x > 0) {...} }`
   - `if (let [1, 2, x, *y] = f(); x > 0) {...}` is same as `match (f()) { case([1, 2, x, *y]) if (x > 0) {...} }`
 
-- Scoped `with` statement.
+- Scoped `with` statement. (TODO)
   `with let f = open("file");` exits at the end of current scope. This is the same as with statement including the rest of current scope as its block.
 
-- Const member of class
+- Const member of class (TODO)
   `let x: int` in class is immutable member. Translated into `@property`.
 
 ### Detail design changes
 
-- Logical operators
+- Logical operators (TODO)
   `and`, `or`, `not` operators are replaced by `&&`,`||`, `!`, though they are still reserved as keyword (Note `in`, `not in`, `is`, `is not` are still supported).
 
 - Assignment style in with and except statement
@@ -62,11 +62,11 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 
 - Identifiers with prefix `_typh_` are all reserved.
 
-- `del`, `global`, `nonlocal` are forbidden.
+- `del`, `global`, `nonlocal` are forbidden. (TODO)
 
-- Wildcard import `from m import *` is forbidden.
+- Wildcard import `from m import *` is forbidden. (TODO)
 
-- Control statements inside class definition are forbidden. Only `class`, `def`, `let/var`, `import` are allowed.
+- Control statements inside class definition are forbidden. Only `class`, `def`, `let/var`, `import` are allowed. (TODO)
 
 ## Bundled Libraries
 
