@@ -27,6 +27,13 @@ class DeclarationContext:
     is_mutable: bool
 
 
+@dataclass
+class SuspendedResolve:
+    name: ast.Name
+    top_level_dead: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+    is_mutation: bool
+
+
 class SymbolScopeVisitor(TyphonASTVisitor):
     scopes: list[dict[str, SymbolDeclaration]]
     symbols: dict[str, list[SymbolDeclaration]]  # Synchronized with scopes stack
@@ -40,13 +47,24 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         self.visiting_left_hand_side = False
         self.declaration_context = None
         self.non_declaration_assign_context = False
-        self.parent_python_scopes = []
         for sym in dir(builtins):
             self.add_symbol_declaration(
                 sym,
                 is_mutable=False,
                 pos=get_empty_pos_attributes(),
             )  # Make builtins immutable
+        self.suspended_symbols = set()
+        self.suspended_resolves = {}
+
+    def now_is_top_level(self, ignore_current: bool = False) -> bool:
+        if ignore_current:
+            return len(self.parent_python_scopes) == 2
+        return len(self.parent_python_scopes) == 1
+
+    def get_parent_function(self) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+        if self.parent_functions:
+            return self.parent_functions[-1]
+        return None
 
     def _enter_scope(self):
         self.scopes.append({})
@@ -86,21 +104,31 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         return decs[-1] if decs else None
 
     def is_shadowed(self, name: str) -> bool:
-        return len(self.symbols.get(name, [])) > 1
+        return len(self.symbols.get(name, [])) > 1 or name in self.suspended_symbols
 
     def add_symbol_declaration(
-        self, name: str, is_mutable: bool, pos: PosAttributes
+        self,
+        name: str,
+        is_mutable: bool,
+        pos: PosAttributes,
+        add_to_parent_python_scope: bool = False,  # For function/class name
     ) -> SymbolDeclaration:
-        if name in self.current_scope():
+        current_scope = self.current_scope()  # This is lexical scope. Not Python scope.
+        if name in current_scope:
             # Already declared in this scope.
             # TODO: Appropriate error handling (SyntaxError?)
-            self.duplicate_declaration(ast.Name(id=name, ctx=ast.Store(), **pos))
+            self.error_duplicate_declaration(ast.Name(id=name, ctx=ast.Store(), **pos))
         dec = SymbolDeclaration(name, is_mutable)
-        self.current_scope()[name] = dec
+        current_scope[name] = dec
         self.symbols.setdefault(name, []).append(dec)
+        print(
+            f"Declared variable '{name}' (mutable={is_mutable}) scope_level={len(self.parent_python_scopes)} add_to_parent_python_scope={add_to_parent_python_scope}"
+        )  # [HN]
+        if self.now_is_top_level(ignore_current=add_to_parent_python_scope):
+            self.resolve_suspended_resolves(name)
         return dec
 
-    def reference_undeclared(self, name: ast.Name) -> ast.Name:
+    def error_reference_undeclared(self, name: ast.Name) -> ast.Name:
         # TODO: Raise error or keep for TDZ handling
         raise_scope_error(
             f"Symbol '{name.id}' is referenced before declaration.",
@@ -108,16 +136,30 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         )
         return name
 
-    def assign_to_immutable(self, name: ast.Name) -> ast.Name:
+    def error_assign_to_immutable(self, name: ast.Name) -> ast.Name:
         raise_scope_error(
             f"Cannot assign to immutable variable '{name.id}'.",
             **get_pos_attributes(name),
         )
         return name
 
-    def duplicate_declaration(self, name: ast.Name) -> ast.Name:
+    def error_assign_to_undeclared(self, name: ast.Name) -> ast.Name:
+        raise_scope_error(
+            f"Cannot assign to undeclared symbol '{name.id}'.",
+            **get_pos_attributes(name),
+        )
+        return name
+
+    def error_duplicate_declaration(self, name: ast.Name) -> ast.Name:
         raise_scope_error(
             f"Symbol '{name.id}' is already declared in this scope.",
+            **get_pos_attributes(name),
+        )
+        return name
+
+    def error_tdz_violation(self, name: ast.Name) -> ast.Name:
+        raise_scope_error(
+            f"Symbol '{name.id}' is accessed in its temporal dead zone (TDZ).",
             **get_pos_attributes(name),
         )
         return name
@@ -154,7 +196,9 @@ class SymbolScopeVisitor(TyphonASTVisitor):
 
     def visit_ClassDef(self, node: ast.ClassDef):
         pos = get_pos_attributes(node)
-        self.add_symbol_declaration(node.name, is_mutable=False, pos=pos)
+        self.add_symbol_declaration(
+            node.name, is_mutable=False, pos=pos, add_to_parent_python_scope=True
+        )
         with self.scope():
             self.add_symbol_declaration("self", is_mutable=False, pos=pos)
             self.add_symbol_declaration("super", is_mutable=False, pos=pos)
@@ -169,7 +213,10 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         self, node: ast.FunctionDef | ast.AsyncFunctionDef
     ):
         self.add_symbol_declaration(
-            node.name, is_mutable=False, pos=get_pos_attributes(node)
+            node.name,
+            is_mutable=False,
+            pos=get_pos_attributes(node),
+            add_to_parent_python_scope=True,
         )
         with self.scope():  # Type parameters scope
             for tp in node.type_params or []:
@@ -350,13 +397,91 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             self.visit(node.target)
         return node
 
+    # Static Temporal Dead Zone(TDZ) handling.
+    # suspended_access[dead_accessor_name][undeclared_name]
+    suspended_resolves: dict[str, dict[str, list[SuspendedResolve]]]
+    suspended_symbols: set[str]
+    type SuspendableScope = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+
+    def add_suspended_resolve(
+        self, name: ast.Name, top_level_dead: SuspendableScope, is_mutable: bool
+    ) -> SuspendedResolve:
+        tdz = SuspendedResolve(
+            name=name,
+            top_level_dead=top_level_dead,
+            is_mutation=is_mutable,
+        )
+        self.suspended_symbols.add(name.id)
+        self.suspended_resolves.setdefault(top_level_dead.name, {}).setdefault(
+            name.id, []
+        ).append(tdz)
+        return tdz
+
+    def suspendable_scope(
+        self,
+    ) -> SuspendableScope | None:
+        if (
+            self.get_parent_function() is not None
+            and len(self.parent_python_scopes) > 1
+            and isinstance(  # Check redundant but safe
+                self.parent_python_scopes[1],
+                ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef,
+            )
+        ):
+            return self.parent_python_scopes[1]
+        return None
+
+    def try_suspend_resolve(
+        self, name: ast.Name, is_mutation: bool
+    ) -> SuspendedResolve | None:
+        belong_top_level_scope = self.suspendable_scope()
+        if belong_top_level_scope is None:
+            return None
+        return self.add_suspended_resolve(name, belong_top_level_scope, is_mutation)
+
+    # Access to maybe temporally dead variable. return False if access is not valid.
+    # Copy the dependency of suspended access as current scope's dependency.
+    def access_temporal_dead(self, name: ast.Name) -> bool:
+        tdz_depends = self.suspended_resolves.get(name.id, None)
+        if tdz_depends is None:
+            return True  # Not dead
+        belong_top_level_scope = self.suspendable_scope()
+        if belong_top_level_scope is None:
+            return False  # Invalid access
+        # Copy the dependency to current scope
+        for _, suspends in tdz_depends.items():
+            for tdz in suspends:
+                self.add_suspended_resolve(
+                    tdz.name, belong_top_level_scope, tdz.is_mutation
+                )
+        return True
+
+    def is_temporal_dead(self, name: str) -> bool:
+        return self.suspended_resolves.get(name, None) is not None
+
+    # On top-level declaration of a symbol, resolve suspended accesses to it.
+    def resolve_suspended_resolves(self, name: str):
+        print(f"Resolving suspended accesses to '{name}'")  # [HN] Debug
+        if name not in self.suspended_symbols:
+            return
+        self.suspended_symbols.remove(name)
+        temp_dead_to_resolve: list[str] = []
+        for temp_dead_name, suspends in self.suspended_resolves.items():
+            suspends.pop(name)
+            if not suspends:
+                temp_dead_to_resolve.append(temp_dead_name)
+        for temp_dead_name in temp_dead_to_resolve:
+            self.suspended_resolves.pop(temp_dead_name)
+
+    # The main part of this visitor.
+    # Variable reference and declaration. Rename if necessary.
     def visit_Name(self, node: ast.Name):
         # TODO: Insert global/nonlocal handling automatically
         # TODO: TDZ handling for Top-level code
         if self.declaration_context:
             # Left-hand side of an declaration assignment
             if self.current_scope().get(node.id):
-                return self.duplicate_declaration(node)
+                return self.error_duplicate_declaration(node)
             sym = self.add_symbol_declaration(
                 node.id,
                 is_mutable=self.declaration_context.is_mutable,
@@ -370,17 +495,35 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         else:
             # Reference to the symbol
             sym = self.get_symbol(node.id)
-            if sym is None:
-                return self.reference_undeclared(node)
+            if sym is None:  # Undeclared variable
+                suspend = self.try_suspend_resolve(
+                    node, is_mutation=self.non_declaration_assign_context
+                )
+                if not suspend:
+                    # Cannot suspend access, undeclared variable here.
+                    return self.error_reference_undeclared(node)
+                return node  # Temporally OK. Keep for TDZ handling.
             if not sym.is_mutable and self.non_declaration_assign_context:
-                return self.assign_to_immutable(node)
+                return self.error_assign_to_immutable(node)
             # Rename variable if necessary
             if sym and sym.renamed_to:
                 node.id = sym.renamed_to
                 print(f"Renamed variable '{sym.name}' to '{sym.renamed_to}'")
+            if self.is_temporal_dead(node.id):
+                # Accessing to a temporally dead variable
+                print(f"Temporal dead access to '{node.id}'")  # [HN] Debug
+                if not self.access_temporal_dead(node):
+                    return self.error_tdz_violation(node)
         return node
 
 
 def scope_check_rename(node: ast.Module):
     visitor = SymbolScopeVisitor()
     visitor.visit(node)
+    for scope_name, depends in visitor.suspended_resolves.items():
+        for name, suspends in depends.items():
+            for s in suspends:
+                if s.is_mutation:
+                    visitor.error_assign_to_undeclared(s.name)
+                else:
+                    visitor.error_reference_undeclared(s.name)
