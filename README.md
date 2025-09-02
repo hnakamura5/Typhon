@@ -14,7 +14,7 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 
 - Unrestricted lambda function in the form of `(x) => {}`. With type annotation it have the form `(x: int) -> int => { return x + 1; }`. Abbreviation for single expr `(x) => x + 1` is also supported.
 
-- `self` is keyword. First parameter of method definition is NOT self anymore. Use `static def` to prevent this feature. (TODO)
+- `self` is keyword. First parameter of method definition is NOT self anymore. Use `static def` to prevent this feature.
 
 ### Syntax Extension
 

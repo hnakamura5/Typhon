@@ -38,7 +38,7 @@ class UniqueNameGenerator:
             return "m"
         elif isinstance(scope, ast.ClassDef):
             return "c"
-        elif isinstance(scope, ast.FunctionDef):
+        elif isinstance(scope, ast.FunctionDef | ast.AsyncFunctionDef):
             return "f"
         else:
             raise ValueError(f"Unknown scope type: {type(scope)}")

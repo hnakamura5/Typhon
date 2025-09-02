@@ -17,7 +17,7 @@ from typing import (
 from pegen.tokenizer import Tokenizer
 
 from .typhon_ast import (
-    assign_as_declaration, make_function_literal, make_arrow_type,  declaration_as_withitem, make_for_stmt,
+    assign_as_declaration, make_function_literal, make_arrow_type,  declaration_as_withitem, make_for_stmt, make_function_def,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory
@@ -119,7 +119,7 @@ simple_stmt (memo):
     | &'nonlocal' nonlocal_stmt
 
 compound_stmt:
-    | &('def' | '@' | 'async') function_def
+    | &('def' | '@' | 'async' | 'static') function_def
     | &'if' if_stmt
     | &('class' | '@') class_def
     | &('with' | 'async') with_stmt
@@ -337,9 +337,10 @@ function_def[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
 
 function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
     | invalid_def_raw
-    | 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=[typing_arrow_return_type] tc=[func_type_comment] b=block {
-        (
-            ast.FunctionDef(
+    | st=['static'] asc=['async'] 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=[typing_arrow_return_type] tc=[func_type_comment] b=block {
+            make_function_def(
+                is_async=(asc is not None),
+                is_static=(st is not None),
                 name=n.string,
                 args=params or self.make_arguments(None, [], None, [], None),
                 returns=a,
@@ -347,46 +348,9 @@ function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
                 type_comment=tc,
                 type_params=t or [],
                 LOCATIONS,
-            ) if sys.version_info >= (3, 12) else
-            ast.FunctionDef(
-                name=n.string,
-                args=params or self.make_arguments(None, [], None, [], None),
-                returns=a,
-                body=b,
-                type_comment=tc,
-                LOCATIONS,
             )
-        )
      }
-    | 'async' 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=[typing_arrow_return_type] tc=[func_type_comment] b=block {
-       (
-            self.check_version(
-                (3, 5),
-                "Async functions are",
-                ast.AsyncFunctionDef(
-                    name=n.string,
-                    args=params or self.make_arguments(None, [], None, [], None),
-                    returns=a,
-                    body=b,
-                    type_comment=tc,
-                    type_params=t or [],
-                    LOCATIONS,
-                )
-            ) if sys.version_info >= (3, 12) else
-            self.check_version(
-                (3, 5),
-                "Async functions are",
-                ast.AsyncFunctionDef(
-                    name=n.string,
-                    args=params or self.make_arguments(None, [], None, [], None),
-                    returns=a,
-                    body=b,
-                    type_comment=tc,
-                    LOCATIONS,
-                )
-            )
-       )
-     }
+
 
 # Function parameters
 # -------------------

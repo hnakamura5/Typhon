@@ -176,13 +176,20 @@ def is_function_literal(name: ast.Name) -> bool:
     return getattr(name, "func_def", None) is not None
 
 
-def set_function_literal_def(name: FunctionLiteral, func_def: ast.FunctionDef):
+def set_function_literal_def(
+    name: FunctionLiteral, func_def: ast.FunctionDef | ast.AsyncFunctionDef
+):
     setattr(name, "func_def", func_def)
+    setattr(func_def, "is_function_literal_def", True)
 
 
 def clear_function_literal_def(name: FunctionLiteral):
     if hasattr(name, "func_def"):
         delattr(name, "func_def")
+
+
+def is_function_literal_def(func_def: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    return getattr(func_def, "is_function_literal_def", False)
 
 
 def make_function_literal(
@@ -339,3 +346,46 @@ def make_for_stmt(
         _set_is_let_var(result, decl_type)
         set_type_annotation(result, type_annotation)
         return result
+
+
+def set_is_static(node: ast.FunctionDef | ast.AsyncFunctionDef, is_static: bool = True):
+    setattr(node, "is_static", is_static)
+
+
+def is_static(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    return getattr(node, "is_static", False)
+
+
+def make_function_def(
+    is_async: bool,
+    is_static: bool,
+    name: str,
+    args: ast.arguments,
+    returns: ast.expr | None,
+    body: list[ast.stmt],
+    type_comment: str | None,
+    type_params: list[ast.type_param],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.FunctionDef | ast.AsyncFunctionDef:
+    if is_async:
+        result = ast.AsyncFunctionDef(
+            name=name,
+            args=args,
+            returns=returns,
+            body=body,
+            type_comment=type_comment,
+            type_params=type_params,
+            **kwargs,
+        )
+    else:
+        result = ast.FunctionDef(
+            name=name,
+            args=args,
+            returns=returns,
+            body=body,
+            type_comment=type_comment,
+            type_params=type_params,
+            **kwargs,
+        )
+    set_is_static(result, is_static)
+    return result

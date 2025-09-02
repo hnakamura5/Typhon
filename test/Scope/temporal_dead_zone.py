@@ -69,7 +69,7 @@ let a = A();
 tdz_class_result = """
 class A:
 
-    def f():
+    def f(self):
         g(x)
 x = 10
 

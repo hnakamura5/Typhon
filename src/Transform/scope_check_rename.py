@@ -56,22 +56,6 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         self.require_nonlocal = {}
         self.builtins = set(dir(builtins))
 
-    def now_is_top_level(self, ignore_current: bool = False) -> bool:
-        if ignore_current:
-            return len(self.parent_python_scopes) == 2
-        return len(self.parent_python_scopes) == 1
-
-    def get_parent_python_scope(self) -> PythonScope:
-        if not self.parent_python_scopes:
-            # TODO: proper error handling
-            raise RuntimeError("No Module scope found.")
-        return self.parent_python_scopes[-1]
-
-    def get_parent_function(self) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
-        if self.parent_functions:
-            return self.parent_functions[-1]
-        return None
-
     def _enter_scope(self):
         self.scopes.append({})
 
@@ -232,7 +216,6 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             node.name, is_mutable=False, pos=pos, add_to_parent_python_scope=True
         )
         with self.scope():
-            self.add_symbol_declaration("self", is_mutable=False, pos=pos)
             self.add_symbol_declaration("super", is_mutable=False, pos=pos)
             self.add_symbol_declaration(node.name, is_mutable=False, pos=pos)
             for tp in node.type_params or []:

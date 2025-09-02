@@ -96,6 +96,26 @@ class _ScopeManagerMixin:
                             with self._parent_python_scope(node):
                                 yield
 
+    def get_parent_function(self) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+        if self.parent_functions:
+            return self.parent_functions[-1]
+        return None
+
+    def get_parent_python_scope(self, ignore_top: bool = False) -> PythonScope:
+        if not self.parent_python_scopes:
+            # TODO: proper error handling
+            raise RuntimeError("No Module scope found.")
+        if ignore_top:
+            if len(self.parent_python_scopes) == 1:
+                raise RuntimeError("No parent scope found (at top level).")
+            return self.parent_python_scopes[-2]
+        return self.parent_python_scopes[-1]
+
+    def now_is_top_level(self, ignore_current: bool = False) -> bool:
+        if ignore_current:
+            return len(self.parent_python_scopes) == 2
+        return len(self.parent_python_scopes) == 1
+
     def new_func_literal_name(self) -> str:
         return self.name_gen.new_func_literal_name()
 

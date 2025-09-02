@@ -13,7 +13,7 @@ let a = A();
 block_class_result = """
 class A:
 
-    def f():
+    def f(self):
         _typh_vr_f2_0_A = 10
         print(_typh_vr_f2_0_A)
 a = A()
@@ -41,17 +41,16 @@ class A {
 let a = A();
 a.g();
 """
-
 block_class_nested_result = """
 class A:
 
     class B:
 
-        def f():
+        def f(self):
             _typh_vr_f3_0_A = 10
             print(_typh_vr_f3_0_A)
 
-    def g():
+    def g(self):
         b = B()
         _typh_vr_f4_0_B = 20
         print(_typh_vr_f4_0_B)
