@@ -62,11 +62,11 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 
 - Identifiers with prefix `_typh_` are all reserved.
 
-- `del`, `global`, `nonlocal` are forbidden. (TODO)
+- `del`, `global`, `nonlocal` are forbidden.
 
-- Wildcard import `from m import *` is forbidden. (TODO)
+- Wildcard import `from m import *` is forbidden.
 
-- Control statements inside class definition are forbidden. Only `class`, `def`, `let/var`, `import` are allowed. (TODO)
+- Control statements inside class definition are forbidden. Only `class`, `def`, `let/var`, `import` are allowed.
 
 ## Bundled Libraries
 

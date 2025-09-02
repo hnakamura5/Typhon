@@ -170,8 +170,17 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         return name
 
     def error_tdz_violation(self, name: ast.Name) -> ast.Name:
+        # TODO: Also report undeclared variable error for suspend.
+        suspended_message = ""
+        depends = self.suspended_resolves.get(name.id, {})
+        for _, suspends in depends.items():
+            for suspend in suspends:
+                if suspend.is_mutation:
+                    suspended_message += f"  Suspended mutation to '{suspend.name.id} at {get_pos_attributes(name)}'\n"
+                else:
+                    suspended_message += f"  Suspended reference to '{suspend.name.id} at {get_pos_attributes(name)}'\n"
         raise_scope_error(
-            f"Symbol '{name.id}' is accessed in its temporal dead zone (TDZ).",
+            f"Symbol '{name.id}' is accessed in its temporal dead zone (TDZ).\n{suspended_message}",
             **get_pos_attributes(name),
         )
         return name
@@ -421,7 +430,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         return node
 
     # Static Temporal Dead Zone(TDZ) handling.
-    # suspended_access[dead_accessor_name][undeclared_name]
+    # suspended_resolves[dead_accessor_name][undeclared_name]
     suspended_resolves: dict[str, dict[str, list[SuspendedResolveAccess]]]
     suspended_symbols: set[str]
     type SuspendableScope = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
@@ -590,11 +599,11 @@ def scope_check_rename(node: ast.Module):
     visitor.visit(node)
     for scope_name, depends in visitor.suspended_resolves.items():
         for name, suspends in depends.items():
-            for s in suspends:
-                if s.is_mutation:
-                    visitor.error_assign_to_undeclared(s.name)
+            for suspend in suspends:
+                if suspend.is_mutation:
+                    visitor.error_assign_to_undeclared(suspend.name)
                 else:
-                    visitor.error_reference_undeclared(s.name)
+                    visitor.error_reference_undeclared(suspend.name)
     for name, python_scopes in visitor.require_global.items():
         for python_scope in python_scopes:
             decl = ast.Global(names=[name], **get_empty_pos_attributes())
