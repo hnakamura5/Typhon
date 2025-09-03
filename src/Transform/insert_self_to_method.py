@@ -10,8 +10,8 @@ from .visitor import TyphonASTVisitor, TyphonASTTransformer
 class _Gather(TyphonASTVisitor):
     methods: list[ast.FunctionDef | ast.AsyncFunctionDef]
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, module: ast.Module):
+        super().__init__(module)
         self.methods = []
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
@@ -37,10 +37,9 @@ class _Gather(TyphonASTVisitor):
 
 
 def insert_self_to_method(mod: ast.Module):
-    gather = _Gather()
-    gather.visit(mod)
+    gather = _Gather(mod)
+    gather.run()
     for method in gather.methods:
         print(f"insert_self_to_method: {method.name} {method.args}")
         new_arg = ast.arg(arg="self", annotation=None, **get_pos_attributes(method))
         method.args.args.insert(0, new_arg)
-    pass

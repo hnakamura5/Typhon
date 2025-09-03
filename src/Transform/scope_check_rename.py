@@ -44,8 +44,8 @@ class SymbolScopeVisitor(TyphonASTVisitor):
     non_declaration_assign_context: bool
     builtins: set[str]
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, module: ast.Module):
+        super().__init__(module)
         self.scopes = []
         self.symbols = {}
         self.visiting_left_hand_side = False
@@ -615,8 +615,8 @@ class SymbolScopeVisitor(TyphonASTVisitor):
 
 
 def scope_check_rename(node: ast.Module):
-    visitor = SymbolScopeVisitor()
-    visitor.visit(node)
+    visitor = SymbolScopeVisitor(node)
+    visitor.run()
     for scope_name, depends in visitor.suspended_resolves.items():
         for name, suspends in depends.items():
             for suspend in suspends:

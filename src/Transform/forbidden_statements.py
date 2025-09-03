@@ -71,4 +71,4 @@ class ForbiddenStatementChecker(TyphonASTVisitor):
 
 
 def check_forbidden_statements(mod: ast.Module):
-    ForbiddenStatementChecker().visit(mod)
+    ForbiddenStatementChecker(mod).run()

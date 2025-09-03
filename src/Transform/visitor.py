@@ -21,13 +21,13 @@ class _ScopeManagerMixin:
     name_gen: UniqueNameGenerator
     parent_python_scopes: list[PythonScope]
 
-    def __init__(self):
+    def __init__(self, module: ast.Module):
         super().__init__()
         self.parent_stmts = []
         self.parent_exprs = []
         self.parent_classes = []
         self.parent_functions = []
-        self.name_gen = UniqueNameGenerator()
+        self.name_gen = UniqueNameGenerator(module)
         self.parent_python_scopes = []
 
     @contextmanager
@@ -199,6 +199,15 @@ class _TyphonExtendedNodeTransformerMixin:
 class TyphonASTVisitor(
     ast.NodeVisitor, _ScopeManagerMixin, _TyphonExtendedNodeTransformerMixin
 ):
+    def __init__(self, module: ast.Module):
+        ast.NodeVisitor.__init__(self)
+        _ScopeManagerMixin.__init__(self, module)
+        _TyphonExtendedNodeTransformerMixin.__init__(self)
+        self.module = module
+
+    def run(self):
+        self.visit(self.module)
+
     @override
     def visit(self, node: ast.AST):
         with self._visit_scope(node):
@@ -217,6 +226,15 @@ class TyphonASTVisitor(
 class TyphonASTTransformer(
     ast.NodeTransformer, _ScopeManagerMixin, _TyphonExtendedNodeTransformerMixin
 ):
+    def __init__(self, module: ast.Module):
+        ast.NodeTransformer.__init__(self)
+        _ScopeManagerMixin.__init__(self, module)
+        _TyphonExtendedNodeTransformerMixin.__init__(self)
+        self.module = module
+
+    def run(self):
+        return self.visit(self.module)
+
     @override
     def visit(self, node: ast.AST) -> ast.AST | list[ast.AST] | None:
         with self._visit_scope(node):

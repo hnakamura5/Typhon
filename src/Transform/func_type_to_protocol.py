@@ -15,8 +15,8 @@ from .name_generator import get_protocol_name
 class _Gather(TyphonASTVisitor):
     func_types: list[tuple[FunctionType, str]]
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, module: ast.Module):
+        super().__init__(module)
         self.func_types = []
 
     def visit_FunctionType(self, node: FunctionType):
@@ -122,8 +122,8 @@ def add_protocols(
 
 
 def func_type_to_protocol(mod: ast.Module):
-    gatherer = _Gather()
-    gatherer.visit(mod)
+    gatherer = _Gather(mod)
+    gatherer.run()
     if not gatherer.func_types:
         return
     add_import_for_protocol(mod)

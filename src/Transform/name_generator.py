@@ -1,6 +1,7 @@
 import ast
 from typing import Union, Any, Literal
 from enum import Enum, auto
+from contextlib import contextmanager
 
 
 typhon_prefix = "_typh_"
@@ -29,9 +30,18 @@ class UniqueNameGenerator:
     scope_stack: list[tuple[PythonScope, str]] = []
     scope_counters: dict[str, int]
 
-    def __init__(self):
+    def __init__(self, module: ast.Module):
         self.scope_id_counter = 0
-        self.scope_counters = {}
+        self.scope_counters = self._module_scope_counter(module)
+
+    # To use consistent scope counters across multiple passes on the same module.
+    def _module_scope_counter(self, module: ast.Module) -> dict[str, int]:
+        attr_name = "_typh_name_generator_scope_counters"
+        scope_counters: dict[str, int] | None = getattr(module, attr_name, None)
+        if scope_counters is None:
+            scope_counters = {}
+            setattr(module, attr_name, scope_counters)
+        return scope_counters
 
     # Here the scope is Python scope: module, class, function. Not block scope.
     def enter_scope(self, scope: PythonScope):
@@ -44,6 +54,12 @@ class UniqueNameGenerator:
         if self.scope_counters:
             _, scope_id = self.scope_stack.pop()
             self.scope_counters.pop(scope_id)
+
+    @contextmanager
+    def name_scope(self, scope: PythonScope):
+        self.enter_scope(scope)
+        yield
+        self.exit_scope(scope)
 
     # TODO: Ideally this is not needed. For safety and readability.
     def _scope_symbol(self, scope: PythonScope) -> str:

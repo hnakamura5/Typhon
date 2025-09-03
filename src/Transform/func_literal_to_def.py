@@ -10,8 +10,8 @@ from .visitor import TyphonASTVisitor, TyphonASTTransformer
 class _Gather(TyphonASTVisitor):
     func_literals: list[tuple[FunctionLiteral, ast.stmt]]
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, module: ast.Module):
+        super().__init__(module)
         self.func_literals = []
 
     def visit_FunctionLiteral(self, node: FunctionLiteral):
@@ -26,10 +26,11 @@ class _Transform(TyphonASTTransformer):
 
     def __init__(
         self,
+        module: ast.Module,
         func_literals: dict[FunctionLiteral, ast.stmt],
         parent_stmts_for_literals: dict[ast.stmt, list[FunctionLiteral]],
     ):
-        super().__init__()
+        super().__init__(module)
         self.func_literals = func_literals
         self.parent_stmts_for_literals = parent_stmts_for_literals
         self.def_for_literal = {}
@@ -59,14 +60,14 @@ class _Transform(TyphonASTTransformer):
 
 # Entry point for the transformation.
 def func_literal_to_def(mod: ast.Module):
-    gatherer = _Gather()
+    gatherer = _Gather(mod)
     # First, gather all function literals with their parent statements.
-    gatherer.visit(mod)
+    gatherer.run()
     # Do transform to the literals and the parent statements.
     func_literals = {}
     parent_stmts_for_literals = {}
     for func_literal, parent_stmt in gatherer.func_literals:
         func_literals[func_literal] = parent_stmt
         parent_stmts_for_literals.setdefault(parent_stmt, []).append(func_literal)
-    transformer = _Transform(func_literals, parent_stmts_for_literals)
-    transformer.visit(mod)
+    transformer = _Transform(mod, func_literals, parent_stmts_for_literals)
+    transformer.run()
