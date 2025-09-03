@@ -22,7 +22,7 @@ def assert_ast_equals(typhon_code: str, python_code: str) -> ast.Module:
 def assert_transform_equals(typhon_ast: ast.Module, python_code: str):
     assert isinstance(typhon_ast, ast.Module)
     transform(typhon_ast)
-    print(ast.unparse(typhon_ast))
+    print(f"Transform result:\n{ast.unparse(typhon_ast)}")
     assert ast.unparse(typhon_ast) == python_code.strip()
 
 
@@ -30,7 +30,7 @@ def assert_ast_transform(typhon_code: str, python_code: str):
     parsed = parse_string(typhon_code, mode="exec")
     assert isinstance(parsed, ast.Module)
     transform(parsed)
-    print(ast.unparse(parsed))
+    print(f"Transform result:\n{ast.unparse(parsed)}")
     assert ast.unparse(parsed) == python_code.strip()
     return parsed
 

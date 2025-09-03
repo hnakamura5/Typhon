@@ -41,7 +41,7 @@ class _Transform(TyphonASTTransformer):
             result: list[ast.AST] = []
             for func_literal in self.parent_stmts_for_literals[node]:
                 func_def = get_function_literal_def(func_literal)
-                func_def.name = self.name_gen.new_func_literal_name()
+                func_def.name = self.new_func_literal_name()
                 func_literal.id = func_def.name
                 result.append(func_def)
             print("result, before parent stmt:", result, node)

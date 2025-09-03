@@ -1,10 +1,23 @@
 import ast
-from typing import Union, Any
+from typing import Union, Any, Literal
+from enum import Enum, auto
 
 
 typhon_prefix = "_typh_"
 
 PythonScope = Union[ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef]
+
+
+# TODO Namekind Enum
+class NameKind(Enum):
+    VARIABLE = auto()
+    CONST = auto()
+    FUNCTION_LITERAL = auto()
+    ARROW_TYPE = auto()
+    CLASS = auto()
+    FUNCTION = auto()
+    IMPORT = auto()
+    OTHER = auto()
 
 
 def get_protocol_name() -> str:
@@ -49,18 +62,22 @@ class UniqueNameGenerator:
         self.scope_counters[scope_id] = count + 1
         return f"{scope_id}_{count}"
 
-    def new_func_literal_name(self) -> str:
-        scope_id = self._get_next_id()
-        return f"{typhon_prefix}fn_{scope_id}"
-
-    def new_variable_rename_name(self, original_name: str) -> str:
-        scope_id = self._get_next_id()
-        return f"{typhon_prefix}vr_{scope_id}_{original_name}"
-
-    def new_const_rename_name(self, original_name: str) -> str:
-        scope_id = self._get_next_id()
-        return f"{typhon_prefix}cn_{scope_id}_{original_name}"
-
-    def new_arrow_type_name(self) -> str:
-        scope_id = self._get_next_id()
-        return f"{typhon_prefix}ar_{scope_id}"
+    def new_name(self, kind: NameKind, original_name: str = "") -> str:
+        if kind == NameKind.VARIABLE:
+            return f"{typhon_prefix}vr_{self._get_next_id()}_{original_name}"
+        elif kind == NameKind.CONST:
+            return f"{typhon_prefix}cn_{self._get_next_id()}_{original_name}"
+        elif kind == NameKind.FUNCTION_LITERAL:
+            return f"{typhon_prefix}fn_{self._get_next_id()}"
+        elif kind == NameKind.ARROW_TYPE:
+            return f"{typhon_prefix}ar_{self._get_next_id()}"
+        elif kind == NameKind.CLASS:
+            return f"{typhon_prefix}cl_{self._get_next_id()}_{original_name}"
+        elif kind == NameKind.FUNCTION:
+            return f"{typhon_prefix}df_{self._get_next_id()}_{original_name}"
+        elif kind == NameKind.IMPORT:
+            return f"{typhon_prefix}im_{self._get_next_id()}_{original_name}"
+        elif kind == NameKind.OTHER:
+            return f"{typhon_prefix}ot_{self._get_next_id()}_{original_name}"
+        else:
+            raise ValueError(f"Unknown NameKind: {kind}")

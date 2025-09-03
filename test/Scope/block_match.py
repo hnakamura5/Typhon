@@ -33,24 +33,24 @@ print(x);
 block_match_result = """
 x = 10
 match x:
-    case [_typh_vr_m0_0_x, y] if _typh_vr_m0_0_x > 5:
-        print(_typh_vr_m0_0_x)
-        _typh_vr_m0_1_x = 20
-        _typh_vr_m0_1_x = _typh_vr_m0_1_x + y
-        print(_typh_vr_m0_1_x)
-    case [y, *_typh_vr_m0_2_x] if len(_typh_vr_m0_2_x) > 2:
+    case [_typh_cn_m0_0_x, _typh_cn_m0_1_y] if _typh_cn_m0_0_x > 5:
+        print(_typh_cn_m0_0_x)
+        _typh_vr_m0_2_x = 20
+        _typh_vr_m0_2_x = _typh_vr_m0_2_x + _typh_cn_m0_1_y
         print(_typh_vr_m0_2_x)
-        _typh_vr_m0_3_x = 5
-        print(_typh_vr_m0_3_x)
-        _typh_vr_m0_3_x = _typh_vr_m0_3_x * 2
-    case _typh_vr_m0_4_x:
-        print(_typh_vr_m0_4_x)
-        _typh_vr_m0_5_x = 100
+    case [_typh_cn_m0_3_y, *_typh_cn_m0_4_x] if len(_typh_cn_m0_4_x) > 2:
+        print(_typh_cn_m0_4_x)
+        _typh_vr_m0_5_x = 5
         print(_typh_vr_m0_5_x)
+        _typh_vr_m0_5_x = _typh_vr_m0_5_x * 2
+    case _typh_cn_m0_6_x:
+        print(_typh_cn_m0_6_x)
+        _typh_cn_m0_7_x = 100
+        print(_typh_cn_m0_7_x)
     case _:
         print(x)
-        _typh_vr_m0_6_x = 100
-        print(_typh_vr_m0_6_x)
+        _typh_cn_m0_8_x = 100
+        print(_typh_cn_m0_8_x)
 print(x)
 """
 

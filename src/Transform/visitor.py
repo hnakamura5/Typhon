@@ -10,7 +10,7 @@ from ..Grammar.typhon_ast import (
     FunctionType,
     fieldsOfFunctionType,
 )
-from .name_generator import UniqueNameGenerator, PythonScope
+from .name_generator import UniqueNameGenerator, PythonScope, NameKind
 
 
 class _ScopeManagerMixin:
@@ -117,16 +117,19 @@ class _ScopeManagerMixin:
         return len(self.parent_python_scopes) == 1
 
     def new_func_literal_name(self) -> str:
-        return self.name_gen.new_func_literal_name()
+        return self.name_gen.new_name(NameKind.FUNCTION_LITERAL)
 
     def new_variable_rename_name(self, original_name: str) -> str:
-        return self.name_gen.new_variable_rename_name(original_name)
+        return self.name_gen.new_name(NameKind.VARIABLE, original_name)
 
     def new_const_rename_name(self, original_name: str) -> str:
-        return self.name_gen.new_const_rename_name(original_name)
+        return self.name_gen.new_name(NameKind.CONST, original_name)
 
     def new_arrow_type_name(self) -> str:
-        return self.name_gen.new_arrow_type_name()
+        return self.name_gen.new_name(NameKind.ARROW_TYPE)
+
+    def new_name(self, kind: NameKind, original_name: str = "") -> str:
+        return self.name_gen.new_name(kind, original_name)
 
 
 def flat_map[T](f: Callable[[T], T | list[T] | None], v: list[T]) -> list[T]:

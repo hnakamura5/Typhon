@@ -12,6 +12,7 @@ from ..Grammar.typhon_ast import (
 )
 from ..Grammar.syntax_errors import raise_scope_error
 from .visitor import TyphonASTVisitor, PythonScope
+from .name_generator import NameKind
 
 
 @dataclass
@@ -45,7 +46,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
 
     def __init__(self):
         super().__init__()
-        self.scopes = [{}]
+        self.scopes = []
         self.symbols = {}
         self.visiting_left_hand_side = False
         self.declaration_context = None
@@ -96,12 +97,19 @@ class SymbolScopeVisitor(TyphonASTVisitor):
     def is_shadowed(self, name: str) -> bool:
         return len(self.symbols.get(name, [])) > 1 or name in self.suspended_symbols
 
+    def is_scoped_but_python_scope_is_top_level(self) -> bool:
+        print(
+            f"scopes={len(self.scopes)}, parent_python_scopes={len(self.parent_python_scopes)}"
+        )  # [HN]
+        return len(self.scopes) > 1 and len(self.parent_python_scopes) == 1
+
     def add_symbol_declaration(
         self,
         name: str,
         is_mutable: bool,
         pos: PosAttributes,
         add_to_parent_python_scope: bool = False,  # For function/class name
+        rename_on_demand_to_kind: NameKind | None = None,  # Rename if needed
     ) -> SymbolDeclaration:
         current_scope = self.current_scope()  # This is lexical scope. Not Python scope.
         if name in current_scope:
@@ -120,8 +128,17 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             print(
                 f"Declared variable '{name}' (mutable={is_mutable}) scope_level={len(self.parent_python_scopes)} add_to_parent_python_scope={add_to_parent_python_scope}"
             )  # [HN]
-        if self.now_is_top_level(ignore_current=add_to_parent_python_scope):
+        is_top_level = self.now_is_top_level(ignore_current=add_to_parent_python_scope)
+        if is_top_level:
             self.resolve_suspended_resolves(name)
+        in_scope_non_python_top_level = len(self.scopes) > 1
+        if rename_on_demand_to_kind is not None:
+            if self.is_shadowed(name) or (
+                is_top_level and in_scope_non_python_top_level
+            ):
+                new_name = self.new_name(rename_on_demand_to_kind, name)
+                dec.renamed_to = new_name
+                print(f"Renamed variable '{dec.name}' to '{new_name}'")
         return dec
 
     def error_reference_undeclared(self, name: ast.Name) -> ast.Name:
@@ -181,9 +198,14 @@ class SymbolScopeVisitor(TyphonASTVisitor):
 
     def visit_Import(self, node: ast.Import):
         for alias in node.names:
-            self.add_symbol_declaration(
-                alias.name, is_mutable=False, pos=get_pos_attributes(alias)
+            sym = self.add_symbol_declaration(
+                alias.asname or alias.name,
+                is_mutable=False,
+                pos=get_pos_attributes(alias),
+                rename_on_demand_to_kind=NameKind.IMPORT,
             )
+            if sym.renamed_to:
+                alias.asname = sym.renamed_to
         self.generic_visit(node)
         return node
 
@@ -191,30 +213,40 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         for alias in node.names:
             if alias.name == "*":  # TODO Make this syntax error?
                 raise NotImplementedError("from module import * is not supported")
-            self.add_symbol_declaration(
+            sym = self.add_symbol_declaration(
                 alias.asname or alias.name,
                 is_mutable=False,
                 pos=get_pos_attributes(alias),
+                rename_on_demand_to_kind=NameKind.IMPORT,
             )
+            if sym.renamed_to:
+                alias.asname = sym.renamed_to
         self.generic_visit(node)
         return node
 
     def visit_Module(self, node: ast.Module):
         # Top-level scope. Add builtins.
-        for sym in dir(builtins):
-            self.add_symbol_declaration(
-                sym,
-                is_mutable=False,
-                pos=get_empty_pos_attributes(),
-            )  # Make builtins immutable
-        self.generic_visit(node)
+        with self.scope():
+            for sym in dir(builtins):
+                self.add_symbol_declaration(
+                    sym,
+                    is_mutable=False,
+                    pos=get_empty_pos_attributes(),
+                )  # Make builtins immutable
+            self.generic_visit(node)
         return node
 
     def visit_ClassDef(self, node: ast.ClassDef):
         pos = get_pos_attributes(node)
-        self.add_symbol_declaration(
-            node.name, is_mutable=False, pos=pos, add_to_parent_python_scope=True
+        sym = self.add_symbol_declaration(
+            node.name,
+            is_mutable=False,
+            pos=pos,
+            add_to_parent_python_scope=True,
+            rename_on_demand_to_kind=NameKind.CLASS,
         )
+        if sym.renamed_to:
+            node.name = sym.renamed_to
         with self.scope():
             self.add_symbol_declaration("super", is_mutable=False, pos=pos)
             self.add_symbol_declaration(node.name, is_mutable=False, pos=pos)
@@ -227,12 +259,15 @@ class SymbolScopeVisitor(TyphonASTVisitor):
     def visit_FunctionDef_AsyncFunctionDef(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef
     ):
-        self.add_symbol_declaration(
+        sym = self.add_symbol_declaration(
             node.name,
             is_mutable=False,
             pos=get_pos_attributes(node),
             add_to_parent_python_scope=True,
+            rename_on_demand_to_kind=NameKind.FUNCTION,
         )
+        if sym.renamed_to:
+            node.name = sym.renamed_to
         with self.scope():  # Type parameters scope
             for tp in node.type_params or []:
                 if isinstance(tp, (ast.TypeVar, ast.TypeVarTuple, ast.ParamSpec)):
@@ -545,12 +580,14 @@ class SymbolScopeVisitor(TyphonASTVisitor):
                 node.id,
                 is_mutable=self.declaration_context.is_mutable,
                 pos=get_pos_attributes(node),
+                rename_on_demand_to_kind=(
+                    NameKind.VARIABLE
+                    if self.declaration_context.is_mutable
+                    else NameKind.CONST
+                ),
             )
-            if self.is_shadowed(node.id):
-                new_name = self.new_variable_rename_name(node.id)
-                sym.renamed_to = new_name
-                node.id = new_name
-                print(f"Renamed variable '{sym.name}' to '{new_name}'")
+            if sym.renamed_to:
+                node.id = sym.renamed_to
         else:
             # Reference to the symbol
             sym = self.get_symbol(node.id)

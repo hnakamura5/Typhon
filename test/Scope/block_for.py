@@ -11,9 +11,9 @@ for (let x in x) {
 """
 block_for_result = """
 x = range(5)
-for _typh_vr_m0_0_x in x:
-    print(_typh_vr_m0_0_x)
-    _typh_vr_m0_1_x = _typh_vr_m0_0_x + 1
+for _typh_cn_m0_0_x in x:
+    print(_typh_cn_m0_0_x)
+    _typh_vr_m0_1_x = _typh_cn_m0_0_x + 1
     print(_typh_vr_m0_1_x)
     _typh_vr_m0_1_x = _typh_vr_m0_1_x + 2
 """

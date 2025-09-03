@@ -59,3 +59,20 @@ if x >= 10:
 
 def test_block_if_nested():
     assert_ast_transform(block_if_nested_code, block_if_nested_result)
+
+
+block_if_top_level_rename_code = """
+if (True) {
+    var x = 10;
+}
+"""
+block_if_top_level_rename_result = """
+if True:
+    _typh_vr_m0_0_x = 10
+"""
+
+
+def test_block_if_top_level_rename():
+    assert_ast_transform(
+        block_if_top_level_rename_code, block_if_top_level_rename_result
+    )

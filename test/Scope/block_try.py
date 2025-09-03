@@ -23,8 +23,8 @@ try:
     _typh_vr_m0_0_x = 20
     _typh_vr_m0_0_x = _typh_vr_m0_0_x + 5
     print(_typh_vr_m0_0_x)
-except Exception as _typh_vr_m0_1_x:
-    print(_typh_vr_m0_1_x)
+except Exception as _typh_cn_m0_1_x:
+    print(_typh_cn_m0_1_x)
     _typh_vr_m0_2_x = 5
     print(_typh_vr_m0_2_x)
     _typh_vr_m0_2_x = _typh_vr_m0_2_x * 2
@@ -61,20 +61,20 @@ block_try_full_result = """
 x = 10
 try:
     print(x)
-    _typh_vr_m0_0_x = 20
-    print(_typh_vr_m0_0_x)
-except Exception as _typh_vr_m0_1_x:
-    print(_typh_vr_m0_1_x)
-    _typh_vr_m0_2_x = 5
-    print(_typh_vr_m0_2_x)
+    _typh_cn_m0_0_x = 20
+    print(_typh_cn_m0_0_x)
+except Exception as _typh_cn_m0_1_x:
+    print(_typh_cn_m0_1_x)
+    _typh_cn_m0_2_x = 5
+    print(_typh_cn_m0_2_x)
 else:
     print(x)
-    _typh_vr_m0_3_x = 15
-    print(_typh_vr_m0_3_x)
+    _typh_cn_m0_3_x = 15
+    print(_typh_cn_m0_3_x)
 finally:
     print(x)
-    _typh_vr_m0_4_x = 100
-    print(_typh_vr_m0_4_x)
+    _typh_cn_m0_4_x = 100
+    print(_typh_cn_m0_4_x)
 print(x)
 """
 
