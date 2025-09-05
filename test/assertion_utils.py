@@ -15,6 +15,7 @@ def assert_token(token: tokenize.TokenInfo, type_: int, string: str):
 def assert_ast_equals(typhon_code: str, python_code: str) -> ast.Module:
     parsed = parse_string(typhon_code, mode="exec", verbose=PARSER_VERBOSE)
     assert isinstance(parsed, ast.Module)
+    print(ast.unparse(parsed))
     assert ast.unparse(parsed) == python_code.strip()
     return parsed
 

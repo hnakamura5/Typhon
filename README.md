@@ -21,6 +21,8 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 - Type annotations extension
   The place we can write type annotations is expanded beyond the limit of Python [PEP 526](https://peps.python.org/pep-0526/#specification). (TODO)
 
+- `(int, str)` for tuple type, `[int]` for list type. These must be used in unpack assignment annotation. (TODO)
+
 - Function Types
   Arrow types `(T1, T2) -> R` are syntax sugar for Protocol. For example `(x1: T1, x2: T2) -> R` is translated into the following form.
   ```python
@@ -58,6 +60,7 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 
 - Builtin symbols are all const, you can shadow it using `let/var`.
 
+
 ### Syntax Restrictions
 
 - Identifiers with prefix `_typh_` are all reserved.
@@ -67,6 +70,8 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 - Wildcard import `from m import *` is forbidden.
 
 - Control statements inside class definition are forbidden. Only `class`, `def`, `let/var`, `import` are allowed.
+
+- `,` separated assignment target and `,` separated tuple without paren around are forbidden. And even not parsed in such a way.
 
 ## Bundled Libraries
 

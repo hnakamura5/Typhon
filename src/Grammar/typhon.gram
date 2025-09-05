@@ -206,7 +206,13 @@ augassign:
 
 # Typhon var/let declarations
 declaration_assignment:
-    | d=decl_keyword a=','.simple_assignment+ { list(map(lambda a1: assign_as_declaration(d.string, a1, LOCATIONS), a)) }
+    | d=decl_keyword a=','.declaration_single_assignment+ {
+        list(map(lambda a1: assign_as_declaration(d.string, a1, LOCATIONS), a))
+     }
+
+declaration_single_assignment[tuple[ast.expr, Optional[ast.expr], Optional[ast.expr]]]:
+    | a=decl_star_target ':' b=typing_expression c=['=' d=annotated_rhs { d }] { (a, b, c) }
+    | a=decl_star_target '=' c=annotated_rhs { (a, None, c) }
 
 
 return_stmt[ast.Return]:
@@ -1443,6 +1449,27 @@ del_t_atom:
     | '(' a=[del_targets] ')' { ast.Tuple(elts=a, ctx=Del, LOCATIONS) }
     | '[' a=[del_targets] ']' { ast.List(elts=a, ctx=Del, LOCATIONS) }
 
+
+# Declaration targets
+# -------------------
+
+decl_star_target (memo):
+    | '*' a=(!'*' decl_star_target) {
+        ast.Starred(value=self.set_expr_context(a, Store), ctx=Store, LOCATIONS)
+     }
+    | decl_star_atom
+
+decl_star_atom:
+    | a=NAME { ast.Name(id=a.string, ctx=Store, LOCATIONS) }
+    | '(' a=decl_star_atom ')' { self.set_expr_context(a, Store) }
+    | '(' a=[decl_star_targets_tuple_seq] ')' { ast.Tuple(elts=a, ctx=Store, LOCATIONS) }
+    | '[' a=[decl_star_targets_list_seq] ']' {  ast.List(elts=a, ctx=Store, LOCATIONS) }
+
+decl_star_targets_list_seq[list]: a=','.decl_star_target+ [','] { a }
+
+decl_star_targets_tuple_seq[list]:
+    | a=decl_star_target b=(',' c=decl_star_target { c })+ [','] { [a] + b }
+    | a=decl_star_target ',' { [a] }
 
 # TYPING ELEMENTS
 # ---------------

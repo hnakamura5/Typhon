@@ -1,7 +1,7 @@
 # Ast Extensions for Typhon
 
 import ast
-from typing import Union, Unpack, TypedDict, Tuple
+from typing import Union, Unpack, TypedDict, Tuple, cast
 
 # Normal assignments, let assignments for variable declarations,
 # and constant assignments for constant definitions.
@@ -72,45 +72,50 @@ def copy_is_let_var(src: DeclarableStmt, dest: DeclarableStmt) -> None:
         _set_is_let(dest)
 
 
+def set_type_annotation(node: ast.AST, type_node: ast.expr | None) -> None:
+    setattr(node, "_typh_annotation", type_node)
+
+
+def get_type_annotation(node: ast.AST) -> ast.expr | None:
+    return getattr(node, "_typh_annotation", None)
+
+
 def assign_as_declaration(
     decl_type: str,
-    assign: Union[ast.Assign, ast.AnnAssign],
+    assign: tuple[ast.expr, ast.expr | None, ast.expr | None],
     lineno: int,
     col_offset: int,
     end_lineno: int,
     end_col_offset: int,
 ) -> Union[ast.Assign, ast.AnnAssign]:
-    if isinstance(assign, ast.AnnAssign):
+    [target, annotation, value] = assign
+
+    if annotation is not None:
         result = ast.AnnAssign(
-            target=assign.target,
-            annotation=assign.annotation,
-            value=assign.value,
-            simple=assign.simple,
+            target=cast(ast.Name, target),
+            value=value,
+            annotation=annotation,
+            simple=1,
             lineno=lineno,
             col_offset=col_offset,
             end_lineno=end_lineno,
             end_col_offset=end_col_offset,
         )
     else:
+        if value is None:
+            # TODO: message
+            raise SyntaxError("Declaration must have either annotation or value")
         result = ast.Assign(
-            targets=assign.targets,
-            value=assign.value,
-            type_comment=assign.type_comment,
+            targets=[target],
+            value=value,
             lineno=lineno,
             col_offset=col_offset,
             end_lineno=end_lineno,
             end_col_offset=end_col_offset,
         )
     _set_is_let_var(result, decl_type)
+    set_type_annotation(result, annotation)
     return result
-
-
-def set_type_annotation(node: ast.AST, type_node: ast.expr | None) -> None:
-    setattr(node, "type_annotation", type_node)
-
-
-def get_type_annotation(node: ast.AST) -> ast.expr | None:
-    return getattr(node, "type_annotation", None)
 
 
 def declaration_as_withitem(assign: Union[ast.Assign, ast.AnnAssign]) -> ast.withitem:
