@@ -8,15 +8,16 @@ from ..Grammar.typhon_ast import (
     get_type_annotation,
     get_annotations_of_declaration_target,
     copy_is_let_var,
+    clear_type_annotation,
 )
 from ..Grammar.syntax_errors import raise_type_annotation_error
-from .visitor import TyphonASTTransformer
+from .visitor import TyphonASTTransformer, TyphonASTVisitor, flat_append
 
 
 def _expand_target_annotation(
     target: ast.expr,
     annotation: ast.expr,
-    orig_node: ast.Assign | ast.AnnAssign | ast.For | ast.withitem,
+    orig_node: ast.Assign | ast.AnnAssign | ast.For | ast.withitem | ast.comprehension,
     pos: PosAttributes,
 ) -> list[ast.AST]:
     result: list[ast.AST] = []
@@ -42,7 +43,7 @@ def _expand_target_annotation(
     return result
 
 
-class StmtTypeAnnotationCheckExpand(TyphonASTTransformer):
+class _StmtTypeAnnotationCheckExpand(TyphonASTTransformer):
     # Expand type annotations in declaration by decl_star_target.
     # For example,
     #    let (a, b): (int, str) = (1, "")
@@ -108,5 +109,59 @@ class StmtTypeAnnotationCheckExpand(TyphonASTTransformer):
         ]
 
 
+class _GatherComprehensionAnnotations(TyphonASTVisitor):
+    parent_to_clause_annotated: dict[ast.stmt, list[ast.comprehension]]
+
+    def __init__(self, module: ast.Module):
+        super().__init__(module)
+        self.parent_to_clause_annotated = {}
+
+    @override
+    def visit_comprehension(self, node: ast.comprehension):
+        self.generic_visit(node)
+        annotation = get_type_annotation(node)
+        if annotation is not None:
+            parent_stmt = self.parent_stmts[-1]
+            # TODO If let support?
+            self.parent_to_clause_annotated.setdefault(parent_stmt, []).append(node)
+
+
+class _ComprehensionTypeAnnotationExpand(TyphonASTTransformer):
+    # Expand type annotations in comprehension by decl_star_target.
+    # For example,
+    #    sq = [for (let x: int in range(10)) yield x * x]
+    # is expanded to
+    #    x: int
+    #    sq = [for (let x in range(10)) yield x * x]
+    def __init__(
+        self,
+        module: ast.Module,
+        parent_to_clause_annotated: dict[ast.stmt, list[ast.comprehension]],
+    ):
+        super().__init__(module)
+        self.parent_to_clause_annotated = parent_to_clause_annotated
+
+    def visit(self, node: ast.AST):
+        if isinstance(node, ast.stmt) and node in self.parent_to_clause_annotated:
+            result: list[ast.AST] = []
+            for clause in self.parent_to_clause_annotated[node]:
+                annotation = get_type_annotation(clause)
+                if annotation is None:
+                    continue
+                result.extend(
+                    _expand_target_annotation(
+                        clause.target, annotation, clause, get_pos_attributes(node)
+                    )
+                )
+                clear_type_annotation(clause)
+            super_result = super().visit(node)
+            flat_append(result, super_result)
+            return result
+        return super().visit(node)
+
+
 def type_annotation_check_expand(tree: ast.Module):
-    StmtTypeAnnotationCheckExpand(tree).run()
+    _StmtTypeAnnotationCheckExpand(tree).run()
+    gather = _GatherComprehensionAnnotations(tree)
+    gather.run()
+    _ComprehensionTypeAnnotationExpand(tree, gather.parent_to_clause_annotated).run()

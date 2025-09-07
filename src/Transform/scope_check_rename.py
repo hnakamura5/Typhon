@@ -95,7 +95,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         return decs[-1] if decs else None
 
     def is_shadowed(self, name: str, python_scope_to_add: PythonScope) -> bool:
-        # If adding to the Class, it is not shadowing but member declaration.
+        # If adding to the Class, not shadowing but qualified member declaration.
         if isinstance(python_scope_to_add, ast.ClassDef):
             return False
         return len(self.symbols.get(name, [])) > 1 or name in self.suspended_symbols
@@ -129,6 +129,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         if is_top_level:
             self.resolve_suspended_resolves(name)
         in_scope_non_python_top_level = len(self.scopes) > 1
+        # Rename if required
         if rename_on_demand_to_kind is not None:
             if self.is_shadowed(name, python_scope_to_add) or (
                 is_top_level and in_scope_non_python_top_level
@@ -443,6 +444,44 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         with self.non_declaration_assign():
             self.visit(node.target)
         return node
+
+    # Comprehension handling.
+    def _visit_Comp(self, node: ast.ListComp | ast.SetComp | ast.GeneratorExp):
+        with self.scope():
+            for gen in node.generators:
+                self._enter_scope()  # Scope by hand to allow nested comprehension
+                self.visit(gen)
+            self.visit(node.elt)
+            for _ in node.generators:
+                self._exit_scope()
+
+    def visit_ListComp(self, node: ast.ListComp):
+        return self._visit_Comp(node)
+
+    def visit_SetComp(self, node: ast.SetComp):
+        return self._visit_Comp(node)
+
+    def visit_DictComp(self, node: ast.DictComp):
+        with self.scope():
+            for gen in node.generators:
+                self._enter_scope()  # Scope by hand to allow nested comprehension
+                self.visit(gen)
+            self.visit(node.key)
+            self.visit(node.value)
+            for _ in node.generators:
+                self._exit_scope()
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp):
+        return self._visit_Comp(node)
+
+    def visit_comprehension(self, node: ast.comprehension):
+        self.visit(node.iter)
+        # NO SCOPE HERE. Handled in _visit_Comp
+        if node.target:
+            self.visit_declaration(node.target, is_mutable=is_var(node))
+        if node.ifs:
+            for if_node in node.ifs:  # TODO: if let here?
+                self.visit(if_node)
 
     # Static Temporal Dead Zone(TDZ) handling.
     # suspended_resolves[dead_accessor_name][undeclared_name]

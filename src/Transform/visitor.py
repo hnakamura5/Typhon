@@ -145,6 +145,15 @@ def flat_map[T](f: Callable[[T], T | list[T] | None], v: list[T]) -> list[T]:
     return result
 
 
+def flat_append(result: list[ast.AST], item: ast.AST | list[ast.AST] | None) -> None:
+    if item is None:
+        return
+    if isinstance(item, list):
+        result.extend(item)
+    else:
+        result.append(item)
+
+
 class _TyphonExtendedNodeTransformerMixin:
     def _visit_FunctionLiteral(
         self,

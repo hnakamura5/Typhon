@@ -19,7 +19,7 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 ### Syntax Extension
 
 - Type annotations extension
-  The place we can write type annotations is expanded beyond the limit of Python [PEP 526](https://peps.python.org/pep-0526/#specification). (TODO)
+  The place we can write type annotations is expanded beyond the limit of Python [PEP 526](https://peps.python.org/pep-0526/#specification).
 
 - `(int, str)` for tuple type, `[int]` for list type. These must be used in unpack assignment annotation. (TODO)
 
@@ -59,6 +59,10 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 - Parameters are const, you can shadow it using `let/var`.
 
 - Builtin symbols are all const, you can shadow it using `let/var`.
+
+- Comprehension uses yield keyword to determine the expression part.
+  For example, `[for (let i in range(1, 10)) if (i % 2 == 1) yield i * i]`, that is translated into `[i * i for i in range(1, 10) if i % 2 == 1]`.
+  For dict, `let odd_square = {for (let i in range(1, 10)) if (i % 2 == 1) yield i: i * i}`
 
 
 ### Syntax Restrictions

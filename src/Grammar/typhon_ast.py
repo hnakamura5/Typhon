@@ -56,7 +56,7 @@ def is_decl_stmt(node: ast.AST) -> bool:
 
 
 type DeclarableStmt = Union[
-    ast.Assign, ast.AnnAssign, ast.withitem, ast.For, ast.AsyncFor
+    ast.Assign, ast.AnnAssign, ast.withitem, ast.For, ast.AsyncFor, ast.comprehension
 ]
 
 
@@ -115,6 +115,11 @@ def set_type_annotation(node: ast.AST, type_node: ast.expr | None) -> None:
 
 def get_type_annotation(node: ast.AST) -> ast.expr | None:
     return getattr(node, "_typh_annotation", None)
+
+
+def clear_type_annotation(node: ast.AST) -> None:
+    if hasattr(node, "_typh_annotation"):
+        delattr(node, "_typh_annotation")
 
 
 def assign_as_declaration(
@@ -488,3 +493,22 @@ def make_function_def(
         )
     set_is_static(result, is_static)
     return result
+
+
+def make_comprehension(
+    decl_type: str,
+    target: ast.expr,
+    type_annotation: ast.expr | None,
+    iter: ast.expr,
+    ifs: list[ast.expr],
+    is_async: int,
+) -> ast.comprehension:
+    clause = ast.comprehension(
+        target=target,
+        iter=iter,
+        ifs=ifs,
+        is_async=is_async,
+    )
+    _set_is_let_var(clause, decl_type)
+    set_type_annotation(clause, type_annotation)
+    return clause

@@ -4,7 +4,7 @@ from ..Grammar.typhon_ast import (
     get_function_literal_def,
     clear_function_literal_def,
 )
-from .visitor import TyphonASTVisitor, TyphonASTTransformer
+from .visitor import TyphonASTVisitor, TyphonASTTransformer, flat_append
 
 
 class _Gather(TyphonASTVisitor):
@@ -47,10 +47,7 @@ class _Transform(TyphonASTTransformer):
                 result.append(func_def)
             print("result, before parent stmt:", result, node)
             node_result = super().visit(node)
-            if isinstance(node_result, ast.AST):
-                result.append(node_result)
-            elif node_result is not None:
-                result.extend(node_result)
+            flat_append(result, node_result)
             for func_literal in self.parent_stmts_for_literals[node]:
                 # Remove back to the name reference.
                 clear_function_literal_def(func_literal)

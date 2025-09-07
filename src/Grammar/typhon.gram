@@ -17,7 +17,7 @@ from typing import (
 from pegen.tokenizer import Tokenizer
 
 from .typhon_ast import (
-    assign_as_declaration, make_function_literal, make_arrow_type,  declaration_as_withitem, make_for_stmt, make_function_def,
+    assign_as_declaration, make_function_literal, make_arrow_type,  declaration_as_withitem, make_for_stmt, make_function_def, make_comprehension
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory
@@ -1304,33 +1304,33 @@ for_if_clauses[List[ast.comprehension]]:
     | a=for_if_clause+ { a }
 
 for_if_clause[ast.comprehension]:
-    | 'async' 'for' a=star_targets 'in' ~ b=disjunction c=('if' z=disjunction { z })* {
+    | 'async' 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ b=disjunction ')' c=('if' '(' z=disjunction ')' { z })* {
         self.check_version(
             (3, 6),
             "Async comprehensions are",
-            ast.comprehension(target=a, iter=b, ifs=c, is_async=1)
+            make_comprehension(decl_type=d.string, target=t, type_annotation=a, iter=b, ifs=c, is_async=1)
         )
      }
-    | 'for' a=star_targets 'in' ~ b=disjunction c=('if' z=disjunction { z })* {
-       ast.comprehension(target=a, iter=b, ifs=c, is_async=0) }
+    | 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ b=disjunction ')' c=('if' '(' z=disjunction ')' { z })* {
+        make_comprehension(decl_type=d.string, target=t, type_annotation=a, iter=b, ifs=c, is_async=0) }
     | invalid_for_target
 
 listcomp[ast.ListComp]:
-    | '[' a=named_expression b=for_if_clauses ']' { ast.ListComp(elt=a, generators=b, LOCATIONS) }
+    | '[' b=for_if_clauses 'yield' ~ a=named_expression ']' { ast.ListComp(elt=a, generators=b, LOCATIONS) }
     | invalid_comprehension
 
 setcomp[ast.SetComp]:
-    | '{' a=named_expression b=for_if_clauses '}' { ast.SetComp(elt=a, generators=b, LOCATIONS) }
+    | '{' b=for_if_clauses 'yield' ~ a=named_expression '}' { ast.SetComp(elt=a, generators=b, LOCATIONS) }
     | invalid_comprehension
 
 genexp[ast.GeneratorExp]:
-    | '(' a=( assignment_expression | expression !':=') b=for_if_clauses ')' {
+    | '(' b=for_if_clauses 'yield' ~ a=( assignment_expression | expression !':=') ')' {
         ast.GeneratorExp(elt=a, generators=b, LOCATIONS)
      }
     | invalid_comprehension
 
 dictcomp[ast.DictComp]:
-    | '{' a=kvpair b=for_if_clauses '}' { ast.DictComp(key=a[0], value=a[1], generators=b, LOCATIONS) }
+    | '{' b=for_if_clauses 'yield' ~ a=kvpair '}' { ast.DictComp(key=a[0], value=a[1], generators=b, LOCATIONS) }
     | invalid_dict_comprehension
 
 # FUNCTION CALL ARGUMENTS
