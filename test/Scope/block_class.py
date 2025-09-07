@@ -61,3 +61,28 @@ a.g()
 
 def test_block_class_nested():
     assert_ast_transform(block_class_nested_code, block_class_nested_result)
+
+
+block_class_not_renamed_code = """
+var x: int = 10;
+class A {
+    let x:int
+    def f() {
+        print(x);
+    }
+}
+"""
+
+block_class_not_renamed_result = """
+x: int = 10
+
+class A:
+    x: int
+
+    def f(self):
+        print(x)
+"""
+
+
+def test_block_class_not_renamed():
+    assert_ast_transform(block_class_not_renamed_code, block_class_not_renamed_result)

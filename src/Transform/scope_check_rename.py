@@ -94,14 +94,11 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         decs = self.symbols.get(name, [])
         return decs[-1] if decs else None
 
-    def is_shadowed(self, name: str) -> bool:
+    def is_shadowed(self, name: str, python_scope_to_add: PythonScope) -> bool:
+        # If adding to the Class, it is not shadowing but member declaration.
+        if isinstance(python_scope_to_add, ast.ClassDef):
+            return False
         return len(self.symbols.get(name, [])) > 1 or name in self.suspended_symbols
-
-    def is_scoped_but_python_scope_is_top_level(self) -> bool:
-        print(
-            f"scopes={len(self.scopes)}, parent_python_scopes={len(self.parent_python_scopes)}"
-        )  # [HN]
-        return len(self.scopes) > 1 and len(self.parent_python_scopes) == 1
 
     def add_symbol_declaration(
         self,
@@ -133,7 +130,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             self.resolve_suspended_resolves(name)
         in_scope_non_python_top_level = len(self.scopes) > 1
         if rename_on_demand_to_kind is not None:
-            if self.is_shadowed(name) or (
+            if self.is_shadowed(name, python_scope_to_add) or (
                 is_top_level and in_scope_non_python_top_level
             ):
                 new_name = self.new_name(rename_on_demand_to_kind, name)

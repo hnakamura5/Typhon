@@ -71,7 +71,9 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 
 - Control statements inside class definition are forbidden. Only `class`, `def`, `let/var`, `import` are allowed.
 
-- `,` separated assignment target and `,` separated tuple without paren around are forbidden. And even not parsed in such a way.
+- Chained assignments such as `a = b = 0` are forbidden.
+
+- `,` separated assignment target and `,` separated tuple without paren around are forbidden. And even not parsed in such a way. `a, b = b, a` is invalid, use `(a, b) = (b, a)` instead.
 
 ## Bundled Libraries
 

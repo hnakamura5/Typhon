@@ -59,3 +59,66 @@ def test_block_with_top_level_rename():
     assert_ast_transform(
         block_with_top_level_rename_code, block_with_top_level_rename_result
     )
+
+
+block_with_annotation_code = """
+with (let f: TextIO = open('file.txt')) {
+    let line = f.readline();
+}
+"""
+block_with_annotation_result = """
+_typh_cn_m0_0_f: TextIO
+with open('file.txt') as _typh_cn_m0_0_f:
+    _typh_cn_m0_1_line = _typh_cn_m0_0_f.readline()
+"""
+
+
+def test_block_with_annotation():
+    assert_ast_transform(block_with_annotation_code, block_with_annotation_result)
+
+
+block_with_multi_annotation_code = """
+with (let f1: TextIO = open('file.txt'), f2: TextIO = open('file2.txt')) {
+    let line1 = f1.readline();
+    let line2 = f2.readline();
+}
+"""
+block_with_multi_annotation_result = """
+_typh_cn_m0_0_f1: TextIO
+_typh_cn_m0_1_f2: TextIO
+with open('file.txt') as _typh_cn_m0_0_f1, open('file2.txt') as _typh_cn_m0_1_f2:
+    _typh_cn_m0_2_line1 = _typh_cn_m0_0_f1.readline()
+    _typh_cn_m0_3_line2 = _typh_cn_m0_1_f2.readline()
+"""
+
+
+def test_block_with_multi_annotation():
+    assert_ast_transform(
+        block_with_multi_annotation_code, block_with_multi_annotation_result
+    )
+
+
+block_with_star_annotation_code = """
+def f() {
+    ...
+}
+with (let (f1, f2): (TextIO, TextIO) = f()) {
+    let line1 = f1.readline();
+    let line2 = f2.readline();
+}
+"""
+block_with_star_annotation_result = """
+def f():
+    ...
+_typh_cn_m0_0_f1: TextIO
+_typh_cn_m0_1_f2: TextIO
+with f() as (_typh_cn_m0_0_f1, _typh_cn_m0_1_f2):
+    _typh_cn_m0_2_line1 = _typh_cn_m0_0_f1.readline()
+    _typh_cn_m0_3_line2 = _typh_cn_m0_1_f2.readline()
+"""
+
+
+def test_block_with_star_annotation():
+    assert_ast_transform(
+        block_with_star_annotation_code, block_with_star_annotation_result
+    )

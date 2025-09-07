@@ -49,6 +49,7 @@ def assert_ast_error(
 ):
     try:
         parse_string(typhon_code, mode="exec", verbose=PARSER_VERBOSE)
+        assert False, "Expected exception but none was raised"
     except Exception as e:
         _assert_exception(e, exception, error_message)
 
@@ -60,6 +61,7 @@ def assert_transform_error(
     assert isinstance(parsed, ast.Module)
     try:
         transform(parsed)
+        assert False, "Expected exception but none was raised"
     except Exception as e:
         _assert_exception(e, exception, error_message)
 

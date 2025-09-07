@@ -211,7 +211,7 @@ declaration_assignment:
      }
 
 declaration_single_assignment[tuple[ast.expr, Optional[ast.expr], Optional[ast.expr]]]:
-    | a=decl_star_target ':' b=typing_expression c=['=' d=annotated_rhs { d }] { (a, b, c) }
+    | a=decl_star_target b=annotation c=['=' d=annotated_rhs { d }] { (a, b, c) }
     | a=decl_star_target '=' c=annotated_rhs { (a, None, c) }
 
 
@@ -470,10 +470,10 @@ while_stmt[ast.While]:
 
 for_stmt[Union[ast.For, ast.AsyncFor]]:
     | invalid_for_stmt
-    | 'for' '(' d=decl_keyword t=star_targets a=[star_annotation] 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] b=block el=[else_block] {
+    | 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] b=block el=[else_block] {
         make_for_stmt(decl_type=d.string, target=t, type_annotation=a, iter=ex, body=b, orelse=el or [], type_comment=tc, is_async=False, LOCATIONS)
     }
-    | 'async' 'for' '(' d=decl_keyword t=star_targets a=[star_annotation] 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] b=block el=[else_block] {
+    | 'async' 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] b=block el=[else_block] {
         make_for_stmt(decl_type=d.string, target=t, type_annotation=a, iter=ex, body=b, orelse=el or [], type_comment=tc, is_async=True, LOCATIONS)
     }
     | invalid_for_target
@@ -909,7 +909,7 @@ typing_arrow_return_type[ast.expr]:
     | '->' a=typing_expression { a }
 
 typing_arrow_type[ast.expr]:
-    | '(' a=typing_arrow_param* c=[typing_arrow_star_etc] ')' r=[typing_arrow_return_type] {
+    | '(' a=typing_arrow_param* c=[typing_arrow_star_etc] ')' r=typing_arrow_return_type {
         make_arrow_type(a, c, r, LOCATIONS)
     }
 
@@ -1461,7 +1461,6 @@ decl_star_target (memo):
 
 decl_star_atom:
     | a=NAME { ast.Name(id=a.string, ctx=Store, LOCATIONS) }
-    | '(' a=decl_star_atom ')' { self.set_expr_context(a, Store) }
     | '(' a=[decl_star_targets_tuple_seq] ')' { ast.Tuple(elts=a, ctx=Store, LOCATIONS) }
     | '[' a=[decl_star_targets_list_seq] ']' {  ast.List(elts=a, ctx=Store, LOCATIONS) }
 

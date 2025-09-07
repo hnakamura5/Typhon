@@ -3,6 +3,43 @@
 import ast
 from typing import Union, Unpack, TypedDict, Tuple, cast
 
+
+class PosAttributes(TypedDict):
+    lineno: int
+    col_offset: int
+    end_lineno: int | None
+    end_col_offset: int | None
+
+
+type PosNode = (
+    ast.stmt
+    | ast.expr
+    | ast.alias
+    | ast.arg
+    | ast.type_param
+    | ast.excepthandler
+    | ast.pattern
+)
+
+
+def get_pos_attributes(node: PosNode) -> PosAttributes:
+    return PosAttributes(
+        lineno=node.lineno,
+        col_offset=node.col_offset,
+        end_lineno=getattr(node, "end_lineno", None),
+        end_col_offset=getattr(node, "end_col_offset", None),
+    )
+
+
+def get_empty_pos_attributes() -> PosAttributes:
+    return PosAttributes(
+        lineno=0,
+        col_offset=0,
+        end_lineno=0,
+        end_col_offset=0,
+    )
+
+
 # Normal assignments, let assignments for variable declarations,
 # and constant assignments for constant definitions.
 # They all are Assign/AnnAssign in Python, we distinguish them by
@@ -114,8 +151,101 @@ def assign_as_declaration(
             end_col_offset=end_col_offset,
         )
     _set_is_let_var(result, decl_type)
-    set_type_annotation(result, annotation)
     return result
+
+
+def get_target_of_declaration(assign: Union[ast.Assign, ast.AnnAssign]) -> ast.expr:
+    if isinstance(assign, ast.Assign):
+        return assign.targets[0]
+    else:
+        return assign.target
+
+
+def _get_tuple_type_elements(type_node: ast.expr) -> list[ast.expr] | None:
+    if isinstance(type_node, ast.Tuple):
+        return type_node.elts
+    elif (
+        isinstance(type_node, ast.Subscript)
+        and isinstance(type_node.value, ast.Name)
+        and type_node.value.id == "tuple"
+        and isinstance(type_node.slice, ast.Tuple)
+    ):
+        return type_node.slice.elts
+    return None
+
+
+def _get_list_type_elements(type_node: ast.expr) -> ast.expr | None:
+    if isinstance(type_node, ast.List):
+        return type_node.elts[0] if len(type_node.elts) == 1 else None
+    elif isinstance(type_node, ast.Subscript):
+        print(
+            f"_get_list_type_elements: {type_node} value: {type_node.value} id: {type_node.value.id if isinstance(type_node.value, ast.Name) else 'N/A'} slice: {type_node.slice}"
+        )  # [HN] For debug.
+        if (
+            isinstance(type_node.value, ast.Name)
+            and type_node.value.id == "list"
+            and isinstance(type_node.slice, ast.Name)
+        ):
+            return type_node.slice
+    return None
+
+
+def _get_list_type(type_node: ast.expr, pos: PosAttributes) -> ast.expr:
+    return ast.Subscript(
+        value=ast.Name(id="list", **pos),
+        slice=type_node,
+        ctx=ast.Load(),
+        **pos,
+    )
+
+
+def get_annotations_of_declaration_target(
+    target: ast.expr,
+    type_annotation: ast.expr,
+) -> list[tuple[ast.Name, ast.expr | None]]:
+    if isinstance(target, ast.Name):
+        print(
+            f"get_annotations_of_declaration_target ast.Name: {target}, {type_annotation}"
+        )  # [HN] For debug.
+        return [(target, type_annotation)]
+    elif isinstance(target, ast.Tuple):
+        print(
+            f"get_annotations_of_declaration_target ast.Tuple: {target}, {type_annotation}"
+        )  # [HN] For debug.
+        type_elts = _get_tuple_type_elements(type_annotation)
+        if not type_elts or len(type_elts) != len(target.elts):
+            return []
+        names = []
+        for elt, ty_elt in zip(target.elts, type_elts):
+            if isinstance(elt, ast.Name):
+                names.append((elt, ty_elt))
+            else:
+                names.extend(get_annotations_of_declaration_target(elt, ty_elt))
+        return names
+    elif isinstance(target, ast.List):
+        print(
+            f"get_annotations_of_declaration_target ast.List: {target}, {type_annotation}"
+        )  # [HN] For debug.
+        type_elt = _get_list_type_elements(type_annotation)
+        if not type_elt:
+            return []
+        names = []
+        for elt in target.elts:
+            if isinstance(elt, ast.Name):
+                names.append((elt, type_elt))
+            else:
+                names.extend(get_annotations_of_declaration_target(elt, type_elt))
+        return names
+    elif isinstance(target, ast.Starred):
+        print(
+            f"get_annotations_of_declaration_target ast.Starred: {target}, {type_annotation}"
+        )  # [HN] For debug.
+        return get_annotations_of_declaration_target(
+            target.value, _get_list_type(type_annotation, get_pos_attributes(target))
+        )
+    else:
+        # TODO: message
+        raise SyntaxError("Invalid target syntax for declaration")
 
 
 def declaration_as_withitem(assign: Union[ast.Assign, ast.AnnAssign]) -> ast.withitem:
@@ -131,42 +261,6 @@ def declaration_as_withitem(assign: Union[ast.Assign, ast.AnnAssign]) -> ast.wit
         set_type_annotation(item, assign.annotation)
         copy_is_let_var(assign, item)
         return item
-
-
-class PosAttributes(TypedDict):
-    lineno: int
-    col_offset: int
-    end_lineno: int | None
-    end_col_offset: int | None
-
-
-type PosNode = (
-    ast.stmt
-    | ast.expr
-    | ast.alias
-    | ast.arg
-    | ast.type_param
-    | ast.excepthandler
-    | ast.pattern
-)
-
-
-def get_pos_attributes(node: PosNode) -> PosAttributes:
-    return PosAttributes(
-        lineno=node.lineno,
-        col_offset=node.col_offset,
-        end_lineno=getattr(node, "end_lineno", None),
-        end_col_offset=getattr(node, "end_col_offset", None),
-    )
-
-
-def get_empty_pos_attributes() -> PosAttributes:
-    return PosAttributes(
-        lineno=0,
-        col_offset=0,
-        end_lineno=0,
-        end_col_offset=0,
-    )
 
 
 # Use Name as a function literal. Replaced to name of FunctionDef.

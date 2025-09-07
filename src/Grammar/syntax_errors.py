@@ -35,3 +35,20 @@ def raise_forbidden_statement_error(
     **pos: Unpack[PosAttributes],
 ):
     raise ForbiddenStatementError(message, **pos)
+
+
+class TypeAnnotationError(Exception):
+    def __init__(self, message: str, **pos: Unpack[PosAttributes]):
+        self.message = message
+        self.pos = PosAttributes(**pos)
+        super().__init__(self.message)
+
+    def __str__(self):
+        return f"{self.message} at {self.pos}"
+
+
+def raise_type_annotation_error(
+    message: str,
+    **pos: Unpack[PosAttributes],
+):
+    raise TypeAnnotationError(message, **pos)

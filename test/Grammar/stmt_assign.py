@@ -1,9 +1,14 @@
-from ..assertion_utils import assert_ast_equals
+from ..assertion_utils import (
+    assert_ast_equals,
+    assert_ast_transform,
+    assert_transform_error,
+)
 from ...src.Grammar.typhon_ast import (
     is_var_assign,
     is_let_assign,
     is_decl_assign,
 )
+from ...src.Grammar.syntax_errors import TypeAnnotationError
 import ast
 
 
@@ -191,3 +196,89 @@ def func(x: int=1):
 
 def test_stmt_assign_in_func():
     assert_ast_equals(code_stmt_assign_in_func, result_stmt_assign_in_func)
+
+
+decl_assign_unpack_tuple_code = """
+let (a, b, c) = (1, 2, 'str');
+"""
+decl_assign_unpack_tuple_result = """
+a, b, c = (1, 2, 'str')
+"""
+
+
+def test_decl_assign_unpack_tuple():
+    parsed = assert_ast_equals(
+        decl_assign_unpack_tuple_code, decl_assign_unpack_tuple_result
+    )
+    assert_is_let(parsed.body[0])
+
+
+decl_assign_unpack_tuple_annotation_code = """
+let (a, b, c): (int, int, str) = (1, 2, 'str');
+"""
+decl_assign_unpack_tuple_annotation_result = """
+a: int
+b: int
+c: str
+a, b, c = (1, 2, 'str')
+"""
+
+
+def test_decl_assign_unpack_tuple_annotation():
+    assert_ast_transform(
+        decl_assign_unpack_tuple_annotation_code,
+        decl_assign_unpack_tuple_annotation_result,
+    )
+
+
+decl_assign_unpack_list_code = """
+var [a, b, *c] = [1, 2, 3, 4];
+"""
+decl_assign_unpack_list_result = """
+[a, b, *c] = [1, 2, 3, 4]
+"""
+
+
+def test_decl_assign_unpack_list():
+    parsed = assert_ast_equals(
+        decl_assign_unpack_list_code, decl_assign_unpack_list_result
+    )
+    assert_is_var(parsed.body[0])
+
+
+decl_assign_unpack_list_annotation_code = """
+var [a, b, *c]: list[int] = [1, 2, 3, 4];
+"""
+decl_assign_unpack_list_annotation_result = """
+a: int
+b: int
+c: list[int]
+[a, b, *c] = [1, 2, 3, 4]
+"""
+
+
+def test_decl_assign_unpack_list_annotation():
+    assert_ast_transform(
+        decl_assign_unpack_list_annotation_code,
+        decl_assign_unpack_list_annotation_result,
+    )
+
+
+decl_assign_unpack_annotation_error_code = """
+var (a, b, c): (int, int);
+"""
+
+
+def test_decl_assign_unpack_annotation_error():
+    assert_transform_error(
+        "var (a, b, c): (int, int);",
+        TypeAnnotationError,
+    )
+    assert_transform_error(
+        "var (a, b, c): (int, int, int, int);",
+        TypeAnnotationError,
+    )
+    assert_transform_error(
+        "var [a, b, c]: list[int, str];",
+        TypeAnnotationError,
+    )

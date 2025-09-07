@@ -4,6 +4,7 @@ from .func_type_to_protocol import func_type_to_protocol
 from .scope_check_rename import scope_check_rename
 from .forbidden_statements import check_forbidden_statements
 from .insert_self_to_method import insert_self_to_method
+from .type_annotation_check_expand import type_annotation_check_expand
 
 
 def transform(mod: ast.Module):
@@ -16,3 +17,7 @@ def transform(mod: ast.Module):
     print(f"After func_type_to_protocol:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     scope_check_rename(mod)
     print(f"After scope_check_rename:\n{ast.unparse(mod)}\n")  # [HN] For debug.
+    type_annotation_check_expand(mod)
+    print(
+        f"After type_annotation_check_expand:\n{ast.unparse(mod)}\n"
+    )  # [HN] For debug.
