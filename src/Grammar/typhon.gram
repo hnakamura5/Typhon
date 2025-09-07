@@ -17,7 +17,7 @@ from typing import (
 from pegen.tokenizer import Tokenizer
 
 from .typhon_ast import (
-    assign_as_declaration, make_function_literal, make_arrow_type,  declaration_as_withitem, make_for_stmt, make_function_def, make_comprehension
+    assign_as_declaration, make_function_literal, make_arrow_type,  declaration_as_withitem, make_for_stmt, make_function_def, make_comprehension, set_is_typing_expression,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory
@@ -849,7 +849,11 @@ typing_star_expression (memo):
     | '*' a=bitwise_or { ast.Starred(value=a, ctx=Load, LOCATIONS) }
     | typing_expression
 
-typing_expression (memo):
+
+typing_expression:
+    | t=typing_expression_impl { set_is_typing_expression(t) }
+
+typing_expression_impl (memo):
     | invalid_expression
     | invalid_legacy_expression
     | typing_arrow_type

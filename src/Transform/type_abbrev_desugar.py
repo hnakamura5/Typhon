@@ -1,4 +1,6 @@
 import ast
+from typing import cast
+from contextlib import contextmanager
 from ..Grammar.typhon_ast import (
     FunctionType,
     get_args_of_function_type,
@@ -7,12 +9,14 @@ from ..Grammar.typhon_ast import (
     get_return_of_function_type,
     get_empty_pos_attributes,
     get_pos_attributes,
+    is_typing_expression,
 )
-from .visitor import TyphonASTVisitor
+from ..Grammar.syntax_errors import raise_type_annotation_error
+from .visitor import TyphonASTVisitor, TyphonASTTransformer
 from .name_generator import get_protocol_name
 
 
-class _Gather(TyphonASTVisitor):
+class _GatherArrowType(TyphonASTVisitor):
     func_types: list[tuple[FunctionType, str]]
 
     def __init__(self, module: ast.Module):
@@ -24,7 +28,7 @@ class _Gather(TyphonASTVisitor):
         return self.generic_visit(node)
 
 
-def add_import_for_protocol(mod: ast.Module):
+def _add_import_for_protocol(mod: ast.Module):
     # Duplicate import is NOT a problem, but better to avoid it for speed.
     import_stmt = ast.ImportFrom(
         module="typing",
@@ -41,7 +45,7 @@ def add_import_for_protocol(mod: ast.Module):
     mod.body.insert(0, import_stmt)
 
 
-def protocol_for_function_type(
+def _protocol_for_function_type(
     func_type: FunctionType, arrow_type_name: str
 ) -> ast.ClassDef:
     func_type.id = arrow_type_name
@@ -99,7 +103,7 @@ def protocol_for_function_type(
     return protocol_def
 
 
-def add_protocols(
+def _add_protocols(
     mod: ast.Module, func_types: list[tuple[FunctionType, str]]
 ) -> dict[FunctionType, ast.ClassDef]:
     result: dict[FunctionType, ast.ClassDef] = {}
@@ -114,17 +118,67 @@ def add_protocols(
         print(
             f"Adding protocol for function type: {func_type.__dict__} as {arrow_type_name}"
         )
-        protocol_def = protocol_for_function_type(func_type, arrow_type_name)
+        protocol_def = _protocol_for_function_type(func_type, arrow_type_name)
         result[func_type] = protocol_def
         mod.body.insert(insert_point, protocol_def)
         insert_point += 1
     return result
 
 
-def func_type_to_protocol(mod: ast.Module):
-    gatherer = _Gather(mod)
+class _TupleListTransformer(TyphonASTTransformer):
+    is_inside_typing_expr: bool
+
+    def __init__(self, module: ast.Module):
+        super().__init__(module)
+        self.is_inside_typing_expr = False
+
+    @contextmanager
+    def _typing_expr(self, node: ast.AST):
+        current = self.is_inside_typing_expr
+        if isinstance(node, ast.expr) and is_typing_expression(node):
+            self.is_inside_typing_expr = True
+            yield
+            self.is_inside_typing_expr = current
+        else:
+            yield
+
+    def visit(self, node: ast.AST):
+        with self._typing_expr(node):
+            return super().visit(node)
+
+    def visit_Tuple(self, node: ast.Tuple):
+        if not self.is_inside_typing_expr:
+            return self.generic_visit(node)
+        pos = get_pos_attributes(node)
+        print(f"Desugaring Tuple to tuple[]: {ast.dump(node)}")
+        return ast.Subscript(
+            value=ast.Name(id="tuple", **pos),
+            slice=cast(ast.Tuple, self.generic_visit(node)),
+            ctx=ast.Load(),
+            **pos,
+        )
+
+    def visit_List(self, node: ast.List):
+        if not self.is_inside_typing_expr:
+            return self.generic_visit(node)
+        pos = get_pos_attributes(node)
+        print(f"Desugaring List to list[]: {ast.dump(node)}")
+        if len(node.elts) != 1:
+            raise_type_annotation_error(
+                "List type annotation must have exactly one element type.", **pos
+            )
+        return ast.Subscript(
+            value=ast.Name(id="list", **pos),
+            slice=cast(ast.expr, self.visit(node.elts[0])),
+            ctx=ast.Load(),
+            **pos,
+        )
+
+
+def type_abbrev_desugar(mod: ast.Module):
+    gatherer = _GatherArrowType(mod)
     gatherer.run()
-    if not gatherer.func_types:
-        return
-    add_import_for_protocol(mod)
-    add_protocols(mod, gatherer.func_types)
+    if gatherer.func_types:
+        _add_import_for_protocol(mod)
+        _add_protocols(mod, gatherer.func_types)
+    _TupleListTransformer(mod).run()

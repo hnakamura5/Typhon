@@ -1,6 +1,6 @@
 import ast
 from .func_literal_to_def import func_literal_to_def
-from .func_type_to_protocol import func_type_to_protocol
+from .type_abbrev_desugar import type_abbrev_desugar
 from .scope_check_rename import scope_check_rename
 from .forbidden_statements import check_forbidden_statements
 from .insert_self_to_method import insert_self_to_method
@@ -13,7 +13,7 @@ def transform(mod: ast.Module):
     print(f"After insert_self_to_method:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     func_literal_to_def(mod)
     print(f"After func_literal_to_def:\n{ast.unparse(mod)}\n")  # [HN] For debug.
-    func_type_to_protocol(mod)
+    type_abbrev_desugar(mod)
     print(f"After func_type_to_protocol:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     scope_check_rename(mod)
     print(f"After scope_check_rename:\n{ast.unparse(mod)}\n")  # [HN] For debug.

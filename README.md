@@ -21,7 +21,7 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 - Type annotations extension
   The place we can write type annotations is expanded beyond the limit of Python [PEP 526](https://peps.python.org/pep-0526/#specification).
 
-- `(int, str)` for tuple type, `[int]` for list type. These must be used in unpack assignment annotation. (TODO)
+- `(int, str)` for tuple type, `[int]` for list type. These must be used in unpack assignment annotation. Note this is valid only for typing context.
 
 - Function Types
   Arrow types `(T1, T2) -> R` are syntax sugar for Protocol. For example `(x1: T1, x2: T2) -> R` is translated into the following form.

@@ -59,25 +59,30 @@ type DeclarableStmt = Union[
     ast.Assign, ast.AnnAssign, ast.withitem, ast.For, ast.AsyncFor, ast.comprehension
 ]
 
+_IS_VAR = "_typh_is_var"
+_IS_LET = "_typh_is_let"
+_TYPE_ANNOTATION = "_typh_annotation"
+_IS_TYPING_EXPRESSION = "_typh_is_typing_expression"
+
 
 def is_var(node: DeclarableStmt) -> bool:
-    return getattr(node, "is_var", False)
+    return getattr(node, _IS_VAR, False)
 
 
 def is_var_assign(node: ast.AST) -> bool:
     if not is_decl_stmt(node):
         return False
-    return getattr(node, "is_var", False)
+    return getattr(node, _IS_VAR, False)
 
 
 def is_let(node: DeclarableStmt) -> bool:
-    return getattr(node, "is_let", False)
+    return getattr(node, _IS_LET, False)
 
 
 def is_let_assign(node: ast.AST) -> bool:
     if not is_decl_stmt(node):
         return False
-    return getattr(node, "is_let", False)
+    return getattr(node, _IS_LET, False)
 
 
 def is_decl_assign(node: ast.AST) -> bool:
@@ -86,11 +91,11 @@ def is_decl_assign(node: ast.AST) -> bool:
 
 
 def _set_is_var(node: DeclarableStmt):
-    setattr(node, "is_var", True)
+    setattr(node, _IS_VAR, True)
 
 
 def _set_is_let(node: DeclarableStmt):
-    setattr(node, "is_let", True)
+    setattr(node, _IS_LET, True)
 
 
 def _set_is_let_var(node: DeclarableStmt, decl_type: str):
@@ -110,16 +115,30 @@ def copy_is_let_var(src: DeclarableStmt, dest: DeclarableStmt) -> None:
 
 
 def set_type_annotation(node: ast.AST, type_node: ast.expr | None) -> None:
-    setattr(node, "_typh_annotation", type_node)
+    setattr(node, _TYPE_ANNOTATION, type_node)
 
 
 def get_type_annotation(node: ast.AST) -> ast.expr | None:
-    return getattr(node, "_typh_annotation", None)
+    return getattr(node, _TYPE_ANNOTATION, None)
 
 
 def clear_type_annotation(node: ast.AST) -> None:
-    if hasattr(node, "_typh_annotation"):
-        delattr(node, "_typh_annotation")
+    if hasattr(node, _TYPE_ANNOTATION):
+        delattr(node, _TYPE_ANNOTATION)
+
+
+def set_is_typing_expression(node: ast.expr, is_typing: bool = True) -> ast.expr:
+    setattr(node, _IS_TYPING_EXPRESSION, is_typing)
+    return node
+
+
+def is_typing_expression(node: ast.expr) -> bool:
+    return getattr(node, _IS_TYPING_EXPRESSION, False)
+
+
+def clear_is_typing_expression(node: ast.expr) -> None:
+    if hasattr(node, _IS_TYPING_EXPRESSION):
+        delattr(node, _IS_TYPING_EXPRESSION)
 
 
 def assign_as_declaration(
@@ -271,29 +290,32 @@ def declaration_as_withitem(assign: Union[ast.Assign, ast.AnnAssign]) -> ast.wit
 # Use Name as a function literal. Replaced to name of FunctionDef.
 type FunctionLiteral = ast.Name
 
+_FUNC_DEF = "_typh_func_def"
+_IS_FUNCTION_LITERAL = "_typh_is_function_literal"
+
 
 def get_function_literal_def(name: FunctionLiteral) -> ast.FunctionDef:
-    return getattr(name, "func_def")
+    return getattr(name, _FUNC_DEF)
 
 
 def is_function_literal(name: ast.Name) -> bool:
-    return getattr(name, "func_def", None) is not None
+    return getattr(name, _FUNC_DEF, None) is not None
 
 
 def set_function_literal_def(
     name: FunctionLiteral, func_def: ast.FunctionDef | ast.AsyncFunctionDef
 ):
-    setattr(name, "func_def", func_def)
-    setattr(func_def, "is_function_literal_def", True)
+    setattr(name, _FUNC_DEF, func_def)
+    setattr(func_def, _IS_FUNCTION_LITERAL, True)
 
 
 def clear_function_literal_def(name: FunctionLiteral):
-    if hasattr(name, "func_def"):
-        delattr(name, "func_def")
+    if hasattr(name, _FUNC_DEF):
+        delattr(name, _FUNC_DEF)
 
 
 def is_function_literal_def(func_def: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    return getattr(func_def, "is_function_literal_def", False)
+    return getattr(func_def, _IS_FUNCTION_LITERAL, False)
 
 
 def make_function_literal(
@@ -327,49 +349,49 @@ def make_function_literal(
 # Use Name as a function type. Replaced to name of Protocol.
 type FunctionType = ast.Name
 
-_arg_types = "arg_types"
-_star_arg = "star_arg"
-_star_kwds = "star_kwds"
-_returns = "returns"
+_ARG_TYPES = "_typh_arg_types"
+_STAR_ARG = "_typh_star_arg"
+_STAR_KWDS = "_typh_star_kwds"
+_RETURNS = "_typh_returns"
 
 
 def is_function_type(node: ast.Name) -> bool:
-    return getattr(node, _arg_types, None) is not None
+    return getattr(node, _ARG_TYPES, None) is not None
 
 
 def get_args_of_function_type(node: FunctionType) -> list[ast.arg]:
-    return getattr(node, _arg_types)
+    return getattr(node, _ARG_TYPES)
 
 
 def set_args_of_function_type(node: FunctionType, args: list[ast.arg]):
-    setattr(node, _arg_types, args)
+    setattr(node, _ARG_TYPES, args)
 
 
 def get_star_arg_of_function_type(node: FunctionType) -> ast.arg | None:
-    return getattr(node, _star_arg, None)
+    return getattr(node, _STAR_ARG, None)
 
 
 def set_star_arg_of_function_type(node: FunctionType, star_arg: ast.arg):
-    setattr(node, _star_arg, star_arg)
+    setattr(node, _STAR_ARG, star_arg)
 
 
 def get_star_kwds_of_function_type(node: FunctionType) -> ast.arg | None:
-    return getattr(node, _star_kwds, None)
+    return getattr(node, _STAR_KWDS, None)
 
 
 def set_star_kwds_of_function_type(node: FunctionType, star_kwds: ast.arg):
-    setattr(node, _star_kwds, star_kwds)
+    setattr(node, _STAR_KWDS, star_kwds)
 
 
 def get_return_of_function_type(node: FunctionType) -> ast.expr | None:
-    return getattr(node, _returns, None)
+    return getattr(node, _RETURNS, None)
 
 
 def set_return_of_function_type(node: FunctionType, returns: ast.expr):
-    setattr(node, _returns, returns)
+    setattr(node, _RETURNS, returns)
 
 
-fieldsOfFunctionType = [_arg_types, _star_arg, _star_kwds, _returns]
+fieldsOfFunctionType = [_ARG_TYPES, _STAR_ARG, _STAR_KWDS, _RETURNS]
 
 
 def clear_function_type(node: FunctionType):
@@ -452,12 +474,15 @@ def make_for_stmt(
         return result
 
 
+IS_STATIC = "_typh_is_static"
+
+
 def set_is_static(node: ast.FunctionDef | ast.AsyncFunctionDef, is_static: bool = True):
-    setattr(node, "is_static", is_static)
+    setattr(node, IS_STATIC, is_static)
 
 
 def is_static(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    return getattr(node, "is_static", False)
+    return getattr(node, IS_STATIC, False)
 
 
 def make_function_def(
