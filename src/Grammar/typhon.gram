@@ -863,15 +863,15 @@ typing_expression_impl (memo):
     | typing_disjunction
 
 typing_disjunction (memo):
-    | a=typing_conjunction b=('or' c=typing_conjunction { c })+ { ast.BoolOp(op=ast.Or(), values=[a] + b, LOCATIONS) }
+    | a=typing_conjunction b=('||' c=typing_conjunction { c })+ { ast.BoolOp(op=ast.Or(), values=[a] + b, LOCATIONS) }
     | typing_conjunction
 
 typing_conjunction (memo):
-    | a=typing_inversion b=('and' c=typing_inversion { c })+ { ast.BoolOp(op=ast.And(), values=[a] + b, LOCATIONS) }
+    | a=typing_inversion b=('&&' c=typing_inversion { c })+ { ast.BoolOp(op=ast.And(), values=[a] + b, LOCATIONS) }
     | typing_inversion
 
 typing_inversion (memo):
-    | 'not' a=typing_inversion { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
+    | '!' a=typing_inversion { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
     | typing_comparison
 
 typing_comparison:
@@ -981,15 +981,15 @@ named_expression:
     | a=expression !':=' { a }
 
 disjunction (memo):
-    | a=conjunction b=('or' c=conjunction { c })+ { ast.BoolOp(op=ast.Or(), values=[a] + b, LOCATIONS) }
+    | a=conjunction b=('||' c=conjunction { c })+ { ast.BoolOp(op=ast.Or(), values=[a] + b, LOCATIONS) }
     | conjunction
 
 conjunction (memo):
-    | a=inversion b=('and' c=inversion { c })+ { ast.BoolOp(op=ast.And(), values=[a] + b, LOCATIONS) }
+    | a=inversion b=('&&' c=inversion { c })+ { ast.BoolOp(op=ast.And(), values=[a] + b, LOCATIONS) }
     | inversion
 
 inversion (memo):
-    | 'not' a=inversion { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
+    | '!' a=inversion { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
     | comparison
 
 # Comparisons operators

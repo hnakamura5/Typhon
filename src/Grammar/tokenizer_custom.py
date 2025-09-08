@@ -16,7 +16,9 @@ class _CombineInfo:
 
 # Combine list
 _combine_seq2_tokens: list[_CombineInfo] = [
-    _CombineInfo((OP, "="), (OP, ">"), OP, True)
+    _CombineInfo((OP, "="), (OP, ">"), OP, True),
+    _CombineInfo((OP, "&"), (OP, "&"), OP, True),
+    _CombineInfo((OP, "|"), (OP, "|"), OP, True),
 ]
 _combine_seq2_map: dict[tuple[int, str], list[_CombineInfo]] = {}
 for info in _combine_seq2_tokens:

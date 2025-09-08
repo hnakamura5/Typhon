@@ -45,7 +45,7 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 
 ### Detail design changes
 
-- Logical operators (TODO)
+- Logical operators
   `and`, `or`, `not` operators are replaced by `&&`,`||`, `!`, though they are still reserved as keyword (Note `in`, `not in`, `is`, `is not` are still supported).
 
 - Assignment style in with and except statement

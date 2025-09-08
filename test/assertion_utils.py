@@ -4,7 +4,7 @@ from ..src.Transform.transform import transform
 import tokenize
 from typing import Type, Union
 
-PARSER_VERBOSE = False
+PARSER_VERBOSE = True
 
 
 def assert_token(token: tokenize.TokenInfo, type_: int, string: str):
