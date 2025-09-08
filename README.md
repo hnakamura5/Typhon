@@ -40,7 +40,7 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 - Scoped `with` statement. (TODO)
   `with let f = open("file");` exits at the end of current scope. This is the same as with statement including the rest of current scope as its block.
 
-- Const member of class (TODO)
+- Const member of class
   `let x: int` in class is immutable member. Translated into `@property`.
 
 ### Detail design changes
@@ -73,7 +73,7 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 
 - Wildcard import `from m import *` is forbidden.
 
-- Control statements inside class definition are forbidden. Only `class`, `def`, `let/var`, `import` are allowed.
+- Control statements inside class definition are forbidden. Only `class`, `def`, `let/var`, `import` are allowed. `let/var` declaration of multiple variable or unpacking is also forbidden.
 
 - Chained assignments such as `a = b = 0` are forbidden.
 

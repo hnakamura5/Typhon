@@ -86,7 +86,7 @@ def test_static_def_no_self():
 
 func_literal_no_self_code = """
 class A {
-    let f = (x) => x + 1;
+    var f = (x) => x + 1;
 }
 """
 func_literal_no_self_result = """

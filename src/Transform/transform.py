@@ -5,6 +5,7 @@ from .scope_check_rename import scope_check_rename
 from .forbidden_statements import check_forbidden_statements
 from .insert_self_to_method import insert_self_to_method
 from .type_annotation_check_expand import type_annotation_check_expand
+from .const_member_to_property import const_member_to_property
 
 
 def transform(mod: ast.Module):
@@ -21,3 +22,5 @@ def transform(mod: ast.Module):
     print(
         f"After type_annotation_check_expand:\n{ast.unparse(mod)}\n"
     )  # [HN] For debug.
+    const_member_to_property(mod)
+    print(f"After const_member_to_property:\n{ast.unparse(mod)}\n")  # [HN] For debug.

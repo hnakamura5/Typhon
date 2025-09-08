@@ -98,3 +98,33 @@ def test_stmt_for_in_class_error():
         ForbiddenStatementError,
         "inside class definition",
     )
+
+
+multi_assign_in_class_error_code = """
+class A {
+    var x = 10, y = 20;
+}
+"""
+
+
+def test_multi_assign_in_class_error():
+    assert_transform_error(
+        multi_assign_in_class_error_code,
+        ForbiddenStatementError,
+        "Only single variable declaration is allowed inside class definition",
+    )
+
+
+unpack_assign_in_class_error_code = """
+class A {
+    var (x, y) = (10, 20);
+}
+"""
+
+
+def test_unpack_assign_in_class_error():
+    assert_transform_error(
+        unpack_assign_in_class_error_code,
+        ForbiddenStatementError,
+        "Only single variable declaration is allowed inside class definition",
+    )

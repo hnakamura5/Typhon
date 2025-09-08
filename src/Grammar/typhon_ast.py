@@ -62,6 +62,7 @@ type DeclarableStmt = Union[
 _IS_VAR = "_typh_is_var"
 _IS_LET = "_typh_is_let"
 _TYPE_ANNOTATION = "_typh_annotation"
+_IS_MULTI_DECL = "_typh_is_multi_decl"
 _IS_TYPING_EXPRESSION = "_typh_is_typing_expression"
 
 
@@ -127,6 +128,20 @@ def clear_type_annotation(node: ast.AST) -> None:
         delattr(node, _TYPE_ANNOTATION)
 
 
+def set_is_multi_decl(node: ast.AST, is_multi: bool = True) -> ast.AST:
+    setattr(node, _IS_MULTI_DECL, is_multi)
+    return node
+
+
+def is_multi_decl(node: ast.AST) -> bool:
+    return getattr(node, _IS_MULTI_DECL, False)
+
+
+def clear_is_multi_decl(node: ast.AST) -> None:
+    if hasattr(node, _IS_MULTI_DECL):
+        delattr(node, _IS_MULTI_DECL)
+
+
 def set_is_typing_expression(node: ast.expr, is_typing: bool = True) -> ast.expr:
     setattr(node, _IS_TYPING_EXPRESSION, is_typing)
     return node
@@ -144,6 +159,7 @@ def clear_is_typing_expression(node: ast.expr) -> None:
 def assign_as_declaration(
     decl_type: str,
     assign: tuple[ast.expr, ast.expr | None, ast.expr | None],
+    is_multi_target: bool,
     lineno: int,
     col_offset: int,
     end_lineno: int,
@@ -175,6 +191,8 @@ def assign_as_declaration(
             end_col_offset=end_col_offset,
         )
     _set_is_let_var(result, decl_type)
+    if is_multi_target:
+        set_is_multi_decl(result, True)
     return result
 
 

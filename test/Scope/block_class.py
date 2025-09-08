@@ -66,7 +66,7 @@ def test_block_class_nested():
 block_class_not_renamed_code = """
 var x: int = 10;
 class A {
-    let x:int
+    var x:int
     def f() {
         print(x);
     }
@@ -86,3 +86,72 @@ class A:
 
 def test_block_class_not_renamed():
     assert_ast_transform(block_class_not_renamed_code, block_class_not_renamed_result)
+
+
+block_class_const_to_property_code = """
+class A {
+    let x: int = 10;
+    def f() {
+        print(self.x);
+    }
+}
+"""
+
+block_class_const_to_property_result = """
+class A:
+
+    @property
+    def x(self):
+        return self._typh_cn_c1_0_x
+    _typh_cn_c1_0_x: int = 10
+
+    def f(self):
+        print(self.x)
+"""
+
+
+def test_block_class_const_to_property():
+    assert_ast_transform(
+        block_class_const_to_property_code, block_class_const_to_property_result
+    )
+
+
+block_class_const_nested_code = """
+class A {
+    let x: int = 10;
+    class B {
+        let x: int = 20;
+        def g() {
+            print(self.x);
+        }
+    }
+    def f() {
+        print(self.x);
+    }
+}
+"""
+block_class_const_nested_result = """
+class A:
+
+    @property
+    def x(self):
+        return self._typh_cn_c1_0_x
+    _typh_cn_c1_0_x: int = 10
+
+    class B:
+
+        @property
+        def x(self):
+            return self._typh_cn_c2_0_x
+        _typh_cn_c2_0_x: int = 20
+
+        def g(self):
+            print(self.x)
+
+    def f(self):
+        print(self.x)
+"""
+
+
+def test_block_class_const_nested():
+    assert_ast_transform(block_class_const_nested_code, block_class_const_nested_result)

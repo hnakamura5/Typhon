@@ -207,7 +207,7 @@ augassign:
 # Typhon var/let declarations
 declaration_assignment:
     | d=decl_keyword a=','.declaration_single_assignment+ {
-        list(map(lambda a1: assign_as_declaration(d.string, a1, LOCATIONS), a))
+        list(map(lambda a1: assign_as_declaration(d.string, a1, len(a) > 1, LOCATIONS), a))
      }
 
 declaration_single_assignment[tuple[ast.expr, Optional[ast.expr], Optional[ast.expr]]]:
