@@ -29,6 +29,7 @@ class _ScopeManagerMixin:
         self.parent_functions = []
         self.name_gen = UniqueNameGenerator(module)
         self.parent_python_scopes = []
+        self.parent_block_scopes = []
 
     @contextmanager
     def _parent_class(self, node: ast.AST):

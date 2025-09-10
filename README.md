@@ -37,7 +37,7 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
   - `if (let x = f(); x > 0) {...}` is same as `{ let x = f(); if (x > 0) {...} }`
   - `if (let [1, 2, x, *y] = f(); x > 0) {...}` is same as `match (f()) { case([1, 2, x, *y]) if (x > 0) {...} }`
 
-- Scoped `with` statement. (TODO)
+- Inline `with` statement.
   `with let f = open("file");` exits at the end of current scope. This is the same as with statement including the rest of current scope as its block.
 
 - Const member of class

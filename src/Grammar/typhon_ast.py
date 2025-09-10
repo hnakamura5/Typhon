@@ -290,6 +290,44 @@ def get_annotations_of_declaration_target(
         raise SyntaxError("Invalid target syntax for declaration")
 
 
+_INLINE_WITH = "_typh_inline_with"
+
+
+def is_inline_with(node: Union[ast.With, ast.AsyncWith]) -> bool:
+    return getattr(node, _INLINE_WITH, False)
+
+
+def set_inline_with(
+    node: Union[ast.With, ast.AsyncWith], is_inline: bool = True
+) -> Union[ast.With, ast.AsyncWith]:
+    setattr(node, _INLINE_WITH, is_inline)
+    return node
+
+
+def clear_inline_with(node: Union[ast.With, ast.AsyncWith]) -> None:
+    if hasattr(node, _INLINE_WITH):
+        delattr(node, _INLINE_WITH)
+
+
+def make_with_stmt(
+    is_async: bool,
+    items: list[ast.withitem],
+    body: list[ast.stmt],
+    is_inline: bool,
+    **kwargs,
+) -> Union[ast.With, ast.AsyncWith]:
+    result: Union[ast.With, ast.AsyncWith]
+    if not body:
+        body = [ast.Pass(**kwargs)]
+    if is_async:
+        result = ast.AsyncWith(items=items, body=body, **kwargs)
+    else:
+        result = ast.With(items=items, body=body, **kwargs)
+    if is_inline:
+        set_inline_with(result, True)
+    return result
+
+
 def declaration_as_withitem(assign: Union[ast.Assign, ast.AnnAssign]) -> ast.withitem:
     if isinstance(assign, ast.Assign):
         # TODO when assignment target has several target?

@@ -9,6 +9,7 @@ from ..Grammar.typhon_ast import (
     PosAttributes,
     get_pos_attributes,
     get_empty_pos_attributes,
+    is_inline_with,
 )
 from ..Grammar.syntax_errors import raise_scope_error
 from .visitor import TyphonASTVisitor, PythonScope
@@ -333,12 +334,21 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         return node
 
     def visit_With_AsyncWith(self, node: ast.With | ast.AsyncWith):
-        with self.scope():  # with contexts scope
+        if is_inline_with(node):
+            # Declare in parent block scope
             for item in node.items:
                 self.visit(item.context_expr)
                 if item.optional_vars:
                     self.visit_declaration(item.optional_vars, is_mutable=is_var(item))
-            self.visit_list_scoped(node.body)
+        else:
+            with self.scope():  # with contexts scope
+                for item in node.items:
+                    self.visit(item.context_expr)
+                    if item.optional_vars:
+                        self.visit_declaration(
+                            item.optional_vars, is_mutable=is_var(item)
+                        )
+                self.visit_list_scoped(node.body)
         return node
 
     def visit_With(self, node: ast.With):

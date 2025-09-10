@@ -17,7 +17,9 @@ from typing import (
 from pegen.tokenizer import Tokenizer
 
 from .typhon_ast import (
-    assign_as_declaration, make_function_literal, make_arrow_type,  declaration_as_withitem, make_for_stmt, make_function_def, make_comprehension, set_is_typing_expression,
+    assign_as_declaration, make_function_literal, make_arrow_type, make_with_stmt,
+    declaration_as_withitem, make_for_stmt, make_function_def, make_comprehension,
+    set_is_typing_expression,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory
@@ -483,15 +485,11 @@ for_stmt[Union[ast.For, ast.AsyncFor]]:
 
 with_stmt[Union[ast.With, ast.AsyncWith]]:
     | invalid_with_stmt_indent
-    | 'with' '(' a=';'.with_item+ [';'] ')' tc=[TYPE_COMMENT] b=block {
-        ast.With(items=sum(a, []), body=b, type_comment=tc, LOCATIONS)
+    | is_async=['async'] 'with' '(' a=';'.with_item+ [';'] ')' b=block {
+        make_with_stmt(is_async=is_async is not None, items=sum(a, []), body=b, is_inline=False, LOCATIONS)
      }
-    | 'async' 'with' '(' a=';'.with_item+ [';'] ')' tc=[TYPE_COMMENT] b=block {
-       self.check_version(
-           (3, 5),
-           "Async with statements are",
-           ast.AsyncWith(items=sum(a, []), body=b, type_comment=tc, LOCATIONS)
-        )
+    | is_async=['async'] 'with' a=with_item ';' {
+        make_with_stmt(is_async=is_async is not None, items=a, body=[], is_inline=True, LOCATIONS)
      }
     | invalid_with_stmt
 

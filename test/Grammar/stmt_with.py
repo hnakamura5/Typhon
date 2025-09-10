@@ -1,4 +1,8 @@
-from ..assertion_utils import assert_ast_equals, assert_ast_type
+from ..assertion_utils import (
+    assert_ast_equals,
+    assert_ast_type,
+    assert_transform_equals,
+)
 import ast
 from ...src.Grammar.typhon_ast import is_var, is_let
 
@@ -111,3 +115,37 @@ def test_stmt_async_with():
     assert is_let(item1)
     assert is_let(item2)
     assert is_var(item3)
+
+
+code_inline_with = """
+if (True) {
+    with var f1 = open('file1.txt');
+    let x = f1.readline();
+    with let f2 = open('file2.txt');
+    let y = f2.readline();
+}
+print('a')
+"""
+result_inline_with = """
+if True:
+    with open('file1.txt') as f1:
+        pass
+    x = f1.readline()
+    with open('file2.txt') as f2:
+        pass
+    y = f2.readline()
+print('a')
+"""
+result_inline_with_transformed = """
+if True:
+    with open('file1.txt') as _typh_vr_m0_0_f1:
+        _typh_cn_m0_1_x = _typh_vr_m0_0_f1.readline()
+        with open('file2.txt') as _typh_cn_m0_2_f2:
+            _typh_cn_m0_3_y = _typh_cn_m0_2_f2.readline()
+print('a')
+"""
+
+
+def test_stmt_inline_with():
+    parsed = assert_ast_equals(code_inline_with, result_inline_with)
+    assert_transform_equals(parsed, result_inline_with_transformed)
