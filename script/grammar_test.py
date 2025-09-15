@@ -15,26 +15,39 @@ def gather_directory(dir_path: Path) -> list[str]:
     return test_files
 
 
-def gather_grammar_tests() -> list[str]:
+def gather_test_in_dir(dir_name: str) -> list[str]:
     root = get_project_root()
-    grammar_test_dir = Path(root) / "test" / "Grammar"
-    if not grammar_test_dir.exists():
-        print(f"Grammar test directory {grammar_test_dir} does not exist.")
+    dir_path = Path(root) / "test" / dir_name
+    if not dir_path.exists():
+        print(f"Test directory {dir_path} does not exist.")
         return []
-    return gather_directory(grammar_test_dir)
+    return gather_directory(dir_path)
+
+
+def gather_tokenizer_tests() -> list[str]:
+    return gather_test_in_dir("Tokenizer")
+
+
+def gather_grammar_tests() -> list[str]:
+    return gather_test_in_dir("Grammar")
 
 
 def gather_scope_tests() -> list[str]:
-    root = get_project_root()
-    scope_test_dir = Path(root) / "test" / "Scope"
-    if not scope_test_dir.exists():
-        print(f"Scope test directory {scope_test_dir} does not exist.")
-        return []
-    return gather_directory(scope_test_dir)
+    return gather_test_in_dir("Scope")
 
 
 def run_all_tests() -> int:
     build_grammar()
+
+    # First of all run tokenizer tests.
+    if (
+        subprocess.run(
+            [sys.executable, "-m", "pytest"] + gather_tokenizer_tests()
+        ).returncode
+        != 0
+    ):  # Failed
+        return 1
+
     test_files = gather_grammar_tests() + gather_scope_tests()
     if not test_files:
         print("No tests were found to run.")

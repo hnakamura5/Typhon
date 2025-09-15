@@ -3,6 +3,8 @@ from ..src.Grammar.parser import parse_string
 from ..src.Transform.transform import transform
 import tokenize
 from typing import Type, Union
+import io
+from ..src.Grammar.tokenizer_custom import Tokenizer
 
 PARSER_VERBOSE = True
 
@@ -12,7 +14,18 @@ def assert_token(token: tokenize.TokenInfo, type_: int, string: str):
     assert token.string == string, f"Expected '{string}', got '{token.string}'"
 
 
+class TokenizerAsserter:
+    def __init__(self, code: str):
+        tok_stream = tokenize.generate_tokens(io.StringIO(code).readline)
+        self.tokenizer = Tokenizer(tok_stream, verbose=True)
+
+    def next(self, type_: int, string: str):
+        token = self.tokenizer.getnext()
+        assert_token(token, type_, string)
+
+
 def assert_ast_equals(typhon_code: str, python_code: str) -> ast.Module:
+    show_token(typhon_code)
     parsed = parse_string(typhon_code, mode="exec", verbose=PARSER_VERBOSE)
     assert isinstance(parsed, ast.Module)
     print(ast.unparse(parsed))
@@ -72,15 +85,12 @@ def assert_ast_type[T](node: ast.AST, t: Type[T]) -> T:
 
 
 def show_token(source: str):
-    import io
-    from pegen.tokenizer import Tokenizer
-
     tok_stream = tokenize.generate_tokens(io.StringIO(source).readline)
-    tokenizer = Tokenizer(tok_stream, verbose=True)
-    print("Tokens:")
+    print("Tokens of Raw tokenizer:")
     for tok in tokenize.generate_tokens(io.StringIO(source).readline):
         print(tok)
-    print("Tokens in pegen:")
+    print("Tokens of Custom tokenizer:")
+    tokenizer = Tokenizer(tok_stream, verbose=True)
     tok = tokenizer.getnext()
     while tok.type != tokenize.ENDMARKER:
         print(tok)

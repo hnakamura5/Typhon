@@ -6,7 +6,7 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 
 ### Main changes
 
-- Replacing offside rule by standard brace scope and semicolon delimiter.
+- Replacing offside rule by standard brace scope and semicolon delimiter. Line breaks also work as delimiter at the END of statement(there is formal rules below, in the clause "Detail design change").
 
 - Type checking and compile time syntax/type error.
 
@@ -43,6 +43,7 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 - Const member of class
   `let x: int` in class is immutable member. Translated into `@property`.
 
+
 ### Detail design changes
 
 - Logical operators
@@ -64,6 +65,19 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
   For example, `[for (let i in range(1, 10)) if (i % 2 == 1) yield i * i]`, that is translated into `[i * i for i in range(1, 10) if i % 2 == 1]`.
   For dict, `let odd_square = {for (let i in range(1, 10)) if (i % 2 == 1) yield i: i * i}`
 
+- Line breaks are regarded as delimiter. But when the statement looks like to continue in newline, line breaks only work as whitespace.
+  The line break is only a whitespace at the position matching any of the following rules.
+  - Just after,
+    - all operators (including `,`, `.`, `=`, `?`, `:`, `=>`, `->`).
+    - brackets open `([{`.
+    - modifiers(`static`, `async`) and decorators.
+    - all keyword of statements, EXCEPT for return/break like ones (`return`, `raise`, `yield`, `break`, `continue`j).
+    - closing paren `)` of the following paren of statement keywords (`class`, `def`, `if`, `elif`, `while`, `for`, `except`, `with`, `match`, `case`). For example last `)` of `if (cond)` or `class[T](B)`.
+
+  - Just before,
+    - all operators. EXCEPT for `@`, `await`
+    - brackets close `}])`.
+    - keyword of statement that appears in the middle (`elif`, `else`, `except`, `finally`, `case`)
 
 ### Syntax Restrictions
 
@@ -78,6 +92,8 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 - Chained assignments such as `a = b = 0` are forbidden.
 
 - `,` separated assignment target and `,` separated tuple without paren around are forbidden. And even not parsed in such a way. `a, b = b, a` is invalid, use `(a, b) = (b, a)` instead.
+
+- Dead code just after `return`/`raise` statement is forbidden.
 
 ## Bundled Libraries
 

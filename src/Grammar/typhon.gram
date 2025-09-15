@@ -14,15 +14,13 @@ from typing import (
     Any, Callable, Iterator, List, Literal, NoReturn, Sequence, Tuple, TypeVar, Union
 )
 
-from pegen.tokenizer import Tokenizer
-
 from .typhon_ast import (
     assign_as_declaration, make_function_literal, make_arrow_type, make_with_stmt,
     declaration_as_withitem, make_for_stmt, make_function_def, make_comprehension,
     set_is_typing_expression,
 )
 from .parser_helper import Parser, Load, Store, Del
-from .tokenizer_custom import token_stream_factory
+from .tokenizer_custom import token_stream_factory, Tokenizer
 
 def parse_file(
     path: str,
@@ -34,11 +32,6 @@ def parse_file(
 ) -> ast.Module:
     """Parse a file."""
     with open(path) as f:
-        # tok_stream = (
-        #     token_stream_factory(f.readline)
-        #     if token_stream_factory else
-        #     tokenize.generate_tokens(f.readline)
-        # )
         tok_stream = token_stream_factory(f.readline)
         tokenizer = Tokenizer(tok_stream, verbose=verbose, path=path)
         parser = TyphonParser(
@@ -60,17 +53,10 @@ def parse_string(
     verbose:bool = False,
 ) -> ast.AST | None:
     """Parse a string."""
-    # tok_stream = (
-    #     token_stream_factory(io.StringIO(source).readline)
-    #     if token_stream_factory else
-    #     tokenize.generate_tokens(io.StringIO(source).readline)
-    # )
     tok_stream = token_stream_factory(io.StringIO(source).readline)
     tokenizer = Tokenizer(tok_stream, verbose=verbose)
     parser = TyphonParser(tokenizer, verbose=verbose, py_version=py_version)
     return parser.parse(mode if mode == "eval" else "file")
-
-
 '''
 
 
@@ -85,10 +71,15 @@ eval[ast.Expression]: a=expressions NEWLINE* ENDMARKER { ast.Expression(body=a) 
 func_type[ast.FunctionType]: '(' a=[type_expressions] ')' b=typing_arrow_return_type NEWLINE* ENDMARKER { ast.FunctionType(argtypes=a, returns=b) }
 fstring[ast.Expr]: star_expressions
 
+# DELIMITER
+# =========
+
+DELIMITER: ';' | NEWLINE
+
 # GENERAL STATEMENTS
 # ==================
 
-statements[list]: a=statement* { sum(a, []) }
+statements[list]: NEWLINE* a=statement* { sum(a, []) }
 
 statement[list]: a=expansive_stmt NEWLINE* { a } | a=compound_stmt NEWLINE* { [a] } | a=simple_stmts NEWLINE* { a }
 
@@ -100,7 +91,7 @@ statement_newline[list]:
 
 simple_stmts[list]:
     # | a=simple_stmt !';' NEWLINE { [a] } # Not needed, there for speedup
-    | a=';'.simple_stmt+ [';'] { a }
+    | a=DELIMITER.simple_stmt+ [DELIMITER] { a }
 
 # NOTE: assignment MUST precede expression, else parsing a simple assignment
 # will throw a SyntaxError.
@@ -135,7 +126,7 @@ decl_keyword: 'var' | 'let'
 
 # Statement expanded into several Python statements. Including single and compound.
 expansive_stmt[list]:
-    | &decl_keyword a=declaration_assignment [';'] { a }
+    | &decl_keyword a=declaration_assignment [DELIMITER] { a }
 
 # SIMPLE STATEMENTS
 # =================
@@ -286,7 +277,7 @@ dotted_name[str]:
 # ---------------
 
 block[list] (memo):
-    | NEWLINE* '{' a=statements* '}' { sum(a, []) if len(a) > 0 else [ast.Pass(LOCATIONS)]  }
+    | '{' a=statements* '}' { sum(a, []) if len(a) > 0 else [ast.Pass(LOCATIONS)]  }
     | invalid_block
 
 decorators: decorator+
@@ -313,7 +304,7 @@ class_def[ast.ClassDef]:
 
 class_def_raw[ast.ClassDef]:
     | invalid_class_def_raw
-    | 'class' a=NAME t=[type_params] b=['(' z=[arguments] ')' { z }] c=block {
+    | 'class' a=NAME t=[type_params] b=['(' z=[arguments] ')' { z }] NEWLINE* c=block {
         (
             ast.ClassDef(
                 a.string,
@@ -345,7 +336,7 @@ function_def[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
 
 function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
     | invalid_def_raw
-    | st=['static'] asc=['async'] 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=[typing_arrow_return_type] tc=[func_type_comment] b=block {
+    | st=['static'] asc=['async'] 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=[typing_arrow_return_type] tc=[func_type_comment] NEWLINE* b=block {
             make_function_def(
                 is_async=(asc is not None),
                 is_static=(st is not None),
@@ -448,12 +439,12 @@ default: '=' a=expression { a } | invalid_default
 
 if_stmt[ast.If]:
     | invalid_if_stmt
-    | 'if' '(' a=named_expression ')' b=block c=elif_stmt { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
-    | 'if' a=named_expression b=block c=[else_block] { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
+    | 'if' '(' a=named_expression ')' NEWLINE* b=block c=elif_stmt { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
+    | 'if' '(' a=named_expression ')' NEWLINE* b=block c=[else_block] { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
 elif_stmt[List[ast.If]]:
     | invalid_elif_stmt
-    | 'elif' '(' a=named_expression ')' b=block c=elif_stmt { [ast.If(test=a, body=b, orelse=c, LOCATIONS)] }
-    | 'elif' '(' a=named_expression ')' b=block c=[else_block] { [ast.If(test=a, body=b, orelse=c or [], LOCATIONS)] }
+    | 'elif' '(' a=named_expression ')' NEWLINE* b=block c=elif_stmt { [ast.If(test=a, body=b, orelse=c, LOCATIONS)] }
+    | 'elif' '(' a=named_expression ')' NEWLINE* b=block c=[else_block] { [ast.If(test=a, body=b, orelse=c, LOCATIONS)] }
 else_block[list]:
     | invalid_else_stmt
     | 'else' b=block { b }
@@ -463,7 +454,7 @@ else_block[list]:
 
 while_stmt[ast.While]:
     | invalid_while_stmt
-    | 'while' '(' a=named_expression ')' b=block c=[else_block] {
+    | 'while' '(' a=named_expression ')' NEWLINE* b=block c=[else_block] {
         ast.While(test=a, body=b, orelse=c or [], LOCATIONS)
      }
 
@@ -472,10 +463,10 @@ while_stmt[ast.While]:
 
 for_stmt[Union[ast.For, ast.AsyncFor]]:
     | invalid_for_stmt
-    | 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] b=block el=[else_block] {
+    | 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] NEWLINE* b=block el=[else_block] {
         make_for_stmt(decl_type=d.string, target=t, type_annotation=a, iter=ex, body=b, orelse=el or [], type_comment=tc, is_async=False, LOCATIONS)
     }
-    | 'async' 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] b=block el=[else_block] {
+    | 'async' 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] NEWLINE* b=block el=[else_block] {
         make_for_stmt(decl_type=d.string, target=t, type_annotation=a, iter=ex, body=b, orelse=el or [], type_comment=tc, is_async=True, LOCATIONS)
     }
     | invalid_for_target
@@ -485,10 +476,10 @@ for_stmt[Union[ast.For, ast.AsyncFor]]:
 
 with_stmt[Union[ast.With, ast.AsyncWith]]:
     | invalid_with_stmt_indent
-    | is_async=['async'] 'with' '(' a=';'.with_item+ [';'] ')' b=block {
+    | is_async=['async'] 'with' '(' a=';'.with_item+ [';'] ')' NEWLINE* b=block {
         make_with_stmt(is_async=is_async is not None, items=sum(a, []), body=b, is_inline=False, LOCATIONS)
      }
-    | is_async=['async'] 'with' a=with_item ';' {
+    | is_async=['async'] 'with' a=with_item DELIMITER {
         make_with_stmt(is_async=is_async is not None, items=a, body=[], is_inline=True, LOCATIONS)
      }
     | invalid_with_stmt
@@ -526,13 +517,13 @@ try_stmt[ast.Try]:
 
 except_block[ast.ExceptHandler]:
     | invalid_except_stmt_indent
-    | 'except' '(' t=NAME e=annotation ')' b=block {
+    | 'except' '(' t=NAME e=annotation ')' NEWLINE* b=block {
         ast.ExceptHandler(type=e, name=t.string, body=b, LOCATIONS) }
     | 'except' b=block { ast.ExceptHandler(type=None, name=None, body=b, LOCATIONS) }
     | invalid_except_stmt
 except_star_block[ast.ExceptHandler]:
     | invalid_except_star_stmt_indent
-    | 'except' '*' '(' t=NAME e=annotation')' b=block {
+    | 'except' '*' '(' t=NAME e=annotation')' NEWLINE* b=block {
         ast.ExceptHandler(type=e, name=t.string, body=b, LOCATIONS)
      }
     | invalid_except_stmt
@@ -564,7 +555,7 @@ subject_expr:
 
 case_block["ast.match_case"]:
     | invalid_case_block
-    | "case" '(' pattern=patterns ')' guard=guard?  body=block {
+    | "case" '(' pattern=patterns ')' NEWLINE* guard=guard? NEWLINE* body=block {
         ast.match_case(pattern=pattern, guard=guard, body=body)
      }
 
@@ -1306,14 +1297,14 @@ for_if_clauses[List[ast.comprehension]]:
     | a=for_if_clause+ { a }
 
 for_if_clause[ast.comprehension]:
-    | 'async' 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ b=disjunction ')' c=('if' '(' z=disjunction ')' { z })* {
+    | 'async' 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ b=disjunction ')' NEWLINE* c=('if' '(' z=disjunction ')' NEWLINE* { z })* {
         self.check_version(
             (3, 6),
             "Async comprehensions are",
             make_comprehension(decl_type=d.string, target=t, type_annotation=a, iter=b, ifs=c, is_async=1)
         )
      }
-    | 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ b=disjunction ')' c=('if' '(' z=disjunction ')' { z })* {
+    | 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ b=disjunction ')' NEWLINE* c=('if' '(' z=disjunction ')' NEWLINE* { z })* {
         make_comprehension(decl_type=d.string, target=t, type_annotation=a, iter=b, ifs=c, is_async=0) }
     | invalid_for_target
 
