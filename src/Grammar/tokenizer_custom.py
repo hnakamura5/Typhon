@@ -1,4 +1,4 @@
-from typing import Callable, Iterator, Unpack, TypedDict
+from typing import Callable, Iterator, Unpack, TypedDict, NamedTuple
 from tokenize import TokenInfo, generate_tokens, OP, NAME
 import tokenize
 import token
@@ -6,11 +6,11 @@ from dataclasses import dataclass
 from pegen.tokenizer import Tokenizer as PegenTokenizer
 from typing import override
 from .line_break import line_breakable_after, line_breakable_before
+from .typhon_ast import get_postfix_operator_temp_name
 
 
 # Combine sequencial 2 tokens (optionally without space between) into 1
-@dataclass
-class _CombineInfo:
+class _CombineInfo(NamedTuple):
     first: tuple[int, str]  # type and string
     second: tuple[int, str]
     result_type: int
@@ -18,22 +18,35 @@ class _CombineInfo:
     only_without_space: bool
 
 
+# Short alias
+_C = _CombineInfo
+
+
 # Combine list
 _combine_seq2_tokens: list[_CombineInfo] = [
-    _CombineInfo((OP, "="), (OP, ">"), OP, True),
-    _CombineInfo((OP, "&"), (OP, "&"), OP, True),
-    _CombineInfo((OP, "|"), (OP, "|"), OP, True),
+    _C((OP, "="), (OP, ">"), OP, True),
+    _C((OP, "&"), (OP, "&"), OP, True),
+    _C((OP, "|"), (OP, "|"), OP, True),
+    # Optional operators.
+    _C((OP, "?"), (OP, "."), OP, True),
+    _C((OP, "?"), (OP, "?"), OP, True),
+    _C((OP, "?"), (OP, "("), OP, True),
+    _C((OP, "?"), (OP, "["), OP, True),
 ]
 _combine_seq2_map: dict[tuple[int, str], list[_CombineInfo]] = {}
 for info in _combine_seq2_tokens:
     _combine_seq2_map.setdefault(info.first, []).append(info)
 
 
-def _is_token_combine_first(tok: TokenInfo) -> bool:
+def _is_token_possibly_combined_to_next(tok: TokenInfo) -> bool:
     return _combine_seq2_map.get((tok.type, tok.string)) is not None
 
 
-def _try_combine_token(prev: TokenInfo, tok: TokenInfo) -> TokenInfo | None:
+def _is_unified(prev: TokenInfo, tok: TokenInfo) -> bool:
+    return prev.end == tok.start and prev.line == tok.line
+
+
+def _try_get_combine_info(prev: TokenInfo, tok: TokenInfo) -> _CombineInfo | None:
     infos = _combine_seq2_map.get((prev.type, prev.string))
     if infos is None:
         return None
@@ -41,40 +54,28 @@ def _try_combine_token(prev: TokenInfo, tok: TokenInfo) -> TokenInfo | None:
         if (
             tok.type == info.second[0]
             and tok.string == info.second[1]
-            and (not info.only_without_space or prev.end == tok.start)
+            and (not info.only_without_space or _is_unified(prev, tok))
         ):
-            # Combine into one token
-            return TokenInfo(
-                info.result_type,
-                prev.string + tok.string,
-                prev.start,
-                tok.end,
-                prev.line,
-            )
+            return info
     return None
 
 
+def _try_combine_token(prev: TokenInfo, tok: TokenInfo) -> TokenInfo | None:
+    info = _try_get_combine_info(prev, tok)
+    if info is None:
+        return None
+    # Combine into one token
+    return TokenInfo(
+        info.result_type,
+        prev.string + tok.string,
+        prev.start,
+        tok.end,
+        prev.line,
+    )
+
+
 def token_stream_factory(readline: Callable[[], str]) -> Iterator[TokenInfo]:
-    prev: TokenInfo | None = None
-    for tok in generate_tokens(readline):
-        if prev is not None:
-            result = _try_combine_token(prev, tok)
-            if result is not None:
-                prev = None
-                yield result
-                continue
-            else:
-                result = prev
-                prev = None
-                yield result
-                # Fall through. No continue
-        if _is_token_combine_first(tok):
-            prev = tok
-            continue
-        yield tok
-    if prev:
-        yield prev
-    return
+    yield from generate_tokens(readline)
 
 
 def is_newline(tok: TokenInfo) -> bool:
@@ -102,6 +103,10 @@ def is_comment(tok: TokenInfo) -> bool:
 
 def is_indent_dedent(tok: TokenInfo) -> bool:
     return tok.type in (tokenize.INDENT, tokenize.DEDENT)
+
+
+def is_possible_postfix_operator(tok: TokenInfo) -> bool:
+    return tok.type == OP and tok.string in ("!", "?")
 
 
 # Custom Tokenizer to override peek() not to skip always continuous NEWLINE and NL tokens.
@@ -159,6 +164,30 @@ class Tokenizer(PegenTokenizer):
                     tok.end,
                     tok.line,
                 )
+            elif is_possible_postfix_operator(tok) and self._tokens:
+                # Connected postfix `!` and `?` as special tokens.
+                self._forward_next = next(self._tokengen)  # get exactly next token
+                combined = _try_combine_token(tok, self._forward_next)
+                if combined is not None:
+                    # This will be combined to next token.
+                    tok = combined
+                    self._forward_next = None
+                elif _is_unified(self._tokens[-1], tok):
+                    # This is postfix operator without space.
+                    tok = TokenInfo(  # Replace to a special token
+                        tokenize.NAME,
+                        get_postfix_operator_temp_name(tok.string),
+                        tok.start,
+                        tok.end,
+                        tok.line,
+                    )
+            elif _is_token_possibly_combined_to_next(tok):
+                # Combined tokens
+                self._forward_next = next(self._tokengen)  # get exactly next token
+                combined = _try_combine_token(tok, self._forward_next)
+                if combined is not None:
+                    tok = combined
+                    self._forward_next = None
             # Normal token
             self._tokens.append(tok)
             if not self._path and tok.start[0] not in self._lines:

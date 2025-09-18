@@ -17,7 +17,8 @@ from typing import (
 from .typhon_ast import (
     assign_as_declaration, make_function_literal, make_arrow_type, make_with_stmt,
     declaration_as_withitem, make_for_stmt, make_function_def, make_comprehension,
-    set_is_typing_expression,
+    set_is_typing_expression, maybe_optional, set_is_coalescing,
+    get_optional_question_node, get_force_unwrap_node,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory, Tokenizer
@@ -287,12 +288,18 @@ decorator:
         self.check_version((3, 9), "Generic decorator are",  a)
      }
 dec_maybe_call:
-    | dn=dec_primary '(' z=[arguments] ')' {
-        ast.Call(func=dn, args=z[0] if z else [], keywords=z[1] if z else [], LOCATIONS)
+    | dn=dec_primary o=('('|'?(') z=[arguments] ')' {
+        maybe_optional(
+            ast.Call(func=dn, args=z[0] if z else [], keywords=z[1] if z else [], LOCATIONS),
+            o.string)
      }
     | dec_primary
 dec_primary:
-    | a=dec_primary '.' b=NAME { ast.Attribute(value=a, attr=b.string, ctx=Load, LOCATIONS) }
+    | a=dec_primary ('.'|'?.') b=NAME {
+        maybe_optional(
+            ast.Attribute(value=a, attr=b.string, ctx=Load, LOCATIONS),
+            o.string)
+     }
     | a=NAME { ast.Name(id=a.string, ctx=Load, LOCATIONS) }
 
 # Class definitions
@@ -659,9 +666,11 @@ value_pattern["ast.MatchValue"]:
     | attr=attr !('.' | '(' | '=') { ast.MatchValue(value=attr, LOCATIONS) }
 
 attr[ast.Attribute]:
-    | value=name_or_attr '.' attr=NAME {
-        ast.Attribute(value=value, attr=attr.string, ctx=Load, LOCATIONS)
-     }
+    | value=name_or_attr ('.'|'?.') attr=NAME {
+        maybe_optional(
+            ast.Attribute(value=value, attr=attr.string, ctx=Load, LOCATIONS),
+            o.string)
+    }
 
 name_or_attr:
     | attr
@@ -918,10 +927,10 @@ expressions:
 expression (memo):
     | invalid_expression
     | invalid_legacy_expression
-    | a=disjunction 'if' b=disjunction 'else' c=expression {
+    | a=coalescing 'if' b=coalescing 'else' c=expression {
         ast.IfExp(body=a, test=b, orelse=c, LOCATIONS)
      }
-    | disjunction
+    | coalescing
     | lambdef
 
 yield_expr:
@@ -969,16 +978,18 @@ named_expression:
     | invalid_named_expression
     | a=expression !':=' { a }
 
+coalescing (memo):
+    | a=disjunction b=('??' c=disjunction { c })+ {
+        set_is_coalescing(ast.Tuple(elts=[a] + b, ctx=Load, LOCATIONS))
+     }
+    | disjunction
+
 disjunction (memo):
     | a=conjunction b=('||' c=conjunction { c })+ { ast.BoolOp(op=ast.Or(), values=[a] + b, LOCATIONS) }
     | conjunction
 
 conjunction (memo):
-    | a=inversion b=('&&' c=inversion { c })+ { ast.BoolOp(op=ast.And(), values=[a] + b, LOCATIONS) }
-    | inversion
-
-inversion (memo):
-    | '!' a=inversion { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
+    | a=comparison b=('&&' c=comparison { c })+ { ast.BoolOp(op=ast.And(), values=[a] + b, LOCATIONS) }
     | comparison
 
 # Comparisons operators
@@ -1061,7 +1072,22 @@ factor (memo):
     | power
 
 power:
-    | a=await_primary '**' b=factor { ast.BinOp(left=a, op=ast.Pow(), right=b, LOCATIONS) }
+    | a=optional_question '**' b=factor { ast.BinOp(left=a, op=ast.Pow(), right=b, LOCATIONS) }
+    | optional_question
+
+# Unary operators
+# ---------------
+
+optional_question (memo): # postfix `?`
+    | a=force_unwrap '_typh_op_optional_question' { get_optional_question_node(a, LOCATIONS) }
+    | force_unwrap
+
+force_unwrap (memo): # postfix `!`
+    | a=inversion '_typh_op_force_unwrap' { get_force_unwrap_node(a, LOCATIONS) }
+    | inversion
+
+inversion (memo):
+    | '!' a=inversion { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
     | await_primary
 
 # Primary elements
@@ -1073,18 +1099,32 @@ await_primary (memo):
     | 'await' a=primary { self.check_version((3, 5), "Await expressions are", ast.Await(a, LOCATIONS)) }
     | primary
 
+# ? for optional?
 primary:
-    | a=primary '.' b=NAME { ast.Attribute(value=a, attr=b.string, ctx=Load, LOCATIONS) }
-    | a=primary b=genexp { ast.Call(func=a, args=[b], keywords=[], LOCATIONS) }
-    | a=primary '(' b=[arguments] ')' {
-        ast.Call(
-            func=a,
-            args=b[0] if b else [],
-            keywords=b[1] if b else [],
-            LOCATIONS,
-        )
+    | a=primary o=('.' | '?.') b=NAME {
+        maybe_optional(
+            ast.Attribute(value=a, attr=b.string, ctx=Load, LOCATIONS),
+            o.string)
      }
-    | a=primary '[' b=slices ']' { ast.Subscript(value=a, slice=b, ctx=Load, LOCATIONS) }
+    | a=primary b=genexp { ast.Call(func=a, args=[b], keywords=[], LOCATIONS) }
+    | a=primary b=question_genexp {
+        maybe_optional(ast.Call(func=a, args=[b], keywords=[], LOCATIONS), '?')
+     }
+    | a=primary o=('('|'?(') b=[arguments] ')' {
+        maybe_optional(
+            ast.Call(
+                func=a,
+                args=b[0] if b else [],
+                keywords=b[1] if b else [],
+                LOCATIONS,
+            ),
+            o.string)
+     }
+    | a=primary o=('['|'?[') b=slices ']' {
+        maybe_optional(
+            ast.Subscript(value=a, slice=b, ctx=Load, LOCATIONS),
+            o.string)
+     }
     | atom
 
 slices:
@@ -1297,14 +1337,14 @@ for_if_clauses[List[ast.comprehension]]:
     | a=for_if_clause+ { a }
 
 for_if_clause[ast.comprehension]:
-    | 'async' 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ b=disjunction ')' NEWLINE* c=('if' '(' z=disjunction ')' NEWLINE* { z })* {
+    | 'async' 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ b=coalescing ')' NEWLINE* c=('if' '(' z=coalescing ')' NEWLINE* { z })* {
         self.check_version(
             (3, 6),
             "Async comprehensions are",
             make_comprehension(decl_type=d.string, target=t, type_annotation=a, iter=b, ifs=c, is_async=1)
         )
      }
-    | 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ b=disjunction ')' NEWLINE* c=('if' '(' z=disjunction ')' NEWLINE* { z })* {
+    | 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ b=coalescing ')' NEWLINE* c=('if' '(' z=coalescing ')' NEWLINE* { z })* {
         make_comprehension(decl_type=d.string, target=t, type_annotation=a, iter=b, ifs=c, is_async=0) }
     | invalid_for_target
 
@@ -1321,6 +1361,12 @@ genexp[ast.GeneratorExp]:
         ast.GeneratorExp(elt=a, generators=b, LOCATIONS)
      }
     | invalid_comprehension
+
+# For optional call.
+question_genexp[ast.GeneratorExp]:
+    | '?(' b=for_if_clauses 'yield' ~ a=( assignment_expression | expression !':=') ')' {
+        ast.GeneratorExp(elt=a, generators=b, LOCATIONS)
+     }
 
 dictcomp[ast.DictComp]:
     | '{' b=for_if_clauses 'yield' ~ a=kvpair '}' { ast.DictComp(key=a[0], value=a[1], generators=b, LOCATIONS) }
@@ -1371,6 +1417,7 @@ kwarg_or_double_starred:
 # ---------------
 
 # NOTE: star_targets may contain *bitwise_or, targets may not.
+# Assignment target. Does not suppoert optional access.
 star_targets:
     | a=star_target !',' { a }
     | a=star_target b=(',' c=star_target { c })* [','] {
@@ -1409,7 +1456,7 @@ single_subscript_attribute_target:
     | a=t_primary '.' b=NAME !t_lookahead { ast.Attribute(value=a, attr=b.string, ctx=Store, LOCATIONS) }
     | a=t_primary '[' b=slices ']' !t_lookahead { ast.Subscript(value=a, slice=b, ctx=Store, LOCATIONS) }
 
-
+# Assignment target primary.
 t_primary:
     | a=t_primary '.' b=NAME &t_lookahead { ast.Attribute(value=a, attr=b.string, ctx=Load, LOCATIONS) }
     | a=t_primary '[' b=slices ']' &t_lookahead { ast.Subscript(value=a, slice=b, ctx=Load, LOCATIONS) }
@@ -1554,10 +1601,10 @@ invalid_kwarg[NoReturn]:
 # IMPORTANT: Note that the "_without_invalid" suffix causes the rule to
 # not call invalid rules under it
 expression_without_invalid[ast.AST]:
-    | a=disjunction 'if' b=disjunction 'else' c=expression {
+    | a=coalescing 'if' b=coalescing 'else' c=expression {
         ast.IfExp(body=b, test=a, orelse=c, LOCATIONS)
      }
-    | disjunction
+    | coalescing
     | lambdef
 invalid_legacy_expression:
     | a=NAME !'(' b=star_expressions {
@@ -1569,14 +1616,14 @@ invalid_legacy_expression:
 invalid_expression[NoReturn]:
     # !(NAME STRING) is not matched so we don't show this error with some invalid string prefixes like: kf"dsfsdf"
     # Soft keywords need to also be ignored because they can be parsed as NAME NAME
-    | !(NAME STRING | SOFT_KEYWORD) a=disjunction b=expression_without_invalid {
+    | !(NAME STRING | SOFT_KEYWORD) a=coalescing b=expression_without_invalid {
         (
             self.raise_syntax_error_known_range("invalid syntax. Perhaps you forgot a comma?", a, b)
             if not isinstance(a, ast.Name) or a.id not in ("print", "exec")
             else None
         )
      }
-    | a=disjunction 'if' b=disjunction !('else'|':') {
+    | a=coalescing 'if' b=coalescing !('else'|':') {
         self.raise_syntax_error_known_range("expected 'else' after 'if' expression", a, b)
      }
     | a='lambda' [lambda_params] b=':' &(FSTRING_MIDDLE | fstring_replacement_field)  {

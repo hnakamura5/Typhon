@@ -30,7 +30,13 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
       def __call__(self, x1: T1, x2: T2) -> R: ...
   ```
 
-- Nullable/Optional chain operators `??`, `?.`, `?:` and so on. (TODO)
+- Optional types `T?` equivalent to `T | None`.
+
+- Nullable/Optional operators.
+  - `?.` for optional attribute access.
+  - `??` for nullish coalescing.
+  - `?()` for optional call.
+  - `?[]` for optional subscript.
 
 - `if-let` statement for checking optional/condition/matching. (TODO)
   - `if (let x = f()) {...}` is same as `{ let x = f(); if (x is not None) {...} }`

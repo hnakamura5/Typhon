@@ -593,3 +593,75 @@ def make_comprehension(
     _set_is_let_var(clause, decl_type)
     set_type_annotation(clause, type_annotation)
     return clause
+
+
+IS_OPTIONAL = "_typh_is_optional"
+
+
+def maybe_optional(node: ast.expr, operator_string: str) -> ast.expr:
+    ast.IfExp
+    if operator_string.startswith("?"):
+        setattr(node, IS_OPTIONAL, True)
+    return node
+
+
+def set_is_optional(node: ast.expr, is_optional: bool = True) -> ast.expr:
+    setattr(node, IS_OPTIONAL, is_optional)
+    return node
+
+
+def is_optional(node: ast.expr) -> bool:
+    return getattr(node, IS_OPTIONAL, False)
+
+
+IS_COALESCING = "_typh_is_coalescing"
+
+
+def set_is_coalescing(node: ast.Tuple, is_coalescing: bool = True) -> ast.expr:
+    ast.Tuple()
+    setattr(node, IS_COALESCING, is_coalescing)
+    return node
+
+
+def is_coalescing(node: ast.Tuple) -> bool:
+    return getattr(node, IS_COALESCING, False)
+
+
+UnaryPostfix = ast.Tuple  # Using Tuple node for postfix operators.
+OPTIONAL_QUESTION = "_typh_op_optional_question"
+FORCE_UNWRAP = "_typh_op_force_unwrap"
+
+
+def get_optional_question_node(
+    node: ast.expr,
+    **kwargs: Unpack[PosAttributes],
+) -> UnaryPostfix:
+    result = ast.Tuple(elts=[node], ctx=ast.Load(), **kwargs)
+    setattr(result, OPTIONAL_QUESTION, True)
+    return result
+
+
+def is_optional_question(node: ast.expr) -> bool:
+    return getattr(node, OPTIONAL_QUESTION, False)
+
+
+def get_force_unwrap_node(
+    node: ast.expr,
+    **kwargs: Unpack[PosAttributes],
+) -> UnaryPostfix:
+    result = ast.Tuple(elts=[node], ctx=ast.Load(), **kwargs)
+    setattr(result, FORCE_UNWRAP, True)
+    return result
+
+
+def is_force_unwrap(node: ast.expr) -> bool:
+    return getattr(node, FORCE_UNWRAP, False)
+
+
+def get_postfix_operator_temp_name(symbol: str) -> str:
+    if symbol == "?":
+        return OPTIONAL_QUESTION
+    elif symbol == "!":
+        return FORCE_UNWRAP
+    else:
+        raise ValueError(f"Unknown postfix operator symbol: {symbol}")
