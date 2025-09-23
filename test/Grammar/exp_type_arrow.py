@@ -7,9 +7,9 @@ type_arrow_annot_result = """
 x: __arrow_type
 """
 type_arrow_annot_transformed = """
-from typing import Protocol as _typh__Protocol
+from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_m0_0(_typh__Protocol):
+class _typh_ar_m0_0(_typh_bi_Protocol):
 
     def __call__(self, _typh_ar_m0_0_a0: int, /) -> int:
         ...
@@ -29,9 +29,9 @@ type_arrow_param_annot_result = """
 a: __arrow_type
 """
 type_arrow_param_annot_transformed = """
-from typing import Protocol as _typh__Protocol
+from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_m0_0(_typh__Protocol):
+class _typh_ar_m0_0(_typh_bi_Protocol):
 
     def __call__(self, x: int, y: str) -> int:
         ...
@@ -56,9 +56,9 @@ def h(x: int, f: __arrow_type) -> int:
     return f(x)
 """
 type_arrow_def_param_transformed = """
-from typing import Protocol as _typh__Protocol
+from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_f1_0(_typh__Protocol):
+class _typh_ar_f1_0(_typh_bi_Protocol):
 
     def __call__(self, _typh_ar_f1_0_a0: int, /) -> int:
         ...
@@ -82,9 +82,9 @@ type_arrow_func_literal_result = """
 f: __arrow_type = __function_literal
 """
 type_arrow_func_literal_transformed = """
-from typing import Protocol as _typh__Protocol
+from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_m0_0(_typh__Protocol):
+class _typh_ar_m0_0(_typh_bi_Protocol):
 
     def __call__(self, x: int) -> int:
         ...
@@ -109,9 +109,9 @@ type_arrow_star_etc_result = """
 f: __arrow_type
 """
 type_arrow_star_etc_transformed = """
-from typing import Protocol as _typh__Protocol
+from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_m0_0(_typh__Protocol):
+class _typh_ar_m0_0(_typh_bi_Protocol):
 
     def __call__(self, _typh_ar_m0_0_a0: float, /, x: int, *args: str, **kwds: int) -> int:
         ...

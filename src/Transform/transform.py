@@ -7,6 +7,7 @@ from .insert_self_to_method import insert_self_to_method
 from .type_annotation_check_expand import type_annotation_check_expand
 from .const_member_to_property import const_member_to_property
 from .inline_statement_block_capture import inline_statement_block_capture
+from .optional_operators_to_checked import optional_to_checked
 
 
 def transform(mod: ast.Module):
@@ -19,6 +20,8 @@ def transform(mod: ast.Module):
     print(f"After func_type_to_protocol:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     scope_check_rename(mod)
     print(f"After scope_check_rename:\n{ast.unparse(mod)}\n")  # [HN] For debug.
+    optional_to_checked(mod)
+    print(f"After optional_to_checked:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     type_annotation_check_expand(mod)
     print(
         f"After type_annotation_check_expand:\n{ast.unparse(mod)}\n"

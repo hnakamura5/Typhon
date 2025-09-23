@@ -123,6 +123,9 @@ class _ScopeManagerMixin:
     def new_variable_rename_name(self, original_name: str) -> str:
         return self.name_gen.new_name(NameKind.VARIABLE, original_name)
 
+    def new_temp_variable_name(self) -> str:
+        return self.name_gen.new_name(NameKind.VARIABLE, "")
+
     def new_const_rename_name(self, original_name: str) -> str:
         return self.name_gen.new_name(NameKind.CONST, original_name)
 

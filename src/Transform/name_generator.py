@@ -5,6 +5,7 @@ from contextlib import contextmanager
 
 
 typhon_prefix = "_typh_"
+typhon_builtin_prefix = f"{typhon_prefix}bi_"
 
 PythonScope = Union[ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef]
 
@@ -22,7 +23,15 @@ class NameKind(Enum):
 
 
 def get_protocol_name() -> str:
-    return f"{typhon_prefix}_Protocol"
+    return f"{typhon_builtin_prefix}Protocol"
+
+
+def get_unwrap_name() -> str:
+    return f"{typhon_builtin_prefix}unwrap"
+
+
+def get_unwrap_error_name() -> str:
+    return "ValueError"  # TODO: Should be special error?
 
 
 class UniqueNameGenerator:

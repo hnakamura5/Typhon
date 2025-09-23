@@ -104,9 +104,9 @@ def test_exp_func_literal_nested():
     g = __function_literal
 """
 func_literal_nested_transformed = """
-from typing import Protocol as _typh__Protocol
+from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_f2_0(_typh__Protocol):
+class _typh_ar_f2_0(_typh_bi_Protocol):
 
     def __call__(self, _typh_ar_f2_0_a0: int, /) -> int:
         ...

@@ -847,7 +847,6 @@ typing_star_expression (memo):
     | '*' a=bitwise_or { ast.Starred(value=a, ctx=Load, LOCATIONS) }
     | typing_expression
 
-
 typing_expression:
     | t=typing_expression_impl { set_is_typing_expression(t) }
 
@@ -1178,7 +1177,7 @@ atom:
         if sys.version_info >= (3, 9) else
         ast.Constant(value=ast.literal_eval(a.string), kind=None, LOCATIONS)
      }
-    | &'(' (function_literal | tuple | group | genexp)
+    | &'(' (function_literal | typing_arrow_type | tuple | group | genexp)
     | &'[' (list | listcomp)
     | &'{' (dict | set | dictcomp | setcomp)
     | '...' {
@@ -1718,11 +1717,11 @@ invalid_parameters[NoReturn]:
             "parameter without a default follows parameter with a default", a
         )
      }
-    | param_no_default* a='(' param_no_default+ ','? b=')' {
-        self.raise_syntax_error_known_range(
-            "Function parameters cannot be parenthesized", a, b
-        )
-     }
+    # | param_no_default* a='(' param_no_default+ ','? b=')' {
+    #     self.raise_syntax_error_known_range(
+    #         "Function parameters cannot be parenthesized", a, b
+    #     )
+    #  }
     | (slash_no_default | slash_with_default)? param_maybe_default* '*' (',' | param_no_default) param_maybe_default* a='/' {
         self.raise_syntax_error_known_location("/ must be ahead of *", a)
      }

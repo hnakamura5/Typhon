@@ -10,6 +10,7 @@ from ..Grammar.typhon_ast import (
     get_empty_pos_attributes,
     get_pos_attributes,
     is_typing_expression,
+    is_optional_question,
 )
 from ..Grammar.syntax_errors import raise_type_annotation_error
 from .visitor import TyphonASTVisitor, TyphonASTTransformer
@@ -125,6 +126,28 @@ def _add_protocols(
     return result
 
 
+class _OptionalQuestionTransformer(TyphonASTTransformer):
+    def visit_Tuple(self, node: ast.Tuple):
+        print(
+            f"Visiting Tuple: {ast.dump(node)} is_optional_question={is_optional_question(node)}"
+        )
+        if not is_optional_question(node):
+            return self.generic_visit(node)
+        pos = get_pos_attributes(node)
+        if len(node.elts) != 1:
+            raise_type_annotation_error(
+                "Postfix `?` type annotation must have exactly one element type.", **pos
+            )
+        elt = node.elts[0]
+        assert isinstance(elt, ast.expr), (
+            f"Unexpected element in OptionalQuestion: {ast.dump(elt)}"
+        )
+        result = ast.BinOp(
+            left=elt, op=ast.BitOr(), right=ast.Name(id="None", ctx=ast.Load()), **pos
+        )
+        return self.generic_visit(result)
+
+
 class _TupleListTransformer(TyphonASTTransformer):
     is_inside_typing_expr: bool
 
@@ -181,4 +204,6 @@ def type_abbrev_desugar(mod: ast.Module):
     if gatherer.func_types:
         _add_import_for_protocol(mod)
         _add_protocols(mod, gatherer.func_types)
+    # Run optional question first, as it is represented as Tuple nodes.
+    _OptionalQuestionTransformer(mod).run()
     _TupleListTransformer(mod).run()

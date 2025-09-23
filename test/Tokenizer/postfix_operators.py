@@ -1,14 +1,22 @@
-from ..assertion_utils import show_token, assert_ast_equals, TokenizerAsserter
+from ..assertion_utils import (
+    show_token,
+    assert_ast_equals,
+    TokenizerAsserter,
+    assert_ast_transform,
+)
 from ...src.Grammar.typhon_ast import OPTIONAL_QUESTION, FORCE_UNWRAP
 from tokenize import NAME, OP, NEWLINE, ENDMARKER
 
 code_postfix_op = """
 let a: int? = None;
 """
+# In AST, postfix `?` is represented as a tuple type with one element.
 result_postfix_op = """
 a: (int,) = None
 """
-# In AST, postfix `?` is represented as a tuple type with one element.
+transformed_postfix_op = """
+a: int | None = None
+"""
 
 
 def test_postfix_op():
@@ -24,6 +32,7 @@ def test_postfix_op():
     ta.next(OP, ";")
     ta.next(ENDMARKER, "")
     assert_ast_equals(code_postfix_op, result_postfix_op)
+    assert_ast_transform(code_postfix_op, transformed_postfix_op)
 
 
 code_postfix_op_unwrap = """

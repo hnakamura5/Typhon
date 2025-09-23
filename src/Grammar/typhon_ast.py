@@ -614,6 +614,11 @@ def is_optional(node: ast.expr) -> bool:
     return getattr(node, IS_OPTIONAL, False)
 
 
+def clear_is_optional(node: ast.expr) -> None:
+    if hasattr(node, IS_OPTIONAL):
+        delattr(node, IS_OPTIONAL)
+
+
 IS_COALESCING = "_typh_is_coalescing"
 
 

@@ -1,6 +1,18 @@
-from ..assertion_utils import show_token, assert_ast_equals, TokenizerAsserter
-from ...src.Grammar.typhon_ast import OPTIONAL_QUESTION, FORCE_UNWRAP
+from ..assertion_utils import (
+    show_token,
+    assert_ast_equals,
+    TokenizerAsserter,
+    assert_ast_transform,
+)
+from ...src.Grammar.typhon_ast import (
+    OPTIONAL_QUESTION,
+    FORCE_UNWRAP,
+    is_optional,
+    is_optional_question,
+    is_coalescing,
+)
 from tokenize import NAME, OP, NEWLINE, ENDMARKER, NUMBER
+import ast
 
 
 optional_chain_code = """
@@ -42,7 +54,11 @@ def test_optional_chain():
     ta.next(OP, "}")
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
-    assert_ast_equals(optional_chain_code, optional_chain_result)
+    parsed = assert_ast_equals(optional_chain_code, optional_chain_result)
+    func = parsed.body[0]
+    assert isinstance(func, ast.FunctionDef)
+    arg_x = func.args.args[0].annotation
+    assert isinstance(arg_x, ast.expr) and is_optional_question(arg_x)
 
 
 optional_coalesce_code = """
@@ -77,16 +93,24 @@ def test_optional_coalesce():
     ta.next(OP, "}")
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
-    assert_ast_equals(optional_coalesce_code, optional_coalesce_result)
+    parsed = assert_ast_equals(optional_coalesce_code, optional_coalesce_result)
+    func = parsed.body[0]
+    assert isinstance(func, ast.FunctionDef)
+    arg_x = func.args.args[0].annotation
+    assert isinstance(arg_x, ast.expr) and is_optional_question(arg_x)
+    return_stmt = func.body[0]
+    assert isinstance(return_stmt, ast.Return)
+    assert isinstance(return_stmt.value, ast.Tuple)
+    assert is_coalescing(return_stmt.value)
 
 
 optional_call_code = """
-def func(f: (int) -> int?) -> int? {
+def func(f: ((int) -> int?)?) -> int? {
     return f?(42);
 }
 """
 optional_call_result = """
-def func(f: __arrow_type) -> (int,):
+def func(f: (__arrow_type,)) -> (int,):
     return f(42)
 """
 
@@ -100,10 +124,13 @@ def test_optional_call():
     ta.next(NAME, "f")
     ta.next(OP, ":")
     ta.next(OP, "(")
+    ta.next(OP, "(")
     ta.next(NAME, "int")
     ta.next(OP, ")")
     ta.next(OP, "->")
     ta.next(NAME, "int")
+    ta.next(NAME, OPTIONAL_QUESTION)
+    ta.next(OP, ")")
     ta.next(NAME, OPTIONAL_QUESTION)
     ta.next(OP, ")")
     ta.next(OP, "->")
@@ -119,7 +146,15 @@ def test_optional_call():
     ta.next(OP, "}")
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
-    assert_ast_equals(optional_call_code, optional_call_result)
+    parsed = assert_ast_equals(optional_call_code, optional_call_result)
+    func = parsed.body[0]
+    assert isinstance(func, ast.FunctionDef)
+    arg_x = func.args.args[0].annotation
+    assert isinstance(arg_x, ast.expr) and is_optional_question(arg_x)
+    return_stmt = func.body[0]
+    assert isinstance(return_stmt, ast.Return)
+    assert isinstance(return_stmt.value, ast.Call)
+    assert is_optional(return_stmt.value)
 
 
 optional_subscript_code = """
@@ -160,4 +195,12 @@ def test_optional_subscript():
     ta.next(OP, "}")
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
-    assert_ast_equals(optional_subscript_code, optional_subscript_result)
+    parsed = assert_ast_equals(optional_subscript_code, optional_subscript_result)
+    func = parsed.body[0]
+    assert isinstance(func, ast.FunctionDef)
+    arg_x = func.args.args[0].annotation
+    assert isinstance(arg_x, ast.expr) and is_optional_question(arg_x)
+    return_stmt = func.body[0]
+    assert isinstance(return_stmt, ast.Return)
+    assert isinstance(return_stmt.value, ast.Subscript)
+    assert is_optional(return_stmt.value)
