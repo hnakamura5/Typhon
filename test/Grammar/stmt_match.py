@@ -99,3 +99,83 @@ match (x, y, z) {
 # TODO: Make this message better.
 def test_stmt_match_star_error():
     assert_ast_error(match_star_error_code, SyntaxError)
+
+
+match_class_code = """
+from dataclasses import dataclass
+
+@dataclass
+class Point {
+    let x: int
+    let y: int
+}
+
+def func(point: Point) -> int | None {
+    match (point) {
+        case (Point(a, b)) {
+            return a + b
+        }
+    }
+    return None
+}
+"""
+match_class_result = """
+from dataclasses import dataclass
+
+@dataclass
+class Point:
+    x: int
+    y: int
+
+def func(point: Point) -> int | None:
+    match point:
+        case Point(a, b):
+            return a + b
+    return None
+"""
+
+
+def test_stmt_match_class_code():
+    assert_ast_equals(match_class_code, match_class_result)
+
+
+match_class_keyword_pattern_code = """
+from dataclasses import dataclass
+
+@dataclass
+class Point {
+    var x: int
+    var y: int
+    var z: int
+}
+
+def func(point: Point) -> int | None {
+    match (point) {
+        case (Point(a, y=b, z=c)) if (a > 0) {
+            return a + b + c
+        }
+    }
+    return None
+}
+"""
+match_class_keyword_pattern_result = """
+from dataclasses import dataclass
+
+@dataclass
+class Point:
+    x: int
+    y: int
+    z: int
+
+def func(point: Point) -> int | None:
+    match point:
+        case Point(a, y=b, z=c) if a > 0:
+            return a + b + c
+    return None
+"""
+
+
+def test_stmt_match_class_keyword_pattern():
+    assert_ast_equals(
+        match_class_keyword_pattern_code, match_class_keyword_pattern_result
+    )

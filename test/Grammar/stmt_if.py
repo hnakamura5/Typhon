@@ -1,27 +1,27 @@
 from ..assertion_utils import assert_ast_equals
 
-code_empty_if = """
+empty_if_code = """
 if (True) {
 }
 """
-result_empty_if = """
+empty_if_result = """
 if True:
     pass
 """
 
 
 def test_stmt_if_empty():
-    assert_ast_equals(code_empty_if, result_empty_if)
+    assert_ast_equals(empty_if_code, empty_if_result)
 
 
-code_if_else = """
+if_else_code = """
 if (True) {
 } elif (False) {
   return 0;
 } else {
 }
 """
-result_if_else = """
+if_else_result = """
 if True:
     pass
 elif False:
@@ -32,10 +32,10 @@ else:
 
 
 def test_stmt_if_else():
-    assert_ast_equals(code_if_else, result_if_else)
+    assert_ast_equals(if_else_code, if_else_result)
 
 
-code_if_nested = """
+if_nested_code = """
 if (True) {
     if (False) {
         return 1;
@@ -47,7 +47,7 @@ if (True) {
     return 4;
 }
 """
-result_if_nested = """
+if_nested_result = """
 if True:
     if False:
         return 1
@@ -60,4 +60,4 @@ else:
 
 
 def test_stmt_if_nested():
-    assert_ast_equals(code_if_nested, result_if_nested)
+    assert_ast_equals(if_nested_code, if_nested_result)

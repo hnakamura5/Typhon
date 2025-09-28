@@ -11,6 +11,21 @@ class PosAttributes(TypedDict):
     end_col_offset: int | None
 
 
+class PostAttributesNoneless(TypedDict):
+    lineno: int
+    col_offset: int
+    end_lineno: int
+    end_col_offset: int
+
+
+def pos_attribute_noneless(pos: PosAttributes) -> PostAttributesNoneless:
+    if pos["end_lineno"] is None:
+        pos["end_lineno"] = pos["lineno"]
+    if pos["end_col_offset"] is None:
+        pos["end_col_offset"] = pos["col_offset"]
+    return cast(PostAttributesNoneless, pos)
+
+
 type PosNode = (
     ast.stmt
     | ast.expr
@@ -528,6 +543,61 @@ def make_for_stmt(
         _set_is_let_var(result, decl_type)
         set_type_annotation(result, type_annotation)
         return result
+
+
+def _make_none_check(name: str, pos: PosAttributes) -> ast.Compare:
+    return ast.Compare(
+        left=ast.Name(id=name, ctx=ast.Load(), **pos),
+        ops=[ast.IsNot()],
+        comparators=[ast.Constant(value=None, **pos)],
+        **pos,
+    )
+
+
+def make_if_let(
+    subject: ast.expr,
+    pattern: ast.pattern,
+    cond: ast.expr | None,
+    body: list[ast.stmt],
+    orelse: list[ast.stmt] | None,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.Match:
+    cases: list[ast.match_case] = []
+    if (
+        isinstance(pattern, ast.MatchAs)
+        and pattern.pattern is None
+        and pattern.name is not None
+        and cond is None
+    ):
+        # Variable capture pattern, e.g. `let x = ...` without condition.
+        # In this case, the condition is None check.
+        cases.append(
+            ast.match_case(
+                pattern=pattern,
+                guard=_make_none_check(pattern.name, get_pos_attributes(pattern)),
+                body=body,
+            )
+        )
+    else:
+        cases.append(
+            ast.match_case(
+                pattern=pattern,
+                guard=cond,
+                body=body,
+            )
+        )
+    # Default wildcard _ case represents orelse clause.
+    if orelse:
+        cases.append(
+            # wildcard _ case.
+            ast.match_case(
+                pattern=ast.MatchAs(
+                    pattern=None, name=None, **pos_attribute_noneless(kwargs)
+                ),
+                body=orelse,
+            )
+        )
+    return ast.Match(subject=subject, cases=cases, **kwargs)
 
 
 IS_STATIC = "_typh_is_static"

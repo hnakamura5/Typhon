@@ -18,7 +18,7 @@ from .typhon_ast import (
     assign_as_declaration, make_function_literal, make_arrow_type, make_with_stmt,
     declaration_as_withitem, make_for_stmt, make_function_def, make_comprehension,
     set_is_typing_expression, maybe_optional, set_is_coalescing,
-    get_optional_question_node, get_force_unwrap_node,
+    get_optional_question_node, get_force_unwrap_node, make_if_let,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory, Tokenizer
@@ -448,10 +448,25 @@ if_stmt[ast.If]:
     | invalid_if_stmt
     | 'if' '(' a=named_expression ')' NEWLINE* b=block c=elif_stmt { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
     | 'if' '(' a=named_expression ')' NEWLINE* b=block c=[else_block] { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
+    # if-let statement as pattern matching
+    | 'if' '(' 'let' pattern=pattern '=' subject=star_named_expression cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=elif_stmt {
+        make_if_let(subject=subject, pattern=pattern, cond=cond, body=b, orelse=c, LOCATIONS)
+     }
+    | 'if' '(' 'let' pattern=pattern '=' subject=star_named_expression cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=[else_block] {
+        make_if_let(subject=subject, pattern=pattern, cond=cond, body=b, orelse=c, LOCATIONS)
+     }
+
 elif_stmt[List[ast.If]]:
     | invalid_elif_stmt
     | 'elif' '(' a=named_expression ')' NEWLINE* b=block c=elif_stmt { [ast.If(test=a, body=b, orelse=c, LOCATIONS)] }
     | 'elif' '(' a=named_expression ')' NEWLINE* b=block c=[else_block] { [ast.If(test=a, body=b, orelse=c, LOCATIONS)] }
+    # elif-let statement as pattern matching
+    | 'elif' '(' 'let' pattern=pattern '=' subject=star_named_expression cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=elif_stmt {
+        make_if_let(subject=subject, pattern=pattern, cond=cond, body=b, orelse=c, LOCATIONS)
+     }
+    | 'elif' '(' 'let' pattern=pattern '=' subject=star_named_expression cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=[else_block] {
+        make_if_let(subject=subject, pattern=pattern, cond=cond, body=b, orelse=c, LOCATIONS)
+     }
 else_block[list]:
     | invalid_else_stmt
     | 'else' b=block { b }
@@ -656,14 +671,20 @@ capture_pattern:
         ast.MatchAs(pattern=None, name=target, LOCATIONS)
      }
 
+# Allow '=' after name for if-net statement
+# pattern_capture_target[str]:
+#     | !"_" name=NAME !('.' | '(' | '=') { name.string }
 pattern_capture_target[str]:
-    | !"_" name=NAME !('.' | '(' | '=') { name.string }
+    | !"_" name=NAME !('.' | '(') { name.string }
 
 wildcard_pattern["ast.MatchAs"]:
     | "_" { ast.MatchAs(pattern=None, name=None, LOCATIONS) }
 
+# Allow '=' after name for if-net statement
+# value_pattern["ast.MatchValue"]:
+#     | attr=attr !('.' | '(' | '=') { ast.MatchValue(value=attr, LOCATIONS) }
 value_pattern["ast.MatchValue"]:
-    | attr=attr !('.' | '(' | '=') { ast.MatchValue(value=attr, LOCATIONS) }
+    | attr=attr !('.' | '(') { ast.MatchValue(value=attr, LOCATIONS) }
 
 attr[ast.Attribute]:
     | value=name_or_attr ('.'|'?.') attr=NAME {
@@ -724,20 +745,30 @@ mapping_pattern:
 items_pattern:
     | ','.key_value_pattern+
 
+# In pattern '?.' is not allowed
+attr_pattern[ast.Attribute]:
+    | value=name_or_attr '.' attr=NAME {
+        ast.Attribute(value=value, attr=attr.string, ctx=Load, LOCATIONS)
+    }
+
+name_or_attr_pattern:
+    | attr_pattern
+    | name=NAME { ast.Name(id=name.string, ctx=Load, LOCATIONS) }
+
 key_value_pattern:
-    | key=(literal_expr | attr) ':' pattern=pattern { (key, pattern) }
+    | key=(literal_expr | attr_pattern) ':' pattern=pattern { (key, pattern) }
 
 double_star_pattern:
     | '**' target=pattern_capture_target { target }
 
 class_pattern["ast.MatchClass"]:
-    | cls=name_or_attr '(' ')' {
+    | cls=name_or_attr_pattern '(' ')' {
         ast.MatchClass(cls=cls, patterns=[], kwd_attrs=[], kwd_patterns=[], LOCATIONS)
      }
-    | cls=name_or_attr '(' patterns=positional_patterns ','? ')' {
+    | cls=name_or_attr_pattern '(' patterns=positional_patterns ','? ')' {
         ast.MatchClass(cls=cls, patterns=patterns, kwd_attrs=[], kwd_patterns=[], LOCATIONS)
      }
-    | cls=name_or_attr '(' keywords=keyword_patterns ','? ')' {
+    | cls=name_or_attr_pattern '(' keywords=keyword_patterns ','? ')' {
         ast.MatchClass(
             cls=cls,
             patterns=[],
@@ -746,7 +777,7 @@ class_pattern["ast.MatchClass"]:
             LOCATIONS,
         )
      }
-    | cls=name_or_attr '(' patterns=positional_patterns ',' keywords=keyword_patterns ','? ')' {
+    | cls=name_or_attr_pattern '(' patterns=positional_patterns ',' keywords=keyword_patterns ','? ')' {
         ast.MatchClass(
             cls=cls,
             patterns=patterns,
@@ -758,7 +789,49 @@ class_pattern["ast.MatchClass"]:
     | invalid_class_pattern
 
 positional_patterns:
-    | args=','.pattern+ { args }
+    | args=','.positional_pattern+ { args }
+
+# In positional patterns, we does not allow '=' after NAME in
+# positional_pattern_capture_target and  positional_value_pattern
+# in order to prefix ambiguity in the boundary between positional and keyword patterns.
+# This is same as the behavior of normal pattern in original Python's sytanx.
+# But in typhon we use pattern to be the RHS of if-let statement, where
+# '=' comes after NAME necessarily.
+positional_pattern:
+    | positional_as_pattern
+    | positional_or_pattern
+
+positional_as_pattern["ast.MatchAs"]:
+    | pattern=positional_or_pattern 'as' target=positional_pattern_capture_target {
+        ast.MatchAs(pattern=pattern, name=target, LOCATIONS)
+     }
+    | invalid_as_pattern
+
+positional_or_pattern["ast.MatchOr"]:
+    | patterns='|'.positional_closed_pattern+ {
+        ast.MatchOr(patterns=patterns, LOCATIONS) if len(patterns) > 1 else patterns[0]
+     }
+
+positional_pattern_capture_target[str]:
+    | !"_" name=NAME !('.' | '(' | '=') { name.string }
+
+positional_capture_pattern:
+    | target=positional_pattern_capture_target {
+        ast.MatchAs(pattern=None, name=target, LOCATIONS)
+     }
+
+positional_value_pattern["ast.MatchValue"]:
+    | attr=attr !('.' | '(' | '=') { ast.MatchValue(value=attr, LOCATIONS) }
+
+positional_closed_pattern:
+    | literal_pattern
+    | positional_capture_pattern
+    | wildcard_pattern
+    | positional_value_pattern
+    | group_pattern
+    | sequence_pattern
+    | mapping_pattern
+    | class_pattern
 
 keyword_patterns:
     | ','.keyword_pattern+
