@@ -18,7 +18,7 @@ from .typhon_ast import (
     assign_as_declaration, make_function_literal, make_arrow_type, make_with_stmt,
     declaration_as_withitem, make_for_stmt, make_function_def, make_comprehension,
     set_is_typing_expression, maybe_optional, set_is_coalescing,
-    get_optional_question_node, get_force_unwrap_node, make_if_let,
+    get_optional_question_node, get_force_unwrap_node, make_if_let, make_while_let,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory, Tokenizer
@@ -444,28 +444,31 @@ default: '=' a=expression { a } | invalid_default
 # If statement
 # ------------
 
-if_stmt[ast.If]:
+if_let_assignment:
+    | pattern=pattern '=' subject=star_named_expression { (pattern, subject) }
+
+if_stmt[ast.stmt]:
     | invalid_if_stmt
     | 'if' '(' a=named_expression ')' NEWLINE* b=block c=elif_stmt { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
     | 'if' '(' a=named_expression ')' NEWLINE* b=block c=[else_block] { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
     # if-let statement as pattern matching
-    | 'if' '(' 'let' pattern=pattern '=' subject=star_named_expression cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=elif_stmt {
-        make_if_let(subject=subject, pattern=pattern, cond=cond, body=b, orelse=c, LOCATIONS)
+    | 'if' '(' 'let' pat_sub=','.if_let_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=elif_stmt {
+        make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, LOCATIONS)
      }
-    | 'if' '(' 'let' pattern=pattern '=' subject=star_named_expression cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=[else_block] {
-        make_if_let(subject=subject, pattern=pattern, cond=cond, body=b, orelse=c, LOCATIONS)
+    | 'if' '(' 'let' pat_sub=','.if_let_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=[else_block] {
+        make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, LOCATIONS)
      }
 
-elif_stmt[List[ast.If]]:
+elif_stmt[List[ast.stmt]]:
     | invalid_elif_stmt
-    | 'elif' '(' a=named_expression ')' NEWLINE* b=block c=elif_stmt { [ast.If(test=a, body=b, orelse=c, LOCATIONS)] }
-    | 'elif' '(' a=named_expression ')' NEWLINE* b=block c=[else_block] { [ast.If(test=a, body=b, orelse=c, LOCATIONS)] }
+    | 'elif' '(' a=named_expression ')' NEWLINE* b=block c=elif_stmt { [ast.If(test=a, body=b, orelse=c or [], LOCATIONS)] }
+    | 'elif' '(' a=named_expression ')' NEWLINE* b=block c=[else_block] { [ast.If(test=a, body=b, orelse=c or [], LOCATIONS)] }
     # elif-let statement as pattern matching
-    | 'elif' '(' 'let' pattern=pattern '=' subject=star_named_expression cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=elif_stmt {
-        make_if_let(subject=subject, pattern=pattern, cond=cond, body=b, orelse=c, LOCATIONS)
+    | 'elif' '(' 'let' pat_sub=','.if_let_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=elif_stmt {
+        [make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c or [], LOCATIONS)]
      }
-    | 'elif' '(' 'let' pattern=pattern '=' subject=star_named_expression cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=[else_block] {
-        make_if_let(subject=subject, pattern=pattern, cond=cond, body=b, orelse=c, LOCATIONS)
+    | 'elif' '(' 'let' pat_sub=','.if_let_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=[else_block] {
+        [make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c or [], LOCATIONS)]
      }
 else_block[list]:
     | invalid_else_stmt
@@ -478,6 +481,10 @@ while_stmt[ast.While]:
     | invalid_while_stmt
     | 'while' '(' a=named_expression ')' NEWLINE* b=block c=[else_block] {
         ast.While(test=a, body=b, orelse=c or [], LOCATIONS)
+     }
+    # while-let statement as pattern matching
+    | 'while' '(' 'let' pat_sub=','.if_let_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=[else_block] {
+        make_while_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, LOCATIONS)
      }
 
 # For statement

@@ -554,7 +554,70 @@ def _make_none_check(name: str, pos: PosAttributes) -> ast.Compare:
     )
 
 
+MULTIPLE_LET_PATTERN_BODY = "_typh_multiple_let_pattern_body"
+
+
+def get_multiple_let_pattern_body(node: ast.While | ast.If) -> list[ast.stmt] | None:
+    return getattr(node, MULTIPLE_LET_PATTERN_BODY, None)
+
+
+def set_multiple_let_pattern_body(
+    node: ast.While | ast.If, body: list[ast.stmt]
+) -> ast.While | ast.If:
+    setattr(node, MULTIPLE_LET_PATTERN_BODY, body)
+    return node
+
+
+def clear_multiple_let_pattern_body(node: ast.While | ast.If) -> None:
+    if hasattr(node, MULTIPLE_LET_PATTERN_BODY):
+        delattr(node, MULTIPLE_LET_PATTERN_BODY)
+
+
 def make_if_let(
+    pattern_subjects: list[tuple[ast.pattern, ast.expr]],
+    cond: ast.expr | None,
+    body: list[ast.stmt],
+    orelse: list[ast.stmt] | None,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.stmt:
+    if len(pattern_subjects) == 0:
+        raise SyntaxError("if let must have at least one pattern")
+    elif len(pattern_subjects) == 1:
+        (pattern, subject) = pattern_subjects[0]
+        return _make_if_let_single(subject, pattern, cond, body, orelse, **kwargs)
+    else:
+        return _make_if_let_multiple(pattern_subjects, cond, body, orelse, **kwargs)
+
+
+def _make_if_let_single_case(
+    pattern: ast.pattern,
+    cond: ast.expr | None,
+    body: list[ast.stmt],
+    make_none_check: bool,
+) -> ast.match_case:
+    if (
+        isinstance(pattern, ast.MatchAs)
+        and pattern.pattern is None
+        and pattern.name is not None
+        and cond is None
+        and make_none_check
+    ):
+        # Variable capture pattern, e.g. `let x = ...` without condition.
+        # In this case, the condition is None check.
+        return ast.match_case(
+            pattern=pattern,
+            guard=_make_none_check(pattern.name, get_pos_attributes(pattern)),
+            body=body,
+        )
+    else:
+        return ast.match_case(
+            pattern=pattern,
+            guard=cond,
+            body=body,
+        )
+
+
+def _make_if_let_single(
     subject: ast.expr,
     pattern: ast.pattern,
     cond: ast.expr | None,
@@ -563,29 +626,7 @@ def make_if_let(
     **kwargs: Unpack[PosAttributes],
 ) -> ast.Match:
     cases: list[ast.match_case] = []
-    if (
-        isinstance(pattern, ast.MatchAs)
-        and pattern.pattern is None
-        and pattern.name is not None
-        and cond is None
-    ):
-        # Variable capture pattern, e.g. `let x = ...` without condition.
-        # In this case, the condition is None check.
-        cases.append(
-            ast.match_case(
-                pattern=pattern,
-                guard=_make_none_check(pattern.name, get_pos_attributes(pattern)),
-                body=body,
-            )
-        )
-    else:
-        cases.append(
-            ast.match_case(
-                pattern=pattern,
-                guard=cond,
-                body=body,
-            )
-        )
+    cases.append(_make_if_let_single_case(pattern, cond, body, make_none_check=True))
     # Default wildcard _ case represents orelse clause.
     if orelse:
         cases.append(
@@ -594,10 +635,132 @@ def make_if_let(
                 pattern=ast.MatchAs(
                     pattern=None, name=None, **pos_attribute_noneless(kwargs)
                 ),
-                body=orelse,
+                body=orelse or [],
             )
         )
     return ast.Match(subject=subject, cases=cases, **kwargs)
+
+
+def _make_nested_match_for_multiple_let(
+    pattern_subjects: list[tuple[ast.pattern, ast.expr]],
+    cond: ast.expr | None,
+    body: list[ast.stmt],
+    **kwargs: Unpack[PosAttributes],
+) -> list[ast.stmt]:
+    # Build nested match statements from inside out.
+    for pattern, subject in reversed(pattern_subjects):
+        nested_match: ast.stmt = ast.Match(
+            subject=subject,
+            cases=[
+                _make_if_let_single_case(
+                    pattern, cond, body, make_none_check=cond is None
+                )
+            ],
+            **kwargs,
+        )
+        body = [nested_match]
+        cond = None  # Only the innermost match has the condition.
+    return body
+
+
+# Multiple patterns are combined into nested match statements.
+def _make_if_let_multiple(
+    pattern_subjects: list[tuple[ast.pattern, ast.expr]],
+    cond: ast.expr | None,
+    body: list[ast.stmt],
+    orelse: list[ast.stmt] | None,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.If:
+    """
+        if (let <pattern1> = <subject1>, <pattern2> = <subject2>, ...,
+                <patternN> = <subjectN>[;<cond>]) {
+            <body>
+        } else {
+            <orelse>
+        }
+    --> (temporary represented now)
+
+        if True: # multiple_let_pattern_body set
+            match <subject1>:
+                case <pattern1>:
+                    match <subject2>:
+                        case <pattern2>:
+                            ...
+                                match <subjectN>:
+                                    case <patternN> if <cond>:
+                                        <body>
+        else:
+            <orelse>
+    """
+    # Build nested match statements from inside out.
+    result = ast.If(
+        test=ast.Constant(value=True, **kwargs),
+        body=_make_nested_match_for_multiple_let(
+            pattern_subjects, cond, body, **kwargs
+        ),
+        orelse=orelse or [],
+        **kwargs,
+    )
+    set_multiple_let_pattern_body(result, body)
+    return result
+
+
+def make_while_let(
+    pattern_subjects: list[tuple[ast.pattern, ast.expr]],
+    cond: ast.expr | None,
+    body: list[ast.stmt],
+    orelse: list[ast.stmt] | None,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.While:
+    if len(pattern_subjects) == 0:
+        raise SyntaxError("if let must have at least one pattern")
+    else:
+        return _make_while_let(pattern_subjects, cond, body, orelse, **kwargs)
+
+
+def _make_while_let(
+    pattern_subjects: list[tuple[ast.pattern, ast.expr]],
+    cond: ast.expr | None,
+    body: list[ast.stmt],
+    orelse: list[ast.stmt] | None,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.While:
+    """
+        while (let <pattern1> = <subject1>,
+                   <pattern2> = <subject2>,
+                   ...,
+                   <patternN> = <subjectN>
+                   [;<cond>]) {
+            <body>
+        } else {
+            <orelse>
+        }
+
+    --> (temporary represented now)
+
+        while True: # multiple_let_pattern_body set to <body>
+            match <subject1>:
+                case <pattern1>:
+                    match <subject2>:
+                        case <pattern2>:
+                            ...
+                                match <subjectN>:
+                                    case <patternN> if <cond>:
+                                        <body>
+        else:
+            <orelse>
+    """
+
+    result = ast.While(
+        test=ast.Constant(value=True, **kwargs),
+        body=_make_nested_match_for_multiple_let(
+            pattern_subjects, cond, body, **kwargs
+        ),
+        orelse=orelse or [],
+        **kwargs,
+    )
+    set_multiple_let_pattern_body(result, result.body)
+    return result
 
 
 IS_STATIC = "_typh_is_static"

@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_equals
+from ..assertion_utils import assert_ast_equals, assert_ast_error
 
 
 if_let_none_check_code = """
@@ -109,3 +109,97 @@ def test_stmt_if_let_class_keyword_pattern():
     assert_ast_equals(
         if_let_class_keyword_pattern_code, if_let_class_keyword_pattern_result
     )
+
+
+if_let_multiple_code = """
+from dataclasses import dataclass
+
+@dataclass
+class Point {
+    let x: int
+    let y: int
+    let z: int
+}
+
+def func(point1: Point, point2: Point) -> int | None {
+    if (let Point(x=a, y=b, z=c) = point1, Point(d, e, f) = point2; a > d) {
+        print(a + b + c + d + e + f)
+    } elif (let Point(a, b, c) = point1, Point(x=d, y=e, z=f) = point2) {
+        return a + b + c + d + e + f
+    } else {
+        print("No match")
+    }
+    return None
+}
+"""
+if_let_multiple_result = """
+from dataclasses import dataclass
+
+@dataclass
+class Point:
+    x: int
+    y: int
+    z: int
+
+def func(point1: Point, point2: Point) -> int | None:
+    if True:
+        match point1:
+            case Point(x=a, y=b, z=c):
+                match point2:
+                    case Point(d, e, f) if a > d:
+                        print(a + b + c + d + e + f)
+    elif True:
+        match point1:
+            case Point(a, b, c):
+                match point2:
+                    case Point(x=d, y=e, z=f):
+                        return a + b + c + d + e + f
+    else:
+        print('No match')
+    return None
+"""
+if_let_multiple_transformed = """
+from dataclasses import dataclass
+
+@dataclass
+class Point:
+    x: int
+    y: int
+    z: int
+
+def func(point1: Point, point2: Point) -> int | None:
+    while True:
+        match point1:
+            case Point(x=a, y=b, z=c):
+                match point2:
+                    case Point(d, e, f) if a > d:
+                        print(a + b + c + d + e + f)
+                        break
+        while True:
+            match point1:
+                case Point(a, b, c):
+                    match point2:
+                        case Point(x=d, y=e, z=f):
+                            return a + b + c + d + e + f
+            print('No match')
+            break
+        break
+    return None
+"""
+
+
+def test_stmt_if_let_multiple():
+    assert_ast_equals(if_let_multiple_code, if_let_multiple_result)
+
+
+if_let_comma_error_code = """
+def func(point: (int, int)) -> None {
+    if (let a, b = point) { # Error: Comma without parentheses
+        print(a + b)
+    }
+}
+"""
+
+
+def test_stmt_if_let_comma_error():
+    assert_ast_error(if_let_comma_error_code, SyntaxError)
