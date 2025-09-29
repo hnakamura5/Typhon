@@ -8,10 +8,13 @@ from .type_annotation_check_expand import type_annotation_check_expand
 from .const_member_to_property import const_member_to_property
 from .inline_statement_block_capture import inline_statement_block_capture
 from .optional_operators_to_checked import optional_to_checked
+from .if_while_let import if_while_let_transform
 
 
 def transform(mod: ast.Module):
     check_forbidden_statements(mod)
+    if_while_let_transform(mod)
+    print(f"After if_while_let_transform:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     insert_self_to_method(mod)
     print(f"After insert_self_to_method:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     func_literal_to_def(mod)

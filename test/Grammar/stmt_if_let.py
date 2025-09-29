@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_equals, assert_ast_error
+from ..assertion_utils import assert_ast_equals, assert_ast_error, assert_ast_transform
 
 
 if_let_none_check_code = """
@@ -116,9 +116,9 @@ from dataclasses import dataclass
 
 @dataclass
 class Point {
-    let x: int
-    let y: int
-    let z: int
+    var x: int
+    var y: int
+    var z: int
 }
 
 def func(point1: Point, point2: Point) -> int | None {
@@ -168,28 +168,29 @@ class Point:
     z: int
 
 def func(point1: Point, point2: Point) -> int | None:
-    while True:
+    _typh_vr_f2_1_ = True
+    match point1:
+        case Point(x=a, y=b, z=c):
+            match point2:
+                case Point(d, e, f) if a > d:
+                    print(a + b + c + d + e + f)
+                    _typh_vr_f2_1_ = False
+    if _typh_vr_f2_1_:
+        _typh_vr_f2_0_ = True
         match point1:
-            case Point(x=a, y=b, z=c):
+            case Point(a, b, c):
                 match point2:
-                    case Point(d, e, f) if a > d:
-                        print(a + b + c + d + e + f)
-                        break
-        while True:
-            match point1:
-                case Point(a, b, c):
-                    match point2:
-                        case Point(x=d, y=e, z=f):
-                            return a + b + c + d + e + f
+                    case Point(x=d, y=e, z=f):
+                        return a + b + c + d + e + f
+        if _typh_vr_f2_0_:
             print('No match')
-            break
-        break
     return None
 """
 
 
 def test_stmt_if_let_multiple():
     assert_ast_equals(if_let_multiple_code, if_let_multiple_result)
+    assert_ast_transform(if_let_multiple_code, if_let_multiple_transformed)
 
 
 if_let_comma_error_code = """

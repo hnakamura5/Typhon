@@ -106,7 +106,7 @@ def is_decl_assign(node: ast.AST) -> bool:
     return is_var_assign(node) or is_let_assign(node)
 
 
-def _set_is_var(node: DeclarableStmt):
+def set_is_var(node: DeclarableStmt):
     setattr(node, _IS_VAR, True)
 
 
@@ -116,7 +116,7 @@ def _set_is_let(node: DeclarableStmt):
 
 def _set_is_let_var(node: DeclarableStmt, decl_type: str):
     if decl_type == "var":
-        _set_is_var(node)
+        set_is_var(node)
     elif decl_type == "let":
         _set_is_let(node)
     else:
@@ -125,7 +125,7 @@ def _set_is_let_var(node: DeclarableStmt, decl_type: str):
 
 def copy_is_let_var(src: DeclarableStmt, dest: DeclarableStmt) -> None:
     if is_var_assign(src):
-        _set_is_var(dest)
+        set_is_var(dest)
     if is_let_assign(src):
         _set_is_let(dest)
 
@@ -554,23 +554,23 @@ def _make_none_check(name: str, pos: PosAttributes) -> ast.Compare:
     )
 
 
-MULTIPLE_LET_PATTERN_BODY = "_typh_multiple_let_pattern_body"
+_LET_PATTERN_BODY = "_typh_multiple_let_pattern_body"
 
 
-def get_multiple_let_pattern_body(node: ast.While | ast.If) -> list[ast.stmt] | None:
-    return getattr(node, MULTIPLE_LET_PATTERN_BODY, None)
+def get_let_pattern_body(node: ast.While | ast.If) -> list[ast.stmt] | None:
+    return getattr(node, _LET_PATTERN_BODY, None)
 
 
-def set_multiple_let_pattern_body(
+def set_let_pattern_body(
     node: ast.While | ast.If, body: list[ast.stmt]
 ) -> ast.While | ast.If:
-    setattr(node, MULTIPLE_LET_PATTERN_BODY, body)
+    setattr(node, _LET_PATTERN_BODY, body)
     return node
 
 
-def clear_multiple_let_pattern_body(node: ast.While | ast.If) -> None:
-    if hasattr(node, MULTIPLE_LET_PATTERN_BODY):
-        delattr(node, MULTIPLE_LET_PATTERN_BODY)
+def clear_let_pattern_body(node: ast.While | ast.If) -> None:
+    if hasattr(node, _LET_PATTERN_BODY):
+        delattr(node, _LET_PATTERN_BODY)
 
 
 def make_if_let(
@@ -701,7 +701,7 @@ def _make_if_let_multiple(
         orelse=orelse or [],
         **kwargs,
     )
-    set_multiple_let_pattern_body(result, body)
+    set_let_pattern_body(result, body)
     return result
 
 
@@ -759,7 +759,7 @@ def _make_while_let(
         orelse=orelse or [],
         **kwargs,
     )
-    set_multiple_let_pattern_body(result, result.body)
+    set_let_pattern_body(result, body)
     return result
 
 
