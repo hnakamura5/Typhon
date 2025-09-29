@@ -26,6 +26,10 @@ def get_protocol_name() -> str:
     return f"{typhon_builtin_prefix}Protocol"
 
 
+def get_final_name() -> str:
+    return f"{typhon_builtin_prefix}Final"
+
+
 def get_unwrap_name() -> str:
     return f"{typhon_builtin_prefix}unwrap"
 

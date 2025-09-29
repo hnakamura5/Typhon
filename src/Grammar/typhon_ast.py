@@ -903,3 +903,20 @@ def get_postfix_operator_temp_name(symbol: str) -> str:
         return FORCE_UNWRAP
     else:
         raise ValueError(f"Unknown postfix operator symbol: {symbol}")
+
+
+def add_import_alias_top(mod: ast.Module, from_module: str, name: str, as_name: str):
+    # Duplicate import is NOT a problem, but better to avoid it for speed.
+    import_stmt = ast.ImportFrom(
+        module=from_module,
+        names=[
+            ast.alias(
+                name=name,
+                asname=as_name,
+                **get_empty_pos_attributes(),
+            )
+        ],
+        level=0,
+        **get_empty_pos_attributes(),
+    )
+    mod.body.insert(0, import_stmt)

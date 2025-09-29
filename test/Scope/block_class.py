@@ -98,12 +98,10 @@ class A {
 """
 
 block_class_const_to_property_result = """
-class A:
+from typing import Final as _typh_bi_Final
 
-    @property
-    def x(self):
-        return self._typh_cn_c1_0_x
-    _typh_cn_c1_0_x: int = 10
+class A:
+    x: _typh_bi_Final[int] = 10
 
     def f(self):
         print(self.x)
@@ -131,19 +129,13 @@ class A {
 }
 """
 block_class_const_nested_result = """
-class A:
+from typing import Final as _typh_bi_Final
 
-    @property
-    def x(self):
-        return self._typh_cn_c1_0_x
-    _typh_cn_c1_0_x: int = 10
+class A:
+    x: _typh_bi_Final[int] = 10
 
     class B:
-
-        @property
-        def x(self):
-            return self._typh_cn_c2_0_x
-        _typh_cn_c2_0_x: int = 20
+        x: _typh_bi_Final[int] = 20
 
         def g(self):
             print(self.x)

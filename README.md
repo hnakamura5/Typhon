@@ -47,8 +47,7 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
   `with let f = open("file");` exits at the end of current scope. This is the same as with statement including the rest of current scope as its block.
 
 - Const member of class
-  `let x: int` in class is immutable member. Translated into `@property`.
-
+  `let x: T` in class is immutable member. Translated into `x: Final[T]`. Be attention not to use `Final` with `let` in Typhon code.
 
 ### Detail design changes
 

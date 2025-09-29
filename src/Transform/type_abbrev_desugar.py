@@ -11,6 +11,7 @@ from ..Grammar.typhon_ast import (
     get_pos_attributes,
     is_typing_expression,
     is_optional_question,
+    add_import_alias_top,
 )
 from ..Grammar.syntax_errors import raise_type_annotation_error
 from .visitor import TyphonASTVisitor, TyphonASTTransformer
@@ -30,20 +31,7 @@ class _GatherArrowType(TyphonASTVisitor):
 
 
 def _add_import_for_protocol(mod: ast.Module):
-    # Duplicate import is NOT a problem, but better to avoid it for speed.
-    import_stmt = ast.ImportFrom(
-        module="typing",
-        names=[
-            ast.alias(
-                name="Protocol",
-                asname=get_protocol_name(),
-                **get_empty_pos_attributes(),
-            )
-        ],
-        level=0,
-        **get_empty_pos_attributes(),
-    )
-    mod.body.insert(0, import_stmt)
+    add_import_alias_top(mod, "typing", "Protocol", get_protocol_name())
 
 
 def _protocol_for_function_type(

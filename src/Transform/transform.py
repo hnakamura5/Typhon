@@ -5,7 +5,7 @@ from .scope_check_rename import scope_check_rename
 from .forbidden_statements import check_forbidden_statements
 from .insert_self_to_method import insert_self_to_method
 from .type_annotation_check_expand import type_annotation_check_expand
-from .const_member_to_property import const_member_to_property
+from .const_member_to_final import const_member_to_final
 from .inline_statement_block_capture import inline_statement_block_capture
 from .optional_operators_to_checked import optional_to_checked
 from .if_while_let import if_while_let_transform
@@ -29,7 +29,7 @@ def transform(mod: ast.Module):
     print(
         f"After type_annotation_check_expand:\n{ast.unparse(mod)}\n"
     )  # [HN] For debug.
-    const_member_to_property(mod)
+    const_member_to_final(mod)
     print(f"After const_member_to_property:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     inline_statement_block_capture(mod)
     print(
