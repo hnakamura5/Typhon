@@ -9,14 +9,24 @@ if (let x = y) {
 """
 if_let_none_check_result = """
 y: (int,) = None
+if True:
+    match y:
+        case x if x is not None:
+            print(x)
+"""
+if_let_none_check_transformed = """
+y: int | None = None
+_typh_vr_m0_0_ = True
 match y:
-    case x if x is not None:
-        print(x)
+    case _typh_cn_m0_0_x if _typh_cn_m0_0_x is not None:
+        print(_typh_cn_m0_0_x)
+        _typh_vr_m0_0_ = False
 """
 
 
 def test_if_let_none_check():
     assert_ast_equals(if_let_none_check_code, if_let_none_check_result)
+    assert_ast_transform(if_let_none_check_code, if_let_none_check_transformed)
 
 
 if_let_star_code = """
@@ -25,9 +35,10 @@ if (let (1, *rest) = (x, y, z)) {
 }
 """
 if_let_star_result = """
-match (x, y, z):
-    case [1, *rest]:
-        w = rest
+if True:
+    match (x, y, z):
+        case [1, *rest]:
+            w = rest
 """
 
 
@@ -60,9 +71,10 @@ class Point:
     y: int
 
 def func(point: Point) -> int | None:
-    match point:
-        case Point(a, b):
-            return a + b
+    if True:
+        match point:
+            case Point(a, b):
+                return a + b
     return None
 """
 
@@ -98,9 +110,10 @@ class Point:
     z: int
 
 def func(point: Point) -> int | None:
-    match point:
-        case Point(a, y=b, z=c) if a > 0:
-            return a + b + c
+    if True:
+        match point:
+            case Point(a, y=b, z=c) if a > 0:
+                return a + b + c
     return None
 """
 
@@ -204,3 +217,36 @@ def func(point: (int, int)) -> None {
 
 def test_stmt_if_let_comma_error():
     assert_ast_error(if_let_comma_error_code, SyntaxError)
+
+
+let_else_code = """
+def func(x: int?) -> int {
+    let y = x else {
+        return 0
+    }
+    return y
+}
+"""
+let_else_result = """
+def func(x: (int,)) -> int:
+    if True:
+        match x:
+            case y if y is not None:
+    else:
+        return 0
+    return y
+"""
+let_else_transformed = """
+def func(x: int | None) -> int:
+    _typh_vr_f1_0_ = True
+    match x:
+        case y if y is not None:
+            return y
+    if _typh_vr_f1_0_:
+        return 0
+"""
+
+
+def test_stmt_let_else():
+    assert_ast_equals(let_else_code, let_else_result)
+    assert_ast_transform(let_else_code, let_else_transformed)

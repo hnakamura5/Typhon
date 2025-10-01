@@ -45,7 +45,7 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
   - `if (let x = f(); x > 0) {...}` is same as `{ let x = f(); if (x > 0) {...} }`
   - `if (let [1, 2, x, *y] = f(); x > 0) {...}` is same as `match (f()) { case([1, 2, x, *y]) if (x > 0) {...} }`
 
-- `let-else` statement to flatten the `if-let` scope. In `else` block the code must exit by `return`, `raise`, `break`, `continue`. (TODO)
+- `let-else` statement to flatten the `if-let` scope. In `else` block the code must exit by `return`, `raise`, `break`, `continue`.
   - `let Point(x=a, y=0) = point else { return None }` falls to the following code when match succeeded, `a` can be used there.
 
 - Inline `with` statement.

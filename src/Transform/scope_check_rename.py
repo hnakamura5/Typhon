@@ -334,12 +334,15 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         return node
 
     def visit_With_AsyncWith(self, node: ast.With | ast.AsyncWith):
-        if is_inline_with(node):
-            # Declare in parent block scope
+        if is_inline_with(node):  # Once was inline_with
+            # Declare in parent block scope.
             for item in node.items:
                 self.visit(item.context_expr)
                 if item.optional_vars:
                     self.visit_declaration(item.optional_vars, is_mutable=is_var(item))
+            # Visit body in parent block scope.
+            for n in node.body:
+                self.visit(n)
         else:
             with self.scope():  # with contexts scope
                 for item in node.items:

@@ -332,8 +332,6 @@ def make_with_stmt(
     **kwargs,
 ) -> Union[ast.With, ast.AsyncWith]:
     result: Union[ast.With, ast.AsyncWith]
-    if not body:
-        body = [ast.Pass(**kwargs)]
     if is_async:
         result = ast.AsyncWith(items=items, body=body, **kwargs)
     else:
@@ -555,6 +553,7 @@ def _make_none_check(name: str, pos: PosAttributes) -> ast.Compare:
 
 
 _LET_PATTERN_BODY = "_typh_multiple_let_pattern_body"
+_IS_LET_ELSE = "_typh_is_let_else"
 
 
 def get_let_pattern_body(node: ast.While | ast.If) -> list[ast.stmt] | None:
@@ -573,20 +572,41 @@ def clear_let_pattern_body(node: ast.While | ast.If) -> None:
         delattr(node, _LET_PATTERN_BODY)
 
 
+def is_let_else(node: ast.If | ast.Match) -> bool:
+    return getattr(node, _IS_LET_ELSE, False)
+
+
+def set_is_let_else(node: ast.If | ast.Match, is_let_else: bool) -> ast.stmt:
+    setattr(node, _IS_LET_ELSE, is_let_else)
+    return node
+
+
+def clear_is_let_else(node: ast.If | ast.Match) -> None:
+    if hasattr(node, _IS_LET_ELSE):
+        delattr(node, _IS_LET_ELSE)
+
+
 def make_if_let(
     pattern_subjects: list[tuple[ast.pattern, ast.expr]],
     cond: ast.expr | None,
     body: list[ast.stmt],
     orelse: list[ast.stmt] | None,
+    is_let_else: bool,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.stmt:
     if len(pattern_subjects) == 0:
         raise SyntaxError("if let must have at least one pattern")
-    elif len(pattern_subjects) == 1:
-        (pattern, subject) = pattern_subjects[0]
-        return _make_if_let_single(subject, pattern, cond, body, orelse, **kwargs)
+    # elif len(pattern_subjects) == 1:
+    #     (pattern, subject) = pattern_subjects[0]
+    #     return set_is_let_else(
+    #         _make_if_let_single(subject, pattern, cond, body, orelse, **kwargs),
+    #         is_let_else,
+    #     )
     else:
-        return _make_if_let_multiple(pattern_subjects, cond, body, orelse, **kwargs)
+        return set_is_let_else(
+            _make_if_let_multiple(pattern_subjects, cond, body, orelse, **kwargs),
+            is_let_else,
+        )
 
 
 def _make_if_let_single_case(
@@ -920,3 +940,10 @@ def add_import_alias_top(mod: ast.Module, from_module: str, name: str, as_name: 
         **get_empty_pos_attributes(),
     )
     mod.body.insert(0, import_stmt)
+
+
+def is_body_jump_away(body: list[ast.stmt]) -> bool:
+    if not body:
+        return False
+    last_stmt = body[-1]
+    return isinstance(last_stmt, (ast.Break, ast.Continue, ast.Return, ast.Raise))

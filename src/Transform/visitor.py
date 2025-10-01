@@ -20,6 +20,7 @@ class _ScopeManagerMixin:
     parent_exprs: list[ast.expr]
     name_gen: UniqueNameGenerator
     parent_python_scopes: list[PythonScope]
+    parent_block_scopes: list[tuple[ast.AST, list[ast.stmt]]]
 
     def __init__(self, module: ast.Module):
         super().__init__()

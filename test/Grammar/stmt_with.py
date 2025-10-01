@@ -129,10 +129,8 @@ print('a')
 result_inline_with = """
 if True:
     with open('file1.txt') as f1:
-        pass
     x = f1.readline()
     with open('file2.txt') as f2:
-        pass
     y = f2.readline()
 print('a')
 """

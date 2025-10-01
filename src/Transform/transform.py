@@ -13,6 +13,8 @@ from .if_while_let import if_while_let_transform
 
 def transform(mod: ast.Module):
     check_forbidden_statements(mod)
+    inline_statement_block_capture(mod)
+    print(f"After inline_statement_block_capture:\n{ast.unparse(mod)}\n")
     if_while_let_transform(mod)
     print(f"After if_while_let_transform:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     insert_self_to_method(mod)
@@ -31,7 +33,4 @@ def transform(mod: ast.Module):
     )  # [HN] For debug.
     const_member_to_final(mod)
     print(f"After const_member_to_property:\n{ast.unparse(mod)}\n")  # [HN] For debug.
-    inline_statement_block_capture(mod)
-    print(
-        f"After inline_statement_block_capture:\n{ast.unparse(mod)}\n"
-    )  # [HN] For debug.
+    # [HN] For debug.

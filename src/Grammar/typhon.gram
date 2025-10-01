@@ -82,7 +82,7 @@ DELIMITER: ';' | NEWLINE
 
 statements[list]: NEWLINE* a=statement* { sum(a, []) }
 
-statement[list]: a=expansive_stmt NEWLINE* { a } | a=compound_stmt NEWLINE* { [a] } | a=simple_stmts NEWLINE* { a }
+statement[list]: a=compound_stmt NEWLINE* { [a] } | a=expansive_stmt NEWLINE* { a } | a=simple_stmts NEWLINE* { a }
 
 statement_newline[list]:
     | a=compound_stmt NEWLINE { [a] }
@@ -113,6 +113,7 @@ simple_stmt (memo):
     | &'nonlocal' nonlocal_stmt
 
 compound_stmt:
+    | &('let' | 'var') declaration_else
     | &('def' | '@' | 'async' | 'static') function_def
     | &'if' if_stmt
     | &('class' | '@') class_def
@@ -198,17 +199,27 @@ augassign:
     | '//=' { ast.FloorDiv() }
 
 
-# Typhon var/let declarations
+# Typhon let/var declaration statements
+# -------------------------------------
 declaration_assignment:
     | d=decl_keyword a=','.declaration_single_assignment+ {
         list(map(lambda a1: assign_as_declaration(d.string, a1, len(a) > 1, LOCATIONS), a))
      }
 
+declaration_else:
+    | d=decl_keyword pat_sub=','.pattern_assignment+ NEWLINE* 'else' b=block {
+        make_if_let(pattern_subjects=pat_sub, cond=None, body=[], orelse=b, is_let_else=True, LOCATIONS)
+    }
+
 declaration_single_assignment[tuple[ast.expr, Optional[ast.expr], Optional[ast.expr]]]:
     | a=decl_star_target b=annotation c=['=' d=annotated_rhs { d }] { (a, b, c) }
     | a=decl_star_target '=' c=annotated_rhs { (a, None, c) }
 
+pattern_assignment:
+    | pattern=pattern '=' subject=star_named_expression { (pattern, subject) }
 
+# Operator like form statements
+# -----------------------------
 return_stmt[ast.Return]:
     | 'return' a=[star_expressions] { ast.Return(value=a, LOCATIONS) }
 
@@ -444,19 +455,16 @@ default: '=' a=expression { a } | invalid_default
 # If statement
 # ------------
 
-if_let_assignment:
-    | pattern=pattern '=' subject=star_named_expression { (pattern, subject) }
-
 if_stmt[ast.stmt]:
     | invalid_if_stmt
     | 'if' '(' a=named_expression ')' NEWLINE* b=block c=elif_stmt { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
     | 'if' '(' a=named_expression ')' NEWLINE* b=block c=[else_block] { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
     # if-let statement as pattern matching
-    | 'if' '(' 'let' pat_sub=','.if_let_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=elif_stmt {
-        make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, LOCATIONS)
+    | 'if' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=elif_stmt {
+        make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, is_let_else=False, LOCATIONS)
      }
-    | 'if' '(' 'let' pat_sub=','.if_let_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=[else_block] {
-        make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, LOCATIONS)
+    | 'if' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=[else_block] {
+        make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, is_let_else=False, LOCATIONS)
      }
 
 elif_stmt[List[ast.stmt]]:
@@ -464,11 +472,11 @@ elif_stmt[List[ast.stmt]]:
     | 'elif' '(' a=named_expression ')' NEWLINE* b=block c=elif_stmt { [ast.If(test=a, body=b, orelse=c or [], LOCATIONS)] }
     | 'elif' '(' a=named_expression ')' NEWLINE* b=block c=[else_block] { [ast.If(test=a, body=b, orelse=c or [], LOCATIONS)] }
     # elif-let statement as pattern matching
-    | 'elif' '(' 'let' pat_sub=','.if_let_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=elif_stmt {
-        [make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c or [], LOCATIONS)]
+    | 'elif' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=elif_stmt {
+        [make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c or [], is_let_else=False, LOCATIONS)]
      }
-    | 'elif' '(' 'let' pat_sub=','.if_let_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=[else_block] {
-        [make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c or [], LOCATIONS)]
+    | 'elif' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=[else_block] {
+        [make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c or [], is_let_else=False, LOCATIONS)]
      }
 else_block[list]:
     | invalid_else_stmt
@@ -483,7 +491,7 @@ while_stmt[ast.While]:
         ast.While(test=a, body=b, orelse=c or [], LOCATIONS)
      }
     # while-let statement as pattern matching
-    | 'while' '(' 'let' pat_sub=','.if_let_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=[else_block] {
+    | 'while' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=[else_block] {
         make_while_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, LOCATIONS)
      }
 

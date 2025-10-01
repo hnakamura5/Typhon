@@ -1,14 +1,15 @@
 import ast
-from ..Grammar.typhon_ast import get_let_pattern_body, get_pos_attributes, set_is_var
+from ..Grammar.typhon_ast import (
+    get_let_pattern_body,
+    get_pos_attributes,
+    is_let_else,
+    set_is_var,
+    set_is_let_else,
+    is_body_jump_away,
+)
 from .visitor import TyphonASTTransformer, flat_append
 from contextlib import contextmanager
-
-
-def _is_body_jumping(body: list[ast.stmt]) -> bool:
-    if not body:
-        return False
-    last_stmt = body[-1]
-    return isinstance(last_stmt, (ast.Break, ast.Continue, ast.Return, ast.Raise))
+from dataclasses import dataclass
 
 
 class IfMultipleLetTransformer(TyphonASTTransformer):
@@ -65,7 +66,7 @@ class IfMultipleLetTransformer(TyphonASTTransformer):
             **pos,
         )
         set_is_var(else_flag_assign)
-        if not _is_body_jumping(body):
+        if not is_body_jump_away(body):
             # <else_flag> = False
             else_flag_set_false = ast.Assign(
                 targets=[ast.Name(id=else_flag_name, ctx=ast.Store(), **pos)],
@@ -147,7 +148,7 @@ class WhileLetTransformer(TyphonASTTransformer):
             **pos,
         )
         set_is_var(continue_flag_assign_true)
-        if not _is_body_jumping(body):
+        if not is_body_jump_away(body):
             # <continue_flag> = True at end of body
             continue_flag_set_true = ast.Assign(
                 targets=[ast.Name(id=continue_flag_name, ctx=ast.Store(), **pos)],
