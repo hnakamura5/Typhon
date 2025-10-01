@@ -849,6 +849,7 @@ def make_comprehension(
 
 
 IS_OPTIONAL = "_typh_is_optional"
+IS_OPTIONAL_PIPE = "_typh_is_optional_pipe"
 
 
 def maybe_optional(node: ast.expr, operator_string: str) -> ast.expr:
@@ -870,6 +871,20 @@ def is_optional(node: ast.expr) -> bool:
 def clear_is_optional(node: ast.expr) -> None:
     if hasattr(node, IS_OPTIONAL):
         delattr(node, IS_OPTIONAL)
+
+
+def set_is_optional_pipe(node: ast.expr, is_optional: bool = True) -> ast.expr:
+    setattr(node, IS_OPTIONAL_PIPE, is_optional)
+    return node
+
+
+def is_optional_pipe(node: ast.expr) -> bool:
+    return getattr(node, IS_OPTIONAL_PIPE, False)
+
+
+def clear_is_optional_pipe(node: ast.expr) -> None:
+    if hasattr(node, IS_OPTIONAL_PIPE):
+        delattr(node, IS_OPTIONAL_PIPE)
 
 
 IS_COALESCING = "_typh_is_coalescing"
@@ -914,6 +929,22 @@ def get_force_unwrap_node(
 
 def is_force_unwrap(node: ast.expr) -> bool:
     return getattr(node, FORCE_UNWRAP, False)
+
+
+def make_pipe_call(
+    left: ast.expr, rights: list[tuple[bool, ast.expr]], **kwargs: Unpack[PosAttributes]
+) -> ast.expr:
+    result: ast.expr = left
+    for is_optional, right in rights:
+        result = ast.Call(
+            func=right,
+            args=[result],
+            keywords=[],
+            **kwargs,
+        )
+        if is_optional:
+            set_is_optional_pipe(result, True)
+    return result
 
 
 def get_postfix_operator_temp_name(symbol: str) -> str:

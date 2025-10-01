@@ -19,6 +19,7 @@ from .typhon_ast import (
     declaration_as_withitem, make_for_stmt, make_function_def, make_comprehension,
     set_is_typing_expression, maybe_optional, set_is_coalescing,
     get_optional_question_node, get_force_unwrap_node, make_if_let, make_while_let,
+    make_pipe_call,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory, Tokenizer
@@ -1014,10 +1015,10 @@ expressions:
 expression (memo):
     | invalid_expression
     | invalid_legacy_expression
-    | a=coalescing 'if' b=coalescing 'else' c=expression {
+    | a=pipe_operator 'if' b=pipe_operator 'else' c=expression {
         ast.IfExp(body=a, test=b, orelse=c, LOCATIONS)
      }
-    | coalescing
+    | pipe_operator
     | lambdef
 
 yield_expr:
@@ -1064,6 +1065,12 @@ named_expression:
     | assignment_expression
     | invalid_named_expression
     | a=expression !':=' { a }
+
+pipe_operator (memo):
+    | a=coalescing op_b=(op=['|>'|'?|>'] c=coalescing { (op.string == '?|>', c) })+ {
+        make_pipe_call(a, op_b, LOCATIONS)
+     }
+    | coalescing
 
 coalescing (memo):
     | a=disjunction b=('??' c=disjunction { c })+ {
@@ -1424,14 +1431,14 @@ for_if_clauses[List[ast.comprehension]]:
     | a=for_if_clause+ { a }
 
 for_if_clause[ast.comprehension]:
-    | 'async' 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ b=coalescing ')' NEWLINE* c=('if' '(' z=coalescing ')' NEWLINE* { z })* {
+    | 'async' 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ b=pipe_operator ')' NEWLINE* c=('if' '(' z=pipe_operator ')' NEWLINE* { z })* {
         self.check_version(
             (3, 6),
             "Async comprehensions are",
             make_comprehension(decl_type=d.string, target=t, type_annotation=a, iter=b, ifs=c, is_async=1)
         )
      }
-    | 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ b=coalescing ')' NEWLINE* c=('if' '(' z=coalescing ')' NEWLINE* { z })* {
+    | 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ b=pipe_operator ')' NEWLINE* c=('if' '(' z=pipe_operator ')' NEWLINE* { z })* {
         make_comprehension(decl_type=d.string, target=t, type_annotation=a, iter=b, ifs=c, is_async=0) }
     | invalid_for_target
 
@@ -1688,10 +1695,10 @@ invalid_kwarg[NoReturn]:
 # IMPORTANT: Note that the "_without_invalid" suffix causes the rule to
 # not call invalid rules under it
 expression_without_invalid[ast.AST]:
-    | a=coalescing 'if' b=coalescing 'else' c=expression {
+    | a=pipe_operator 'if' b=pipe_operator 'else' c=expression {
         ast.IfExp(body=b, test=a, orelse=c, LOCATIONS)
      }
-    | coalescing
+    | pipe_operator
     | lambdef
 invalid_legacy_expression:
     | a=NAME !'(' b=star_expressions {
@@ -1703,14 +1710,14 @@ invalid_legacy_expression:
 invalid_expression[NoReturn]:
     # !(NAME STRING) is not matched so we don't show this error with some invalid string prefixes like: kf"dsfsdf"
     # Soft keywords need to also be ignored because they can be parsed as NAME NAME
-    | !(NAME STRING | SOFT_KEYWORD) a=coalescing b=expression_without_invalid {
+    | !(NAME STRING | SOFT_KEYWORD) a=pipe_operator b=expression_without_invalid {
         (
             self.raise_syntax_error_known_range("invalid syntax. Perhaps you forgot a comma?", a, b)
             if not isinstance(a, ast.Name) or a.id not in ("print", "exec")
             else None
         )
      }
-    | a=coalescing 'if' b=coalescing !('else'|':') {
+    | a=pipe_operator 'if' b=pipe_operator !('else'|':') {
         self.raise_syntax_error_known_range("expected 'else' after 'if' expression", a, b)
      }
     | a='lambda' [lambda_params] b=':' &(FSTRING_MIDDLE | fstring_replacement_field)  {

@@ -4,6 +4,8 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 
 ## Syntax Changes
 
+Syntax in Python is supported unless it is explicitly changed or forbidden.
+
 ### Main changes
 
 - Replacing offside rule by standard brace scope and semicolon delimiter. Line breaks also work as delimiter at the END of statement(there is formal rules below, in the clause "Detail design change").
@@ -57,7 +59,7 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 - Partial function application placeholder (TODO)
   `...` in call expression is placeholder for partial application. `f(x, ..., z)` is same as `(y) => f(x, y, z)`. This placeholder is limited to one appearance per one function call expression.
 
-- Pipeline operator (TODO)
+- Pipe operator
   `x |> f` is same as `f(x)`. This is left association with lowest priority.
   `x ?|> f` is optional pipe, is called when `x is not None`.
   Use placeholder `x ?|> f?(...)` when `f` is also optional.

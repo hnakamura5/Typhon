@@ -7,6 +7,7 @@ from ..Grammar.typhon_ast import (
     is_force_unwrap,
     is_coalescing,
     is_optional,
+    is_optional_pipe,
     clear_is_optional,
 )
 from ..Grammar.syntax_errors import raise_type_annotation_error
@@ -111,20 +112,40 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
     def visit_Call(self, node: ast.Call):
         # Transform optional call f?(...) to
         # _tmp(...) if (_tmp := f) is not None else None
-        if not is_optional(node):
+        # Transform optional pipe x ?|> f to
+        # f(_tmp) if (_tmp := x) is not None else None
+        if not is_optional(node) and not is_optional_pipe(node):
             return self.generic_visit(node)
         pos = get_pos_attributes(node)
-        result = self._optional_check_if_exp(
-            node.func,
-            lambda tmp_name: ast.Call(
-                func=ast.Name(id=tmp_name, ctx=ast.Load()),
-                args=node.args,
-                keywords=node.keywords,
-                **pos,
-            ),
-            ast.Constant(value=None, **pos),
-            pos,
-        )
+        if is_optional(node):
+            result = self._optional_check_if_exp(
+                node.func,
+                lambda tmp_name: ast.Call(
+                    func=ast.Name(id=tmp_name, ctx=ast.Load()),
+                    args=node.args,
+                    keywords=node.keywords,
+                    **pos,
+                ),
+                ast.Constant(value=None, **pos),
+                pos,
+            )
+        else:  # is_optional_pipe
+            if len(node.args) != 1:
+                raise_type_annotation_error(
+                    "Postfix `?|>` operator must have exactly one argument.", **pos
+                )
+            arg = node.args[0]
+            result = self._optional_check_if_exp(
+                arg,
+                lambda tmp_name: ast.Call(
+                    func=node.func,
+                    args=[ast.Name(id=tmp_name, ctx=ast.Load())],
+                    keywords=[],
+                    **pos,
+                ),
+                ast.Constant(value=None, **pos),
+                pos,
+            )
         return self.generic_visit(result)
 
     def visit_Subscript(self, node: ast.Subscript):
