@@ -32,22 +32,42 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 
 - Optional types `T?` equivalent to `T | None`.
 
-- Nullable/Optional operators.
+- Nullable/Optional operators. Results to `None` when LHS `is None`.
   - `?.` for optional attribute access.
   - `??` for nullish coalescing.
   - `?()` for optional call.
   - `?[]` for optional subscript.
+  - optional arithmetic operators such as `?+`, `?*`, ... is `None` when either operand `is None`. (TODO)
+    - Note comparison/logical operators does not have optional version.
 
-- `if-let` statement for checking optional/condition/matching. (TODO)
+- `if-let` statement for checking optional/condition/matching.
   - `if (let x = f()) {...}` is same as `{ let x = f(); if (x is not None) {...} }`
   - `if (let x = f(); x > 0) {...}` is same as `{ let x = f(); if (x > 0) {...} }`
   - `if (let [1, 2, x, *y] = f(); x > 0) {...}` is same as `match (f()) { case([1, 2, x, *y]) if (x > 0) {...} }`
+
+- `let-else` statement to flatten the `if-let` scope. In `else` block the code must exit by `return`, `raise`, `break`, `continue`. (TODO)
+  - `let Point(x=a, y=0) = point else { return None }` falls to the following code when match succeeded, `a` can be used there.
 
 - Inline `with` statement.
   `with let f = open("file");` exits at the end of current scope. This is the same as with statement including the rest of current scope as its block.
 
 - Const member of class
   `let x: T` in class is immutable member. Translated into `x: Final[T]`. Be attention not to use `Final` with `let` in Typhon code.
+
+- Partial function application placeholder (TODO)
+  `...` in call expression is placeholder for partial application. `f(x, ..., z)` is same as `(y) => f(x, y, z)`. This placeholder is limited to one appearance per one function call expression.
+
+- Pipeline operator (TODO)
+  `x |> f` is same as `f(x)`. This is left association with lowest priority.
+  `x ?|> f` is optional pipe, is called when `x is not None`.
+  Use placeholder `x ?|> f?(...)` when `f` is also optional.
+
+- Control statement comprehension expressions. `if/while/try/with/match` surrounded by paren, synonym to generator expression by `for`. (TODO)
+  - `(if (cond1) 1 elif (cond2) 2 else 3)`. `elif` and `else` is optional, the value is `None` for unspecified case.
+  - `(while(cond) yield x)` is alternative generator expression. `while` can be used instaed of `for`.
+  - `(try x/y except(e: ZeroDivisionError) 0)`. `except` is optional.
+  - `(with (let f = open("file.txt")) f.read())`.
+  - `(match (f()) case(x, 0) x case(x, y) x + y)`. The default case is optional.
 
 ### Detail design changes
 
@@ -103,15 +123,6 @@ Typhon is a syntax sugar for Python with small modifications for modernization.
 ## Bundled Libraries
 
 TBD
-
-- `typhon.chain` is a library that provides a fluent interface for working with iterables.
-  - `chain` is a function that allows chaining operations on collections, similar to `map`, `filter`, and `reduce`.
-  ```typhon
-  from typhon.chain import chain
-  let result = chain([1, 2, 3])
-      .map((x) => x + 1)
-      .filter((x) => x > 2);
-  ```
 
 - `typhon.traceback` is drop in replacement for builtin `traceback` to provide traceback display in Typhon's syntax.
 
