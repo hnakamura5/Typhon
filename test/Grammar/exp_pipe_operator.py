@@ -89,3 +89,35 @@ def test_optional_pipe_operator():
     assert_ast_transform(
         optional_pipe_operator_code, optional_pipe_operator_transformed
     )
+
+
+pipe_placeholder_code = """
+def func(x: [int]) -> [int] {
+    return x |> map((y) => y * 2, ...) |> filter((y) => y > 0, ...) |> list
+}
+"""
+pipe_placeholder_result = """
+def func(x: [int]) -> [int]:
+    return list(filter(__function_literal, ...)(map(__function_literal, ...)(x)))
+"""
+pipe_placeholder_transformed = """
+def func(x: list[int]) -> list[int]:
+
+    def _typh_fn_f1_0(y):
+        return y > 0
+
+    def _typh_fn_f1_1(y):
+        return y * 2
+
+    def _typh_fn_f1_3(_typh_ag_f1_2_1):
+        return filter(_typh_fn_f1_0, _typh_ag_f1_2_1)
+
+    def _typh_fn_f1_5(_typh_ag_f1_4_1):
+        return map(_typh_fn_f1_1, _typh_ag_f1_4_1)
+    return list(_typh_fn_f1_3(_typh_fn_f1_5(x)))
+"""
+
+
+def test_pipe_placeholder():
+    assert_ast_equals(pipe_placeholder_code, pipe_placeholder_result)
+    assert_ast_transform(pipe_placeholder_code, pipe_placeholder_transformed)

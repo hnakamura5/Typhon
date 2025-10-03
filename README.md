@@ -56,8 +56,8 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
 - Const member of class
   `let x: T` in class is immutable member. Translated into `x: Final[T]`. Be attention not to use `Final` with `let` in Typhon code.
 
-- Partial function application placeholder (TODO)
-  `...` in call expression is placeholder for partial application. `f(x, ..., z)` is same as `(y) => f(x, y, z)`. This placeholder is limited to one appearance per one function call expression.
+- Partial function application placeholder
+  `...` in call expression is placeholder for partial application. `f(x, ..., z)` is same as `(y) => f(x, y, z)`.
 
 - Pipe operator
   `x |> f` is same as `f(x)`. This is left association with lowest priority.

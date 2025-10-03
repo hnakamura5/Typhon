@@ -34,6 +34,7 @@ type PosNode = (
     | ast.type_param
     | ast.excepthandler
     | ast.pattern
+    | ast.keyword
 )
 
 

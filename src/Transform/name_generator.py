@@ -14,6 +14,7 @@ PythonScope = Union[ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunction
 class NameKind(Enum):
     VARIABLE = auto()
     CONST = auto()
+    ARGUMENT = auto()
     FUNCTION_LITERAL = auto()
     ARROW_TYPE = auto()
     CLASS = auto()
@@ -96,6 +97,8 @@ class UniqueNameGenerator:
             return f"{typhon_prefix}vr_{self._get_next_id()}_{original_name}"
         elif kind == NameKind.CONST:
             return f"{typhon_prefix}cn_{self._get_next_id()}_{original_name}"
+        elif kind == NameKind.ARGUMENT:
+            return f"{typhon_prefix}ag_{self._get_next_id()}_{original_name}"
         elif kind == NameKind.FUNCTION_LITERAL:
             return f"{typhon_prefix}fn_{self._get_next_id()}"
         elif kind == NameKind.ARROW_TYPE:
