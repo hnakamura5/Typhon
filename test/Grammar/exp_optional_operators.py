@@ -106,7 +106,7 @@ class _typh_ar_f1_0(_typh_bi_Protocol):
         ...
 
 def func(f: _typh_ar_f1_0 | None) -> int | None:
-    return _typh_vr_f3_0_(42) if (_typh_vr_f3_0_ := f) is not None else None
+    return _typh_vr_f1_0_(42) if (_typh_vr_f1_0_ := f) is not None else None
 """
 
 
@@ -154,7 +154,7 @@ class _typh_ar_f1_0(_typh_bi_Protocol):
         ...
 
 def func(f: _typh_ar_f1_0 | None, a: list[int | None] | None) -> int:
-    return _typh_vr_f3_0_ if (_typh_vr_f3_0_ := (_typh_vr_f3_1_(_typh_vr_f3_2_[0] if (_typh_vr_f3_2_ := a) is not None else None) if (_typh_vr_f3_1_ := f) is not None else None)) is not None else 0
+    return _typh_vr_f1_0_ if (_typh_vr_f1_0_ := (_typh_vr_f1_1_(_typh_vr_f1_2_[0] if (_typh_vr_f1_2_ := a) is not None else None) if (_typh_vr_f1_1_ := f) is not None else None)) is not None else 0
 """
 
 

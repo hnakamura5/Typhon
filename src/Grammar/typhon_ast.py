@@ -507,6 +507,41 @@ def make_arrow_type(
     return result
 
 
+def make_arrow_type_single_chain(
+    arg: ast.expr,
+    star_etc: Tuple[ast.arg, ast.arg] | None,
+    returns: list[ast.expr],
+    **kwargs: Unpack[PosAttributes],
+) -> FunctionType:
+    # TODO: temporal name
+    result = ast.Name("__arrow_type", **kwargs)
+    if len(returns) == 1:
+        args = [ast.arg(arg="", annotation=arg, **kwargs)]
+        set_args_of_function_type(result, args)
+        set_return_of_function_type(result, returns[0])
+        _check_arrow_type_args(args, star_etc)
+        if star_etc:
+            set_star_arg_of_function_type(result, star_etc[0])
+            set_star_kwds_of_function_type(result, star_etc[1])
+    elif len(returns) == 0:
+        raise SyntaxError("Arrow type must have one or more return types")
+    else:
+        return_type = make_arrow_type_single_chain(
+            arg=returns[0],
+            star_etc=None,
+            returns=returns[1:],
+            **kwargs,
+        )
+        args = [ast.arg(arg="", annotation=arg, **kwargs)]
+        set_args_of_function_type(result, args)
+        set_return_of_function_type(result, return_type)
+        _check_arrow_type_args(args, star_etc)
+        if star_etc:
+            set_star_arg_of_function_type(result, star_etc[0])
+            set_star_kwds_of_function_type(result, star_etc[1])
+    return result
+
+
 def make_for_stmt(
     decl_type: str,
     target: ast.expr,

@@ -19,7 +19,7 @@ from .typhon_ast import (
     declaration_as_withitem, make_for_stmt, make_function_def, make_comprehension,
     set_is_typing_expression, maybe_optional, set_is_coalescing,
     get_optional_question_node, get_force_unwrap_node, make_if_let, make_while_let,
-    make_pipe_call,
+    make_pipe_call, make_arrow_type_single_chain,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory, Tokenizer
@@ -942,9 +942,16 @@ typing_expression:
 typing_expression_impl (memo):
     | invalid_expression
     | invalid_legacy_expression
-    | typing_arrow_type
+    | &'(' typing_arrow_type
     | a=typing_disjunction 'if' b=typing_disjunction 'else' c=typing_expression {
         ast.IfExp(body=a, test=b, orelse=c, LOCATIONS)
+     }
+    #| typing_disjunction
+    | typing_arrow_single_param_type
+
+typing_arrow_single_param_type[ast.expr]:
+    | !'(' a=typing_disjunction r=('->' a=typing_arrow_single_param_type { a })+ {
+        make_arrow_type_single_chain(a, None, r, LOCATIONS)
      }
     | typing_disjunction
 
@@ -1073,8 +1080,19 @@ pipe_operator (memo):
     | coalescing
 
 coalescing (memo):
-    | a=disjunction b=('??' c=disjunction { c })+ {
+    | a=arrow_single_param b=('??' c=arrow_single_param { c })+ {
         set_is_coalescing(ast.Tuple(elts=[a] + b, ctx=Load, LOCATIONS))
+     }
+    | arrow_single_param
+# coalescing (memo):
+#     | a=disjunction b=('??' c=disjunction { c })+ {
+#         set_is_coalescing(ast.Tuple(elts=[a] + b, ctx=Load, LOCATIONS))
+#      }
+#     | disjunction
+
+arrow_single_param[ast.expr]:
+    | !'(' a=disjunction r=('->' a=typing_expression { a })+ {
+        make_arrow_type_single_chain(a, None, r, LOCATIONS)
      }
     | disjunction
 

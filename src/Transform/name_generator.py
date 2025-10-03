@@ -43,10 +43,12 @@ class UniqueNameGenerator:
     scope_id_counter: int
     scope_stack: list[tuple[PythonScope, str]] = []
     scope_counters: dict[str, int]
+    generated_names: set[str]
 
     def __init__(self, module: ast.Module):
         self.scope_id_counter = 0
         self.scope_counters = self._module_scope_counter(module)
+        self.generated_names = self._module_generated_names(module)
 
     # To use consistent scope counters across multiple passes on the same module.
     def _module_scope_counter(self, module: ast.Module) -> dict[str, int]:
@@ -56,6 +58,14 @@ class UniqueNameGenerator:
             scope_counters = {}
             setattr(module, attr_name, scope_counters)
         return scope_counters
+
+    def _module_generated_names(self, module: ast.Module) -> set[str]:
+        attr_name = "_typh_name_generator_generated_names"
+        generated_names: set[str] | None = getattr(module, attr_name, None)
+        if generated_names is None:
+            generated_names = set()
+            setattr(module, attr_name, generated_names)
+        return generated_names
 
     # Here the scope is Python scope: module, class, function. Not block scope.
     def enter_scope(self, scope: PythonScope):
@@ -92,7 +102,7 @@ class UniqueNameGenerator:
         self.scope_counters[scope_id] = count + 1
         return f"{scope_id}_{count}"
 
-    def new_name(self, kind: NameKind, original_name: str = "") -> str:
+    def _new_name(self, kind: NameKind, original_name: str = "") -> str:
         if kind == NameKind.VARIABLE:
             return f"{typhon_prefix}vr_{self._get_next_id()}_{original_name}"
         elif kind == NameKind.CONST:
@@ -113,3 +123,10 @@ class UniqueNameGenerator:
             return f"{typhon_prefix}ot_{self._get_next_id()}_{original_name}"
         else:
             raise ValueError(f"Unknown NameKind: {kind}")
+
+    def new_name(self, kind: NameKind, original_name: str = "") -> str:
+        result = self._new_name(kind, original_name)
+        if result in self.generated_names:
+            raise SyntaxError(f"Generated name conflict: {result}")
+        self.generated_names.add(result)
+        return result

@@ -26,7 +26,7 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
 - `(int, str)` for tuple type, `[int]` for list type. These must be used in unpack assignment annotation. Note this is valid only for typing context.
 
 - Function Types
-  Arrow types `(T1, T2) -> R` are syntax sugar for Protocol. For example `(x1: T1, x2: T2) -> R` is translated into the following form.
+  Arrow types `(T1, T2) -> R` are syntax sugar for Protocol. Single argument can be written as `T -> R`. For example `(x1: T1, x2: T2) -> R` is translated into the following form.
   ```python
   class MyProtocol(Protocol):
       def __call__(self, x1: T1, x2: T2) -> R: ...

@@ -21,8 +21,6 @@ def transform(mod: ast.Module):
     print(f"After insert_self_to_method:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     func_literal_to_def(mod)
     print(f"After func_literal_to_def:\n{ast.unparse(mod)}\n")  # [HN] For debug.
-    type_abbrev_desugar(mod)
-    print(f"After func_type_to_protocol:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     scope_check_rename(mod)
     print(f"After scope_check_rename:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     optional_to_checked(mod)
@@ -31,6 +29,8 @@ def transform(mod: ast.Module):
     print(
         f"After type_annotation_check_expand:\n{ast.unparse(mod)}\n"
     )  # [HN] For debug.
+    type_abbrev_desugar(mod)
+    print(f"After func_type_to_protocol:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     const_member_to_final(mod)
     print(f"After const_member_to_property:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     # [HN] For debug.
