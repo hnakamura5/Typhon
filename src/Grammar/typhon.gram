@@ -19,7 +19,7 @@ from .typhon_ast import (
     declaration_as_withitem, make_for_stmt, make_function_def, make_comprehension,
     set_is_typing_expression, maybe_optional, set_is_coalescing,
     get_optional_question_node, get_force_unwrap_node, make_if_let, make_while_let,
-    make_pipe_call, make_arrow_type_single_chain,
+    make_pipe_call, make_arrow_type_single_chain, if_comp_exp,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory, Tokenizer
@@ -1218,8 +1218,8 @@ primary:
             ast.Attribute(value=a, attr=b.string, ctx=Load, LOCATIONS),
             o.string)
      }
-    | a=primary b=genexp { ast.Call(func=a, args=[b], keywords=[], LOCATIONS) }
-    | a=primary b=question_genexp {
+    | a=primary b=comprehension_expressions { ast.Call(func=a, args=[b], keywords=[], LOCATIONS) }
+    | a=primary b=question_comprehension_expressions {
         maybe_optional(ast.Call(func=a, args=[b], keywords=[], LOCATIONS), '?')
      }
     | a=primary o=('('|'?(') b=[arguments] ')' {
@@ -1290,7 +1290,7 @@ atom:
         if sys.version_info >= (3, 9) else
         ast.Constant(value=ast.literal_eval(a.string), kind=None, LOCATIONS)
      }
-    | &'(' (function_literal | typing_arrow_type | tuple | group | genexp)
+    | &'(' (function_literal | typing_arrow_type | tuple | group | genexp | if_comp_exp)
     | &'[' (list | listcomp)
     | &'{' (dict | set | dictcomp | setcomp)
     | '...' {
@@ -1468,21 +1468,56 @@ setcomp[ast.SetComp]:
     | '{' b=for_if_clauses 'yield' ~ a=named_expression '}' { ast.SetComp(elt=a, generators=b, LOCATIONS) }
     | invalid_comprehension
 
-genexp[ast.GeneratorExp]:
-    | '(' b=for_if_clauses 'yield' ~ a=( assignment_expression | expression !':=') ')' {
+genexp_internal[ast.GeneratorExp]:
+    | b=for_if_clauses 'yield' ~ a=( assignment_expression | expression !':=')  {
         ast.GeneratorExp(elt=a, generators=b, LOCATIONS)
-     }
+      }
+
+genexp[ast.GeneratorExp]:
+    | '(' b=genexp_internal ')' { b }
     | invalid_comprehension
 
 # For optional call.
 question_genexp[ast.GeneratorExp]:
-    | '?(' b=for_if_clauses 'yield' ~ a=( assignment_expression | expression !':=') ')' {
-        ast.GeneratorExp(elt=a, generators=b, LOCATIONS)
-     }
+    | '?(' b=genexp_internal ')' { b }
 
 dictcomp[ast.DictComp]:
     | '{' b=for_if_clauses 'yield' ~ a=kvpair '}' { ast.DictComp(key=a[0], value=a[1], generators=b, LOCATIONS) }
     | invalid_dict_comprehension
+
+if_comp_internal[ast.IfExp]:
+    | 'if' '(' b=pipe_operator ')' a=expression c=if_comp_elif {
+        if_comp_exp(body=a, test=b, orelse=c, LOCATIONS)
+     }
+    | 'if' '(' b=pipe_operator ')' a=expression c=[if_comp_else] {
+        if_comp_exp(body=a, test=b, orelse=c, LOCATIONS)
+     }
+
+if_comp_elif[ast.IfExp]:
+    | 'elif' '(' b=pipe_operator ')' a=expression c=if_comp_elif {
+        if_comp_exp(body=a, test=b, orelse=c, LOCATIONS)
+     }
+    | 'elif' '(' b=pipe_operator ')' a=expression c=[if_comp_else] {
+        if_comp_exp(body=a, test=b, orelse=c, LOCATIONS)
+     }
+
+if_comp_else[ast.IfExp]:
+    | 'else' a=expression { a }
+
+if_comp_exp[ast.IfExp]:
+    | '(' b=if_comp_internal ')' { b }
+
+question_if_comp_exp[ast.IfExp]:
+    | '?(' b=if_comp_internal ')' { b }
+
+comprehension_expressions:
+    | genexp
+    | if_comp_exp
+
+question_comprehension_expressions:
+    | question_genexp
+    | question_if_comp_exp
+
 
 # FUNCTION CALL ARGUMENTS
 # =======================

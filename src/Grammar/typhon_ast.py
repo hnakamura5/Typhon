@@ -983,6 +983,17 @@ def make_pipe_call(
     return result
 
 
+def if_comp_exp(
+    test: ast.expr,
+    body: ast.expr,
+    orelse: ast.expr | None,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.IfExp:
+    if orelse is None:
+        orelse = ast.Constant(value=None, **get_pos_attributes(test))
+    return ast.IfExp(test=test, body=body, orelse=orelse, **kwargs)
+
+
 def get_postfix_operator_temp_name(symbol: str) -> str:
     if symbol == "?":
         return OPTIONAL_QUESTION
