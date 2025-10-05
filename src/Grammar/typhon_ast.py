@@ -1345,6 +1345,37 @@ def make_if_let_comp(
     return result
 
 
+def make_while_let_comp(
+    pattern_subjects: list[tuple[ast.pattern, ast.expr]],
+    cond: ast.expr | None,
+    body: ast.expr,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.expr:
+    control_id = "__while_let_comp"
+    func_def = make_function_def(
+        is_async=False,
+        is_static=False,
+        name=control_id,
+        args=_empty_args(),
+        body=[
+            make_while_let(
+                pattern_subjects,
+                cond,
+                [ast.Expr(ast.Yield(value=body, **get_pos_attributes(body)))],
+                [],
+                **kwargs,
+            )
+        ],
+        returns=None,
+        type_comment=None,
+        type_params=[],
+        **kwargs,
+    )
+    result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
+    set_control_comprehension_def(result, func_def)
+    return result
+
+
 # TODO: make_while_let_comp
 
 

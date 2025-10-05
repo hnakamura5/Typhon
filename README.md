@@ -64,7 +64,7 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
   `x ?|> f` is optional pipe, is called when `x is not None`.
   Use placeholder `x ?|> f?(...)` when `f` is also optional.
 
-- Control statement comprehension expressions. `if/while/try/with/match` surrounded by paren, synonym to generator expression by `for`. (TODO)
+- Control statement comprehension expressions. `if/while/try/with/match` surrounded by paren, synonym to generator expression by `for`.
   - `(if (cond1) 1 elif (cond2) 2 else 3)`. `elif` and `else` is optional, the value is `None` for unspecified case.
   - `(while(cond) yield x)` is alternative generator expression. `while` can be used instaed of `for`.
   - `(try x/y except(e: ZeroDivisionError) 0)`. `except` is optional.

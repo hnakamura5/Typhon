@@ -22,7 +22,7 @@ from .typhon_ast import (
     make_pipe_call, make_arrow_type_single_chain, if_comp_exp,
     make_genexp, make_listcomp, make_setcomp, make_dictcomp,
     make_with_comp, make_try_comp, make_try_comp_except, make_match_comp,
-    make_match_comp_case, make_while_comp, make_if_let_comp
+    make_match_comp_case, make_while_comp, make_if_let_comp, make_while_let_comp,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory, Tokenizer
@@ -1573,7 +1573,10 @@ match_comp_case[ast.Name]:
 while_comp_internal[ast.expr]:
     | 'while' '(' a=named_expression ')' NEWLINE* 'yield' b=expression {
         make_while_comp(a, b, LOCATIONS)
-    }
+     }
+    | 'while' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* 'yield' b=expression {
+        make_while_let_comp(pat_sub, cond, b, LOCATIONS)
+     }
 
 while_comp[ast.expr]:
     | '(' b=while_comp_internal ')' { b }
