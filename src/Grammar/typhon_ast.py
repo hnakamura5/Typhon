@@ -869,7 +869,9 @@ _CONTROL_COMPREHENSION = "_typh_is_control_comprehension"
 type ControlComprehension = ast.Name
 
 
-def get_control_comprehension_def(node: ControlComprehension) -> ast.FunctionDef:
+def get_control_comprehension_def(
+    node: ControlComprehension,
+) -> ast.FunctionDef | ast.AsyncFunctionDef:
     return getattr(node, _CONTROL_COMPREHENSION)
 
 
@@ -878,7 +880,7 @@ def is_control_comprehension(node: ControlComprehension) -> bool:
 
 
 def set_control_comprehension_def(
-    node: ControlComprehension, func_def: ast.FunctionDef
+    node: ControlComprehension, func_def: ast.FunctionDef | ast.AsyncFunctionDef
 ):
     setattr(node, _CONTROL_COMPREHENSION, func_def)
 
@@ -1101,6 +1103,43 @@ def make_dictcomp(
         ],
         **kwargs,
     )
+
+
+def make_with_comp(
+    is_async: bool,
+    items: list[ast.withitem],
+    body: ast.expr,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.expr:
+    control_id = "__with_control"
+    func_def = make_function_def(
+        is_async=is_async,
+        is_static=False,
+        name=control_id,
+        args=ast.arguments(
+            posonlyargs=[],
+            args=[],
+            kwonlyargs=[],
+            kw_defaults=[],
+            defaults=[],
+            vararg=None,
+            kwarg=None,
+        ),
+        body=[
+            ast.With(
+                items=items,
+                body=[ast.Return(value=body, **get_pos_attributes(body))],
+                **kwargs,
+            ),
+        ],
+        returns=None,
+        type_comment=None,
+        type_params=[],
+        **get_pos_attributes(body),
+    )
+    result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
+    set_control_comprehension_def(result, func_def)
+    return result
 
 
 IS_OPTIONAL = "_typh_is_optional"

@@ -21,6 +21,7 @@ from .typhon_ast import (
     get_optional_question_node, get_force_unwrap_node, make_if_let, make_while_let,
     make_pipe_call, make_arrow_type_single_chain, if_comp_exp,
     make_genexp, make_listcomp, make_setcomp, make_dictcomp,
+    make_with_comp,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory, Tokenizer
@@ -1219,8 +1220,8 @@ primary:
             ast.Attribute(value=a, attr=b.string, ctx=Load, LOCATIONS),
             o.string)
      }
-    | a=primary b=comprehension_expressions { ast.Call(func=a, args=[b], keywords=[], LOCATIONS) }
-    | a=primary b=question_comprehension_expressions {
+    | a=primary b=comprehension_paren { ast.Call(func=a, args=[b], keywords=[], LOCATIONS) }
+    | a=primary b=question_comprehension_paren {
         maybe_optional(ast.Call(func=a, args=[b], keywords=[], LOCATIONS), '?')
      }
     | a=primary o=('('|'?(') b=[arguments] ')' {
@@ -1291,7 +1292,7 @@ atom:
         if sys.version_info >= (3, 9) else
         ast.Constant(value=ast.literal_eval(a.string), kind=None, LOCATIONS)
      }
-    | &'(' (function_literal | typing_arrow_type | tuple | group | genexp | if_comp_exp)
+    | &'(' (function_literal | typing_arrow_type | tuple | group | comprehension_paren)
     | &'[' (list | listcomp)
     | &'{' (dict | set | dictcomp | setcomp)
     | '...' {
@@ -1487,23 +1488,23 @@ dictcomp[ast.DictComp]:
     | invalid_dict_comprehension
 
 if_comp_internal[ast.IfExp]:
-    | 'if' '(' b=pipe_operator ')' a=expression c=if_comp_elif {
+    | 'if' '(' b=pipe_operator ')' NEWLINE* a=expression c=if_comp_elif {
         if_comp_exp(body=a, test=b, orelse=c, LOCATIONS)
      }
-    | 'if' '(' b=pipe_operator ')' a=expression c=[if_comp_else] {
+    | 'if' '(' b=pipe_operator ')' NEWLINE* a=expression c=[if_comp_else] {
         if_comp_exp(body=a, test=b, orelse=c, LOCATIONS)
      }
 
 if_comp_elif[ast.IfExp]:
-    | 'elif' '(' b=pipe_operator ')' a=expression c=if_comp_elif {
+    | 'elif' '(' b=pipe_operator ')' NEWLINE* a=expression c=if_comp_elif {
         if_comp_exp(body=a, test=b, orelse=c, LOCATIONS)
      }
-    | 'elif' '(' b=pipe_operator ')' a=expression c=[if_comp_else] {
+    | 'elif' '(' b=pipe_operator ')' NEWLINE* a=expression c=[if_comp_else] {
         if_comp_exp(body=a, test=b, orelse=c, LOCATIONS)
      }
 
 if_comp_else[ast.IfExp]:
-    | 'else' a=expression { a }
+    | 'else' NEWLINE* a=expression { a }
 
 if_comp_exp[ast.IfExp]:
     | '(' b=if_comp_internal ')' { b }
@@ -1511,13 +1512,26 @@ if_comp_exp[ast.IfExp]:
 question_if_comp_exp[ast.IfExp]:
     | '?(' b=if_comp_internal ')' { b }
 
-comprehension_expressions:
+with_comp_internal[ast.expr]:
+    | is_async=['async'] 'with' '(' a=';'.with_item+ [';'] ')' NEWLINE* b=expression {
+        make_with_comp(is_async=is_async is not None, items=sum(a, []), body=b, LOCATIONS)
+     }
+
+with_comp[ast.expr]:
+    | '(' b=with_comp_internal ')' { b }
+
+question_with_comp[ast.expr]:
+    | '?(' b=with_comp_internal ')' { b }
+
+comprehension_paren:
     | genexp
     | if_comp_exp
+    | with_comp
 
-question_comprehension_expressions:
+question_comprehension_paren:
     | question_genexp
     | question_if_comp_exp
+    | question_with_comp
 
 
 # FUNCTION CALL ARGUMENTS
