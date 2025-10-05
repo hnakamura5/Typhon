@@ -1220,12 +1220,81 @@ def make_try_comp_except(
     return result
 
 
+_CASE_COMP = "_typh_is_case_comp_case"
+
+
+def set_case_comp_case(
+    node: ast.Name, pattern: ast.pattern, guard: ast.expr | None, body: ast.expr
+):
+    setattr(node, _CASE_COMP, (pattern, guard, body))
+
+
+def get_case_comp_case(
+    node: ast.Name,
+) -> tuple[ast.pattern, ast.expr | None, ast.expr]:
+    return getattr(node, _CASE_COMP)
+
+
+def make_match_comp_case(
+    pattern: ast.pattern,
+    guard: ast.expr | None,
+    body: ast.expr,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.Name:
+    result = ast.Name(id="", ctx=ast.Load(), **kwargs)
+    set_case_comp_case(result, pattern, guard, body)
+    return result
+
+
+def make_match_comp(
+    subject: ast.expr,
+    cases: list[ast.Name],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.expr:
+    control_id = "__match_comp"
+    func_def = make_function_def(
+        is_async=False,
+        is_static=False,
+        name=control_id,
+        args=_empty_args(),
+        body=[
+            ast.Match(
+                subject=subject,
+                cases=[
+                    ast.match_case(
+                        pattern=get_case_comp_case(case)[0],
+                        guard=get_case_comp_case(case)[1],
+                        body=[
+                            ast.Return(
+                                value=get_case_comp_case(case)[2],
+                                **get_pos_attributes(case),
+                            )
+                        ],
+                    )
+                    for case in cases
+                ],
+                **get_pos_attributes(subject),
+            ),
+            ast.Return(
+                value=ast.Constant(value=None, **get_pos_attributes(subject)),
+                **get_pos_attributes(subject),
+            ),
+        ],
+        returns=None,
+        type_comment=None,
+        type_params=[],
+        **get_pos_attributes(subject),
+    )
+    result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
+    set_control_comprehension_def(result, func_def)
+    return result
+
+
 IS_OPTIONAL = "_typh_is_optional"
 IS_OPTIONAL_PIPE = "_typh_is_optional_pipe"
 
 
 def maybe_optional(node: ast.expr, operator_string: str) -> ast.expr:
-    ast.IfExp
     if operator_string.startswith("?"):
         setattr(node, IS_OPTIONAL, True)
     return node
