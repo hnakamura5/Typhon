@@ -21,7 +21,7 @@ from .typhon_ast import (
     get_optional_question_node, get_force_unwrap_node, make_if_let, make_while_let,
     make_pipe_call, make_arrow_type_single_chain, if_comp_exp,
     make_genexp, make_listcomp, make_setcomp, make_dictcomp,
-    make_with_comp,
+    make_with_comp, make_try_comp, make_try_comp_except,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory, Tokenizer
@@ -1523,15 +1523,35 @@ with_comp[ast.expr]:
 question_with_comp[ast.expr]:
     | '?(' b=with_comp_internal ')' { b }
 
+try_comp_internal[ast.expr]:
+    |'try' NEWLINE* b=expression ex=try_comp_except* {
+        make_try_comp(b, ex, LOCATIONS)
+    }
+
+try_comp_except[ast.Name]:
+    | 'except' '(' t=NAME e=annotation ')' NEWLINE* b=expression {
+        make_try_comp_except(t.string, e, b, LOCATIONS) }
+    | 'except' '*' '(' t=NAME e=annotation ')' NEWLINE* b=expression {
+        make_try_comp_except(t.string, e, b, LOCATIONS) }
+    | 'except' NEWLINE* b=expression { make_try_comp_except(None, None, b, LOCATIONS) }
+
+try_comp[ast.expr]:
+    | '(' b=try_comp_internal ')' { b }
+
+question_try_comp[ast.expr]:
+    | '?(' b=try_comp_internal ')' { b }
+
 comprehension_paren:
     | genexp
     | if_comp_exp
     | with_comp
+    | try_comp
 
 question_comprehension_paren:
     | question_genexp
     | question_if_comp_exp
     | question_with_comp
+    | question_try_comp
 
 
 # FUNCTION CALL ARGUMENTS

@@ -912,6 +912,18 @@ def _check_comprehension_inline(node: ast.expr) -> bool:
     return visitor.is_inline
 
 
+def _empty_args() -> ast.arguments:
+    return ast.arguments(
+        posonlyargs=[],
+        args=[],
+        kwonlyargs=[],
+        kw_defaults=[],
+        defaults=[],
+        vararg=None,
+        kwarg=None,
+    )
+
+
 def make_comprehension(
     decl_type: str,
     target: ast.expr,
@@ -937,15 +949,7 @@ def _comprehension_function(
     generators: list[ast.comprehension],
     **kwargs: Unpack[PosAttributes],
 ) -> ast.FunctionDef:
-    args = ast.arguments(
-        posonlyargs=[],
-        args=[],
-        kwonlyargs=[],
-        kw_defaults=[],
-        defaults=[],
-        vararg=None,
-        kwarg=None,
-    )
+    args = _empty_args()
     body_stmts: list[ast.stmt] = [
         ast.Expr(
             ast.Yield(
@@ -1116,15 +1120,7 @@ def make_with_comp(
         is_async=is_async,
         is_static=False,
         name=control_id,
-        args=ast.arguments(
-            posonlyargs=[],
-            args=[],
-            kwonlyargs=[],
-            kw_defaults=[],
-            defaults=[],
-            vararg=None,
-            kwarg=None,
-        ),
+        args=_empty_args(),
         body=[
             ast.With(
                 items=items,
@@ -1139,6 +1135,88 @@ def make_with_comp(
     )
     result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
     set_control_comprehension_def(result, func_def)
+    return result
+
+
+def make_try_comp(
+    body: ast.expr,
+    handlers: list[ast.Name],
+    **kwargs: Unpack[PosAttributes],
+):
+    control_id = "__try_comp"
+    handler_blocks = (
+        [
+            ast.ExceptHandler(
+                type=get_try_comp_except(handler)[0],
+                name=handler.id if handler.id else None,
+                body=[
+                    ast.Return(
+                        value=get_try_comp_except(handler)[1],
+                        **get_pos_attributes(handler),
+                    )
+                ],
+                **get_pos_attributes(handler),
+            )
+            for handler in handlers
+        ]
+        if handlers
+        else [
+            ast.ExceptHandler(
+                type=None,
+                name=None,
+                body=[
+                    ast.Return(
+                        value=ast.Constant(value=None, **get_pos_attributes(body)),
+                        **get_pos_attributes(body),
+                    )
+                ],
+                **get_pos_attributes(body),
+            )
+        ]
+    )
+    func_def = make_function_def(
+        is_async=False,
+        is_static=False,
+        name=control_id,
+        args=_empty_args(),
+        body=[
+            ast.Try(
+                body=[ast.Return(value=body, **get_pos_attributes(body))],
+                handlers=handler_blocks,
+                orelse=[],
+                finalbody=[],
+                **get_pos_attributes(body),
+            )
+        ],
+        returns=None,
+        type_comment=None,
+        type_params=[],
+        **get_pos_attributes(body),
+    )
+    result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
+    set_control_comprehension_def(result, func_def)
+    return result
+
+
+_EXCEPT_COMP = "_typh_is_try_comp_except"
+
+
+def set_try_comp_except(node: ast.Name, type_body: tuple[ast.expr | None, ast.expr]):
+    setattr(node, _EXCEPT_COMP, type_body)
+
+
+def get_try_comp_except(node: ast.Name) -> tuple[ast.expr | None, ast.expr]:
+    return getattr(node, _EXCEPT_COMP)
+
+
+def make_try_comp_except(
+    name: str | None,
+    ex_type: ast.expr | None,
+    body: ast.expr,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.Name:
+    result = ast.Name(id=name or "", ctx=ast.Load(), **kwargs)
+    set_try_comp_except(result, (ex_type, body))
     return result
 
 
