@@ -865,6 +865,51 @@ def make_function_def(
     return result
 
 
+_CONTROL_COMPREHENSION = "_typh_is_control_comprehension"
+type ControlComprehension = ast.Name
+
+
+def get_control_comprehension_def(node: ControlComprehension) -> ast.FunctionDef:
+    return getattr(node, _CONTROL_COMPREHENSION)
+
+
+def is_control_comprehension(node: ControlComprehension) -> bool:
+    return getattr(node, _CONTROL_COMPREHENSION, None) is not None
+
+
+def set_control_comprehension_def(
+    node: ControlComprehension, func_def: ast.FunctionDef
+):
+    setattr(node, _CONTROL_COMPREHENSION, func_def)
+
+
+def clear_is_control_comprehension(node: ControlComprehension) -> None:
+    if hasattr(node, _CONTROL_COMPREHENSION):
+        delattr(node, _CONTROL_COMPREHENSION)
+
+
+# When for-if comprehensions has function literal or other control comprehension,
+# it cannot be inline.
+class ComprehensionInlineCheckVisitor(ast.NodeVisitor):
+    is_inline: bool
+
+    def __init__(self):
+        self.is_inline = True
+
+    def visit(self, node: ast.AST):
+        if isinstance(node, ast.Name):
+            if is_function_literal(node) or is_control_comprehension(node):
+                self.is_inline = False
+                return  # Stop visiting further.
+        super().visit(node)
+
+
+def _check_comprehension_inline(node: ast.expr) -> bool:
+    visitor = ComprehensionInlineCheckVisitor()
+    visitor.visit(node)
+    return visitor.is_inline
+
+
 def make_comprehension(
     decl_type: str,
     target: ast.expr,
@@ -882,6 +927,180 @@ def make_comprehension(
     _set_is_let_var(clause, decl_type)
     set_type_annotation(clause, type_annotation)
     return clause
+
+
+def _comprehension_function(
+    id: str,
+    elt: ast.expr,
+    generators: list[ast.comprehension],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.FunctionDef:
+    args = ast.arguments(
+        posonlyargs=[],
+        args=[],
+        kwonlyargs=[],
+        kw_defaults=[],
+        defaults=[],
+        vararg=None,
+        kwarg=None,
+    )
+    body_stmts: list[ast.stmt] = [
+        ast.Expr(
+            ast.Yield(
+                value=elt,
+                lineno=elt.lineno,
+                col_offset=elt.col_offset,
+                end_lineno=elt.end_lineno,
+                end_col_offset=elt.end_col_offset,
+            )
+        )
+    ]
+    # Build nested for and if statements from inside out.
+    for gen in reversed(generators):
+        for if_clause in reversed(gen.ifs):
+            body_stmts = [
+                ast.If(
+                    test=if_clause,
+                    body=body_stmts,
+                    orelse=[],
+                    **get_pos_attributes(if_clause),
+                )
+            ]
+        if gen.is_async:
+            body_stmts = [
+                ast.AsyncFor(
+                    target=gen.target,
+                    iter=gen.iter,
+                    body=body_stmts,
+                    orelse=[],
+                    **kwargs,
+                )
+            ]
+        else:
+            body_stmts = [
+                ast.For(
+                    target=gen.target,
+                    iter=gen.iter,
+                    body=body_stmts,
+                    orelse=[],
+                    **kwargs,
+                )
+            ]
+    func_def = ast.FunctionDef(
+        name=id,
+        args=args,
+        body=body_stmts,
+        decorator_list=[],
+        returns=None,
+        type_comment=None,
+        lineno=elt.lineno,
+        col_offset=elt.col_offset,
+        end_lineno=elt.end_lineno,
+        end_col_offset=elt.end_col_offset,
+    )
+    return func_def
+
+
+def make_genexp(
+    elt: ast.expr,
+    generators: list[ast.comprehension],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.expr:
+    if _check_comprehension_inline(elt):
+        return ast.GeneratorExp(elt=elt, generators=generators, **kwargs)
+    control_id = "__genexp_control"
+    # Make a control comprehension to hold the generators.
+    result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
+    func_def = _comprehension_function(control_id, elt, generators, **kwargs)
+    set_control_comprehension_def(result, func_def)
+    return result
+
+
+def _ref_genexp(genexp: ast.expr, temp_name: str, is_async: int) -> ast.comprehension:
+    return ast.comprehension(
+        target=ast.Name(id=temp_name, ctx=ast.Store(), **get_pos_attributes(genexp)),
+        iter=genexp,
+        ifs=[],
+        is_async=is_async,
+    )
+
+
+def make_listcomp(
+    elt: ast.expr,
+    generators: list[ast.comprehension],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.expr:
+    if _check_comprehension_inline(elt):
+        return ast.ListComp(elt=elt, generators=generators, **kwargs)
+    comp_temp_name = "__listcomp_temp"
+    return ast.ListComp(
+        elt=ast.Name(id=comp_temp_name, ctx=ast.Load(), **kwargs),
+        generators=[
+            _ref_genexp(
+                make_genexp(elt, generators, **kwargs),
+                comp_temp_name,
+                generators[0].is_async,
+            )
+        ],
+        **kwargs,
+    )
+
+
+def make_setcomp(
+    elt: ast.expr,
+    generators: list[ast.comprehension],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.expr:
+    if _check_comprehension_inline(elt):
+        return ast.SetComp(elt=elt, generators=generators, **kwargs)
+    comp_temp_name = "__setcomp_temp"
+    return ast.SetComp(
+        elt=ast.Name(id=comp_temp_name, ctx=ast.Load(), **kwargs),
+        generators=[
+            _ref_genexp(
+                make_genexp(elt, generators, **kwargs),
+                comp_temp_name,
+                generators[0].is_async,
+            )
+        ],
+        **kwargs,
+    )
+
+
+def make_dictcomp(
+    key: ast.expr,
+    value: ast.expr,
+    generators: list[ast.comprehension],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.expr:
+    if _check_comprehension_inline(key) and _check_comprehension_inline(value):
+        return ast.DictComp(key=key, value=value, generators=generators, **kwargs)
+    comp_temp_name_key = "__dictcomp_temp_key"
+    comp_temp_name_val = "__dictcomp_temp_val"
+    return ast.DictComp(
+        key=ast.Name(id=comp_temp_name_key, ctx=ast.Load(), **kwargs),
+        value=ast.Name(id=comp_temp_name_val, ctx=ast.Load(), **kwargs),
+        generators=[
+            ast.comprehension(
+                target=ast.Tuple(
+                    elts=[
+                        ast.Name(id=comp_temp_name_key, ctx=ast.Store(), **kwargs),
+                        ast.Name(id=comp_temp_name_val, ctx=ast.Store(), **kwargs),
+                    ],
+                    ctx=ast.Store(),
+                    **get_pos_attributes(key),
+                ),
+                iter=make_genexp(
+                    ast.Tuple(elts=[key, value], ctx=ast.Load(), **kwargs),
+                    generators,
+                    **kwargs,
+                ),
+                ifs=[],
+                is_async=generators[0].is_async,
+            )
+        ],
+        **kwargs,
+    )
 
 
 IS_OPTIONAL = "_typh_is_optional"

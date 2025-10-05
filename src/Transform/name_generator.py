@@ -16,6 +16,7 @@ class NameKind(Enum):
     CONST = auto()
     ARGUMENT = auto()
     FUNCTION_LITERAL = auto()
+    CONTROL_COMPREHENSION = auto()
     ARROW_TYPE = auto()
     CLASS = auto()
     FUNCTION = auto()
@@ -111,6 +112,8 @@ class UniqueNameGenerator:
             return f"{typhon_prefix}ag_{self._get_next_id()}_{original_name}"
         elif kind == NameKind.FUNCTION_LITERAL:
             return f"{typhon_prefix}fn_{self._get_next_id()}"
+        elif kind == NameKind.CONTROL_COMPREHENSION:
+            return f"{typhon_prefix}cc_{self._get_next_id()}"
         elif kind == NameKind.ARROW_TYPE:
             return f"{typhon_prefix}ar_{self._get_next_id()}"
         elif kind == NameKind.CLASS:

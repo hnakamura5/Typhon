@@ -9,6 +9,7 @@ from .const_member_to_final import const_member_to_final
 from .inline_statement_block_capture import inline_statement_block_capture
 from .optional_operators_to_checked import optional_to_checked
 from .if_while_let import if_while_let_transform
+from .comprehension_to_function import comprehension_to_function
 
 
 def transform(mod: ast.Module):
@@ -19,6 +20,8 @@ def transform(mod: ast.Module):
     print(f"After if_while_let_transform:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     insert_self_to_method(mod)
     print(f"After insert_self_to_method:\n{ast.unparse(mod)}\n")  # [HN] For debug.
+    comprehension_to_function(mod)
+    print(f"After comprehension_to_function:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     func_literal_to_def(mod)
     print(f"After func_literal_to_def:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     scope_check_rename(mod)

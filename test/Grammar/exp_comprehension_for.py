@@ -1,5 +1,24 @@
 from ..assertion_utils import assert_ast_equals, assert_transform_equals
 
+
+comp_gen_code = """
+let gen = (for (let i in range(100000000))
+                for (let i in range(i)) if (i % 2 == 1)
+                    yield i * i);
+"""
+comp_gen_result = """
+gen = (i * i for i in range(100000000) for i in range(i) if i % 2 == 1)
+"""
+comp_gen_transformed = """
+gen = (_typh_cn_m0_1_i * _typh_cn_m0_1_i for _typh_cn_m0_0_i in range(100000000) for _typh_cn_m0_1_i in range(_typh_cn_m0_0_i) if _typh_cn_m0_1_i % 2 == 1)
+"""
+
+
+def test_comp_gen():
+    parsed = assert_ast_equals(comp_gen_code, comp_gen_result)
+    assert_transform_equals(parsed, comp_gen_transformed)
+
+
 comp_list_code = """
 let odd_sq = [for (let i in range(10)) if (i % 2 == 1) yield i * i];
 """
@@ -75,24 +94,6 @@ def test_comp_set_annotated():
     assert_transform_equals(parsed, comp_set_annotated_transformed)
 
 
-comp_gen_code = """
-let gen = (for (let i in range(100000000))
-                for (let i in range(i)) if (i % 2 == 1)
-                    yield i * i);
-"""
-comp_gen_result = """
-gen = (i * i for i in range(100000000) for i in range(i) if i % 2 == 1)
-"""
-comp_gen_transformed = """
-gen = (_typh_cn_m0_1_i * _typh_cn_m0_1_i for _typh_cn_m0_0_i in range(100000000) for _typh_cn_m0_1_i in range(_typh_cn_m0_0_i) if _typh_cn_m0_1_i % 2 == 1)
-"""
-
-
-def test_comp_gen():
-    parsed = assert_ast_equals(comp_gen_code, comp_gen_result)
-    assert_transform_equals(parsed, comp_gen_transformed)
-
-
 comp_dict_code = """
 let square_dict = {
     for (let i in range(10)) if (i % 2 == 1)
@@ -110,3 +111,94 @@ square_dict = {_typh_cn_m0_0_i: _typh_cn_m0_0_i * _typh_cn_m0_0_i for _typh_cn_m
 def test_comp_dict():
     parsed = assert_ast_equals(comp_dict_code, comp_dict_result)
     assert_transform_equals(parsed, comp_dict_transformed)
+
+
+comp_gen_noinline_code = """
+def comp_gen_noinline() {
+    let gen = (for (let i in range(100000000))
+                    for (let i in range(i)) if (i % 2 == 1)
+                        yield (x) => x * i)
+    return gen
+}
+"""
+comp_gen_noinline_result = """
+def comp_gen_noinline():
+    gen = __genexp_control
+    return gen
+"""
+comp_gen_noinline_transformed = """
+def comp_gen_noinline():
+
+    def _typh_cc_f1_0():
+        for i in range(100000000):
+            for _typh_cn_f2_0_i in range(i):
+                if _typh_cn_f2_0_i % 2 == 1:
+
+                    def _typh_fn_f2_0(x):
+                        return x * _typh_cn_f2_0_i
+                    yield _typh_fn_f2_0
+    gen = _typh_cc_f1_0()
+    return gen
+"""
+
+
+def test_comp_gen_noinline():
+    parsed = assert_ast_equals(comp_gen_noinline_code, comp_gen_noinline_result)
+    assert_transform_equals(parsed, comp_gen_noinline_transformed)
+
+
+comp_list_noinline_code = """
+def comp_list_noinline() {
+    let odd_sq = [for (let i in range(10)) if (i % 2 == 1) yield (x) => x * i]
+    return odd_sq
+}
+"""
+comp_list_noinline_result = """
+def comp_list_noinline():
+    odd_sq = [__listcomp_temp for __listcomp_temp in __genexp_control]
+    return odd_sq
+"""
+comp_list_noinline_transformed = """
+def comp_list_noinline():
+
+    def _typh_cc_f1_0():
+        for i in range(10):
+            if i % 2 == 1:
+
+                def _typh_fn_f2_0(x):
+                    return x * i
+                yield _typh_fn_f2_0
+    odd_sq = [__listcomp_temp for __listcomp_temp in _typh_cc_f1_0()]
+    return odd_sq
+"""
+
+
+def test_comp_list_noinline():
+    parsed = assert_ast_equals(comp_list_noinline_code, comp_list_noinline_result)
+    assert_transform_equals(parsed, comp_list_noinline_transformed)
+
+
+comp_dict_noinline_code = """
+let square_dict = {
+    for (let i in range(10)) if (i % 2 == 1)
+        yield i: (x) => x * i
+};
+"""
+comp_dict_noinline_result = """
+square_dict = {__dictcomp_temp_key: __dictcomp_temp_val for __dictcomp_temp_key, __dictcomp_temp_val in __genexp_control}
+"""
+comp_dict_noinline_transformed = """
+def _typh_cc_m0_0():
+    for i in range(10):
+        if i % 2 == 1:
+
+            def _typh_fn_f1_0(x):
+                return x * i
+            yield (i, _typh_fn_f1_0)
+square_dict = {_typh_cn_m0_0___dictcomp_temp_key: _typh_cn_m0_1___dictcomp_temp_val for _typh_cn_m0_0___dictcomp_temp_key, _typh_cn_m0_1___dictcomp_temp_val in _typh_cc_m0_0()}
+"""
+
+
+def test_comp_dict_noinline():
+    parsed = assert_ast_equals(comp_dict_noinline_code, comp_dict_noinline_result)
+    assert_transform_equals(parsed, comp_dict_noinline_transformed)

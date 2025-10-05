@@ -9,6 +9,9 @@ from ..Grammar.typhon_ast import (
     FunctionLiteral,
     FunctionType,
     fieldsOfFunctionType,
+    is_control_comprehension,
+    get_control_comprehension_def,
+    set_control_comprehension_def,
 )
 from .name_generator import UniqueNameGenerator, PythonScope, NameKind
 
@@ -121,6 +124,9 @@ class _ScopeManagerMixin:
     def new_func_literal_name(self) -> str:
         return self.name_gen.new_name(NameKind.FUNCTION_LITERAL)
 
+    def new_control_comprehension_name(self) -> str:
+        return self.name_gen.new_name(NameKind.CONTROL_COMPREHENSION)
+
     def new_variable_rename_name(self, original_name: str) -> str:
         return self.name_gen.new_name(NameKind.VARIABLE, original_name)
 
@@ -197,6 +203,19 @@ class _TyphonExtendedNodeTransformerMixin:
                         setattr(node, field, new_value)
         return node
 
+    def _visit_ControlComprehension(
+        self,
+        node: ast.Name,
+        visitor: ast.NodeVisitor | ast.NodeTransformer,
+        transform: bool,
+    ):
+        func_def = get_control_comprehension_def(node)
+        if func_def is not None:
+            new_def = visitor.visit(func_def)
+            if transform and isinstance(new_def, ast.FunctionDef):
+                set_control_comprehension_def(node, new_def)
+        return node
+
     def _visit(
         self,
         node: ast.AST,
@@ -209,6 +228,11 @@ class _TyphonExtendedNodeTransformerMixin:
                 return visit(node)
             elif is_function_type(node):
                 visit = getattr(visitor, "visit_FunctionType", visitor.generic_visit)
+                return visit(node)
+            elif is_control_comprehension(node):
+                visit = getattr(
+                    visitor, "visit_ControlComprehension", visitor.generic_visit
+                )
                 return visit(node)
         return otherwise(node)
 
@@ -237,6 +261,8 @@ class TyphonASTVisitor(
                 return self._visit_FunctionLiteral(node, self, False)
             elif is_function_type(node):
                 return self._visit_FunctionType(node, self, False)
+            elif is_control_comprehension(node):
+                return self._visit_ControlComprehension(node, self, False)
         return super().generic_visit(node)
 
 
@@ -264,4 +290,6 @@ class TyphonASTTransformer(
                 return self._visit_FunctionLiteral(node, self, True)
             elif is_function_type(node):
                 return self._visit_FunctionType(node, self, True)
+            elif is_control_comprehension(node):
+                return self._visit_ControlComprehension(node, self, True)
         return super().generic_visit(node)

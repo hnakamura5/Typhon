@@ -20,6 +20,7 @@ from .typhon_ast import (
     set_is_typing_expression, maybe_optional, set_is_coalescing,
     get_optional_question_node, get_force_unwrap_node, make_if_let, make_while_let,
     make_pipe_call, make_arrow_type_single_chain, if_comp_exp,
+    make_genexp, make_listcomp, make_setcomp, make_dictcomp,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory, Tokenizer
@@ -1461,16 +1462,16 @@ for_if_clause[ast.comprehension]:
     | invalid_for_target
 
 listcomp[ast.ListComp]:
-    | '[' b=for_if_clauses 'yield' ~ a=named_expression ']' { ast.ListComp(elt=a, generators=b, LOCATIONS) }
+    | '[' b=for_if_clauses 'yield' ~ a=named_expression ']' { make_listcomp(elt=a, generators=b, LOCATIONS) }
     | invalid_comprehension
 
 setcomp[ast.SetComp]:
-    | '{' b=for_if_clauses 'yield' ~ a=named_expression '}' { ast.SetComp(elt=a, generators=b, LOCATIONS) }
+    | '{' b=for_if_clauses 'yield' ~ a=named_expression '}' { make_setcomp(elt=a, generators=b, LOCATIONS) }
     | invalid_comprehension
 
 genexp_internal[ast.GeneratorExp]:
     | b=for_if_clauses 'yield' ~ a=( assignment_expression | expression !':=')  {
-        ast.GeneratorExp(elt=a, generators=b, LOCATIONS)
+        make_genexp(elt=a, generators=b, LOCATIONS)
       }
 
 genexp[ast.GeneratorExp]:
@@ -1482,7 +1483,7 @@ question_genexp[ast.GeneratorExp]:
     | '?(' b=genexp_internal ')' { b }
 
 dictcomp[ast.DictComp]:
-    | '{' b=for_if_clauses 'yield' ~ a=kvpair '}' { ast.DictComp(key=a[0], value=a[1], generators=b, LOCATIONS) }
+    | '{' b=for_if_clauses 'yield' ~ a=kvpair '}' { make_dictcomp(key=a[0], value=a[1], generators=b, LOCATIONS) }
     | invalid_dict_comprehension
 
 if_comp_internal[ast.IfExp]:
