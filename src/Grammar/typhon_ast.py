@@ -951,15 +951,7 @@ def _comprehension_function(
 ) -> ast.FunctionDef:
     args = _empty_args()
     body_stmts: list[ast.stmt] = [
-        ast.Expr(
-            ast.Yield(
-                value=elt,
-                lineno=elt.lineno,
-                col_offset=elt.col_offset,
-                end_lineno=elt.end_lineno,
-                end_col_offset=elt.end_col_offset,
-            )
-        )
+        ast.Expr(ast.Yield(value=elt, **get_pos_attributes(elt)))
     ]
     # Build nested for and if statements from inside out.
     for gen in reversed(generators):
@@ -999,10 +991,7 @@ def _comprehension_function(
         decorator_list=[],
         returns=None,
         type_comment=None,
-        lineno=elt.lineno,
-        col_offset=elt.col_offset,
-        end_lineno=elt.end_lineno,
-        end_col_offset=elt.end_col_offset,
+        **kwargs,
     )
     return func_def
 
@@ -1284,6 +1273,37 @@ def make_match_comp(
         type_comment=None,
         type_params=[],
         **get_pos_attributes(subject),
+    )
+    result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
+    set_control_comprehension_def(result, func_def)
+    return result
+
+
+def make_while_comp(
+    test: ast.expr,
+    body: ast.expr,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.expr:
+    control_id = "__while_comp"
+    func_def = make_function_def(
+        is_async=False,
+        is_static=False,
+        name=control_id,
+        args=_empty_args(),
+        body=[
+            ast.While(
+                test=test,
+                body=[
+                    ast.Expr(ast.Yield(body, **get_pos_attributes(body))),
+                ],
+                orelse=[],
+                **get_pos_attributes(test),
+            ),
+        ],
+        returns=None,
+        type_comment=None,
+        type_params=[],
+        **get_pos_attributes(test),
     )
     result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
     set_control_comprehension_def(result, func_def)

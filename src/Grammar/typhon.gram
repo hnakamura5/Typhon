@@ -22,7 +22,7 @@ from .typhon_ast import (
     make_pipe_call, make_arrow_type_single_chain, if_comp_exp,
     make_genexp, make_listcomp, make_setcomp, make_dictcomp,
     make_with_comp, make_try_comp, make_try_comp_except, make_match_comp,
-    make_match_comp_case,
+    make_match_comp_case, make_while_comp,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory, Tokenizer
@@ -1553,10 +1553,22 @@ match_comp[ast.expr]:
 question_match_comp[ast.expr]:
     | '?(' b=match_comp_internal ')' { b }
 
-match_comp_case:
+match_comp_case[ast.Name]:
     | 'case' '(' pattern=patterns ')' NEWLINE* guard=guard? NEWLINE* body=expression {
         make_match_comp_case(pattern, guard, body, LOCATIONS)
     }
+
+while_comp_internal[ast.expr]:
+    | 'while' '(' a=named_expression ')' NEWLINE* 'yield' b=expression {
+        make_while_comp(a, b, LOCATIONS)
+    }
+
+while_comp[ast.expr]:
+    | '(' b=while_comp_internal ')' { b }
+
+question_while_comp[ast.expr]:
+    | '?(' b=while_comp_internal ')' { b }
+
 
 comprehension_paren:
     | genexp
@@ -1564,6 +1576,7 @@ comprehension_paren:
     | with_comp
     | try_comp
     | match_comp
+    | while_comp
 
 question_comprehension_paren:
     | question_genexp
@@ -1571,6 +1584,7 @@ question_comprehension_paren:
     | question_with_comp
     | question_try_comp
     | question_match_comp
+    | question_while_comp
 
 
 # FUNCTION CALL ARGUMENTS
