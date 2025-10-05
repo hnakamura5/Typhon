@@ -946,9 +946,6 @@ typing_expression_impl (memo):
     | invalid_expression
     | invalid_legacy_expression
     | &'(' typing_arrow_type
-    | a=typing_disjunction 'if' b=typing_disjunction 'else' c=typing_expression {
-        ast.IfExp(body=a, test=b, orelse=c, LOCATIONS)
-     }
     #| typing_disjunction
     | typing_arrow_single_param_type
 
@@ -1025,11 +1022,7 @@ expressions:
 expression (memo):
     | invalid_expression
     | invalid_legacy_expression
-    | a=pipe_operator 'if' b=pipe_operator 'else' c=expression {
-        ast.IfExp(body=a, test=b, orelse=c, LOCATIONS)
-     }
     | pipe_operator
-    | lambdef
 
 yield_expr:
     | 'yield' 'from' a=expression { ast.YieldFrom(value=a, LOCATIONS) }
@@ -1306,73 +1299,6 @@ group:
     | '(' a=(yield_expr | named_expression) ')' { a }
     | invalid_group
 
-
-# Lambda functions
-# ----------------
-
-lambdef:
-    | 'lambda' a=[lambda_params] ':' b=expression {
-        ast.Lambda(args=a or self.make_arguments(None, [], None, [], (None, [], None)), body=b, LOCATIONS)
-     }
-
-lambda_params:
-    | invalid_lambda_parameters
-    | lambda_parameters
-
-# lambda_parameters etc. duplicates parameters but without annotations
-# or type comments, and if there's no comma after a parameter, we expect
-# a colon, not a close parenthesis.  (For more, see parameters above.)
-#
-lambda_parameters[ast.arguments]:
-    | a=lambda_slash_no_default b=lambda_param_no_default* c=lambda_param_with_default* d=[lambda_star_etc] {
-        self.make_arguments(a, [], b, c, d)
-     }
-    | a=lambda_slash_with_default b=lambda_param_with_default* c=[lambda_star_etc] {
-        self.make_arguments(None, a, None, b, c)
-     }
-    | a=lambda_param_no_default+ b=lambda_param_with_default* c=[lambda_star_etc] {
-        self.make_arguments(None, [], a, b, c)
-     }
-    | a=lambda_param_with_default+ b=[lambda_star_etc] {
-        self.make_arguments(None, [], None, a, b)
-     }
-    | a=lambda_star_etc { self.make_arguments(None, [], None, [], a) }
-
-lambda_slash_no_default[List[Tuple[ast.arg, None]]]:
-    | a=lambda_param_no_default+ '/' ',' { [(p, None) for p in a] }
-    | a=lambda_param_no_default+ '/' &':' { [(p, None) for p in a] }
-
-lambda_slash_with_default[List[Tuple[ast.arg, Any]]]:
-    | a=lambda_param_no_default* b=lambda_param_with_default+ '/' ',' { ([(p, None) for p in a] if a else []) + b }
-    | a=lambda_param_no_default* b=lambda_param_with_default+ '/' &':' { ([(p, None) for p in a] if a else []) + b }
-
-lambda_star_etc[Tuple[Optional[ast.arg], List[Tuple[ast.arg, Any]], Optional[ast.arg]]]:
-    | invalid_lambda_star_etc
-    | '*' a=lambda_param_no_default b=lambda_param_maybe_default* c=[lambda_kwds] {
-       (a, b, c) }
-    | '*' ',' b=lambda_param_maybe_default+ c=[lambda_kwds] {
-        (None, b, c) }
-    | a=lambda_kwds { (None, [], a) }
-
-lambda_kwds[ast.arg]:
-    | invalid_lambda_kwds
-    | '**' a=lambda_param_no_default { a }
-
-lambda_param_no_default[ast.arg]:
-    | a=lambda_param ',' { a }
-    | a=lambda_param &':' { a }
-
-lambda_param_with_default[Tuple[ast.arg, Any]]:
-    | a=lambda_param c=default ',' { (a, c) }
-    | a=lambda_param c=default &':' { (a, c) }
-lambda_param_maybe_default[Tuple[ast.arg, Any]]:
-    | a=lambda_param c=default? ',' { (a, c) }
-    | a=lambda_param c=default? &':' { (a, c) }
-lambda_param[ast.arg]: a=NAME {
-    ast.arg(arg=a.string, annotation=None, LOCATIONS)
-    if sys.version_info >= (3, 9) else
-    ast.arg(arg=a.string, annotation=None, type_comment=None, LOCATIONS)
- }
 
 function_literal:
     | '(' p=params ')' a=[typing_arrow_return_type] '=>' ~ b=(block | expression) { make_function_literal(args=p, returns=a, body=b, LOCATIONS) }
@@ -1831,11 +1757,8 @@ invalid_kwarg[NoReturn]:
 # IMPORTANT: Note that the "_without_invalid" suffix causes the rule to
 # not call invalid rules under it
 expression_without_invalid[ast.AST]:
-    | a=pipe_operator 'if' b=pipe_operator 'else' c=expression {
-        ast.IfExp(body=b, test=a, orelse=c, LOCATIONS)
-     }
     | pipe_operator
-    | lambdef
+
 invalid_legacy_expression:
     | a=NAME !'(' b=star_expressions {
         self.raise_syntax_error_known_range(
@@ -1853,14 +1776,7 @@ invalid_expression[NoReturn]:
             else None
         )
      }
-    | a=pipe_operator 'if' b=pipe_operator !('else'|':') {
-        self.raise_syntax_error_known_range("expected 'else' after 'if' expression", a, b)
-     }
-    | a='lambda' [lambda_params] b=':' &(FSTRING_MIDDLE | fstring_replacement_field)  {
-        self.raise_syntax_error_known_range(
-            "f-string: lambda expressions are not allowed without parentheses", a, b
-        )
-     }
+
 invalid_named_expression[NoReturn]:
     | a=expression ':=' expression {
         self.raise_syntax_error_known_location(
@@ -1987,52 +1903,7 @@ invalid_kwds:
 invalid_parameters_helper: # This is only there to avoid type errors
     | a=slash_with_default { [a] }
     | a=param_with_default+
-invalid_lambda_parameters[NoReturn]:
-    | a="/" ',' {
-        self.raise_syntax_error_known_location("at least one argument must precede /", a)
-     }
-    | (lambda_slash_no_default | lambda_slash_with_default) lambda_param_maybe_default* a='/' {
-        self.raise_syntax_error_known_location("/ may appear only once", a)
-     }
-    | lambda_slash_no_default? lambda_param_no_default* invalid_lambda_parameters_helper a=lambda_param_no_default {
-        self.raise_syntax_error_known_location(
-            "parameter without a default follows parameter with a default", a
-        )
-     }
-    | lambda_param_no_default* a='(' ','.lambda_param+ ','? b=')' {
-        self.raise_syntax_error_known_range(
-            "Lambda expression parameters cannot be parenthesized", a, b
-        )
-     }
-    | (lambda_slash_no_default | lambda_slash_with_default)? lambda_param_maybe_default* '*' (',' | lambda_param_no_default) lambda_param_maybe_default* a='/' {
-        self.raise_syntax_error_known_location("/ must be ahead of *", a)
-     }
-    | lambda_param_maybe_default+ '/' a='*' {
-        self.raise_syntax_error_known_location("expected comma between / and *", a)
-     }
-invalid_lambda_parameters_helper[NoReturn]:
-    | a=lambda_slash_with_default { [a] }
-    | a=lambda_param_with_default+
-invalid_lambda_star_etc[NoReturn]:
-    | '*' (':' | ',' (':' | '**')) {
-        self.raise_syntax_error("named arguments must follow bare *")
-     }
-    | '*' lambda_param a='=' {
-        self.raise_syntax_error_known_location("var-positional argument cannot have default value", a)
-     }
-    | '*' (lambda_param_no_default | ',') lambda_param_maybe_default* a='*' (lambda_param_no_default | ',') {
-        self.raise_syntax_error_known_location("* argument may appear only once", a)
-     }
-invalid_lambda_kwds:
-    | '**' lambda_param a='=' {
-        self.raise_syntax_error_known_location("var-keyword argument cannot have default value", a)
-     }
-    | '**' lambda_param ',' a=lambda_param {
-        self.raise_syntax_error_known_location("arguments cannot follow var-keyword argument", a)
-     }
-    | '**' lambda_param ',' a=('*'|'**'|'/') {
-        self.raise_syntax_error_known_location("arguments cannot follow var-keyword argument", a)
-     }
+
 invalid_double_type_comments[NoReturn]:
     | TYPE_COMMENT NEWLINE TYPE_COMMENT NEWLINE INDENT {
         self.raise_syntax_error("Cannot have two type comments on def")

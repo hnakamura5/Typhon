@@ -122,6 +122,12 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
 
 - Dead code just after `return`/`raise` statement is forbidden.
 
+- Original if expressions, the form `x if x > 0 else y` is forbidden.
+
+- Lambda expression by 'lambda' is forbidden.
+
+- Note all the forbidden keywords are still reserved.
+
 ## Bundled Libraries
 
 TBD
