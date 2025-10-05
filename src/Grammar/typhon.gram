@@ -22,7 +22,7 @@ from .typhon_ast import (
     make_pipe_call, make_arrow_type_single_chain, if_comp_exp,
     make_genexp, make_listcomp, make_setcomp, make_dictcomp,
     make_with_comp, make_try_comp, make_try_comp_except, make_match_comp,
-    make_match_comp_case, make_while_comp,
+    make_match_comp_case, make_while_comp, make_if_let_comp
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory, Tokenizer
@@ -1495,6 +1495,12 @@ if_comp_internal[ast.IfExp]:
     | 'if' '(' b=pipe_operator ')' NEWLINE* a=expression c=[if_comp_else] {
         if_comp_exp(body=a, test=b, orelse=c, LOCATIONS)
      }
+    | 'if' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=if_comp_elif {
+        make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
+     }
+    | 'if' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=[if_comp_else] {
+        make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
+     }
 
 if_comp_elif[ast.IfExp]:
     | 'elif' '(' b=pipe_operator ')' NEWLINE* a=expression c=if_comp_elif {
@@ -1502,6 +1508,12 @@ if_comp_elif[ast.IfExp]:
      }
     | 'elif' '(' b=pipe_operator ')' NEWLINE* a=expression c=[if_comp_else] {
         if_comp_exp(body=a, test=b, orelse=c, LOCATIONS)
+     }
+    | 'elif' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=if_comp_elif {
+        make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
+     }
+    | 'elif' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=[if_comp_else] {
+        make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
      }
 
 if_comp_else[ast.IfExp]:
