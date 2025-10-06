@@ -71,6 +71,15 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
   - `(with (let f = open("file.txt")) f.read())`.
   - `(match (f()) case(x, 0) x case(x, y) x + y)`. The default case is optional.
 
+- Data record literal `(|x = 1, y = "2"|)` which is translated into anonymous dataclass. The type is data record type `(|x: int, y: str|)` which is Protocol of dataclass. Attribute access `val.x` , unpacking by `(|x, y|)` or patten matching by specific pattern `(|x = a, y = b|)` is supported (TODO)
+
+- Protocol literal `{|let x: int; def f(x: int) -> str|}` which is translated into Protocol. (TODO)
+  ```python
+  class ProtocolLiteral(Protocol):
+      x: Final[int]
+      def f(x: int) -> str:...
+  ```
+
 ### Detail design changes
 
 - Logical operators
@@ -98,7 +107,7 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
     - all operators (including `,`, `.`, `=`, `?`, `:`, `=>`, `->`).
     - brackets open `([{`.
     - modifiers(`static`, `async`) and decorators.
-    - all keyword of statements, EXCEPT for return/break like ones (`return`, `raise`, `yield`, `break`, `continue`j).
+    - all keyword of statements, EXCEPT for return/break like ones (`return`, `raise`, `yield`, `break`, `continue`).
     - closing paren `)` of the following paren of statement keywords (`class`, `def`, `if`, `elif`, `while`, `for`, `except`, `with`, `match`, `case`). For example last `)` of `if (cond)` or `class[T](B)`.
 
   - Just before,
