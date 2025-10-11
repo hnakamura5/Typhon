@@ -84,14 +84,14 @@ f: __arrow_type = __function_literal
 type_arrow_func_literal_transformed = """
 from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_m0_0(_typh_bi_Protocol):
+class _typh_ar_m0_1(_typh_bi_Protocol):
 
     def __call__(self, x: int) -> int:
         ...
 
 def _typh_fn_m0_0(x: int) -> int:
     return x + 1
-f: _typh_ar_m0_0 = _typh_fn_m0_0
+f: _typh_ar_m0_1 = _typh_fn_m0_0
 """
 
 

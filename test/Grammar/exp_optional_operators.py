@@ -100,12 +100,12 @@ def func(f: (__arrow_type,)) -> (int,):
 optional_call_transformed = """
 from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_f1_0(_typh_bi_Protocol):
+class _typh_ar_f1_1(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f1_0_a0: int, /) -> int | None:
+    def __call__(self, _typh_ar_f1_1_a0: int, /) -> int | None:
         ...
 
-def func(f: _typh_ar_f1_0 | None) -> int | None:
+def func(f: _typh_ar_f1_1 | None) -> int | None:
     return _typh_vr_f1_0_(42) if (_typh_vr_f1_0_ := f) is not None else None
 """
 
@@ -148,12 +148,12 @@ def func(f: (__arrow_type,), a: (list[int,],)) -> int:
 optional_nested_transformed = """
 from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_f1_0(_typh_bi_Protocol):
+class _typh_ar_f1_3(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f1_0_a0: int | None, /) -> int | None:
+    def __call__(self, _typh_ar_f1_3_a0: int | None, /) -> int | None:
         ...
 
-def func(f: _typh_ar_f1_0 | None, a: list[int | None] | None) -> int:
+def func(f: _typh_ar_f1_3 | None, a: list[int | None] | None) -> int:
     return _typh_vr_f1_0_ if (_typh_vr_f1_0_ := (_typh_vr_f1_1_(_typh_vr_f1_2_[0] if (_typh_vr_f1_2_ := a) is not None else None) if (_typh_vr_f1_1_ := f) is not None else None)) is not None else 0
 """
 

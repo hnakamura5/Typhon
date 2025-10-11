@@ -79,8 +79,8 @@ def func(x: int | None) -> int | None:
 
         def _typh_fn_f2_0(x):
             return x + 1
-        return _typh_fn_f2_0(_typh_vr_f2_0_) if (_typh_vr_f2_0_ := (x * 2)) is not None else None
-    return _typh_fn_f1_0(_typh_vr_f1_0_) if (_typh_vr_f1_0_ := x) is not None else None
+        return _typh_fn_f2_0(_typh_vr_f2_1_) if (_typh_vr_f2_1_ := (x * 2)) is not None else None
+    return _typh_fn_f1_0(_typh_vr_f1_1_) if (_typh_vr_f1_1_ := x) is not None else None
 """
 
 
@@ -93,12 +93,12 @@ def test_optional_pipe_operator():
 
 pipe_placeholder_code = """
 def func(x: [int]) -> [int] {
-    return x |> map((y) => y * 2, ...) |> filter((y) => y > 0, ...) |> list
+    return x |> map((y) => y * 2, _) |> filter((y) => y > 0, _) |> list
 }
 """
 pipe_placeholder_result = """
 def func(x: [int]) -> [int]:
-    return list(filter(__function_literal, ...)(map(__function_literal, ...)(x)))
+    return list(filter(__function_literal, _)(map(__function_literal, _)(x)))
 """
 pipe_placeholder_transformed = """
 def func(x: list[int]) -> list[int]:
@@ -109,11 +109,11 @@ def func(x: list[int]) -> list[int]:
     def _typh_fn_f1_1(y):
         return y * 2
 
-    def _typh_fn_f1_3(_typh_ag_f1_2_1):
-        return filter(_typh_fn_f1_0, _typh_ag_f1_2_1)
+    def _typh_fn_f1_3(_typh_ag_f1_2_0, /):
+        return filter(_typh_fn_f1_0, _typh_ag_f1_2_0)
 
-    def _typh_fn_f1_5(_typh_ag_f1_4_1):
-        return map(_typh_fn_f1_1, _typh_ag_f1_4_1)
+    def _typh_fn_f1_5(_typh_ag_f1_4_0, /):
+        return map(_typh_fn_f1_1, _typh_ag_f1_4_0)
     return list(_typh_fn_f1_3(_typh_fn_f1_5(x)))
 """
 

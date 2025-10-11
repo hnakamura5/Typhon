@@ -10,6 +10,7 @@ from .inline_statement_block_capture import inline_statement_block_capture
 from .optional_operators_to_checked import optional_to_checked
 from .if_while_let import if_while_let_transform
 from .comprehension_to_function import comprehension_to_function
+from .placeholder_to_function import placeholder_to_func
 
 
 def transform(mod: ast.Module):
@@ -26,6 +27,8 @@ def transform(mod: ast.Module):
     print(f"After func_literal_to_def:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     scope_check_rename(mod)
     print(f"After scope_check_rename:\n{ast.unparse(mod)}\n")  # [HN] For debug.
+    placeholder_to_func(mod)
+    print(f"After placeholder_to_func:\n{ast.unparse(mod)}\n")
     optional_to_checked(mod)
     print(f"After optional_to_checked:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     type_annotation_check_expand(mod)

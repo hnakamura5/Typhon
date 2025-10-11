@@ -10,6 +10,7 @@ from ..Grammar.typhon_ast import (
     get_pos_attributes,
     get_empty_pos_attributes,
     is_inline_with,
+    set_is_placeholder,
 )
 from ..Grammar.syntax_errors import raise_scope_error
 from .visitor import TyphonASTVisitor, PythonScope
@@ -638,6 +639,10 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             if sym.renamed_to:
                 node.id = sym.renamed_to
         else:
+            if node.id == "_":
+                # Placeholder, only mark it.
+                set_is_placeholder(node)
+                return node
             # Reference to the symbol
             sym = self.get_symbol(node.id)
             if sym is None:  # Undeclared variable

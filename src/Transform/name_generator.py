@@ -40,28 +40,45 @@ def get_unwrap_error_name() -> str:
     return "ValueError"  # TODO: Should be special error?
 
 
+_SCOPE_COUNTER = "_typh_name_generator_scope_counters"
+_GENERATED_NAMES = "_typh_name_generator_generated_names"
+_SCOPE_IDS = "_typh_name_generator_scope_ids"
+
+
 class UniqueNameGenerator:
-    scope_id_counter: int
+    _module: ast.Module
+    scope_ids: dict[PythonScope, str] = {}
+    counter_in_scope: dict[str, int]
     scope_stack: list[tuple[PythonScope, str]] = []
-    scope_counters: dict[str, int]
     generated_names: set[str]
 
     def __init__(self, module: ast.Module):
-        self.scope_id_counter = 0
-        self.scope_counters = self._module_scope_counter(module)
+        self._module = module
+        self.scope_ids = self._module_scope_ids(module)
+        self.counter_in_scope = self._module_scope_counter(module)
         self.generated_names = self._module_generated_names(module)
 
     # To use consistent scope counters across multiple passes on the same module.
     def _module_scope_counter(self, module: ast.Module) -> dict[str, int]:
-        attr_name = "_typh_name_generator_scope_counters"
+        attr_name = _SCOPE_COUNTER
         scope_counters: dict[str, int] | None = getattr(module, attr_name, None)
         if scope_counters is None:
             scope_counters = {}
             setattr(module, attr_name, scope_counters)
         return scope_counters
 
+    def _module_scope_ids(self, module: ast.Module) -> dict[PythonScope, str]:
+        attr_name = _SCOPE_IDS
+        scope_id_counter: dict[PythonScope, str] | None = getattr(
+            module, attr_name, None
+        )
+        if scope_id_counter is None:
+            scope_id_counter = {}
+            setattr(module, attr_name, scope_id_counter)
+        return scope_id_counter
+
     def _module_generated_names(self, module: ast.Module) -> set[str]:
-        attr_name = "_typh_name_generator_generated_names"
+        attr_name = _GENERATED_NAMES
         generated_names: set[str] | None = getattr(module, attr_name, None)
         if generated_names is None:
             generated_names = set()
@@ -70,15 +87,16 @@ class UniqueNameGenerator:
 
     # Here the scope is Python scope: module, class, function. Not block scope.
     def enter_scope(self, scope: PythonScope):
-        scope_id = f"{self._scope_symbol(scope)}{self.scope_id_counter}"
-        self.scope_id_counter += 1
-        self.scope_counters[scope_id] = 0
+        scope_id = self.scope_ids.get(scope, None)
+        if scope_id is None:
+            index = len(self.scope_ids)
+            scope_id = f"{self._scope_symbol(scope)}{index}"
+            self.scope_ids[scope] = scope_id
+            self.counter_in_scope[scope_id] = 0
         self.scope_stack.append((scope, scope_id))
 
     def exit_scope(self, scope: PythonScope):
-        if self.scope_counters:
-            _, scope_id = self.scope_stack.pop()
-            self.scope_counters.pop(scope_id)
+        self.scope_stack.pop()
 
     @contextmanager
     def name_scope(self, scope: PythonScope):
@@ -99,8 +117,8 @@ class UniqueNameGenerator:
 
     def _get_next_id(self) -> str:
         _, scope_id = self.scope_stack[-1]
-        count = self.scope_counters[scope_id]
-        self.scope_counters[scope_id] = count + 1
+        count = self.counter_in_scope[scope_id]
+        self.counter_in_scope[scope_id] = count + 1
         return f"{scope_id}_{count}"
 
     def _new_name(self, kind: NameKind, original_name: str = "") -> str:

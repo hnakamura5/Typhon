@@ -131,11 +131,11 @@ def comp_gen_noinline():
 
     def _typh_cc_f1_0():
         for i in range(100000000):
-            for _typh_cn_f2_0_i in range(i):
-                if _typh_cn_f2_0_i % 2 == 1:
+            for _typh_cn_f2_1_i in range(i):
+                if _typh_cn_f2_1_i % 2 == 1:
 
                     def _typh_fn_f2_0(x):
-                        return x * _typh_cn_f2_0_i
+                        return x * _typh_cn_f2_1_i
                     yield _typh_fn_f2_0
     gen = _typh_cc_f1_0()
     return gen
@@ -195,7 +195,7 @@ def _typh_cc_m0_0():
             def _typh_fn_f1_0(x):
                 return x * i
             yield (i, _typh_fn_f1_0)
-square_dict = {_typh_cn_m0_0___dictcomp_temp_key: _typh_cn_m0_1___dictcomp_temp_val for _typh_cn_m0_0___dictcomp_temp_key, _typh_cn_m0_1___dictcomp_temp_val in _typh_cc_m0_0()}
+square_dict = {_typh_cn_m0_1___dictcomp_temp_key: _typh_cn_m0_2___dictcomp_temp_val for _typh_cn_m0_1___dictcomp_temp_key, _typh_cn_m0_2___dictcomp_temp_val in _typh_cc_m0_0()}
 """
 
 

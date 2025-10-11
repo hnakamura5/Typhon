@@ -18,8 +18,8 @@ if_let_none_check_transformed = """
 y: int | None = None
 _typh_vr_m0_0_ = True
 match y:
-    case _typh_cn_m0_0_x if _typh_cn_m0_0_x is not None:
-        print(_typh_cn_m0_0_x)
+    case _typh_cn_m0_1_x if _typh_cn_m0_1_x is not None:
+        print(_typh_cn_m0_1_x)
         _typh_vr_m0_0_ = False
 """
 

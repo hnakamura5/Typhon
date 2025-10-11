@@ -58,10 +58,10 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
   `x |> f` is same as `f(x)`. This is left association with lowest priority.
   `x ?|> f` is optional pipe, is called when `x is not None`.
 
-- Placeholder anonymous function (TODO)
+- Placeholder anonymous function
   `_` in expression is placeholder for anonymous function. For example, `f(x, _, z)` is same as `(y) => f(x, y, z)`, `_ + _` is same as `(x, y) => x + y`.
   The expression strictly including `_` is converted to function. Note that single `_` alone is NOT the target. The expression bound to the placeholder is the one inside the innermost BOUNDARY determined by the following rules,
-  - Arguments in function call are BOUNDARY. e.g. `f(_ + 1)` is `f((x) => x + 1)`, `f(g(_))` is `f((x) => g(x))` (here, `_` itself is NOT the target, so `g(_)` as `f`'s argument is the target).
+  - Callee and arguments in function call are BOUNDARY. e.g. `f(_ + 1)` is `f((x) => x + 1)`, `f(g(_))` is `f((x) => g(x))` (here, `_` itself is NOT the target, so `g(_)` as `f`'s argument is the target).
   - Pipe operators's both operand are BOUNDARY. e.g. `v |> f(_)` is `v |> ((x)=>f(x))`.
   - Function literal's value is a BOUNDARY. e.g. `(x) => f(x, _)` is `(x) => ((y) => f(x, y))`
 

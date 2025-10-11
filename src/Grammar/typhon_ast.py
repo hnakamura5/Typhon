@@ -1477,6 +1477,23 @@ def make_pipe_call(
     return result
 
 
+_IS_PLACEHOLDER = "_typh_is_placeholder"
+
+
+def set_is_placeholder(node: ast.Name, is_placeholder: bool = True) -> ast.expr:
+    setattr(node, _IS_PLACEHOLDER, is_placeholder)
+    return node
+
+
+def is_placeholder(node: ast.Name) -> bool:
+    return getattr(node, _IS_PLACEHOLDER, False)
+
+
+def clear_is_placeholder(node: ast.Name) -> None:
+    if hasattr(node, _IS_PLACEHOLDER):
+        delattr(node, _IS_PLACEHOLDER)
+
+
 def if_comp_exp(
     test: ast.expr,
     body: ast.expr,
