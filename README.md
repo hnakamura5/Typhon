@@ -1,6 +1,6 @@
 # Typhon
 
-Typhon is a syntax sugar for Python with small modifications for modernization.
+Typhon is a overhaul syntax sugar for Python for modernization.
 
 ## Syntax Changes
 
@@ -39,8 +39,6 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
   - `??` for nullish coalescing.
   - `?()` for optional call.
   - `?[]` for optional subscript.
-  - optional arithmetic operators such as `?+`, `?*`, ... is `None` when either operand `is None`. (TODO)
-    - Note comparison/logical operators does not have optional version.
 
 - `if-let` statement for checking optional/condition/matching.
   - `if (let x = f()) {...}` is same as `{ let x = f(); if (x is not None) {...} }`
@@ -56,29 +54,27 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
 - Const member of class
   `let x: T` in class is immutable member. Translated into `x: Final[T]`. Be attention not to use `Final` with `let` in Typhon code.
 
-- Partial function application placeholder
-  `...` in call expression is placeholder for partial application. `f(x, ..., z)` is same as `(y) => f(x, y, z)`.
-
 - Pipe operator
   `x |> f` is same as `f(x)`. This is left association with lowest priority.
   `x ?|> f` is optional pipe, is called when `x is not None`.
-  Use placeholder `x ?|> f?(...)` when `f` is also optional.
+
+- Placeholder anonymous function (TODO)
+  `_` in expression is placeholder for anonymous function. For example, `f(x, _, z)` is same as `(y) => f(x, y, z)`, `_ + _` is same as `(x, y) => x + y`.
+  The expression strictly including `_` is converted to function. Note that single `_` alone is NOT the target. The expression bound to the placeholder is the one inside the innermost BOUNDARY determined by the following rules,
+  - Arguments in function call are BOUNDARY. e.g. `f(_ + 1)` is `f((x) => x + 1)`, `f(g(_))` is `f((x) => g(x))` (here, `_` itself is NOT the target, so `g(_)` as `f`'s argument is the target).
+  - Pipe operators's both operand are BOUNDARY. e.g. `v |> f(_)` is `v |> ((x)=>f(x))`.
+  - Function literal's value is a BOUNDARY. e.g. `(x) => f(x, _)` is `(x) => ((y) => f(x, y))`
+
+  If an expression has several placeholder `_` inside, it becomes multiple positional only parameter function, the parameter order from left to light. For example, `_ + _ * _` becomes `(x, y, z) => x + y * z`.
 
 - Control statement comprehension expressions. `if/while/try/with/match` surrounded by paren, synonym to generator expression by `for`.
   - `(if (cond1) 1 elif (cond2) 2 else 3)`. `elif` and `else` is optional, the value is `None` for unspecified case.
-  - `(while(cond) yield x)` is alternative generator expression. `while` can be used instaed of `for`.
-  - `(try x/y except(e: ZeroDivisionError) 0)`. `except` is optional.
+  - `(while(cond) yield x)` is alternative generator expression. `while` can be used instead of `for`.
+  - `(try x/y except(e: ZeroDivisionError) 0)`. `except` is optional. `(try x/y)` is `None` on exception.
   - `(with (let f = open("file.txt")) f.read())`.
-  - `(match (f()) case(x, 0) x case(x, y) x + y)`. The default case is optional.
+  - `(match (f()) case(x, 0) x case(x, y) x + y)`. The default case is optional, results `None` on abbreviation.
 
-- Data record literal `(|x = 1, y = "2"|)` which is translated into anonymous dataclass. The type is data record type `(|x: int, y: str|)` which is Protocol of dataclass. Attribute access `val.x` , unpacking by `(|x, y|)` or patten matching by specific pattern `(|x = a, y = b|)` is supported (TODO)
-
-- Protocol literal `{|let x: int; def f(x: int) -> str|}` which is translated into Protocol. (TODO)
-  ```python
-  class ProtocolLiteral(Protocol):
-      x: Final[int]
-      def f(x: int) -> str:...
-  ```
+- Data record literal `{|x = 1, y = "2"|}` which is translated into anonymous dataclass. The type is data record type `{|x: int, y: str|}` which is Protocol of dataclass. Attribute access `val.x` , unpacking by `{|x, y|}` or patten matching by specific pattern `{|x = a, y = b|}` is supported. (TODO)
 
 ### Detail design changes
 
@@ -97,7 +93,7 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
 
 - Builtin symbols are all const, you can shadow it using `let/var`.
 
-- Comprehension uses yield keyword to determine the expression part.
+- Comprehension uses `yield` keyword to determine the expression part.
   For example, `[for (let i in range(1, 10)) if (i % 2 == 1) yield i * i]`, that is translated into `[i * i for i in range(1, 10) if i % 2 == 1]`.
   For dict, `let odd_square = {for (let i in range(1, 10)) if (i % 2 == 1) yield i: i * i}`
 
@@ -143,3 +139,13 @@ TBD
 
 - `typhon.traceback` is drop in replacement for builtin `traceback` to provide traceback display in Typhon's syntax.
 
+
+## Influenced by
+
+- Python
+- Typescript
+- Swift
+- Rust
+- Scala
+- F#
+- C#
