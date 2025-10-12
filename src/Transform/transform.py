@@ -11,10 +11,13 @@ from .optional_operators_to_checked import optional_to_checked
 from .if_while_let import if_while_let_transform
 from .comprehension_to_function import comprehension_to_function
 from .placeholder_to_function import placeholder_to_func
+from .record_to_dataclass import record_to_dataclass
 
 
 def transform(mod: ast.Module):
     check_forbidden_statements(mod)
+    record_to_dataclass(mod)
+    print(f"After record_to_dataclass:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     inline_statement_block_capture(mod)
     print(f"After inline_statement_block_capture:\n{ast.unparse(mod)}\n")
     if_while_let_transform(mod)

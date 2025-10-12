@@ -21,6 +21,7 @@ class NameKind(Enum):
     CLASS = auto()
     FUNCTION = auto()
     IMPORT = auto()
+    TYPEVAR = auto()
     OTHER = auto()
 
 
@@ -38,6 +39,14 @@ def get_unwrap_name() -> str:
 
 def get_unwrap_error_name() -> str:
     return "ValueError"  # TODO: Should be special error?
+
+
+def get_dataclass_name() -> str:
+    return f"{typhon_builtin_prefix}dataclass"
+
+
+def get_runtime_checkable_name() -> str:
+    return f"{typhon_builtin_prefix}runtime_checkable"
 
 
 _SCOPE_COUNTER = "_typh_name_generator_scope_counters"
@@ -140,6 +149,8 @@ class UniqueNameGenerator:
             return f"{typhon_prefix}df_{self._get_next_id()}_{original_name}"
         elif kind == NameKind.IMPORT:
             return f"{typhon_prefix}im_{self._get_next_id()}_{original_name}"
+        elif kind == NameKind.TYPEVAR:
+            return f"{typhon_prefix}tv_{self._get_next_id()}_{original_name}"
         elif kind == NameKind.OTHER:
             return f"{typhon_prefix}ot_{self._get_next_id()}_{original_name}"
         else:

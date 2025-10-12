@@ -23,6 +23,7 @@ from .typhon_ast import (
     make_genexp, make_listcomp, make_setcomp, make_dictcomp,
     make_with_comp, make_try_comp, make_try_comp_except, make_match_comp,
     make_match_comp_case, make_while_comp, make_if_let_comp, make_while_let_comp,
+    make_record_literal,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory, Tokenizer
@@ -215,7 +216,7 @@ declaration_else:
         make_if_let(pattern_subjects=pat_sub, cond=None, body=[], orelse=b, is_let_else=True, LOCATIONS)
     }
 
-declaration_single_assignment[tuple[ast.expr, Optional[ast.expr], Optional[ast.expr]]]:
+declaration_single_assignment[Tuple[ast.expr, Optional[ast.expr], Optional[ast.expr]]]:
     | a=decl_star_target b=annotation c=['=' d=annotated_rhs { d }] { (a, b, c) }
     | a=decl_star_target '=' c=annotated_rhs { (a, None, c) }
 
@@ -1289,6 +1290,7 @@ atom:
     | &'(' (function_literal | typing_arrow_type | tuple | group | comprehension_paren)
     | &'[' (list | listcomp)
     | &'{' (dict | set | dictcomp | setcomp)
+    | &'{|' record_literal
     | '...' {
         ast.Constant(value=Ellipsis, LOCATIONS)
         if sys.version_info >= (3, 9) else
@@ -1370,6 +1372,15 @@ double_starred_kvpair:
     | kvpair
 
 kvpair[tuple]: a=expression ':' b=expression { (a, b) }
+
+# Record
+# ------
+
+record_literal_field[Tuple[ast.Name, ast.expr]]:
+    | a=NAME '=' b=expression { (ast.Name(id=a.string, LOCATIONS), b) }
+
+record_literal[ast.Name]:
+    | '{|' ~ fs=','.record_literal_field+ [','] '|}' { make_record_literal(fs, LOCATIONS) }
 
 # Comprehensions & Generators
 # ---------------------------

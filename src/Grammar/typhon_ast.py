@@ -19,9 +19,9 @@ class PostAttributesNoneless(TypedDict):
 
 
 def pos_attribute_noneless(pos: PosAttributes) -> PostAttributesNoneless:
-    if pos["end_lineno"] is None:
+    if getattr(pos, "end_lineno", None) is None:
         pos["end_lineno"] = pos["lineno"]
-    if pos["end_col_offset"] is None:
+    if getattr(pos, "end_col_offset", None) is None:
         pos["end_col_offset"] = pos["col_offset"]
     return cast(PostAttributesNoneless, pos)
 
@@ -1492,6 +1492,44 @@ def is_placeholder(node: ast.Name) -> bool:
 def clear_is_placeholder(node: ast.Name) -> None:
     if hasattr(node, _IS_PLACEHOLDER):
         delattr(node, _IS_PLACEHOLDER)
+
+
+_RECORD_LITERAL_FIELDS = "_typh_is_record_literal_fields"
+type RecordLiteral = ast.Name
+
+
+def set_record_literal_fields(
+    node: RecordLiteral, fields: list[tuple[ast.Name, ast.expr]]
+) -> ast.expr:
+    setattr(node, _RECORD_LITERAL_FIELDS, fields)
+    return node
+
+
+def get_record_literal_fields(
+    node: RecordLiteral,
+) -> list[tuple[ast.Name, ast.expr]] | None:
+    return getattr(node, _RECORD_LITERAL_FIELDS, None)
+
+
+def is_record_literal(node: RecordLiteral) -> bool:
+    return getattr(node, _RECORD_LITERAL_FIELDS, None) is not None
+
+
+def clear_record_literal_fields(node: RecordLiteral) -> None:
+    if hasattr(node, _RECORD_LITERAL_FIELDS):
+        delattr(node, _RECORD_LITERAL_FIELDS)
+
+
+def make_record_literal(
+    fields: list[tuple[ast.Name, ast.expr]],
+    **kwargs: Unpack[PosAttributes],
+) -> RecordLiteral:
+    result = ast.Name(
+        id="__record_literal",
+        **kwargs,
+    )
+    set_record_literal_fields(result, fields)
+    return result
 
 
 def if_comp_exp(

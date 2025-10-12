@@ -145,6 +145,12 @@ class _ScopeManagerMixin:
     def new_arg_name(self, original_name: str) -> str:
         return self.name_gen.new_name(NameKind.ARGUMENT, original_name)
 
+    def new_typevar_name(self, original_name: str) -> str:
+        return self.name_gen.new_name(NameKind.TYPEVAR, original_name)
+
+    def new_class_name(self, original_name: str) -> str:
+        return self.name_gen.new_name(NameKind.CLASS, original_name)
+
 
 def flat_map[T](f: Callable[[T], T | list[T] | None], v: list[T]) -> list[T]:
     result: list[T] = []

@@ -11,11 +11,10 @@ from ..Grammar.typhon_ast import (
     get_pos_attributes,
     is_typing_expression,
     is_optional_question,
-    add_import_alias_top,
 )
 from ..Grammar.syntax_errors import raise_type_annotation_error
 from .visitor import TyphonASTVisitor, TyphonASTTransformer
-from .name_generator import get_protocol_name
+from .utils import add_import_for_protocol, get_insert_point_for_class
 
 
 class _GatherArrowType(TyphonASTVisitor):
@@ -30,12 +29,8 @@ class _GatherArrowType(TyphonASTVisitor):
         return self.generic_visit(node)
 
 
-def _add_import_for_protocol(mod: ast.Module):
-    add_import_alias_top(mod, "typing", "Protocol", get_protocol_name())
-
-
 def _protocol_for_function_type(
-    func_type: FunctionType, arrow_type_name: str
+    func_type: FunctionType, arrow_type_name: str, protocol_name: str
 ) -> ast.ClassDef:
     func_type.id = arrow_type_name
     args = get_args_of_function_type(func_type)
@@ -79,7 +74,7 @@ def _protocol_for_function_type(
     protocol_def = ast.ClassDef(
         name=arrow_type_name,
         bases=[
-            ast.Name(id=get_protocol_name(), ctx=ast.Load()),
+            ast.Name(id=protocol_name, ctx=ast.Load()),
         ],
         keywords=[],
         body=[func_def],
@@ -93,21 +88,18 @@ def _protocol_for_function_type(
 
 
 def _add_protocols(
-    mod: ast.Module, func_types: list[tuple[FunctionType, str]]
+    mod: ast.Module, func_types: list[tuple[FunctionType, str]], protocol_name: str
 ) -> dict[FunctionType, ast.ClassDef]:
     result: dict[FunctionType, ast.ClassDef] = {}
-    insert_point = 0
     # Insert after imports.
-    for i, stmt in enumerate(mod.body):
-        if isinstance(stmt, (ast.Import, ast.ImportFrom)):
-            insert_point = i + 1
-        else:
-            break
+    insert_point = get_insert_point_for_class(mod)
     for func_type, arrow_type_name in func_types:
         print(
             f"Adding protocol for function type: {func_type.__dict__} as {arrow_type_name}"
         )
-        protocol_def = _protocol_for_function_type(func_type, arrow_type_name)
+        protocol_def = _protocol_for_function_type(
+            func_type, arrow_type_name, protocol_name
+        )
         result[func_type] = protocol_def
         mod.body.insert(insert_point, protocol_def)
         insert_point += 1
@@ -190,8 +182,8 @@ def type_abbrev_desugar(mod: ast.Module):
     gatherer = _GatherArrowType(mod)
     gatherer.run()
     if gatherer.func_types:
-        _add_import_for_protocol(mod)
-        _add_protocols(mod, gatherer.func_types)
+        protocol_name = add_import_for_protocol(mod)
+        _add_protocols(mod, gatherer.func_types, protocol_name)
     # Run optional question first, as it is represented as Tuple nodes.
     _OptionalQuestionTransformer(mod).run()
     _TupleListTransformer(mod).run()

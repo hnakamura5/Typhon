@@ -3,10 +3,10 @@ from ..Grammar.typhon_ast import (
     is_decl_assign,
     get_pos_attributes,
     is_let_assign,
-    add_import_alias_top,
 )
 from .visitor import TyphonASTTransformer, flat_append
 from .name_generator import get_final_name
+from .utils import add_import_for_final
 
 
 class ConstMemberToFinal(TyphonASTTransformer):
@@ -69,12 +69,8 @@ class ConstMemberToFinal(TyphonASTTransformer):
         return self._visit_Decl(node, target, node.annotation)
 
 
-def _add_import_for_final(mod: ast.Module):
-    add_import_alias_top(mod, "typing", "Final", get_final_name())
-
-
 def const_member_to_final(module: ast.Module):
     transformer = ConstMemberToFinal(module)
     transformer.run()
     if transformer.changed:
-        _add_import_for_final(module)
+        add_import_for_final(module)

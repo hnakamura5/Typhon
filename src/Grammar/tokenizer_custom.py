@@ -42,6 +42,9 @@ _combine_seq2_tokens: list[_CombineInfo] = [
     _C2((OP, "?"), (OP, "?"), OP, True),
     _C2((OP, "?"), (OP, "("), OP, True),
     _C2((OP, "?"), (OP, "["), OP, True),
+    # Record literal bracket.
+    _C2((OP, "{"), (OP, "|"), OP, True),
+    _C2((OP, "|"), (OP, "}"), OP, True),
 ]
 _combine_seq3_tokens: list[_CombineTriInfo] = [
     _C3((OP, "?"), (OP, "|"), (OP, ">"), OP, True),
