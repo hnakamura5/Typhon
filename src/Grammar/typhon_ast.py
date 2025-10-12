@@ -1495,11 +1495,13 @@ def clear_is_placeholder(node: ast.Name) -> None:
 
 
 _RECORD_LITERAL_FIELDS = "_typh_is_record_literal_fields"
+_RECORD_TYPE = "_typh_is_record_literal_type"
 type RecordLiteral = ast.Name
+type RecordType = ast.Name
 
 
 def set_record_literal_fields(
-    node: RecordLiteral, fields: list[tuple[ast.Name, ast.expr]]
+    node: RecordLiteral, fields: list[tuple[ast.Name, ast.expr | None, ast.expr]]
 ) -> ast.expr:
     setattr(node, _RECORD_LITERAL_FIELDS, fields)
     return node
@@ -1507,7 +1509,7 @@ def set_record_literal_fields(
 
 def get_record_literal_fields(
     node: RecordLiteral,
-) -> list[tuple[ast.Name, ast.expr]] | None:
+) -> list[tuple[ast.Name, ast.expr | None, ast.expr]] | None:
     return getattr(node, _RECORD_LITERAL_FIELDS, None)
 
 
@@ -1521,7 +1523,7 @@ def clear_record_literal_fields(node: RecordLiteral) -> None:
 
 
 def make_record_literal(
-    fields: list[tuple[ast.Name, ast.expr]],
+    fields: list[tuple[ast.Name, ast.expr | None, ast.expr]],
     **kwargs: Unpack[PosAttributes],
 ) -> RecordLiteral:
     result = ast.Name(
@@ -1529,6 +1531,40 @@ def make_record_literal(
         **kwargs,
     )
     set_record_literal_fields(result, fields)
+    return result
+
+
+def set_record_type_fields(
+    node: RecordType, fields: list[tuple[ast.Name, ast.expr]]
+) -> ast.expr:
+    setattr(node, _RECORD_TYPE, fields)
+    return node
+
+
+def get_record_type_fields(
+    node: RecordType,
+) -> list[tuple[ast.Name, ast.expr]] | None:
+    return getattr(node, _RECORD_TYPE, None)
+
+
+def is_record_type(node: RecordType) -> bool:
+    return getattr(node, _RECORD_TYPE, None) is not None
+
+
+def clear_record_type(node: RecordType) -> None:
+    if hasattr(node, _RECORD_TYPE):
+        delattr(node, _RECORD_TYPE)
+
+
+def make_record_type(
+    fields: list[tuple[ast.Name, ast.expr]],
+    **kwargs: Unpack[PosAttributes],
+) -> RecordType:
+    result = ast.Name(
+        id="__record_type",
+        **kwargs,
+    )
+    set_record_type_fields(result, fields)
     return result
 
 
@@ -1554,6 +1590,15 @@ def get_postfix_operator_temp_name(symbol: str) -> str:
 
 def add_import_alias_top(mod: ast.Module, from_module: str, name: str, as_name: str):
     # Duplicate import is NOT a problem, but better to avoid it for speed.
+    for stmt in mod.body:
+        if isinstance(stmt, ast.ImportFrom):
+            if stmt.module == from_module:
+                for alias in stmt.names:
+                    if alias.name == name and alias.asname == as_name:
+                        return
+        else:
+            break  # Only check the top sequence of import statements.
+    # Add import at the top.
     import_stmt = ast.ImportFrom(
         module=from_module,
         names=[

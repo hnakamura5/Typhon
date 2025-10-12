@@ -23,7 +23,7 @@ from .typhon_ast import (
     make_genexp, make_listcomp, make_setcomp, make_dictcomp,
     make_with_comp, make_try_comp, make_try_comp_except, make_match_comp,
     make_match_comp_case, make_while_comp, make_if_let_comp, make_while_let_comp,
-    make_record_literal,
+    make_record_literal, make_record_type,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory, Tokenizer
@@ -1290,7 +1290,7 @@ atom:
     | &'(' (function_literal | typing_arrow_type | tuple | group | comprehension_paren)
     | &'[' (list | listcomp)
     | &'{' (dict | set | dictcomp | setcomp)
-    | &'{|' record_literal
+    | &'{|'(record_type | record_literal)
     | '...' {
         ast.Constant(value=Ellipsis, LOCATIONS)
         if sys.version_info >= (3, 9) else
@@ -1376,11 +1376,17 @@ kvpair[tuple]: a=expression ':' b=expression { (a, b) }
 # Record
 # ------
 
-record_literal_field[Tuple[ast.Name, ast.expr]]:
-    | a=NAME '=' b=expression { (ast.Name(id=a.string, LOCATIONS), b) }
+record_literal_field[Tuple[ast.Name, ast.expr | None, ast.expr]]:
+    | a=NAME b=annotation? '=' c=expression { (ast.Name(id=a.string, LOCATIONS), b, c) }
 
 record_literal[ast.Name]:
-    | '{|' ~ fs=','.record_literal_field+ [','] '|}' { make_record_literal(fs, LOCATIONS) }
+    | '{|' fs=','.record_literal_field+ [','] '|}' { make_record_literal(fs, LOCATIONS) }
+
+record_type_field[Tuple[ast.Name, ast.expr]]:
+    | a=NAME b=annotation { (ast.Name(id=a.string, LOCATIONS), b) }
+
+record_type[ast.Name]:
+    | '{|' fs=','.record_type_field+ [','] '|}' { make_record_type(fs, LOCATIONS) }
 
 # Comprehensions & Generators
 # ---------------------------
