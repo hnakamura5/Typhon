@@ -809,8 +809,12 @@ class_pattern["ast.MatchClass"]:
      }
     | invalid_class_pattern
 
+keyword_or_name_pattern[tuple[str, ast.pattern | None]]:
+    | keyword_pattern
+    | a=NAME { (a.string, None) }
+
 record_pattern["ast.MatchClass"]:
-    | '{|' keywords=keyword_patterns ','? '|}' {
+    | '{|' keywords=','.keyword_or_name_pattern+ ','? '|}' {
         make_record_pattern(keywords=keywords, LOCATIONS)
      }
 

@@ -226,16 +226,42 @@ def test_record_pattern_if_let():
     assert_transform_equals(parsed, record_pattern_if_let_transformed)
 
 
-record_pattern_positional_error_code = """
+record_pattern_positional_code = """
 def f(r) {
     match (r) {
-        case ({|x|}) {
-            print(x)
+        case ({|x, y = a|}) {
+            print(x, a)
         }
     }
 }
 """
+record_pattern_positional_result = """
+def f(r):
+    match r:
+        case __record_pattern(x=x, y=a):
+            print(x, a)
+"""
+record_pattern_positional_transformed = """
+from typing import runtime_checkable as _typh_bi_runtime_checkable
+from typing import Protocol as _typh_bi_Protocol
+from typing import Final as _typh_bi_Final
+from dataclasses import dataclass as _typh_bi_dataclass
+
+@_typh_bi_runtime_checkable
+@_typh_bi_dataclass(frozen=True, repr=True, unsafe_hash=True, kw_only=True)
+class _typh_cl_f1_2_[_typh_tv_f1_0_x, _typh_tv_f1_1_y](_typh_bi_Protocol):
+    x: _typh_bi_Final[_typh_tv_f1_0_x]
+    y: _typh_bi_Final[_typh_tv_f1_1_y]
+
+def f(r):
+    match r:
+        case _typh_cl_f1_2_(x=x, y=a):
+            print(x, a)
+"""
 
 
-def test_record_pattern_positional_error():
-    assert_ast_error(record_pattern_positional_error_code, SyntaxError)
+def test_record_pattern_positional():
+    parsed = assert_ast_equals(
+        record_pattern_positional_code, record_pattern_positional_result
+    )
+    assert_transform_equals(parsed, record_pattern_positional_transformed)

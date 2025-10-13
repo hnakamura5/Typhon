@@ -1600,7 +1600,15 @@ def make_record_pattern(
     **kwargs: Unpack[PosAttributes],
 ) -> ast.MatchClass:
     kwd_attrs = [k for k, _ in keywords]
-    kwd_patterns = [p for _, p in keywords]
+    kwd_patterns = [
+        (
+            p
+            if p is not None
+            # Only name is given, capture by member name.
+            else ast.MatchAs(pattern=None, name=k, **pos_attribute_noneless(kwargs))
+        )
+        for k, p in keywords
+    ]
     cls_name = ast.Name(
         id="__record_pattern",
         **kwargs,
