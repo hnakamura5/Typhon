@@ -86,6 +86,13 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         self.declaration_context = None
 
     @contextmanager
+    def type_annotation_maybe_in_declaration(self, node: ast.AST):
+        current = self.declaration_context
+        self.declaration_context = None
+        yield
+        self.declaration_context = current
+
+    @contextmanager
     def non_declaration_assign(self):
         assert not self.non_declaration_assign_context, "Nested non-declaration assign?"
         self.non_declaration_assign_context = True
@@ -314,6 +321,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
 
     def visit_For_AsyncFor(self, node: ast.For | ast.AsyncFor):
         self.visit(node.iter)
+        self.visit_PossiblyAnnotatedNode(node)
         with self.scope():  # for initializer scope
             # Assuming target is a simple variable name for now
             self.visit_declaration(node.target, is_mutable=is_var(node))
@@ -335,6 +343,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         return node
 
     def visit_With_AsyncWith(self, node: ast.With | ast.AsyncWith):
+        self.visit_PossiblyAnnotatedNode(node)
         if is_inline_with(node):  # Once was inline_with
             # Declare in parent block scope.
             for item in node.items:
@@ -490,6 +499,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
 
     def visit_comprehension(self, node: ast.comprehension):
         self.visit(node.iter)
+        self.visit_PossiblyAnnotatedNode(node)
         # NO SCOPE HERE. Handled in _visit_Comp
         if node.target:
             self.visit_declaration(node.target, is_mutable=is_var(node))
@@ -665,7 +675,13 @@ class SymbolScopeVisitor(TyphonASTVisitor):
                 if not self.access_temporal_dead(node):
                     return self.error_tdz_violation(node)
             self.access_to_symbol(sym, is_mutation=self.non_declaration_assign_context)
-        return node
+        with self.type_annotation_maybe_in_declaration(node):
+            return self.generic_visit(node)
+
+    def visit_Starred(self, node: ast.Starred):
+        with self.type_annotation_maybe_in_declaration(node):
+            self.visit_PossiblyAnnotatedNode(node)
+        self.visit(node.value)
 
 
 def scope_check_rename(node: ast.Module):

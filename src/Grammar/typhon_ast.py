@@ -131,11 +131,22 @@ def copy_is_let_var(src: DeclarableStmt, dest: DeclarableStmt) -> None:
         _set_is_let(dest)
 
 
-def set_type_annotation(node: ast.AST, type_node: ast.expr | None) -> None:
+type PossibleAnnotatedNode = (
+    ast.Name | ast.withitem | ast.For | ast.AsyncFor | ast.comprehension | ast.Starred
+)
+
+
+def set_type_annotation(
+    node: PossibleAnnotatedNode, type_node: ast.expr | None
+) -> ast.AST:
+    print(
+        f"set_type_annotation: {ast.dump(node)} to {ast.dump(type_node) if type_node else 'None'}"
+    )  # [HN] For debug.
     setattr(node, _TYPE_ANNOTATION, type_node)
+    return node
 
 
-def get_type_annotation(node: ast.AST) -> ast.expr | None:
+def get_type_annotation(node: PossibleAnnotatedNode) -> ast.expr | None:
     return getattr(node, _TYPE_ANNOTATION, None)
 
 

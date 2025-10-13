@@ -84,6 +84,7 @@ class _StmtTypeAnnotationCheckExpand(TyphonASTTransformer):
         annotation = get_type_annotation(node)
         if annotation is None:
             return self.generic_visit(node)
+        clear_type_annotation(node)
         return [
             *_expand_target_annotation(
                 node.target, annotation, node, get_pos_attributes(node)
@@ -103,6 +104,7 @@ class _StmtTypeAnnotationCheckExpand(TyphonASTTransformer):
                     item.optional_vars, annotation, item, get_pos_attributes(node)
                 )
             )
+            clear_type_annotation(item)
         return [
             *annotation_assignments,
             self.generic_visit(node),
@@ -160,8 +162,95 @@ class _ComprehensionTypeAnnotationExpand(TyphonASTTransformer):
         return super().visit(node)
 
 
-def type_annotation_check_expand(tree: ast.Module):
-    _StmtTypeAnnotationCheckExpand(tree).run()
-    gather = _GatherComprehensionAnnotations(tree)
+class _SingleNameTypeAnnotationGather(TyphonASTVisitor):
+    single_name_annots: list[tuple[ast.stmt, ast.Name, ast.expr]]
+
+    def __init__(self, module: ast.Module):
+        super().__init__(module)
+        self.single_name_annots = []
+
+    def visit_Name(self, node: ast.Name):
+        annotation = get_type_annotation(node)
+        print(
+            "visit_Name:",
+            ast.dump(node),
+            "annot:",
+            ast.dump(annotation) if annotation else "None",
+        )  # [HN] For debug.
+        if annotation is not None:
+            parent_stmt = self.parent_stmts[-1]
+            self.single_name_annots.append((parent_stmt, node, annotation))
+            clear_type_annotation(node)
+        self.generic_visit(node)
+
+    def visit_Starred(self, node: ast.Starred):
+        annotation = get_type_annotation(node)
+        print(
+            "visit_Starred:",
+            ast.dump(node),
+            "annot:",
+            ast.dump(annotation) if annotation else "None",
+        )  # [HN] For debug.
+        if annotation is not None:
+            if isinstance(node.value, ast.Name):
+                self.single_name_annots.append(
+                    (self.parent_stmts[-1], node.value, annotation)
+                )
+                clear_type_annotation(node)
+        self.generic_visit(node)
+
+
+class _SingleNameTypeAnnotationExpand(TyphonASTTransformer):
+    # Expand type annotations of single name inside star target.
+    # For example,
+    #    let (x: int, y: int) = (1, 2)
+    # is expanded to
+    #    x: int
+    #    y: int
+    #    let x, y = 1, 2
+    def __init__(
+        self,
+        module: ast.Module,
+        parent_stmt_to_names: dict[ast.stmt, list[tuple[ast.Name, ast.expr]]],
+    ):
+        super().__init__(module)
+        self.parent_stmt_to_names = parent_stmt_to_names
+
+    def visit(self, node: ast.AST):
+        if isinstance(node, ast.stmt) and node in self.parent_stmt_to_names:
+            result: list[ast.AST] = []
+            for name, annotation in self.parent_stmt_to_names[node]:
+                if annotation is None:
+                    continue
+                pos = get_pos_attributes(name)
+                new_assign = ast.AnnAssign(
+                    target=ast.Name(id=name.id, ctx=ast.Store(), **pos),
+                    annotation=annotation,
+                    value=None,  # Type annotation only
+                    simple=1,
+                    **pos,
+                )
+                result.append(new_assign)
+            super_result = super().visit(node)
+            flat_append(result, super_result)
+            return result
+        return super().visit(node)
+
+
+def type_annotation_check_expand(module: ast.Module):
+    _StmtTypeAnnotationCheckExpand(module).run()
+    # Expand comprehension clause annotations.
+    gather = _GatherComprehensionAnnotations(module)
     gather.run()
-    _ComprehensionTypeAnnotationExpand(tree, gather.parent_to_clause_annotated).run()
+    if gather.parent_to_clause_annotated:
+        _ComprehensionTypeAnnotationExpand(
+            module, gather.parent_to_clause_annotated
+        ).run()
+    # Expand single name annotations inside star target.
+    single_name_gather = _SingleNameTypeAnnotationGather(module)
+    single_name_gather.run()
+    if single_name_gather.single_name_annots:
+        parent_stmt_to_names: dict[ast.stmt, list[tuple[ast.Name, ast.expr]]] = {}
+        for parent_stmt, name, annotation in single_name_gather.single_name_annots:
+            parent_stmt_to_names.setdefault(parent_stmt, []).append((name, annotation))
+        _SingleNameTypeAnnotationExpand(module, parent_stmt_to_names).run()

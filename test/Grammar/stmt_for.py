@@ -71,3 +71,23 @@ def test_stmt_for_unpack():
     parsed = assert_ast_equals(code_for_unpack, result_for_unpack)
     for_stmt = assert_ast_type(parsed.body[0], ast.For)
     assert is_let(for_stmt)
+
+
+code_for_unpack_annot = """
+for (let (a:int, b):(int, float) in [(1, 1.0), (2, 2.0)]) {
+    print(a);
+    print(b);
+}
+"""
+result_for_unpack_annot = """
+_typh_cn_m0_0_a: int
+_typh_cn_m0_0_a: int
+_typh_cn_m0_1_b: float
+for _typh_cn_m0_0_a, _typh_cn_m0_1_b in [(1, 1.0), (2, 2.0)]:
+    print(_typh_cn_m0_0_a)
+    print(_typh_cn_m0_1_b)
+"""
+
+
+def test_stmt_for_unpack_annot():
+    assert_ast_transform(code_for_unpack_annot, result_for_unpack_annot)

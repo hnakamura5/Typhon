@@ -12,6 +12,8 @@ from ..Grammar.typhon_ast import (
     is_control_comprehension,
     get_control_comprehension_def,
     set_control_comprehension_def,
+    get_type_annotation,
+    set_type_annotation,
 )
 from .name_generator import UniqueNameGenerator, PythonScope, NameKind
 
@@ -222,6 +224,19 @@ class _TyphonExtendedNodeTransformerMixin:
                 set_control_comprehension_def(node, new_def)
         return node
 
+    def _visit_Possibly_Annotated_Node(
+        self,
+        node: ast.AST,
+        visitor: ast.NodeVisitor | ast.NodeTransformer,
+        transform: bool,
+    ):
+        type_annotation = get_type_annotation(node)
+        if type_annotation is not None:
+            new_annotation = visitor.visit(type_annotation)
+            if transform:
+                set_type_annotation(node, new_annotation)
+        return node
+
     def _visit(
         self,
         node: ast.AST,
@@ -255,6 +270,9 @@ class TyphonASTVisitor(
     def run(self):
         self.visit(self.module)
 
+    def visit_PossiblyAnnotatedNode(self, node: ast.AST):
+        self._visit_Possibly_Annotated_Node(node, self, False)
+
     @override
     def visit(self, node: ast.AST):
         with self._visit_scope(node):
@@ -262,6 +280,7 @@ class TyphonASTVisitor(
 
     @override
     def generic_visit(self, node: ast.AST):
+        # visit() calls _visit() but generic_visit() does not. So we need to dispatch here too.
         if isinstance(node, ast.Name):
             if is_function_literal(node):
                 return self._visit_FunctionLiteral(node, self, False)
@@ -269,6 +288,7 @@ class TyphonASTVisitor(
                 return self._visit_FunctionType(node, self, False)
             elif is_control_comprehension(node):
                 return self._visit_ControlComprehension(node, self, False)
+        self.visit_PossiblyAnnotatedNode(node)
         return super().generic_visit(node)
 
 
@@ -284,6 +304,9 @@ class TyphonASTTransformer(
     def run(self):
         return self.visit(self.module)
 
+    def visit_PossiblyAnnotatedNode(self, node: ast.AST):
+        self._visit_Possibly_Annotated_Node(node, self, True)
+
     @override
     def visit(self, node: ast.AST) -> ast.AST | list[ast.AST] | None:
         with self._visit_scope(node):
@@ -298,4 +321,5 @@ class TyphonASTTransformer(
                 return self._visit_FunctionType(node, self, True)
             elif is_control_comprehension(node):
                 return self._visit_ControlComprehension(node, self, True)
+        self.visit_PossiblyAnnotatedNode(node)
         return super().generic_visit(node)

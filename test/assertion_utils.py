@@ -41,7 +41,7 @@ def assert_transform_equals(typhon_ast: ast.Module, python_code: str):
 
 
 def assert_ast_transform(typhon_code: str, python_code: str):
-    parsed = parse_string(typhon_code, mode="exec")
+    parsed = parse_string(typhon_code, mode="exec", verbose=PARSER_VERBOSE)
     assert isinstance(parsed, ast.Module)
     transform(parsed)
     print(f"Transform result:\n{ast.unparse(parsed)}")
