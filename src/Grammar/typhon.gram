@@ -1077,7 +1077,7 @@ named_expression:
     | a=expression !':=' { a }
 
 pipe_operator (memo):
-    | a=coalescing op_b=(op=['|>'|'?|>'] c=coalescing { (op.string == '?|>', c) })+ {
+    | a=coalescing op_b=(op=('|>'|'?|>') c=coalescing { (op.string == '?|>', c) })+ {
         make_pipe_call(a, op_b, LOCATIONS)
      }
     | coalescing
@@ -1322,7 +1322,7 @@ fstring_replacement_field:
         ast.FormattedValue(
             value=a,
             conversion=(
-                conversion.decode()[0]
+                conversion.string.encode()[0]
                 if conversion else
                 (b'r'[0] if debug_expr else -1)
             ),

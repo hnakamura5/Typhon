@@ -264,6 +264,14 @@ class Tokenizer(PegenTokenizer):
             return combined2
         return None
 
+    def _postfix_operator_next_guard(self, tok: TokenInfo) -> bool:
+        if tok.string == "!":
+            second = self._peek_forward(1)
+            if second.type == NAME and _is_unified(tok, second):
+                # This is conversion inside f-string
+                return False
+        return True
+
     @override
     def peek(self) -> tokenize.TokenInfo:
         """Return the next token *without* updating the index."""
@@ -283,6 +291,7 @@ class Tokenizer(PegenTokenizer):
                 continue
             if (
                 is_possible_postfix_operator(tok)
+                and self._postfix_operator_next_guard(tok)
                 and self._tokens
                 and _is_unified(self._tokens[-1], tok)
             ):

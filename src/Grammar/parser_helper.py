@@ -225,7 +225,7 @@ class Parser(PegenParser):
     def check_fstring_conversion(
         self, mark: tokenize.TokenInfo, name: tokenize.TokenInfo
     ) -> tokenize.TokenInfo:
-        if mark.lineno != name.lineno or mark.col_offset != name.col_offset:
+        if mark.end != name.start:
             self.raise_syntax_error_known_range(
                 "f-string: conversion type must come right after the exclamanation mark",
                 mark,
@@ -238,7 +238,6 @@ class Parser(PegenParser):
                 f"f-string: invalid conversion character '{s}': expected 's', 'r', or 'a'",
                 name,
             )
-
         return name
 
     def _concat_strings_in_constant(self, parts) -> ast.Constant:
