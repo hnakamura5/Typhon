@@ -23,7 +23,7 @@ from .typhon_ast import (
     make_genexp, make_listcomp, make_setcomp, make_dictcomp,
     make_with_comp, make_try_comp, make_try_comp_except, make_match_comp,
     make_match_comp_case, make_while_comp, make_if_let_comp, make_while_let_comp,
-    make_record_literal, make_record_type,
+    make_record_literal, make_record_type, make_record_pattern,
 )
 from .parser_helper import Parser, Load, Store, Del
 from .tokenizer_custom import token_stream_factory, Tokenizer
@@ -633,6 +633,7 @@ closed_pattern:
     | sequence_pattern
     | mapping_pattern
     | class_pattern
+    | record_pattern
 
 # Literal patterns are used for equality and identity constraints
 literal_pattern:
@@ -807,6 +808,11 @@ class_pattern["ast.MatchClass"]:
         )
      }
     | invalid_class_pattern
+
+record_pattern["ast.MatchClass"]:
+    | '{|' keywords=keyword_patterns ','? '|}' {
+        make_record_pattern(keywords=keywords, LOCATIONS)
+     }
 
 positional_patterns:
     | args=','.positional_pattern+ { args }

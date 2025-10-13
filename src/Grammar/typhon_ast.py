@@ -1496,8 +1496,10 @@ def clear_is_placeholder(node: ast.Name) -> None:
 
 _RECORD_LITERAL_FIELDS = "_typh_is_record_literal_fields"
 _RECORD_TYPE = "_typh_is_record_literal_type"
+_RECORD_PATTERN = "_typh_is_record_pattern"
 type RecordLiteral = ast.Name
 type RecordType = ast.Name
+type RecordPatternClass = ast.Name
 
 
 def set_record_literal_fields(
@@ -1566,6 +1568,40 @@ def make_record_type(
     )
     set_record_type_fields(result, fields)
     return result
+
+
+def set_is_record_pattern(node: ast.Name, is_record_pattern: bool) -> ast.expr:
+    setattr(node, _RECORD_PATTERN, is_record_pattern)
+    return node
+
+
+def is_record_pattern(node: ast.Name) -> bool:
+    return getattr(node, _RECORD_PATTERN, None) is not None
+
+
+def clear_is_record_pattern(node: ast.Name) -> None:
+    if hasattr(node, _RECORD_PATTERN):
+        delattr(node, _RECORD_PATTERN)
+
+
+def make_record_pattern(
+    keywords: list[tuple[str, ast.pattern]],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.MatchClass:
+    kwd_attrs = [k for k, _ in keywords]
+    kwd_patterns = [p for _, p in keywords]
+    cls_name = ast.Name(
+        id="__record_pattern",
+        **kwargs,
+    )
+    set_is_record_pattern(cls_name, True)
+    return ast.MatchClass(
+        cls=cls_name,
+        patterns=[],
+        kwd_attrs=kwd_attrs,
+        kwd_patterns=kwd_patterns,
+        **pos_attribute_noneless(kwargs),
+    )
 
 
 def if_comp_exp(

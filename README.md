@@ -74,7 +74,7 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
   - `(with (let f = open("file.txt")) f.read())`.
   - `(match (f()) case(x, 0) x case(x, y) x + y)`. The default case is optional, results `None` on abbreviation.
 
-- Data record literal `{|x = 1, y = "2"|}` which is translated into anonymous dataclass. The type is data record type `{|x: int, y: str|}` which is Protocol of dataclass. Attribute access `val.x` , unpacking by `{|x, y|}` or patten matching by specific pattern `{|x = a, y = b|}` is supported. (TODO)
+- Data record literal `{|x = 1, y = "2"|}` which is translated into anonymous immutable dataclass. The type is data record type `{|x: int, y: str|}` which is Protocol of immutable dataclass. Attribute access `val.x` , unpacking by `{|x, y|}` or patten matching by specific pattern `{|x = a, y = b|}` is supported.
 
 ### Detail design changes
 
