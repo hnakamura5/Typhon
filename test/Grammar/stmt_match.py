@@ -1,4 +1,8 @@
-from ..assertion_utils import assert_ast_equals, assert_ast_error
+from ..assertion_utils import (
+    assert_ast_equals,
+    assert_ast_error,
+    assert_transform_equals,
+)
 
 match_code = """
 match (x) {
@@ -179,3 +183,88 @@ def test_stmt_match_class_keyword_pattern():
     assert_ast_equals(
         match_class_keyword_pattern_code, match_class_keyword_pattern_result
     )
+
+
+match_annot_code = """
+def func(x: (int, str)) -> int {
+    match (x) {
+        case (a: int, b: str) {
+            return a + len(b)
+        }
+        case (a: str) {
+            return a
+        }
+    }
+    return 0
+}
+"""
+match_annot_result = """
+def func(x: (int, str)) -> int:
+    match x:
+        case [a, b]:
+            return a + len(b)
+        case a:
+            return a
+    return 0
+"""
+match_annot_transformed = """
+def func(x: tuple[int, str]) -> int:
+    _typh_cn_f1_0_a: int
+    _typh_cn_f1_1_b: str
+    _typh_cn_f1_2_a: str
+    match x:
+        case [_typh_cn_f1_0_a, _typh_cn_f1_1_b]:
+            return _typh_cn_f1_0_a + len(_typh_cn_f1_1_b)
+        case _typh_cn_f1_2_a:
+            return _typh_cn_f1_2_a
+    return 0
+"""
+
+
+def test_stmt_match_annot():
+    parsed = assert_ast_equals(match_annot_code, match_annot_result)
+    assert_transform_equals(parsed, match_annot_transformed)
+
+
+match_sequence_annot_code = """
+def func(x: [int]) -> int {
+    match (x) {
+        case ([a: int, b: int]) {
+            return a + b
+        }
+        case ([a: int, b: int, c: int, *rest: [int]]) {
+            return a + b + c + sum(rest)
+        }
+    }
+    return 0
+}
+"""
+match_sequence_annot_result = """
+def func(x: [int]) -> int:
+    match x:
+        case [a, b]:
+            return a + b
+        case [a, b, c, *rest]:
+            return a + b + c + sum(rest)
+    return 0
+"""
+match_sequence_annot_transformed = """
+def func(x: list[int]) -> int:
+    _typh_cn_f1_0_a: int
+    _typh_cn_f1_1_b: int
+    _typh_cn_f1_2_a: int
+    _typh_cn_f1_3_b: int
+    _typh_cn_f1_4_c: int
+    _typh_cn_f1_5_rest: list[int]
+    match x:
+        case [_typh_cn_f1_0_a, _typh_cn_f1_1_b]:
+            return _typh_cn_f1_0_a + _typh_cn_f1_1_b
+        case [_typh_cn_f1_2_a, _typh_cn_f1_3_b, _typh_cn_f1_4_c, *_typh_cn_f1_5_rest]:
+            return _typh_cn_f1_2_a + _typh_cn_f1_3_b + _typh_cn_f1_4_c + sum(_typh_cn_f1_5_rest)
+    return 0
+"""
+
+
+def test_stmt_match_sequence_annot():
+    parsed = assert_ast_equals(match_sequence_annot_code, match_sequence_annot_result)
+    assert_transform_equals(parsed, match_sequence_annot_transformed)

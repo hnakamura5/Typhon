@@ -28,6 +28,7 @@ def assert_ast_equals(typhon_code: str, python_code: str) -> ast.Module:
     show_token(typhon_code)
     parsed = parse_string(typhon_code, mode="exec", verbose=PARSER_VERBOSE)
     assert isinstance(parsed, ast.Module)
+    print(ast.dump(parsed))
     print(ast.unparse(parsed))
     assert ast.unparse(parsed) == python_code.strip()
     return parsed

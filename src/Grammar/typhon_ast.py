@@ -2,6 +2,7 @@
 
 import ast
 from typing import Union, Unpack, TypedDict, Tuple, cast
+from copy import copy
 
 
 class PosAttributes(TypedDict):
@@ -132,7 +133,13 @@ def copy_is_let_var(src: DeclarableStmt, dest: DeclarableStmt) -> None:
 
 
 type PossibleAnnotatedNode = (
-    ast.Name | ast.withitem | ast.For | ast.AsyncFor | ast.comprehension | ast.Starred
+    ast.Name
+    | ast.withitem
+    | ast.For
+    | ast.AsyncFor
+    | ast.comprehension
+    | ast.Starred
+    | ast.pattern
 )
 
 
@@ -170,8 +177,10 @@ def clear_is_multi_decl(node: ast.AST) -> None:
 
 
 def set_is_typing_expression(node: ast.expr, is_typing: bool = True) -> ast.expr:
-    setattr(node, _IS_TYPING_EXPRESSION, is_typing)
-    return node
+    result = copy(node)  # To avoid chached node is contaminated.
+    setattr(result, _IS_TYPING_EXPRESSION, is_typing)
+    print(f"set_is_typing_expression: {ast.dump(result)}")  # [HN] For debug.
+    return result
 
 
 def is_typing_expression(node: ast.expr) -> bool:

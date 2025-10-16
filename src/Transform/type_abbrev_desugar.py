@@ -167,6 +167,7 @@ class _TupleListTransformer(TyphonASTTransformer):
         pos = get_pos_attributes(node)
         print(f"Desugaring List to list[]: {ast.dump(node)}")
         if len(node.elts) != 1:
+            print(f"Error in List type annotation: {ast.dump(node)}, {node}")
             raise_type_annotation_error(
                 "List type annotation must have exactly one element type.", **pos
             )

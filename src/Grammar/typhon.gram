@@ -211,6 +211,7 @@ declaration_assignment:
         list(map(lambda a1: assign_as_declaration(d.string, a1, len(a) > 1, LOCATIONS), a))
      }
 
+# let-else / var-else
 declaration_else:
     | d=decl_keyword pat_sub=','.pattern_assignment+ NEWLINE* 'else' b=block {
         make_if_let(pattern_subjects=pat_sub, cond=None, body=[], orelse=b, is_let_else=True, LOCATIONS)
@@ -614,8 +615,8 @@ pattern:
     | or_pattern
 
 as_pattern["ast.MatchAs"]:
-    | pattern=or_pattern 'as' target=pattern_capture_target {
-        ast.MatchAs(pattern=pattern, name=target, LOCATIONS)
+    | pattern=or_pattern 'as' target=pattern_capture_target_annot {
+        set_type_annotation(ast.MatchAs(pattern=pattern, name=target[0], LOCATIONS), target[1])
      }
     | invalid_as_pattern
 
@@ -688,8 +689,8 @@ imaginary_number[ast.Constant]:
     | imag=NUMBER { ast.Constant(value=self.ensure_imaginary(imag), LOCATIONS) }
 
 capture_pattern:
-    | target=pattern_capture_target {
-        ast.MatchAs(pattern=None, name=target, LOCATIONS)
+    | target=pattern_capture_target_annot {
+        set_type_annotation(ast.MatchAs(pattern=None, name=target[0], LOCATIONS), target[1])
      }
 
 # Allow '=' after name for if-net statement
@@ -697,6 +698,9 @@ capture_pattern:
 #     | !"_" name=NAME !('.' | '(' | '=') { name.string }
 pattern_capture_target[str]:
     | !"_" name=NAME !('.' | '(') { name.string }
+
+pattern_capture_target_annot[tuple[str, ast.expr | None]]:
+    | !"_" name=NAME a=annotation? !('.' | '(') { (name.string, a) }
 
 wildcard_pattern["ast.MatchAs"]:
     | "_" { ast.MatchAs(pattern=None, name=None, LOCATIONS) }
@@ -739,7 +743,9 @@ maybe_star_pattern:
     | pattern
 
 star_pattern:
-    | '*' target=pattern_capture_target { ast.MatchStar(name=target, LOCATIONS) }
+    | '*' target=pattern_capture_target_annot {
+        set_type_annotation(ast.MatchStar(name=target[0], LOCATIONS), target[1])
+     }
     | '*' wildcard_pattern { ast.MatchStar(target=None, LOCATIONS) }
 
 mapping_pattern:
@@ -818,22 +824,24 @@ record_pattern["ast.MatchClass"]:
         make_record_pattern(keywords=keywords, LOCATIONS)
      }
 
+# positional pattern is used only in class pattern.
 positional_patterns:
     | args=','.positional_pattern+ { args }
 
-# In positional patterns, we does not allow '=' after NAME in
-# positional_pattern_capture_target and  positional_value_pattern
-# in order to prefix ambiguity in the boundary between positional and keyword patterns.
+# In positional patterns, Typhon does not allow '=' after NAME in
+# positional_pattern_capture_target and positional_value_pattern
+# in order to avoid prefix ambiguity in the boundary between
+# positional and keyword patterns.
 # This is same as the behavior of normal pattern in original Python's sytanx.
-# But in typhon we use pattern to be the RHS of if-let statement, where
+# But in Typhon we use pattern to be the RHS of if-let statement, where
 # '=' comes after NAME necessarily.
 positional_pattern:
     | positional_as_pattern
     | positional_or_pattern
 
 positional_as_pattern["ast.MatchAs"]:
-    | pattern=positional_or_pattern 'as' target=positional_pattern_capture_target {
-        ast.MatchAs(pattern=pattern, name=target, LOCATIONS)
+    | pattern=positional_or_pattern 'as' target=positional_pattern_capture_target_annot {
+        set_type_annotation(ast.MatchAs(pattern=pattern, name=target[0], LOCATIONS), target[1])
      }
     | invalid_as_pattern
 
@@ -845,9 +853,12 @@ positional_or_pattern["ast.MatchOr"]:
 positional_pattern_capture_target[str]:
     | !"_" name=NAME !('.' | '(' | '=') { name.string }
 
+positional_pattern_capture_target_annot[tuple[str, ast.expr | None]]:
+    | !"_" name=NAME a=annotation? !('.' | '(' | '=') { (name.string, a) }
+
 positional_capture_pattern:
-    | target=positional_pattern_capture_target {
-        ast.MatchAs(pattern=None, name=target, LOCATIONS)
+    | target=positional_pattern_capture_target_annot {
+        set_type_annotation(ast.MatchAs(pattern=None, name=target[0], LOCATIONS), target[1])
      }
 
 positional_value_pattern["ast.MatchValue"]:
@@ -950,7 +961,7 @@ typing_star_expression (memo):
     | '*' a=bitwise_or { ast.Starred(value=a, ctx=Load, LOCATIONS) }
     | typing_expression
 
-typing_expression:
+typing_expression (memo):
     | t=typing_expression_impl { set_is_typing_expression(t) }
 
 typing_expression_impl (memo):

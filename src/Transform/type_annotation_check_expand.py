@@ -199,6 +199,34 @@ class _SingleNameTypeAnnotationGather(TyphonASTVisitor):
                 clear_type_annotation(node)
         self.generic_visit(node)
 
+    def visit_PossiblyAnnotatedPattern(self, node: ast.MatchAs | ast.MatchStar):
+        annotation = get_type_annotation(node)
+        print(
+            "visit_PossiblyAnnotatedPattern:",
+            ast.dump(node),
+            "annot:",
+            ast.dump(annotation) if annotation else "None",
+        )  # [HN] For debug.
+        if annotation is not None:
+            if node.name is not None:
+                self.single_name_annots.append(
+                    (
+                        self.parent_stmts[-1],
+                        ast.Name(
+                            id=node.name, ctx=ast.Store(), **get_pos_attributes(node)
+                        ),
+                        annotation,
+                    )
+                )
+            clear_type_annotation(node)
+        self.generic_visit(node)
+
+    def visit_MatchAs(self, node: ast.MatchAs):
+        self.visit_PossiblyAnnotatedPattern(node)
+
+    def visit_MatchStar(self, node: ast.MatchStar):
+        self.visit_PossiblyAnnotatedPattern(node)
+
 
 class _SingleNameTypeAnnotationExpand(TyphonASTTransformer):
     # Expand type annotations of single name inside star target.

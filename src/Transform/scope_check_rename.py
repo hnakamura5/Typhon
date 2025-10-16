@@ -11,6 +11,7 @@ from ..Grammar.typhon_ast import (
     get_empty_pos_attributes,
     is_inline_with,
     set_is_placeholder,
+    get_type_annotation,
 )
 from ..Grammar.syntax_errors import raise_scope_error
 from .visitor import TyphonASTVisitor, PythonScope
@@ -29,6 +30,7 @@ class SymbolDeclaration:
 class DeclarationContext:
     node: ast.AST
     is_mutable: bool
+    is_force_rename: bool  # Force rename all variables in this declaration
 
 
 @dataclass
@@ -58,6 +60,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         self.require_global = {}
         self.require_nonlocal = {}
         self.builtins = set(dir(builtins))
+        self.force_rename_target = set()
 
     def _enter_scope(self):
         self.scopes.append({})
@@ -79,9 +82,11 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             self._exit_scope()
 
     @contextmanager
-    def declaration(self, node: ast.AST, is_mutable: bool):
+    def declaration(self, node: ast.AST, is_mutable: bool, is_force_rename: bool):
         assert self.declaration_context is None, "Left hand side in left hand side?"
-        self.declaration_context = DeclarationContext(node=node, is_mutable=is_mutable)
+        self.declaration_context = DeclarationContext(
+            node=node, is_mutable=is_mutable, is_force_rename=is_force_rename
+        )
         yield
         self.declaration_context = None
 
@@ -114,6 +119,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         name: str,
         is_mutable: bool,
         pos: PosAttributes,
+        is_force_rename: bool = False,
         add_to_parent_python_scope: bool = False,  # For function/class name
         rename_on_demand_to_kind: NameKind | None = None,  # Rename if needed
     ) -> SymbolDeclaration:
@@ -140,8 +146,10 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         in_scope_non_python_top_level = len(self.scopes) > 1
         # Rename if required
         if rename_on_demand_to_kind is not None:
-            if self.is_shadowed(name, python_scope_to_add) or (
-                is_top_level and in_scope_non_python_top_level
+            if (
+                self.is_shadowed(name, python_scope_to_add)
+                or (is_top_level and in_scope_non_python_top_level)
+                or is_force_rename
             ):
                 new_name = self.new_name(rename_on_demand_to_kind, name)
                 dec.renamed_to = new_name
@@ -193,8 +201,12 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         )
         return name
 
-    def visit_declaration(self, node: ast.AST, is_mutable: bool):
-        with self.declaration(node, is_mutable=is_mutable):
+    def visit_declaration(
+        self, node: ast.AST, is_mutable: bool, is_force_rename: bool = False
+    ):
+        with self.declaration(
+            node, is_mutable=is_mutable, is_force_rename=is_force_rename
+        ):
             self.visit(node)
         return node
 
@@ -416,6 +428,8 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             self.visit_declaration(
                 name,
                 is_mutable=False,
+                # Force rename to avoid conflict to other patterns when type annotations is specified, because they are expanded in the same scope.
+                is_force_rename=get_type_annotation(node) is not None,
             )
             node.name = name.id
         return node
@@ -426,6 +440,8 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             self.visit_declaration(
                 name,
                 is_mutable=False,
+                # Force rename to avoid conflict to other patterns when type annotations is specified, because they are expanded in the same scope.j
+                is_force_rename=get_type_annotation(node) is not None,
             )
             node.name = name.id
         return node
@@ -640,6 +656,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
                 node.id,
                 is_mutable=self.declaration_context.is_mutable,
                 pos=get_pos_attributes(node),
+                is_force_rename=self.declaration_context.is_force_rename,
                 rename_on_demand_to_kind=(
                     NameKind.VARIABLE
                     if self.declaration_context.is_mutable
