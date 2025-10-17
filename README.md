@@ -21,7 +21,11 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
 ### Syntax Extension
 
 - Type annotations extension
-  The place we can write type annotations is expanded beyond the limit of Python [PEP 526](https://peps.python.org/pep-0526/#specification).
+  Type annotation can be written for symbol declared in `for`, `with`, and `case` capture patterns.
+  - `for (let x: int in range(10)) {...}`
+  - `with (let f: TextIO = open("file.txt")) {...}`
+  - `match(v) {case(x:int, y:int){...}}`
+    Note type annotation does NOT affect to matching, it annotates the result of matching and checked at compile time.
 
 - `(int, str)` for tuple type, `[int]` for list type. These must be used in unpack assignment annotation. Note this is valid only for typing context.
 
@@ -133,12 +137,54 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
 
 - Note all the forbidden keywords are still reserved.
 
-## Bundled Libraries
+## Bundled Libraries (TDOO)
 
 TBD
 
 - `typhon.traceback` is drop in replacement for builtin `traceback` to provide traceback display in Typhon's syntax.
 
+## Compile time control (TODO)
+
+TBD
+
+Typhon is planning to support `static if` / `static assert` controls compile time code condition. They take compile time boolean condition.
+
+This is intended for debugging / testing / versioning / transportation.
+NOT for metaprogramming nor optimization.
+
+### Compile time control statements
+
+TBD
+
+```typhon
+static if (<compile time boolean>) {
+  ...
+}
+```
+
+`static if` does not introduce lexical scope. This can be used to select code to compile by option, version or so on.
+
+```typhon
+static assert(<compile time boolean>)
+```
+
+This causes compile error there when assertion failed.
+
+### Compile time boolean
+
+TBD
+
+- `True` and `False`, the constant.
+- Logical operators.
+- `VERSION >= 3.13`, underlying version condition. General form is `(VERSION | MAJOR_VERSION | MINOR_VERSION | MICRO_VERSION) <cmp op> <numeric constant>`.
+- `"ast_debug" in DEBUG_FLAGS` debug flag passed to compiler. General form is  `<string constant> in DEBUG_FLAGS`. The option name is not determined yet.
+
+Version condition and debug flag are only available in `static if` / `static assert`.
+
+
+### Compile time value / symbol embedding
+
+TBD
 
 ## Influenced by
 
