@@ -2,7 +2,10 @@ from ..assertion_utils import (
     assert_ast_equals,
     assert_ast_transform,
 )
-from ...src.Transform.name_generator import get_unwrap_name, get_unwrap_error_name
+from ...src.Typhon.Transform.name_generator import (
+    get_unwrap_name,
+    get_unwrap_error_name,
+)
 
 postfix_op_code = """
 let a: int? = None;

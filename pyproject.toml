@@ -1,7 +1,7 @@
 [project]
-name = "uv-pegen-example"
+name = "Typhon"
 version = "0.1.0"
-description = "Add your description here"
+description = "Typhon programming language"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

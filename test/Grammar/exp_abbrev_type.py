@@ -3,7 +3,7 @@ from ..assertion_utils import (
     assert_transform_equals,
     assert_transform_error,
 )
-from ...src.Grammar.syntax_errors import TypeAnnotationError
+from ...src.Typhon.Grammar.syntax_errors import TypeAnnotationError
 
 
 tuple_type_code = """

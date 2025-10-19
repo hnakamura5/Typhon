@@ -4,7 +4,7 @@ from ..assertion_utils import (
     assert_transform_equals,
 )
 import ast
-from ...src.Grammar.typhon_ast import is_var, is_let
+from ...src.Typhon.Grammar.typhon_ast import is_var, is_let
 
 
 code_with = """

@@ -9,7 +9,7 @@ def invoke_main():
         [
             sys.executable,
             "-m",
-            "src.main",
+            "src.Typhon.main",
         ]
         + sys.argv[1:],
     )

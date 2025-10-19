@@ -3,12 +3,12 @@ from ..assertion_utils import (
     assert_ast_transform,
     assert_transform_error,
 )
-from ...src.Grammar.typhon_ast import (
+from ...src.Typhon.Grammar.typhon_ast import (
     is_var_assign,
     is_let_assign,
     is_decl_assign,
 )
-from ...src.Grammar.syntax_errors import TypeAnnotationError
+from ...src.Typhon.Grammar.syntax_errors import TypeAnnotationError
 import ast
 
 

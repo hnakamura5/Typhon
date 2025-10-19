@@ -4,7 +4,7 @@ from ..assertion_utils import (
     TokenizerAsserter,
     assert_ast_transform,
 )
-from ...src.Grammar.typhon_ast import (
+from ...src.Typhon.Grammar.typhon_ast import (
     OPTIONAL_QUESTION,
 )
 from tokenize import NAME, OP, NEWLINE, ENDMARKER, NUMBER
