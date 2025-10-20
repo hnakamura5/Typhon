@@ -1,5 +1,7 @@
 import sys
 import subprocess
+import os
+from .util import get_project_root
 
 
 def build_grammar():
@@ -8,9 +10,9 @@ def build_grammar():
             sys.executable,
             "-m",
             "pegen",
-            "src/Typhon/Grammar/typhon.gram",
+            f"{get_project_root()}/src/Typhon/Grammar/typhon.gram",
             "-o",
-            "src/Typhon/Grammar/parser.py",
+            f"{get_project_root()}/src/Typhon/Grammar/parser.py",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -24,7 +26,7 @@ def build_grammar():
             "-m",
             "ruff",
             "format",
-            "src/Typhon/Grammar/parser.py",
+            f"{get_project_root()}/src/Typhon/Grammar/parser.py",
         ],
         check=True,
         stdout=subprocess.PIPE,
@@ -50,5 +52,24 @@ def type_check(source_file: str) -> bool:
     return True
 
 
+def clean_grammar():
+    os.remove(f"{get_project_root()}/src/Typhon/Grammar/parser.py")
+
+
+def package_build():
+    output = subprocess.run(
+        [
+            "uv",
+            "build",
+        ],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    print(output.stdout.decode())
+    print(output.stderr.decode())
+
+
 if __name__ == "__main__":
     build_grammar()
+    package_build()
