@@ -16,6 +16,7 @@ from ..Grammar.typhon_ast import (
 from ..Grammar.syntax_errors import raise_scope_error
 from .visitor import TyphonASTVisitor, PythonScope
 from .name_generator import NameKind
+from ..Driver.debugging import debug_print
 
 
 @dataclass
@@ -137,7 +138,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         current_scope[name] = dec
         self.symbols.setdefault(name, []).append(dec)
         if name not in self.builtins:
-            print(
+            debug_print(
                 f"Declared variable '{name}' (mutable={is_mutable}) scope_level={len(self.parent_python_scopes)} add_to_parent_python_scope={add_to_parent_python_scope}"
             )  # [HN]
         is_top_level = self.now_is_top_level(ignore_current=add_to_parent_python_scope)
@@ -153,7 +154,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             ):
                 new_name = self.new_name(rename_on_demand_to_kind, name)
                 dec.renamed_to = new_name
-                print(f"Renamed variable '{dec.name}' to '{new_name}'")
+                debug_print(f"Renamed variable '{dec.name}' to '{new_name}'")
         return dec
 
     def error_reference_undeclared(self, name: ast.Name) -> ast.Name:
@@ -590,7 +591,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
     def resolve_suspended_resolves(self, name: str):
         if name in self.builtins:
             return
-        print(f"Resolving suspended accesses to '{name}'")  # [HN] Debug
+        debug_print(f"Resolving suspended accesses to '{name}'")  # [HN] Debug
         if name not in self.suspended_symbols:
             return
         self.suspended_symbols.remove(name)
@@ -685,10 +686,10 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             # Rename variable if necessary
             if sym.renamed_to:
                 node.id = sym.renamed_to
-                print(f"Renamed variable '{sym.name}' to '{sym.renamed_to}'")
+                debug_print(f"Renamed variable '{sym.name}' to '{sym.renamed_to}'")
             if self.is_temporal_dead(node.id):
                 # Accessing to a temporally dead variable
-                print(f"Temporal dead access to '{node.id}'")  # [HN] Debug
+                debug_print(f"Temporal dead access to '{node.id}'")  # [HN] Debug
                 if not self.access_temporal_dead(node):
                     return self.error_tdz_violation(node)
             self.access_to_symbol(sym, is_mutation=self.non_declaration_assign_context)

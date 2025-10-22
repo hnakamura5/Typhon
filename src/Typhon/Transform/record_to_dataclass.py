@@ -463,4 +463,3 @@ def record_to_dataclass(module: ast.Module):
         class_for_record_pattern,
         info_for_record_pattern,
     ).run()
-    print(f"dump module after record_to_dataclass: {ast.dump(module)}")

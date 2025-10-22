@@ -12,6 +12,7 @@ from ..Grammar.typhon_ast import (
 )
 from ..Grammar.syntax_errors import raise_type_annotation_error
 from .visitor import TyphonASTTransformer, TyphonASTVisitor, flat_append
+from ..Driver.debugging import debug_print
 
 
 def _expand_target_annotation(
@@ -171,7 +172,7 @@ class _SingleNameTypeAnnotationGather(TyphonASTVisitor):
 
     def visit_Name(self, node: ast.Name):
         annotation = get_type_annotation(node)
-        print(
+        debug_print(
             "visit_Name:",
             ast.dump(node),
             "annot:",
@@ -185,7 +186,7 @@ class _SingleNameTypeAnnotationGather(TyphonASTVisitor):
 
     def visit_Starred(self, node: ast.Starred):
         annotation = get_type_annotation(node)
-        print(
+        debug_print(
             "visit_Starred:",
             ast.dump(node),
             "annot:",
@@ -201,7 +202,7 @@ class _SingleNameTypeAnnotationGather(TyphonASTVisitor):
 
     def visit_PossiblyAnnotatedPattern(self, node: ast.MatchAs | ast.MatchStar):
         annotation = get_type_annotation(node)
-        print(
+        debug_print(
             "visit_PossiblyAnnotatedPattern:",
             ast.dump(node),
             "annot:",

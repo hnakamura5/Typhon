@@ -5,6 +5,7 @@ from ..Grammar.typhon_ast import (
     is_function_literal_def,
 )
 from .visitor import TyphonASTVisitor, TyphonASTTransformer
+from ..Driver.debugging import debug_print
 
 
 class _Gather(TyphonASTVisitor):
@@ -15,7 +16,7 @@ class _Gather(TyphonASTVisitor):
         self.methods = []
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
-        print(
+        debug_print(
             f"insert_self_to_method visit: {node} {node.__dict__} parent={self.get_parent_python_scope(ignore_top=True)}"
         )
         if (
@@ -40,6 +41,6 @@ def insert_self_to_method(mod: ast.Module):
     gather = _Gather(mod)
     gather.run()
     for method in gather.methods:
-        print(f"insert_self_to_method: {method.name} {method.args}")
+        debug_print(f"insert_self_to_method: {method.name} {method.args}")
         new_arg = ast.arg(arg="self", annotation=None, **get_pos_attributes(method))
         method.args.args.insert(0, new_arg)

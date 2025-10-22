@@ -8,6 +8,7 @@ from ..Grammar.typhon_ast import (
 )
 from .visitor import TyphonASTVisitor, TyphonASTTransformer, flat_append
 from dataclasses import dataclass
+from ..Driver.debugging import debug_print
 
 
 @dataclass
@@ -39,7 +40,9 @@ class _Gather(TyphonASTVisitor):
             if (bound_expr is node) or not parent_stmt:
                 # TODO: better error message
                 raise SyntaxError("Placeholder alone in statement is not allowed")
-            print(f"Found placeholder: {node.id} bound_expr: {ast.dump(bound_expr)}")
+            debug_print(
+                f"Found placeholder: {node.id} bound_expr: {ast.dump(bound_expr)}"
+            )
             self.placeholders.append(
                 PlaceholderInfo(
                     placeholder=node, parent_stmt=parent_stmt, bound_expr=bound_expr
@@ -80,7 +83,7 @@ class _Transform(TyphonASTTransformer):
             )
             posonlyargs.append(arg)
             self.placeholder_to_args[info.placeholder] = arg
-            print(
+            debug_print(
                 f"Mapping placeholder {info.placeholder.id} to arg {arg.arg} in bound_expr {ast.dump(bound_expr)}"
             )
         func_def = ast.FunctionDef(
@@ -103,7 +106,7 @@ class _Transform(TyphonASTTransformer):
         return func_def  # Return the constructed function definition
 
     def visit(self, node: ast.AST):
-        print(f"placeholder_to_function _transform visit: {ast.dump(node)}")
+        debug_print(f"placeholder_to_function _transform visit: {ast.dump(node)}")
         if isinstance(node, ast.stmt):
             # Expand the def of function literals before the parent statement.
             result: list[ast.AST] = []
@@ -124,7 +127,7 @@ class _Transform(TyphonASTTransformer):
         if isinstance(node, ast.expr):
             function_def_for_bound_expr = self.bound_expr_to_function.get(node, None)
             if function_def_for_bound_expr is not None:
-                print(
+                debug_print(
                     f"Transforming expression: {ast.dump(node)} to function: {function_def_for_bound_expr.name}"
                 )
                 # This expression is transformed to function.
@@ -137,14 +140,14 @@ class _Transform(TyphonASTTransformer):
                     ctx=ast.Load(),
                     **get_pos_attributes(node),
                 )
-            print(f"Visiting expr: {ast.dump(node)}")
+            debug_print(f"Visiting expr: {ast.dump(node)}")
         return super().visit(node)
 
     def visit_Name(self, node: ast.Name):
-        print(f"visit_Name: {ast.dump(node)}")
+        debug_print(f"visit_Name: {ast.dump(node)}")
         arg = self.placeholder_to_args.get(node, None)
         if arg:
-            print(f"Replacing placeholder {node.id} with arg {arg.arg}")
+            debug_print(f"Replacing placeholder {node.id} with arg {arg.arg}")
             return ast.Name(
                 id=arg.arg,
                 ctx=ast.Load(),

@@ -8,6 +8,7 @@ from ..Grammar.typhon_ast import (
 from .visitor import TyphonASTVisitor, TyphonASTTransformer, flat_append
 from dataclasses import dataclass
 from typing import override
+from ..Driver.debugging import debug_print
 
 
 @dataclass
@@ -23,7 +24,7 @@ class _Gather(TyphonASTVisitor):
         self.comprehensions_to_process = []
 
     def visit_ControlComprehension(self, node: ControlComprehension):
-        print(f"comprehension_to_function _Gather visit: {node} {node.__dict__}")
+        debug_print(f"comprehension_to_function _Gather visit: {node} {node.__dict__}")
         self.comprehensions_to_process.append((node, self.parent_stmts[-1]))
         return self.generic_visit(node)
 

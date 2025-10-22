@@ -1,4 +1,5 @@
 import ast
+from ..Driver.debugging import debug_print
 from .func_literal_to_def import func_literal_to_def
 from .type_abbrev_desugar import type_abbrev_desugar
 from .scope_check_rename import scope_check_rename
@@ -17,29 +18,39 @@ from .record_to_dataclass import record_to_dataclass
 def transform(mod: ast.Module):
     check_forbidden_statements(mod)
     record_to_dataclass(mod)
-    print(f"After record_to_dataclass:\n{ast.unparse(mod)}\n")  # [HN] For debug.
+    debug_print(f"After record_to_dataclass:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     inline_statement_block_capture(mod)
-    print(f"After inline_statement_block_capture:\n{ast.unparse(mod)}\n")
+    debug_print(f"After inline_statement_block_capture:\n{ast.unparse(mod)}\n")
     if_while_let_transform(mod)
-    print(f"After if_while_let_transform:\n{ast.unparse(mod)}\n")  # [HN] For debug.
+    debug_print(
+        f"After if_while_let_transform:\n{ast.unparse(mod)}\n"
+    )  # [HN] For debug.
     insert_self_to_method(mod)
-    print(f"After insert_self_to_method:\n{ast.unparse(mod)}\n")  # [HN] For debug.
+    debug_print(
+        f"After insert_self_to_method:\n{ast.unparse(mod)}\n"
+    )  # [HN] For debug.
     comprehension_to_function(mod)
-    print(f"After comprehension_to_function:\n{ast.unparse(mod)}\n")  # [HN] For debug.
+    debug_print(
+        f"After comprehension_to_function:\n{ast.unparse(mod)}\n"
+    )  # [HN] For debug.
     func_literal_to_def(mod)
-    print(f"After func_literal_to_def:\n{ast.unparse(mod)}\n")  # [HN] For debug.
+    debug_print(f"After func_literal_to_def:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     scope_check_rename(mod)
-    print(f"After scope_check_rename:\n{ast.unparse(mod)}\n")  # [HN] For debug.
+    debug_print(f"After scope_check_rename:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     placeholder_to_func(mod)
-    print(f"After placeholder_to_func:\n{ast.unparse(mod)}\n")
+    debug_print(f"After placeholder_to_func:\n{ast.unparse(mod)}\n")
     optional_to_checked(mod)
-    print(f"After optional_to_checked:\n{ast.unparse(mod)}\n")  # [HN] For debug.
+    debug_print(f"After optional_to_checked:\n{ast.unparse(mod)}\n")  # [HN] For debug.
     type_annotation_check_expand(mod)
-    print(
+    debug_print(
         f"After type_annotation_check_expand:\n{ast.unparse(mod)}\n"
     )  # [HN] For debug.
     type_abbrev_desugar(mod)
-    print(f"After func_type_to_protocol:\n{ast.unparse(mod)}\n")  # [HN] For debug.
+    debug_print(
+        f"After func_type_to_protocol:\n{ast.unparse(mod)}\n"
+    )  # [HN] For debug.
     const_member_to_final(mod)
-    print(f"After const_member_to_property:\n{ast.unparse(mod)}\n")  # [HN] For debug.
+    debug_print(
+        f"After const_member_to_property:\n{ast.unparse(mod)}\n"
+    )  # [HN] For debug.
     # [HN] For debug.
