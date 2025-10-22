@@ -1397,7 +1397,41 @@ def make_while_let_comp(
     return result
 
 
-# TODO: make_while_let_comp
+def make_let_comp(
+    assignments: list[tuple[ast.expr, ast.expr | None, ast.expr | None]],
+    body: ast.expr,
+    **kwargs: Unpack[PosAttributes],
+):
+    control_id = "__let_comp"
+    stmts: list[ast.stmt] = [
+        cast(
+            ast.stmt,
+            assign_as_declaration(
+                "let", a, len(assignments) > 0, **pos_attribute_noneless(kwargs)
+            ),
+        )
+        for a in assignments
+    ]
+    stmts.append(
+        ast.Return(
+            value=body,
+            **get_pos_attributes(body),
+        )
+    )
+    func_def = make_function_def(
+        is_async=False,
+        is_static=False,
+        name=control_id,
+        args=_empty_args(),
+        body=stmts,
+        returns=None,
+        type_comment=None,
+        type_params=[],
+        **kwargs,
+    )
+    result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
+    set_control_comprehension_def(result, func_def)
+    return result
 
 
 IS_OPTIONAL = "_typh_is_optional"

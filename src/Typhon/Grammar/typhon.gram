@@ -22,7 +22,8 @@ from .typhon_ast import (
     make_pipe_call, make_arrow_type_single_chain, if_comp_exp,
     make_genexp, make_listcomp, make_setcomp, make_dictcomp,
     make_with_comp, make_try_comp, make_try_comp_except, make_match_comp,
-    make_match_comp_case, make_while_comp, make_if_let_comp, make_while_let_comp,
+    make_match_comp_case, make_while_comp, make_if_let_comp,
+    make_while_let_comp, make_let_comp,
     make_record_literal, make_record_type, make_record_pattern,
 )
 from .parser_helper import Parser, Load, Store, Del
@@ -1548,6 +1549,16 @@ while_comp[ast.expr]:
 question_while_comp[ast.expr]:
     | '?(' b=while_comp_internal ')' { b }
 
+let_comp_internal[ast.expr]:
+    | 'let' a=','.declaration_single_assignment+ ';' b=expression {
+        make_let_comp(a, b, LOCATIONS)
+     }
+
+let_comp[ast.expr]:
+    | '(' b=let_comp_internal ')' { b }
+
+question_let_comp[ast.expr]:
+    | '?(' b=let_comp_internal ')' { b }
 
 comprehension_paren:
     | genexp
@@ -1556,6 +1567,7 @@ comprehension_paren:
     | try_comp
     | match_comp
     | while_comp
+    | let_comp
 
 question_comprehension_paren:
     | question_genexp
@@ -1564,6 +1576,7 @@ question_comprehension_paren:
     | question_try_comp
     | question_match_comp
     | question_while_comp
+    | question_let_comp
 
 
 # FUNCTION CALL ARGUMENTS

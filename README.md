@@ -71,12 +71,13 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
 
   If an expression has several placeholder `_` inside, it becomes multiple positional only parameter function, the parameter order from left to light. For example, `_ + _ * _` becomes `(x, y, z) => x + y * z`.
 
-- Control statement comprehension expressions. `if/while/try/with/match` surrounded by paren, synonym to generator expression by `for`.
+- Control statement comprehension expressions. `if/while/try/with/match/let` surrounded by paren, synonym to generator expression by `for`.
   - `(if (cond1) 1 elif (cond2) 2 else 3)`. `elif` and `else` is optional, the value is `None` for unspecified case.
   - `(while(cond) yield x)` is alternative generator expression. `while` can be used instead of `for`.
   - `(try x/y except(ZeroDivisionError as e) 0)`. `except` is optional. `(try x/y)` is `None` on exception.
   - `(with (let f = open("file.txt")) f.read())`.
   - `(match (f()) case(x, 0) x case(x, y) x + y)`. The default case is optional, results `None` on abbreviation.
+  - `(let x = f(); x * x)`. The separator is `;`. `var` version does not exist.
 
 - Data record literal `{|x = 1, y = "2"|}` which is translated into anonymous immutable dataclass. The type is data record type `{|x: int, y: str|}` which is Protocol of immutable dataclass. Attribute access `val.x` , unpacking by `{|x, y|}` or patten matching by specific pattern `{|x = a, y = b|}` is supported.
 
