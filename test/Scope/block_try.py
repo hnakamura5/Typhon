@@ -8,7 +8,7 @@ try {
     var x = 20;
     x = x + 5;
     print(x);
-} except (x: Exception) {
+} except (Exception as x) {
     print(x);
     var x = 5;
     print(x);
@@ -42,7 +42,7 @@ try {
     print(x);
     let x = 20;
     print(x);
-} except (x: Exception) {
+} except (Exception as x) {
     print(x);
     let x = 5;
     print(x);
@@ -87,7 +87,7 @@ block_try_except_immutable_error_code = """
 let x = 10;
 try {
     print(x);
-} except (x: Exception) {
+} except (Exception as x) {
     x = TypeError("error");
 }
 """

@@ -560,14 +560,14 @@ try_stmt[ast.Try]:
 
 except_block[ast.ExceptHandler]:
     | invalid_except_stmt_indent
-    | 'except' '(' t=NAME e=annotation ')' NEWLINE* b=block {
-        ast.ExceptHandler(type=e, name=t.string, body=b, LOCATIONS) }
+    | 'except' '(' e=expression t=['as' z=NAME { z.string }] ')' NEWLINE* b=block {
+        ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS) }
     | 'except' b=block { ast.ExceptHandler(type=None, name=None, body=b, LOCATIONS) }
     | invalid_except_stmt
 except_star_block[ast.ExceptHandler]:
     | invalid_except_star_stmt_indent
-    | 'except' '*' '(' t=NAME e=annotation')' NEWLINE* b=block {
-        ast.ExceptHandler(type=e, name=t.string, body=b, LOCATIONS)
+    | 'except' '*' '(' e=expression t=['as' z=NAME { z.string }]')' NEWLINE* b=block {
+        ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS)
      }
     | invalid_except_stmt
 finally_block[list]:
@@ -1506,10 +1506,10 @@ try_comp_internal[ast.expr]:
     }
 
 try_comp_except[ast.Name]:
-    | 'except' '(' t=NAME e=annotation ')' NEWLINE* b=expression {
-        make_try_comp_except(t.string, e, b, LOCATIONS) }
-    | 'except' '*' '(' t=NAME e=annotation ')' NEWLINE* b=expression {
-        make_try_comp_except(t.string, e, b, LOCATIONS) }
+    | 'except' '(' e=expression t=['as' z=NAME { z.string }] ')' NEWLINE* b=expression {
+        make_try_comp_except(t, e, b, LOCATIONS) }
+    | 'except' '*' '(' e=expression t=['as' z=NAME { z.string }] ')' NEWLINE* b=expression {
+        make_try_comp_except(t, e, b, LOCATIONS) }
     | 'except' NEWLINE* b=expression { make_try_comp_except(None, None, b, LOCATIONS) }
 
 try_comp[ast.expr]:

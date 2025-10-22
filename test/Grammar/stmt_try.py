@@ -68,7 +68,7 @@ def test_stmt_try_except_else():
 try_except_error_code = """
 try {
     raise TypeError;
-} except(e: TypeError) {
+} except(TypeError as e) {
     raise
 }
 """
@@ -87,7 +87,7 @@ def test_stmt_try_except_error():
 try_except_star_code = """
 try {
     raise TypeError;
-} except*(e: TypeError) {
+} except*(TypeError as e) {
     raise
 }
 """

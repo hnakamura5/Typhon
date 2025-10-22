@@ -74,7 +74,7 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
 - Control statement comprehension expressions. `if/while/try/with/match` surrounded by paren, synonym to generator expression by `for`.
   - `(if (cond1) 1 elif (cond2) 2 else 3)`. `elif` and `else` is optional, the value is `None` for unspecified case.
   - `(while(cond) yield x)` is alternative generator expression. `while` can be used instead of `for`.
-  - `(try x/y except(e: ZeroDivisionError) 0)`. `except` is optional. `(try x/y)` is `None` on exception.
+  - `(try x/y except(ZeroDivisionError as e) 0)`. `except` is optional. `(try x/y)` is `None` on exception.
   - `(with (let f = open("file.txt")) f.read())`.
   - `(match (f()) case(x, 0) x case(x, y) x + y)`. The default case is optional, results `None` on abbreviation.
 
@@ -85,8 +85,8 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
 - Logical operators
   `and`, `or`, `not` operators are replaced by `&&`,`||`, `!`, though they are still reserved as keyword (Note `in`, `not in`, `is`, `is not` are still supported).
 
-- Assignment style in with and except statement
-  Apply normal assignment or declaration syntax to with and except. e.g. `with (let f = open(...)) {}`, `except (e: IOError) {}`
+- Assignment style in with  statement
+  Apply normal assignment or declaration syntax to with. e.g. `with (let f = open(...)) {}`.
 
 - Static Temporal Dead Zone(TDZ) is introduced in module top-level for recursive definition.
   - Reference to symbol declared after is allowed in function (`def` and function literal). Such function symbol is marked as DEAD until all the declaration is completed.

@@ -2,7 +2,7 @@ from ..assertion_utils import assert_ast_equals, assert_transform_equals
 
 
 comp_try_code = """
-let val = (try 1/0 except (e: ZeroDivisionError) 0);
+let val = (try 1/0 except (ZeroDivisionError as e) 0);
 """
 
 comp_try_result = """
@@ -53,9 +53,9 @@ def test_comp_try_none():
 comp_try_many_code = """
 def f(x, y) {
     return (try x / y
-            except (e: ZeroDivisionError)
+            except (ZeroDivisionError as e)
                 0
-            except (e: TypeError)
+            except (TypeError as e)
                 -1
             except
                 42)
