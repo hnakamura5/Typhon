@@ -81,6 +81,16 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
 
 - Data record literal `{|x = 1, y = "2"|}` which is translated into anonymous immutable dataclass. The type is data record type `{|x: int, y: str|}` which is Protocol of immutable dataclass. Attribute access `val.x` , unpacking by `{|x, y|}` or patten matching by specific pattern `{|x = a, y = b|}` is supported.
 
+- Block comment `#(comment here)#`. This can be multiple line and also be in the middle of line. It works as single space. The nested comment is parsed properly.
+  ```
+  if (...#(in the middle)#&& ...) {
+    #(
+      multiple line #(
+        and nested comment
+    )#  is OK.)#
+  }
+  ```
+
 ### Detail design changes
 
 - Logical operators

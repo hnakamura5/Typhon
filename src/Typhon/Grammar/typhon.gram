@@ -27,7 +27,8 @@ from .typhon_ast import (
     make_record_literal, make_record_type, make_record_pattern,
 )
 from .parser_helper import Parser, Load, Store, Del
-from .tokenizer_custom import token_stream_factory, Tokenizer
+from .tokenizer_custom import TokenizerCustom
+from .token_factory_custom import token_stream_factory
 
 def parse_file(
     path: str,
@@ -40,7 +41,7 @@ def parse_file(
     """Parse a file."""
     with open(path) as f:
         tok_stream = token_stream_factory(f.readline)
-        tokenizer = Tokenizer(tok_stream, verbose=verbose, path=path)
+        tokenizer = TokenizerCustom(tok_stream, verbose=verbose, path=path)
         parser = TyphonParser(
             tokenizer,
             verbose=verbose,
@@ -61,7 +62,7 @@ def parse_string(
 ) -> ast.AST | None:
     """Parse a string."""
     tok_stream = token_stream_factory(io.StringIO(source).readline)
-    tokenizer = Tokenizer(tok_stream, verbose=verbose)
+    tokenizer = TokenizerCustom(tok_stream, verbose=verbose)
     parser = TyphonParser(tokenizer, verbose=verbose, py_version=py_version)
     return parser.parse(mode if mode == "eval" else "file")
 '''

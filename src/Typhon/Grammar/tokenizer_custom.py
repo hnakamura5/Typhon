@@ -1,8 +1,7 @@
-from typing import Callable, Iterator, Unpack, TypedDict, NamedTuple
-from tokenize import TokenInfo, generate_tokens, OP, NAME
+from typing import NamedTuple
+from tokenize import TokenInfo, OP, NAME
 import tokenize
 import token
-from dataclasses import dataclass
 from pegen.tokenizer import Tokenizer as PegenTokenizer
 from typing import override
 from .line_break import line_breakable_after, line_breakable_before
@@ -59,14 +58,6 @@ for info in _combine_seq3_tokens:
     _combine_seq3_map.setdefault(info.first, {}).setdefault(info.second, []).append(
         info
     )
-
-
-def _is_token_possibly_combined_to_next(tok: TokenInfo) -> bool:
-    return _combine_seq2_map.get((tok.type, tok.string)) is not None
-
-
-def _is_token_possibly_tri_combined(tok: TokenInfo) -> bool:
-    return _combine_seq3_map.get((tok.type, tok.string), {}) is not None
 
 
 def _is_unified(prev: TokenInfo, tok: TokenInfo) -> bool:
@@ -139,10 +130,6 @@ def _try_combine_tri_token(
     )
 
 
-def token_stream_factory(readline: Callable[[], str]) -> Iterator[TokenInfo]:
-    yield from generate_tokens(readline)
-
-
 def is_newline(tok: TokenInfo) -> bool:
     return tok.type in (token.NEWLINE, token.NL)
 
@@ -175,7 +162,7 @@ def is_possible_postfix_operator(tok: TokenInfo) -> bool:
 
 
 # Custom Tokenizer to override peek() not to skip always continuous NEWLINE and NL tokens.
-class Tokenizer(PegenTokenizer):
+class TokenizerCustom(PegenTokenizer):
     _forward_next: list[TokenInfo]  # Next token to be processed in peek()
     _all_tokens: list[TokenInfo]  # All tokens including comments
     _end_tok: TokenInfo | None  # Whether reached the end of token stream

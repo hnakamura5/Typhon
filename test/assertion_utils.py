@@ -4,24 +4,56 @@ from ..src.Typhon.Transform.transform import transform
 import tokenize
 from typing import Type, Union
 import io
-from ..src.Typhon.Grammar.tokenizer_custom import Tokenizer
+from ..src.Typhon.Grammar.tokenizer_custom import TokenizerCustom
+from ..src.Typhon.Grammar.token_factory_custom import token_stream_factory
 
 PARSER_VERBOSE = True
 
 
-def assert_token(token: tokenize.TokenInfo, type_: int, string: str):
+def assert_token(
+    token: tokenize.TokenInfo,
+    type_: int,
+    string: str,
+    start: tuple[int, int] | None = None,
+    end: tuple[int, int] | None = None,
+):
     assert token.type == type_, f"Expected {type_}, got {token.type}"
     assert token.string == string, f"Expected '{string}', got '{token.string}'"
+    if start is not None:
+        assert token.start == start, f"Expected start {start}, got {token.start}"
+    if end is not None:
+        assert token.end == end, f"Expected end {end}, got {token.end}"
 
 
 class TokenizerAsserter:
     def __init__(self, code: str):
-        tok_stream = tokenize.generate_tokens(io.StringIO(code).readline)
-        self.tokenizer = Tokenizer(tok_stream, verbose=True)
+        tok_stream = token_stream_factory(io.StringIO(code).readline)
+        self.tokenizer = TokenizerCustom(tok_stream, verbose=True)
 
-    def next(self, type_: int, string: str):
+    def next(
+        self,
+        type_: int,
+        string: str,
+        start: tuple[int, int] | None = None,
+        end: tuple[int, int] | None = None,
+    ):
         token = self.tokenizer.getnext()
-        assert_token(token, type_, string)
+        assert_token(token, type_, string, start, end)
+
+
+class RawTokenStreamAsserter:
+    def __init__(self, code: str):
+        self.tokens = token_stream_factory(io.StringIO(code).readline)
+
+    def next(
+        self,
+        type_: int,
+        string: str,
+        start: tuple[int, int] | None = None,
+        end: tuple[int, int] | None = None,
+    ):
+        token = next(self.tokens)
+        assert_token(token, type_, string, start, end)
 
 
 def assert_ast_equals(typhon_code: str, python_code: str) -> ast.Module:
@@ -86,13 +118,17 @@ def assert_ast_type[T](node: ast.AST, t: Type[T]) -> T:
 
 
 def show_token(source: str):
-    tok_stream = tokenize.generate_tokens(io.StringIO(source).readline)
     print("Tokens of Raw tokenizer:")
     for tok in tokenize.generate_tokens(io.StringIO(source).readline):
-        print(tok)
+        print(f"    {tok}")
+    print("Tokens of Token Factory:")
+    tok_stream = token_stream_factory(io.StringIO(source).readline)
+    for tok in tok_stream:
+        print(f"    {tok}")
     print("Tokens of Custom tokenizer:")
-    tokenizer = Tokenizer(tok_stream, verbose=True)
+    tok_stream = tokenize.generate_tokens(io.StringIO(source).readline)
+    tokenizer = TokenizerCustom(tok_stream, verbose=True)
     tok = tokenizer.getnext()
     while tok.type != tokenize.ENDMARKER:
-        print(tok)
+        print(f"    {tok}")
         tok = tokenizer.getnext()
