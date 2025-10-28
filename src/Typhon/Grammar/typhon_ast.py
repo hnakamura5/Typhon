@@ -3,7 +3,7 @@
 import ast
 from typing import Union, Unpack, TypedDict, Tuple, cast
 from copy import copy
-from ..Driver.debugging import debug_print
+from ..Driver.debugging import debug_print, debug_verbose_print
 
 
 class PosAttributes(TypedDict):
@@ -147,9 +147,9 @@ type PossibleAnnotatedNode = (
 def set_type_annotation(
     node: PossibleAnnotatedNode, type_node: ast.expr | None
 ) -> ast.AST:
-    debug_print(
+    debug_verbose_print(
         f"set_type_annotation: {ast.dump(node)} to {ast.dump(type_node) if type_node else 'None'}"
-    )  # [HN] For debug.
+    )
     setattr(node, _TYPE_ANNOTATION, type_node)
     return node
 
@@ -180,7 +180,7 @@ def clear_is_multi_decl(node: ast.AST) -> None:
 def set_is_typing_expression(node: ast.expr, is_typing: bool = True) -> ast.expr:
     result = copy(node)  # To avoid chached node is contaminated.
     setattr(result, _IS_TYPING_EXPRESSION, is_typing)
-    debug_print(f"set_is_typing_expression: {ast.dump(result)}")  # [HN] For debug.
+    debug_verbose_print(f"set_is_typing_expression: {ast.dump(result)}")
     return result
 
 
@@ -257,9 +257,9 @@ def _get_list_type_elements(type_node: ast.expr) -> ast.expr | None:
     if isinstance(type_node, ast.List):
         return type_node.elts[0] if len(type_node.elts) == 1 else None
     elif isinstance(type_node, ast.Subscript):
-        debug_print(
+        debug_verbose_print(
             f"_get_list_type_elements: {type_node} value: {type_node.value} id: {type_node.value.id if isinstance(type_node.value, ast.Name) else 'N/A'} slice: {type_node.slice}"
-        )  # [HN] For debug.
+        )
         if (
             isinstance(type_node.value, ast.Name)
             and type_node.value.id == "list"
@@ -283,14 +283,14 @@ def get_annotations_of_declaration_target(
     type_annotation: ast.expr,
 ) -> list[tuple[ast.Name, ast.expr | None]]:
     if isinstance(target, ast.Name):
-        debug_print(
+        debug_verbose_print(
             f"get_annotations_of_declaration_target ast.Name: {target}, {type_annotation}"
-        )  # [HN] For debug.
+        )
         return [(target, type_annotation)]
     elif isinstance(target, ast.Tuple):
-        debug_print(
+        debug_verbose_print(
             f"get_annotations_of_declaration_target ast.Tuple: {target}, {type_annotation}"
-        )  # [HN] For debug.
+        )
         type_elts = _get_tuple_type_elements(type_annotation)
         if not type_elts or len(type_elts) != len(target.elts):
             return []
@@ -302,9 +302,9 @@ def get_annotations_of_declaration_target(
                 names.extend(get_annotations_of_declaration_target(elt, ty_elt))
         return names
     elif isinstance(target, ast.List):
-        debug_print(
+        debug_verbose_print(
             f"get_annotations_of_declaration_target ast.List: {target}, {type_annotation}"
-        )  # [HN] For debug.
+        )
         type_elt = _get_list_type_elements(type_annotation)
         if not type_elt:
             return []
@@ -316,9 +316,9 @@ def get_annotations_of_declaration_target(
                 names.extend(get_annotations_of_declaration_target(elt, type_elt))
         return names
     elif isinstance(target, ast.Starred):
-        debug_print(
+        debug_verbose_print(
             f"get_annotations_of_declaration_target ast.Starred: {target}, {type_annotation}"
-        )  # [HN] For debug.
+        )
         return get_annotations_of_declaration_target(
             target.value, _get_list_type(type_annotation, get_pos_attributes(target))
         )

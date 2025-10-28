@@ -8,7 +8,7 @@ from ..Grammar.typhon_ast import (
 )
 from .visitor import TyphonASTVisitor, TyphonASTTransformer, flat_append
 from dataclasses import dataclass
-from ..Driver.debugging import debug_print
+from ..Driver.debugging import debug_print, debug_verbose_print
 
 
 @dataclass
@@ -140,14 +140,12 @@ class _Transform(TyphonASTTransformer):
                     ctx=ast.Load(),
                     **get_pos_attributes(node),
                 )
-            debug_print(f"Visiting expr: {ast.dump(node)}")
         return super().visit(node)
 
     def visit_Name(self, node: ast.Name):
-        debug_print(f"visit_Name: {ast.dump(node)}")
         arg = self.placeholder_to_args.get(node, None)
         if arg:
-            debug_print(f"Replacing placeholder {node.id} with arg {arg.arg}")
+            debug_verbose_print(f"Replacing placeholder {node.id} with arg {arg.arg}")
             return ast.Name(
                 id=arg.arg,
                 ctx=ast.Load(),

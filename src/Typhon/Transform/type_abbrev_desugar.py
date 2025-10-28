@@ -15,7 +15,7 @@ from ..Grammar.typhon_ast import (
 from ..Grammar.syntax_errors import raise_type_annotation_error
 from .visitor import TyphonASTVisitor, TyphonASTTransformer
 from .utils import add_import_for_protocol, get_insert_point_for_class
-from ..Driver.debugging import debug_print
+from ..Driver.debugging import debug_print, debug_verbose_print
 
 
 class _GatherArrowType(TyphonASTVisitor):
@@ -109,7 +109,7 @@ def _add_protocols(
 
 class _OptionalQuestionTransformer(TyphonASTTransformer):
     def visit_Tuple(self, node: ast.Tuple):
-        debug_print(
+        debug_verbose_print(
             f"Visiting Tuple: {ast.dump(node)} is_optional_question={is_optional_question(node)}"
         )
         if not is_optional_question(node):
@@ -154,7 +154,7 @@ class _TupleListTransformer(TyphonASTTransformer):
         if not self.is_inside_typing_expr:
             return self.generic_visit(node)
         pos = get_pos_attributes(node)
-        debug_print(f"Desugaring Tuple to tuple[]: {ast.dump(node)}")
+        debug_verbose_print(f"Desugaring Tuple to tuple[]: {ast.dump(node)}")
         return ast.Subscript(
             value=ast.Name(id="tuple", **pos),
             slice=cast(ast.Tuple, self.generic_visit(node)),
@@ -166,9 +166,8 @@ class _TupleListTransformer(TyphonASTTransformer):
         if not self.is_inside_typing_expr:
             return self.generic_visit(node)
         pos = get_pos_attributes(node)
-        debug_print(f"Desugaring List to list[]: {ast.dump(node)}")
+        debug_verbose_print(f"Desugaring List to list[]: {ast.dump(node)}")
         if len(node.elts) != 1:
-            debug_print(f"Error in List type annotation: {ast.dump(node)}, {node}")
             raise_type_annotation_error(
                 "List type annotation must have exactly one element type.", **pos
             )
