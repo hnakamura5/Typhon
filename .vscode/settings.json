@@ -8,8 +8,8 @@
       "source.fixAll": "always"
     },
   },
-  "python.languageServer": "Pylance",
-  "python.analysis.typeCheckingMode": "standard",
+  "python.languageServer": "None", // None to use basedpyright over pylance
+  "python.analysis.typeCheckingMode": "off",
   "python.autoComplete.extraPaths": [
     "${workspaceFolder}/src",
     "${workspaceFolder}/.venv/Lib/site-packages"
@@ -19,4 +19,5 @@
     "${workspaceFolder}/.venv/Lib/site-packages"
   ],
   "python.analysis.indexing": true,
+  "basedpyright.analysis.diagnosticMode": "workspace"
 }

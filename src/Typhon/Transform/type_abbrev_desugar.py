@@ -35,7 +35,7 @@ def _protocol_for_function_type(
 ) -> ast.ClassDef:
     func_type.id = arrow_type_name
     args = get_args_of_function_type(func_type)
-    posonlyargs = []
+    posonlyargs: list[ast.arg] = []
     for arg in args:
         if len(arg.arg) == 0:
             arg.arg = f"{arrow_type_name}_a{len(posonlyargs)}"

@@ -141,12 +141,14 @@ type PossibleAnnotatedNode = (
     | ast.comprehension
     | ast.Starred
     | ast.pattern
+    | ast.Tuple
+    | ast.List
 )
 
 
-def set_type_annotation(
-    node: PossibleAnnotatedNode, type_node: ast.expr | None
-) -> ast.AST:
+def set_type_annotation[T: PossibleAnnotatedNode](
+    node: T, type_node: ast.expr | None
+) -> T:
     debug_verbose_print(
         f"set_type_annotation: {ast.dump(node)} to {ast.dump(type_node) if type_node else 'None'}"
     )
@@ -294,7 +296,7 @@ def get_annotations_of_declaration_target(
         type_elts = _get_tuple_type_elements(type_annotation)
         if not type_elts or len(type_elts) != len(target.elts):
             return []
-        names = []
+        names: list[tuple[ast.Name, ast.expr | None]] = []
         for elt, ty_elt in zip(target.elts, type_elts):
             if isinstance(elt, ast.Name):
                 names.append((elt, ty_elt))
@@ -308,7 +310,7 @@ def get_annotations_of_declaration_target(
         type_elt = _get_list_type_elements(type_annotation)
         if not type_elt:
             return []
-        names = []
+        names: list[tuple[ast.Name, ast.expr | None]] = []
         for elt in target.elts:
             if isinstance(elt, ast.Name):
                 names.append((elt, type_elt))
@@ -351,7 +353,7 @@ def make_with_stmt(
     items: list[ast.withitem],
     body: list[ast.stmt],
     is_inline: bool,
-    **kwargs,
+    **kwargs: Unpack[PosAttributes],
 ) -> Union[ast.With, ast.AsyncWith]:
     result: Union[ast.With, ast.AsyncWith]
     if is_async:
@@ -1045,7 +1047,7 @@ def make_listcomp(
     elt: ast.expr,
     generators: list[ast.comprehension],
     **kwargs: Unpack[PosAttributes],
-) -> ast.expr:
+) -> ast.ListComp:
     if _check_comprehension_inline(elt):
         return ast.ListComp(elt=elt, generators=generators, **kwargs)
     comp_temp_name = "__listcomp_temp"
@@ -1066,7 +1068,7 @@ def make_setcomp(
     elt: ast.expr,
     generators: list[ast.comprehension],
     **kwargs: Unpack[PosAttributes],
-) -> ast.expr:
+) -> ast.SetComp:
     if _check_comprehension_inline(elt):
         return ast.SetComp(elt=elt, generators=generators, **kwargs)
     comp_temp_name = "__setcomp_temp"
@@ -1088,7 +1090,7 @@ def make_dictcomp(
     value: ast.expr,
     generators: list[ast.comprehension],
     **kwargs: Unpack[PosAttributes],
-) -> ast.expr:
+) -> ast.DictComp:
     if _check_comprehension_inline(key) and _check_comprehension_inline(value):
         return ast.DictComp(key=key, value=value, generators=generators, **kwargs)
     comp_temp_name_key = "__dictcomp_temp_key"

@@ -57,8 +57,6 @@ class _StmtTypeAnnotationCheckExpand(TyphonASTTransformer):
     def visit_AnnAssign(self, node: ast.AnnAssign):
         if not is_decl_assign(node):
             return self.generic_visit(node)
-        if node.annotation is None:
-            return self.generic_visit(node)
         if isinstance(node.target, ast.Name):
             return self.generic_visit(node)
         if node.value is None:
@@ -95,7 +93,7 @@ class _StmtTypeAnnotationCheckExpand(TyphonASTTransformer):
 
     @override
     def visit_With(self, node: ast.With):
-        annotation_assignments = []
+        annotation_assignments: list[ast.AST] = []
         for item in node.items:
             annotation = get_type_annotation(item)
             if annotation is None or item.optional_vars is None:
@@ -249,8 +247,6 @@ class _SingleNameTypeAnnotationExpand(TyphonASTTransformer):
         if isinstance(node, ast.stmt) and node in self.parent_stmt_to_names:
             result: list[ast.AST] = []
             for name, annotation in self.parent_stmt_to_names[node]:
-                if annotation is None:
-                    continue
                 pos = get_pos_attributes(name)
                 new_assign = ast.AnnAssign(
                     target=ast.Name(id=name.id, ctx=ast.Store(), **pos),

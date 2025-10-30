@@ -1,4 +1,4 @@
-from typing import override, Callable
+from typing import override, Callable, cast
 from contextlib import contextmanager
 import ast
 from ..Grammar.typhon_ast import (
@@ -157,11 +157,11 @@ class _ScopeManagerMixin:
 def flat_map[T](f: Callable[[T], T | list[T] | None], v: list[T]) -> list[T]:
     result: list[T] = []
     for item in v:
-        new_item = f(item)
+        new_item: T | list[T] | None = f(item)
         if new_item is None:
             continue
         if isinstance(new_item, list):
-            result.extend(new_item)
+            result.extend(cast(list[T], new_item))
         else:
             result.append(new_item)
     return result

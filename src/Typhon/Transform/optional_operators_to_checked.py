@@ -2,6 +2,7 @@ import ast
 from typing import cast, Callable
 from contextlib import contextmanager
 from ..Grammar.typhon_ast import (
+    PosAttributes,
     get_empty_pos_attributes,
     get_pos_attributes,
     is_force_unwrap,
@@ -42,7 +43,7 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
         maybe_none_val: ast.expr,
         then_val: Callable[[str], ast.expr],
         orelse_val: ast.expr,
-        pos,
+        pos: PosAttributes,
     ) -> ast.IfExp:
         tmp_name = self.new_temp_variable_name()
         return ast.IfExp(

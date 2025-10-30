@@ -1,0 +1,12 @@
+{
+  "pythonVersion": "3.13",
+  "typeCheckingMode": "strict",
+  "reportUnusedCallResult": "none",
+  "reportUnusedVariable": "none",
+  "reportUnusedImport": "hint",
+  "reportUnusedClass": "hint",
+  "exclude": [
+    "**/private/**",
+    "**/.venv/**"
+  ]
+}

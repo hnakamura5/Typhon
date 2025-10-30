@@ -22,13 +22,15 @@ from typing import (
     TypeVar,
     Union,
     Optional,
+    Protocol,
+    cast,
 )
 
 from pegen.tokenizer import Tokenizer
-from pegen.parser import memoize, memoize_left_rec, logger, Parser as PegenParser
+from pegen.parser import P, memoize, memoize_left_rec, logger, Parser as PegenParser
 
 
-EXPR_NAME_MAPPING = {
+EXPR_NAME_MAPPING: dict[type, str] = {
     ast.Attribute: "attribute",
     ast.Subscript: "subscript",
     ast.Starred: "starred",
@@ -71,6 +73,14 @@ class Target(enum.Enum):
     DEL_TARGETS = enum.auto()
 
 
+# ast.AST with position info
+class PositionedNode(Protocol):
+    lineno: int
+    col_offset: int
+    end_lineno: int
+    end_col_offset: int
+
+
 class Parser(PegenParser):
     #: Name of the source file, used in error reports
     filename: str
@@ -81,7 +91,7 @@ class Parser(PegenParser):
         *,
         verbose: bool = False,
         filename: str = "<unknown>",
-        py_version: Optional[tuple] = None,
+        py_version: tuple[int, int] | None = None,
     ) -> None:
         super().__init__(tokenizer, verbose=verbose)
         self.filename = filename
@@ -139,12 +149,12 @@ class Parser(PegenParser):
             args += (last_token.end[0], last_token.end[1] + 1)
         raise IndentationError(msg, args)
 
-    def get_expr_name(self, node) -> str:
+    def get_expr_name(self, node: ast.expr) -> str:
         """Get a descriptive name for an expression."""
         # See https://github.com/python/cpython/blob/master/Parser/pegen.c#L161
         assert node is not None
         node_t = type(node)
-        if node_t is ast.Constant:
+        if isinstance(node, ast.Constant):
             v = node.value
             if v is Ellipsis:
                 return "ellipsis"
@@ -201,7 +211,16 @@ class Parser(PegenParser):
         else:
             return node
 
-    def set_expr_context(self, node, context):
+    def set_expr_context(
+        self,
+        node: ast.Starred
+        | ast.List
+        | ast.Tuple
+        | ast.Subscript
+        | ast.Attribute
+        | ast.Name,
+        context: ast.expr_context,
+    ) -> ast.expr:
         """Set the context (Load, Store, Del) of an ast node."""
         node.ctx = context
         return node
@@ -240,7 +259,9 @@ class Parser(PegenParser):
             )
         return name
 
-    def _concat_strings_in_constant(self, parts) -> ast.Constant:
+    def _concat_strings_in_constant(
+        self, parts: list[tokenize.TokenInfo]
+    ) -> ast.Constant:
         s = ast.literal_eval(parts[0].string)
         for ss in parts[1:]:
             s += ast.literal_eval(ss.string)
@@ -255,7 +276,8 @@ class Parser(PegenParser):
             args["kind"] = "u"
         return ast.Constant(**args)
 
-    def concatenate_strings(self, parts):
+    def concatenate_strings(self, parts: list[tokenize.TokenInfo]):
+        print(f"Concatenating strings...{parts}")
         """Concatenate multiple tokens and ast.JoinedStr"""
         # Get proper start and stop
         start = end = None
@@ -266,8 +288,8 @@ class Parser(PegenParser):
 
         # Combine the different parts
         seen_joined = False
-        values: list[ast.Constant] = []
-        ss = []
+        values: list[ast.expr] = []
+        ss: list[tokenize.TokenInfo] = []
         for p in parts:
             if isinstance(p, ast.JoinedStr):
                 seen_joined = True
@@ -281,14 +303,14 @@ class Parser(PegenParser):
         if ss:
             values.append(self._concat_strings_in_constant(ss))
 
-        consolidated = []
+        consolidated: list[ast.expr] = []
         for p in values:
             if (
                 consolidated
                 and isinstance(consolidated[-1], ast.Constant)
                 and isinstance(p, ast.Constant)
             ):
-                consolidated[-1].value += p.value
+                consolidated[-1].value += p.value  # type: ignore[misc]
                 consolidated[-1].end_lineno = p.end_lineno
                 consolidated[-1].end_col_offset = p.end_col_offset
             else:
@@ -305,45 +327,6 @@ class Parser(PegenParser):
                 end_col_offset=end[1] if end else values[-1].end_col_offset,
             )
 
-    def generate_ast_for_string(self, tokens):
-        """Generate AST nodes for strings."""
-        err_args = None
-        line_offset = tokens[0].start[0]
-        line = line_offset
-        col_offset = 0
-        source = "(\\n"
-        for t in tokens:
-            n_line = t.start[0] - line
-            if n_line:
-                col_offset = 0
-            source += """\\n""" * n_line + " " * (t.start[1] - col_offset) + t.string
-            line, col_offset = t.end
-        source += "\\n)"
-        try:
-            m = ast.parse(source)
-        except SyntaxError as err:
-            args = (err.filename, err.lineno + line_offset - 2, err.offset, err.text)
-            if sys.version_info >= (3, 10):
-                args += (err.end_lineno + line_offset - 2, err.end_offset)
-            err_args = (err.msg, args)
-            # Ensure we do not keep the frame alive longer than necessary
-            # by explicitly deleting the error once we got what we needed out
-            # of it
-            del err
-
-        # Avoid getting a triple nesting in the error report that does not
-        # bring anything relevant to the traceback.
-        if err_args is not None:
-            raise SyntaxError(*err_args)
-
-        node = m.body[0].value
-        # Since we asked Python to parse an alterred source starting at line 2
-        # we alter the lineno of the returned AST to recover the right line.
-        # If the string start at line 1, tha AST says 2 so we need to decrement by 1
-        # hence the -2.
-        ast.increment_lineno(node, line_offset - 2)
-        return node
-
     def extract_import_level(self, tokens: List[tokenize.TokenInfo]) -> int:
         """Extract the relative import level from the tokens preceding the module name.
 
@@ -358,18 +341,22 @@ class Parser(PegenParser):
                 level += 3
         return level
 
-    def set_decorators(self, target: FC, decorators: list) -> FC:
+    def set_decorators(self, target: FC, decorators: list[ast.expr]) -> FC:
         """Set the decorators on a function or class definition."""
         target.decorator_list = decorators
         return target
 
-    def get_comparison_ops(self, pairs):
+    def get_comparison_ops(
+        self, pairs: list[tuple[ast.cmpop, ast.expr]]
+    ) -> list[ast.cmpop]:
         return [op for op, _ in pairs]
 
-    def get_comparators(self, pairs):
+    def get_comparators(
+        self, pairs: list[tuple[ast.cmpop, ast.expr]]
+    ) -> list[ast.expr]:
         return [comp for _, comp in pairs]
 
-    def set_arg_type_comment(self, arg, type_comment):
+    def set_arg_type_comment(self, arg: ast.arg, type_comment: str | None) -> ast.arg:
         if type_comment or sys.version_info < (3, 9):
             arg.type_comment = type_comment
         return arg
@@ -481,7 +468,7 @@ class Parser(PegenParser):
         )
 
     def raise_syntax_error_known_location(
-        self, message: str, node: Union[ast.AST, tokenize.TokenInfo]
+        self, message: str, node: PositionedNode | tokenize.TokenInfo
     ) -> NoReturn:
         """Raise a syntax error that occured at a given AST node."""
         if isinstance(node, tokenize.TokenInfo):
@@ -496,8 +483,8 @@ class Parser(PegenParser):
     def raise_syntax_error_known_range(
         self,
         message: str,
-        start_node: Union[ast.AST, tokenize.TokenInfo],
-        end_node: Union[ast.AST, tokenize.TokenInfo],
+        start_node: Union[PositionedNode, tokenize.TokenInfo],
+        end_node: Union[PositionedNode, tokenize.TokenInfo],
     ) -> NoReturn:
         if isinstance(start_node, tokenize.TokenInfo):
             start = start_node.start
@@ -512,7 +499,7 @@ class Parser(PegenParser):
         raise self._build_syntax_error(message, start, end)
 
     def raise_syntax_error_starting_from(
-        self, message: str, start_node: Union[ast.AST, tokenize.TokenInfo]
+        self, message: str, start_node: Union[PositionedNode, tokenize.TokenInfo]
     ) -> NoReturn:
         if isinstance(start_node, tokenize.TokenInfo):
             start = start_node.start
@@ -532,11 +519,15 @@ class Parser(PegenParser):
             return None
 
         if target in (Target.STAR_TARGETS, Target.FOR_TARGETS):
-            msg = f"cannot assign to {self.get_expr_name(invalid_target)}"
+            msg = (
+                f"cannot assign to {self.get_expr_name(cast(ast.expr, invalid_target))}"
+            )
         else:
-            msg = f"cannot delete {self.get_expr_name(invalid_target)}"
+            msg = f"cannot delete {self.get_expr_name(cast(ast.expr, invalid_target))}"
 
-        self.raise_syntax_error_known_location(msg, invalid_target)
+        self.raise_syntax_error_known_location(
+            msg, cast(PositionedNode, invalid_target)
+        )
 
     def raise_syntax_error_on_next_token(self, message: str) -> NoReturn:
         next_token = self._tokenizer.peek()
