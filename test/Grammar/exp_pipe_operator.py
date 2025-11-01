@@ -12,17 +12,11 @@ def func(x: int) -> int {
 """
 pipe_operator_result = """
 def func(x: int) -> int:
-    return __function_literal(x)
+    return (lambda x: (lambda y: x + y)(x * 2))(x)
 """
 pipe_operator_transform = """
 def func(x: int) -> int:
-
-    def _typh_fn_f1_0(x):
-
-        def _typh_fn_f2_0(y):
-            return x + y
-        return _typh_fn_f2_0(x * 2)
-    return _typh_fn_f1_0(x)
+    return (lambda x: (lambda y: x + y)(x * 2))(x)
 """
 
 
@@ -39,17 +33,11 @@ def func(x: int) -> int {
 """
 pipe_operator_pipeline_result = """
 def func(x: int) -> int:
-    return __function_literal(__function_literal(x))
+    return (lambda x: x + 1)((lambda x: x * 2)(x))
 """
 pipe_operator_pipeline_transformed = """
 def func(x: int) -> int:
-
-    def _typh_fn_f1_0(x):
-        return x + 1
-
-    def _typh_fn_f1_1(x):
-        return x * 2
-    return _typh_fn_f1_0(_typh_fn_f1_1(x))
+    return (lambda x: x + 1)((lambda x: x * 2)(x))
 """
 
 
@@ -68,19 +56,13 @@ def func(x: int?) -> int? {
 """
 optional_pipe_operator_result = """
 def func(x: (int,)) -> (int,):
-    return __function_literal(x)
+    return (lambda x: (lambda x: x + 1)(x * 2))(x)
 """
 
 
 optional_pipe_operator_transformed = """
 def func(x: int | None) -> int | None:
-
-    def _typh_fn_f1_0(x):
-
-        def _typh_fn_f2_0(x):
-            return x + 1
-        return _typh_fn_f2_0(_typh_vr_f2_1_) if (_typh_vr_f2_1_ := (x * 2)) is not None else None
-    return _typh_fn_f1_0(_typh_vr_f1_1_) if (_typh_vr_f1_1_ := x) is not None else None
+    return (lambda x: (lambda x: x + 1)(_typh_vr_f1_1_) if (_typh_vr_f1_1_ := (x * 2)) is not None else None)(_typh_vr_f1_0_) if (_typh_vr_f1_0_ := x) is not None else None
 """
 
 
@@ -98,23 +80,11 @@ def func(x: [int]) -> [int] {
 """
 pipe_placeholder_result = """
 def func(x: [int]) -> [int]:
-    return list(filter(__function_literal, _)(map(__function_literal, _)(x)))
+    return list(filter(lambda y: y > 0, _)(map(lambda y: y * 2, _)(x)))
 """
 pipe_placeholder_transformed = """
 def func(x: list[int]) -> list[int]:
-
-    def _typh_fn_f1_0(y):
-        return y > 0
-
-    def _typh_fn_f1_1(y):
-        return y * 2
-
-    def _typh_fn_f1_3(_typh_ag_f1_2_0, /):
-        return filter(_typh_fn_f1_0, _typh_ag_f1_2_0)
-
-    def _typh_fn_f1_5(_typh_ag_f1_4_0, /):
-        return map(_typh_fn_f1_1, _typh_ag_f1_4_0)
-    return list(_typh_fn_f1_3(_typh_fn_f1_5(x)))
+    return list((lambda _typh_ag_f1_0_0, /: filter(lambda y: y > 0, _typh_ag_f1_0_0))((lambda _typh_ag_f1_1_0, /: map(lambda y: y * 2, _typh_ag_f1_1_0))(x)))
 """
 
 

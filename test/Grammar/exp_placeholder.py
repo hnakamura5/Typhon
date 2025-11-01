@@ -17,21 +17,18 @@ def apply_func(f: __arrow_type, x: int) -> __arrow_type:
 placeholder_func_literal_transformed = """
 from typing import Protocol as _typh_bi_Protocol
 
+class _typh_ar_f1_1(_typh_bi_Protocol):
+
+    def __call__(self, _typh_ar_f1_1_a0: int, _typh_ar_f1_1_a1: int, /) -> int:
+        ...
+
 class _typh_ar_f1_2(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f1_2_a0: int, _typh_ar_f1_2_a1: int, /) -> int:
+    def __call__(self, _typh_ar_f1_2_a0: int, /) -> int:
         ...
 
-class _typh_ar_f1_3(_typh_bi_Protocol):
-
-    def __call__(self, _typh_ar_f1_3_a0: int, /) -> int:
-        ...
-
-def apply_func(f: _typh_ar_f1_2, x: int) -> _typh_ar_f1_3:
-
-    def _typh_fn_f1_1(_typh_ag_f1_0_0, /):
-        return f(x, _typh_ag_f1_0_0)
-    return _typh_fn_f1_1
+def apply_func(f: _typh_ar_f1_1, x: int) -> _typh_ar_f1_2:
+    return lambda _typh_ag_f1_0_0, /: f(x, _typh_ag_f1_0_0)
 """
 
 
@@ -49,9 +46,7 @@ placeholder_multiple_result = """
 f = _ * _ + _
 """
 placeholder_multiple_transformed = """
-def _typh_fn_m0_3(_typh_ag_m0_0_0, _typh_ag_m0_1_1, _typh_ag_m0_2_2, /):
-    return _typh_ag_m0_0_0 * _typh_ag_m0_1_1 + _typh_ag_m0_2_2
-f = _typh_fn_m0_3
+f = lambda _typh_ag_m0_0_0, _typh_ag_m0_1_1, _typh_ag_m0_2_2, /: _typh_ag_m0_0_0 * _typh_ag_m0_1_1 + _typh_ag_m0_2_2
 """
 
 
@@ -72,21 +67,18 @@ def apply_func(f: __arrow_type, x: int) -> __arrow_type:
 placeholder_func_literal_kw_transformed = """
 from typing import Protocol as _typh_bi_Protocol
 
+class _typh_ar_f1_3(_typh_bi_Protocol):
+
+    def __call__(self, _typh_ar_f1_3_a0: int, _typh_ar_f1_3_a1: int, _typh_ar_f1_3_a2: int, /, kw: int) -> int:
+        ...
+
 class _typh_ar_f1_4(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f1_4_a0: int, _typh_ar_f1_4_a1: int, _typh_ar_f1_4_a2: int, /, kw: int) -> int:
+    def __call__(self, _typh_ar_f1_4_a0: int, _typh_ar_f1_4_a1: int, _typh_ar_f1_4_a2: int, /) -> int:
         ...
 
-class _typh_ar_f1_5(_typh_bi_Protocol):
-
-    def __call__(self, _typh_ar_f1_5_a0: int, _typh_ar_f1_5_a1: int, _typh_ar_f1_5_a2: int, /) -> int:
-        ...
-
-def apply_func(f: _typh_ar_f1_4, x: int) -> _typh_ar_f1_5:
-
-    def _typh_fn_f1_3(_typh_ag_f1_0_0, _typh_ag_f1_1_1, _typh_ag_f1_2_2, /):
-        return f(_typh_ag_f1_0_0, x, _typh_ag_f1_1_1, kw=_typh_ag_f1_2_2)
-    return _typh_fn_f1_3
+def apply_func(f: _typh_ar_f1_3, x: int) -> _typh_ar_f1_4:
+    return lambda _typh_ag_f1_0_0, _typh_ag_f1_1_1, _typh_ag_f1_2_2, /: f(_typh_ag_f1_0_0, x, _typh_ag_f1_1_1, kw=_typh_ag_f1_2_2)
 """
 
 
@@ -108,13 +100,7 @@ def func(x: [int]) -> [int]:
 """
 placeholder_nested_transformed = """
 def func(x: list[int]) -> list[int]:
-
-    def _typh_fn_f1_1(_typh_ag_f1_0_0, /):
-        return _typh_ag_f1_0_0 + 1
-
-    def _typh_fn_f1_3(_typh_ag_f1_2_0, /):
-        return map(_typh_fn_f1_1, _typh_ag_f1_2_0)
-    return _typh_fn_f1_3(x)
+    return (lambda _typh_ag_f1_0_0, /: map(lambda _typh_ag_f1_1_0, /: _typh_ag_f1_1_0 + 1, _typh_ag_f1_0_0))(x)
 """
 
 

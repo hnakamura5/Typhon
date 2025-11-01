@@ -117,7 +117,7 @@ comp_gen_noinline_code = """
 def comp_gen_noinline() {
     let gen = (for (let i in range(100000000))
                     for (let i in range(i)) if (i % 2 == 1)
-                        yield (x) => x * i)
+                        yield (x: int) => x * i)
     return gen
 }
 """
@@ -134,7 +134,7 @@ def comp_gen_noinline():
             for _typh_cn_f2_1_i in range(i):
                 if _typh_cn_f2_1_i % 2 == 1:
 
-                    def _typh_fn_f2_0(x):
+                    def _typh_fn_f2_0(x: int):
                         return x * _typh_cn_f2_1_i
                     yield _typh_fn_f2_0
     gen = _typh_cc_f1_0()
@@ -149,7 +149,7 @@ def test_comp_gen_noinline():
 
 comp_list_noinline_code = """
 def comp_list_noinline() {
-    let odd_sq = [for (let i in range(10)) if (i % 2 == 1) yield (x) => x * i]
+    let odd_sq = [for (let i in range(10)) if (i % 2 == 1) yield (x: int) => x * i]
     return odd_sq
 }
 """
@@ -165,7 +165,7 @@ def comp_list_noinline():
         for i in range(10):
             if i % 2 == 1:
 
-                def _typh_fn_f2_0(x):
+                def _typh_fn_f2_0(x: int):
                     return x * i
                 yield _typh_fn_f2_0
     odd_sq = [__listcomp_temp for __listcomp_temp in _typh_cc_f1_0()]
@@ -181,7 +181,7 @@ def test_comp_list_noinline():
 comp_dict_noinline_code = """
 let square_dict = {
     for (let i in range(10)) if (i % 2 == 1)
-        yield i: (x) => x * i
+        yield i: (x: int) => x * i
 };
 """
 comp_dict_noinline_result = """
@@ -192,7 +192,7 @@ def _typh_cc_m0_0():
     for i in range(10):
         if i % 2 == 1:
 
-            def _typh_fn_f1_0(x):
+            def _typh_fn_f1_0(x: int):
                 return x * i
             yield (i, _typh_fn_f1_0)
 square_dict = {_typh_cn_m0_1___dictcomp_temp_key: _typh_cn_m0_2___dictcomp_temp_val for _typh_cn_m0_1___dictcomp_temp_key, _typh_cn_m0_2___dictcomp_temp_val in _typh_cc_m0_0()}

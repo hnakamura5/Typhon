@@ -91,14 +91,11 @@ class A {
 """
 func_literal_no_self_result = """
 class A:
-    f = __function_literal
+    f = lambda x: x + 1
 """
 func_literal_no_self_transformed = """
 class A:
-
-    def _typh_fn_c1_0(x):
-        return x + 1
-    f = _typh_fn_c1_0
+    f = lambda x: x + 1
 """
 
 

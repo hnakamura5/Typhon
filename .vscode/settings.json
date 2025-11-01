@@ -8,7 +8,7 @@
       "source.fixAll": "always"
     },
   },
-  "python.languageServer": "None", // None to use basedpyright over pylance
+  "python.languageServer": "Pylance", // None to use basedpyright over pylance
   "python.analysis.typeCheckingMode": "off",
   "python.autoComplete.extraPaths": [
     "${workspaceFolder}/src",

@@ -411,17 +411,24 @@ def is_function_literal_def(func_def: ast.FunctionDef | ast.AsyncFunctionDef) ->
     return getattr(func_def, _IS_FUNCTION_LITERAL, False)
 
 
+def is_arguments_inlineable(args: ast.arguments) -> bool:
+    return all(arg.annotation is None for arg in args.args)
+
+
 def make_function_literal(
     args: ast.arguments,
     returns: ast.expr,
     body: Union[list[ast.stmt], ast.expr],
     **kwargs: Unpack[PosAttributes],
-) -> FunctionLiteral:
+) -> ast.Lambda | FunctionLiteral:
     func_id = "__function_literal"  # TODO: Get unique name?
     body_stmts: list[ast.stmt]
     if isinstance(body, list):
         body_stmts = body
     else:
+        if is_inline_expr(body) and is_arguments_inlineable(args):
+            # Make lambda expression if possible.
+            return ast.Lambda(args=args, body=body, **kwargs)
         body_stmts = [
             ast.Return(
                 body,
@@ -915,7 +922,7 @@ def clear_is_control_comprehension(node: ControlComprehension) -> None:
 
 # When for-if comprehensions has function literal or other control comprehension,
 # it cannot be inline.
-class ComprehensionInlineCheckVisitor(ast.NodeVisitor):
+class _ExprInlineCheckVisitor(ast.NodeVisitor):
     is_inline: bool
 
     def __init__(self):
@@ -929,8 +936,9 @@ class ComprehensionInlineCheckVisitor(ast.NodeVisitor):
         super().visit(node)
 
 
-def _check_comprehension_inline(node: ast.expr) -> bool:
-    visitor = ComprehensionInlineCheckVisitor()
+# Some expressions cannot be inline because they need control flow.
+def is_inline_expr(node: ast.expr) -> bool:
+    visitor = _ExprInlineCheckVisitor()
     visitor.visit(node)
     return visitor.is_inline
 
@@ -1024,7 +1032,7 @@ def make_genexp(
     generators: list[ast.comprehension],
     **kwargs: Unpack[PosAttributes],
 ) -> ast.expr:
-    if _check_comprehension_inline(elt):
+    if is_inline_expr(elt):
         return ast.GeneratorExp(elt=elt, generators=generators, **kwargs)
     control_id = "__genexp_control"
     # Make a control comprehension to hold the generators.
@@ -1048,7 +1056,7 @@ def make_listcomp(
     generators: list[ast.comprehension],
     **kwargs: Unpack[PosAttributes],
 ) -> ast.ListComp:
-    if _check_comprehension_inline(elt):
+    if is_inline_expr(elt):
         return ast.ListComp(elt=elt, generators=generators, **kwargs)
     comp_temp_name = "__listcomp_temp"
     return ast.ListComp(
@@ -1069,7 +1077,7 @@ def make_setcomp(
     generators: list[ast.comprehension],
     **kwargs: Unpack[PosAttributes],
 ) -> ast.SetComp:
-    if _check_comprehension_inline(elt):
+    if is_inline_expr(elt):
         return ast.SetComp(elt=elt, generators=generators, **kwargs)
     comp_temp_name = "__setcomp_temp"
     return ast.SetComp(
@@ -1091,7 +1099,7 @@ def make_dictcomp(
     generators: list[ast.comprehension],
     **kwargs: Unpack[PosAttributes],
 ) -> ast.DictComp:
-    if _check_comprehension_inline(key) and _check_comprehension_inline(value):
+    if is_inline_expr(key) and is_inline_expr(value):
         return ast.DictComp(key=key, value=value, generators=generators, **kwargs)
     comp_temp_name_key = "__dictcomp_temp_key"
     comp_temp_name_val = "__dictcomp_temp_val"

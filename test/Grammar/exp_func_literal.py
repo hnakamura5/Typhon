@@ -4,12 +4,10 @@ func_literal_exp_code = """
 let f = (x) => x + 1;
 """
 func_literal_exp_result = """
-f = __function_literal
+f = lambda x: x + 1
 """
 func_literal_exp_transformed = """
-def _typh_fn_m0_0(x):
-    return x + 1
-f = _typh_fn_m0_0
+f = lambda x: x + 1
 """
 
 

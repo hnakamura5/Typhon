@@ -7,7 +7,7 @@ import io
 from ..src.Typhon.Grammar.tokenizer_custom import TokenizerCustom
 from ..src.Typhon.Grammar.token_factory_custom import token_stream_factory
 
-PARSER_VERBOSE = True
+PARSER_VERBOSE = False
 
 
 def assert_token(

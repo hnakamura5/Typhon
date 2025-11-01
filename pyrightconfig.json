@@ -1,6 +1,6 @@
 {
   "pythonVersion": "3.13",
-  "typeCheckingMode": "standard",
+  "typeCheckingMode": "strict",
   "reportUnusedCallResult": "none",
   "reportUnusedVariable": "none",
   "reportUnusedImport": "hint",

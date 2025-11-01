@@ -485,6 +485,32 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             self.visit(node.target)
         return node
 
+    # Lambda handling (for simple function literal)
+    def visit_Lambda(self, node: ast.Lambda):
+        with self.scope():  # Lambda arguments scope
+            for arg in node.args.args + node.args.posonlyargs:
+                self.add_symbol_declaration(
+                    arg.arg, is_mutable=False, pos=get_pos_attributes(arg)
+                )
+            if node.args.vararg:
+                self.add_symbol_declaration(
+                    node.args.vararg.arg,
+                    is_mutable=False,
+                    pos=get_pos_attributes(node.args.vararg),
+                )
+            for arg in node.args.kwonlyargs:
+                self.add_symbol_declaration(
+                    arg.arg, is_mutable=False, pos=get_pos_attributes(arg)
+                )
+            if node.args.kwarg:
+                self.add_symbol_declaration(
+                    node.args.kwarg.arg,
+                    is_mutable=False,
+                    pos=get_pos_attributes(node.args.kwarg),
+                )
+            self.visit(node.body)
+        return node
+
     # Comprehension handling.
     def _visit_Comp(self, node: ast.ListComp | ast.SetComp | ast.GeneratorExp):
         with self.scope():

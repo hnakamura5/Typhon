@@ -18,7 +18,7 @@ def func(x: int) -> int {
 """
 pipe_operator_result = """
 def func(x: int) -> int:
-    return __function_literal(x)
+    return (lambda x: (lambda x: x + 1)(x * 2))(x)
 """
 
 
@@ -67,7 +67,7 @@ def func(x: int?) -> int? {
 """
 optional_pipe_operator_result = """
 def func(x: (int,)) -> (int,):
-    return __function_literal(x)
+    return (lambda x: (lambda x: x + 1)(x * 2))(x)
 """
 
 
