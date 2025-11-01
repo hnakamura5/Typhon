@@ -277,7 +277,6 @@ class Parser(PegenParser):
         return ast.Constant(**args)
 
     def concatenate_strings(self, parts: list[tokenize.TokenInfo]):
-        print(f"Concatenating strings...{parts}")
         """Concatenate multiple tokens and ast.JoinedStr"""
         # Get proper start and stop
         start = end = None

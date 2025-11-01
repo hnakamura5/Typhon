@@ -3,6 +3,7 @@ import fire
 from .Driver.translate import translate, tr
 from .Driver.debugging import set_debug_mode
 from .Driver.run import run
+from .Driver.type_check import type_check
 
 
 def _setup_debug_mode():
@@ -22,6 +23,7 @@ def main():
                 "translate": translate,
                 "tr": tr,
                 "run": run,
+                "type_check": type_check,
             },
             name="typhon",
         )

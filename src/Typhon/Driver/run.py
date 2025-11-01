@@ -9,7 +9,7 @@ from .debugging import is_debug_mode, debug_print, is_debug_verbose
 from .translate import translate_directory
 
 
-def _run_file(source: Path, *args):
+def _run_file(source: Path, *args: str):
     # TODO: temporal implementation. Switch to save and run style after source map is implemented, to be consistent with directory run.
     debug_print(f"Running source file: {source}")
     ast_tree = parse_file(source.as_posix(), verbose=is_debug_verbose())
@@ -24,7 +24,7 @@ def _run_file(source: Path, *args):
         sys.argv = original_argv
 
 
-def _run_directory(source_dir: Path, *args):
+def _run_directory(source_dir: Path, *args: str):
     temp_output_dir = default_output_dir(source_dir.as_posix())
     temp_output_dir.mkdir(exist_ok=True)
     module_output_dir = temp_output_dir / source_dir.name
@@ -57,7 +57,7 @@ def _run_directory(source_dir: Path, *args):
         )
 
 
-def run(source: str, *args):
+def run(source: str, *args: str):
     """
     Run the given source code.
 

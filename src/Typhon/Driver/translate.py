@@ -4,14 +4,16 @@ from ..Grammar.parser import parse_file
 from .utils import shorthand, TYPHON_EXT, copy_type, default_output_dir
 from ..Transform.transform import transform
 from .debugging import is_debug_mode, debug_print, is_debug_verbose
+from ..Driver.type_check import type_check
 
 
-def _translate_file(source: Path, output: Path):
+def translate_file(source: Path, output: Path):
     debug_print(f"Translating source: {source} to output_dir: {output}")
     ast_tree = parse_file(source.as_posix(), verbose=is_debug_verbose())
     transform(ast_tree)
     translated_code = ast.unparse(ast_tree)
     output.write_text(translated_code)
+    type_check(output)
 
 
 # Always translate as a module.
@@ -23,7 +25,7 @@ def translate_directory(source_dir: Path, module_output_dir: Path):
     module_output_dir.mkdir(parents=True, exist_ok=True)
     for source in source_dir.glob(f"*{TYPHON_EXT}"):
         output_path = module_output_dir / (source.stem + ".py")
-        _translate_file(source, output_path)
+        translate_file(source, output_path)
     if not (module_output_dir / "__init__.py").exists():
         (module_output_dir / "__init__.py").write_text(
             "# Init file for Typhon module\n", "utf-8"
@@ -33,6 +35,7 @@ def translate_directory(source_dir: Path, module_output_dir: Path):
             sub_output_dir = module_output_dir / subdir.name
             sub_output_dir.mkdir(exist_ok=True)
             translate_directory(subdir, sub_output_dir)
+    type_check(module_output_dir, strict=True)
 
 
 def translate(
@@ -63,7 +66,7 @@ def translate(
     output_dir_path.mkdir(parents=True, exist_ok=True)
     if source_path.is_file():
         output_file = output_dir_path / (source_path.stem + ".py")
-        _translate_file(source_path, output_file)
+        translate_file(source_path, output_file)
     elif source_path.is_dir():
         translate_directory(source_path, output_dir_path / source_path.name)
     else:

@@ -74,7 +74,7 @@ class ForbiddenStatementChecker(TyphonASTVisitor):
             return True
         return False
 
-    def visit(self, node):
+    def visit(self, node: ast.AST):
         if isinstance(node, ast.stmt) and isinstance(
             self.parent_python_scopes[-1], ast.ClassDef
         ):
