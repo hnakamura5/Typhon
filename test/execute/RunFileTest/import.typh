@@ -1,0 +1,17 @@
+from pathlib import Path
+import re
+
+let my_dir = Path(__file__).parent.parent # test / execute / RunFileTest
+# Note this is executed in .typhon directory
+with (let f = open(my_dir / "import.typh", "r")) {
+    let content = f.read()
+    let matches = re.findall(r'import (?P<name>\w+)\n', content)
+    for (let m in matches) {
+        print(m)
+    }
+}
+
+"""stdout
+Path
+re
+"""

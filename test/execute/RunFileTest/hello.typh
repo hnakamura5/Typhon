@@ -1,11 +1,11 @@
 def main() -> None {
-  print("Hello Typhon!")
+    print("Hello Typhon!")
 }
 
 if (__name__ == "__main__") {
-  main()
+    main()
 }
 
-"""result
+"""stdout
 Hello Typhon!
 """

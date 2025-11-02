@@ -42,12 +42,20 @@ class SuspendedResolveAccess:
     accessor_python_scope: PythonScope
 
 
+def get_builtins() -> set[str]:
+    builtin_syms = set(dir(builtins))
+    builtin_syms.update(
+        {"__annotations__", "__built_class__", "__dict__", "__file__", "__path__"}
+    )
+    return builtin_syms
+
+
 class SymbolScopeVisitor(TyphonASTVisitor):
     scopes: list[dict[str, SymbolDeclaration]]  # Stack of scopes
     symbols: dict[str, list[SymbolDeclaration]]  # Synchronized with scopes stack
     declaration_context: DeclarationContext | None
     non_declaration_assign_context: bool
-    builtins: set[str]
+    builtins_symbols: set[str]
 
     def __init__(self, module: ast.Module):
         super().__init__(module)
@@ -60,8 +68,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         self.suspended_resolves = {}
         self.require_global = {}
         self.require_nonlocal = {}
-        self.builtins = set(dir(builtins))
-        self.force_rename_target = set()
+        self.builtins_symbols = get_builtins()
 
     def _enter_scope(self):
         self.scopes.append({})
@@ -137,7 +144,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         dec = SymbolDeclaration(name, is_mutable, None, python_scope_to_add)
         current_scope[name] = dec
         self.symbols.setdefault(name, []).append(dec)
-        if name not in self.builtins:
+        if name not in self.builtins_symbols:
             debug_print(
                 f"Declared variable '{name}' (mutable={is_mutable}) scope_level={len(self.parent_python_scopes)} add_to_parent_python_scope={add_to_parent_python_scope}"
             )
@@ -245,9 +252,9 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         return node
 
     def visit_Module(self, node: ast.Module):
-        # Top-level scope. Add builtins.
+        # Top-level scope. Add builtins as immutable symbol.
         with self.scope():
-            for sym in dir(builtins):
+            for sym in self.builtins_symbols:
                 self.add_symbol_declaration(
                     sym,
                     is_mutable=False,
@@ -441,7 +448,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             self.visit_declaration(
                 name,
                 is_mutable=False,
-                # Force rename to avoid conflict to other patterns when type annotations is specified, because they are expanded in the same scope.j
+                # Force rename to avoid conflict to other patterns when type annotations is specified, because they are expanded in the same scope.
                 is_force_rename=get_type_annotation(node) is not None,
             )
             node.name = name.id
@@ -615,7 +622,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
 
     # On top-level declaration of a symbol, resolve suspended accesses to it.
     def resolve_suspended_resolves(self, name: str):
-        if name in self.builtins:
+        if name in self.builtins_symbols:
             return
         debug_verbose_print(f"Resolving suspended accesses to '{name}'")
         if name not in self.suspended_symbols:
@@ -638,16 +645,16 @@ class SymbolScopeVisitor(TyphonASTVisitor):
     require_nonlocal: dict[str, set[PythonScope]]
 
     def add_require_global(self, name: str, python_scope: PythonScope):
-        if name in self.builtins:
+        if name in self.builtins_symbols:
             return
         self.require_global.setdefault(name, set()).add(python_scope)
 
     def add_require_nonlocal(self, name: str, python_scope: PythonScope):
-        if name in self.builtins:
+        if name in self.builtins_symbols:
             return
         self.require_nonlocal.setdefault(name, set()).add(python_scope)
 
-    def access_to_symbol(self, sym: SymbolDeclaration, is_mutation: bool):
+    def access_to_symbol_non_decl(self, sym: SymbolDeclaration, is_mutation: bool):
         if not is_mutation:  # Just reference. Nothing to do.
             return
         if len(self.parent_python_scopes) < 2:
@@ -661,20 +668,13 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         elif sym.declared_python_scope in self.parent_python_scopes[1:]:
             self.add_require_nonlocal(sym.name, self.get_parent_python_scope())
         else:
-            if is_mutation:
-                self.error_assign_to_undeclared(
-                    ast.Name(id=sym.name, ctx=ast.Store(), **get_empty_pos_attributes())
-                )
-            else:
-                self.error_reference_undeclared(
-                    ast.Name(id=sym.name, ctx=ast.Load(), **get_empty_pos_attributes())
-                )
+            self.error_assign_to_undeclared(
+                ast.Name(id=sym.name, ctx=ast.Store(), **get_empty_pos_attributes())
+            )
 
     # The main part of this visitor.
     # Variable reference and declaration. Rename if necessary.
     def visit_Name(self, node: ast.Name):
-        # TODO: Insert global/nonlocal handling automatically
-        # TODO: TDZ handling for Top-level code
         if self.declaration_context:
             # Left-hand side of an declaration assignment
             if self.current_scope().get(node.id):
@@ -720,7 +720,9 @@ class SymbolScopeVisitor(TyphonASTVisitor):
                 debug_verbose_print(f"Temporal dead access to '{node.id}'")
                 if not self.access_temporal_dead(node):
                     return self.error_tdz_violation(node)
-            self.access_to_symbol(sym, is_mutation=self.non_declaration_assign_context)
+            self.access_to_symbol_non_decl(
+                sym, is_mutation=self.non_declaration_assign_context
+            )
         with self.type_annotation_maybe_in_declaration(node):
             return self.generic_visit(node)
 
