@@ -3,8 +3,8 @@
   "typeCheckingMode": "strict",
   "reportUnusedCallResult": "none",
   "reportUnusedVariable": "none",
-  "reportUnusedImport": "hint",
-  "reportUnusedClass": "hint",
+  "reportUnusedImport": "warning",
+  "reportUnusedClass": "warning",
   "reportUnnecessaryIsInstance": "warning",
   "exclude": [
     "**/private/**",

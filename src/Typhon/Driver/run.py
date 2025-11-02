@@ -6,10 +6,11 @@ from ..Grammar.parser import parse_file
 from .utils import shorthand, TYPHON_EXT, copy_type, default_output_dir
 from ..Transform.transform import transform
 from .debugging import is_debug_mode, debug_print, is_debug_verbose
-from .translate import translate_directory
+from .translate import translate_directory, translate_file
+from ..Driver.type_check import run_type_check
 
 
-def _run_file(source: Path, *args: str):
+def _run_file_by_exec(source: Path, *args: str):
     # TODO: temporal implementation. Switch to save and run style after source map is implemented, to be consistent with directory run.
     debug_print(f"Running source file: {source}")
     ast_tree = parse_file(source.as_posix(), verbose=is_debug_verbose())
@@ -24,12 +25,34 @@ def _run_file(source: Path, *args: str):
         sys.argv = original_argv
 
 
+def _run_file(source: Path, *args: str):
+    temp_output_dir = default_output_dir(source.as_posix())
+    temp_output_dir.mkdir(exist_ok=True)
+    output_file = temp_output_dir / (source.stem + ".py")
+    # Translate source file to temp output file.
+    translate_file(source, output_file)
+    run_type_check(output_file, run_mode=True)
+    subprocess_args = [
+        sys.executable,
+        str(output_file),
+    ] + list(args)
+    debug_print(f"Running source file: {source} with args: {subprocess_args}")
+    result = subprocess.run(
+        subprocess_args,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Running script {source} failed with return code {result.returncode}."
+        )
+
+
 def _run_directory(source_dir: Path, *args: str):
     temp_output_dir = default_output_dir(source_dir.as_posix())
     temp_output_dir.mkdir(exist_ok=True)
     module_output_dir = temp_output_dir / source_dir.name
     # Translate source directory to temp output directory as module.
     translate_directory(source_dir, module_output_dir)
+    run_type_check(module_output_dir, run_mode=True)
     subprocess_args = [
         sys.executable,
         "-m",

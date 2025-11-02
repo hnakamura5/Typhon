@@ -4,7 +4,7 @@ from ..Grammar.parser import parse_file
 from .utils import shorthand, TYPHON_EXT, copy_type, default_output_dir
 from ..Transform.transform import transform
 from .debugging import is_debug_mode, debug_print, is_debug_verbose
-from ..Driver.type_check import type_check
+from ..Driver.type_check import run_type_check
 
 
 def translate_file(source: Path, output: Path):
@@ -13,7 +13,6 @@ def translate_file(source: Path, output: Path):
     transform(ast_tree)
     translated_code = ast.unparse(ast_tree)
     output.write_text(translated_code)
-    type_check(output)
 
 
 # Always translate as a module.
@@ -35,7 +34,6 @@ def translate_directory(source_dir: Path, module_output_dir: Path):
             sub_output_dir = module_output_dir / subdir.name
             sub_output_dir.mkdir(exist_ok=True)
             translate_directory(subdir, sub_output_dir)
-    type_check(module_output_dir, strict=True)
 
 
 def translate(
@@ -67,8 +65,10 @@ def translate(
     if source_path.is_file():
         output_file = output_dir_path / (source_path.stem + ".py")
         translate_file(source_path, output_file)
+        run_type_check(output_file)
     elif source_path.is_dir():
         translate_directory(source_path, output_dir_path / source_path.name)
+        run_type_check(output_dir_path)
     else:
         raise FileNotFoundError(f"Source path '{source}' does not exist.")
 
