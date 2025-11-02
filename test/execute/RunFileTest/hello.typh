@@ -1,0 +1,11 @@
+def main() -> None {
+  print("Hello Typhon!")
+}
+
+if (__name__ == "__main__") {
+  main()
+}
+
+"""result
+Hello Typhon!
+"""

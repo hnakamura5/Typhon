@@ -2,12 +2,30 @@ import sys
 import os
 from pathlib import Path
 import subprocess
+from dataclasses import dataclass
 from ..Grammar.parser import parse_file
 from .utils import shorthand, TYPHON_EXT, copy_type, default_output_dir
 from ..Transform.transform import transform
 from .debugging import is_debug_mode, debug_print, is_debug_verbose
 from .translate import translate_directory, translate_file
 from ..Driver.type_check import run_type_check
+
+
+@dataclass
+class RunResult:
+    stdout: str
+    stderr: str
+    returncode: int
+
+    @staticmethod
+    def from_subprocess_result(
+        result: subprocess.CompletedProcess[bytes],
+    ) -> "RunResult":
+        return RunResult(
+            stdout=result.stdout.decode() if result.stdout else "",
+            stderr=result.stderr.decode() if result.stderr else "",
+            returncode=result.returncode,
+        )
 
 
 def _run_file_by_exec(source: Path, *args: str):
@@ -25,7 +43,9 @@ def _run_file_by_exec(source: Path, *args: str):
         sys.argv = original_argv
 
 
-def _run_file(source: Path, *args: str):
+# Run source file as script.
+# Return RunResult containing stdout, stderr only if capture_output is True.
+def run_file(source: Path, capture_output: bool, *args: str) -> RunResult:
     temp_output_dir = default_output_dir(source.as_posix())
     temp_output_dir.mkdir(exist_ok=True)
     output_file = temp_output_dir / (source.stem + ".py")
@@ -37,16 +57,20 @@ def _run_file(source: Path, *args: str):
         str(output_file),
     ] + list(args)
     debug_print(f"Running source file: {source} with args: {subprocess_args}")
-    result = subprocess.run(
-        subprocess_args,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"Running script {source} failed with return code {result.returncode}."
+    if capture_output:
+        result = subprocess.run(
+            subprocess_args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
+    else:
+        result = subprocess.run(
+            subprocess_args,
+        )
+    return RunResult.from_subprocess_result(result)
 
 
-def _run_directory(source_dir: Path, *args: str):
+def run_directory(source_dir: Path, capture_output: bool, *args: str) -> RunResult:
     temp_output_dir = default_output_dir(source_dir.as_posix())
     temp_output_dir.mkdir(exist_ok=True)
     module_output_dir = temp_output_dir / source_dir.name
@@ -70,14 +94,19 @@ def _run_directory(source_dir: Path, *args: str):
     debug_print(
         f"Running source directory: {source_dir} as module {module_output_dir.name} with args: {subprocess_args} env: {subprocess_env}"
     )
-    result = subprocess.run(
-        subprocess_args,
-        env=subprocess_env,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"Running module {module_output_dir.name} failed with return code {result.returncode}."
+    if capture_output:
+        result = subprocess.run(
+            subprocess_args,
+            env=subprocess_env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
+    else:
+        result = subprocess.run(
+            subprocess_args,
+            env=subprocess_env,
+        )
+    return RunResult.from_subprocess_result(result)
 
 
 def run(source: str, *args: str):
@@ -97,8 +126,12 @@ def run(source: str, *args: str):
     if source_path.is_file():
         if source_path.suffix != TYPHON_EXT:
             raise ValueError(f"Source file must have '{TYPHON_EXT}' extension.")
-        _run_file(source_path, *args)
+        result = run_file(source_path, capture_output=False, *args)
     elif source_path.is_dir():
-        _run_directory(source_path, *args)
+        result = run_directory(source_path, capture_output=False, *args)
     else:
         raise ValueError("Source must be a valid file or directory path.")
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Running script {source} failed with return code {result.returncode}."
+        )

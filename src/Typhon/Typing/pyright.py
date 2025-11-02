@@ -83,7 +83,8 @@ def run_pyright(py_file_or_dir: Path, level: TypeCheckLevel = "translate") -> bo
         stderr=subprocess.PIPE,
     )
     # TODO: Currently printing directly. Take json and convert lines to Typhon source locations.
-    print(output.stdout.decode())
+    if not output.stdout.decode().startswith("0 errors, 0 warnings, 0 notes"):
+        print(output.stdout.decode())
     if len(output.stderr) > 0:
         return False
     return True
