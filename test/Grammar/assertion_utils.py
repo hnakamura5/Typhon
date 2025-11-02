@@ -1,11 +1,11 @@
 import ast
-from ..src.Typhon.Grammar.parser import parse_string
-from ..src.Typhon.Transform.transform import transform
 import tokenize
 from typing import Type, Union
 import io
-from ..src.Typhon.Grammar.tokenizer_custom import TokenizerCustom
-from ..src.Typhon.Grammar.token_factory_custom import token_stream_factory
+from ...src.Typhon.Grammar.parser import parse_string
+from ...src.Typhon.Transform.transform import transform
+from ...src.Typhon.Grammar.tokenizer_custom import TokenizerCustom
+from ...src.Typhon.Grammar.token_factory_custom import token_stream_factory
 
 PARSER_VERBOSE = False
 

@@ -1,5 +1,5 @@
 from ..assertion_utils import assert_ast_transform, assert_transform_error
-from ...src.Typhon.Grammar.syntax_errors import ScopeError
+from ....src.Typhon.Grammar.syntax_errors import ScopeError
 
 block_try_code = """
 var x = 10;

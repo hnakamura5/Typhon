@@ -1,5 +1,5 @@
 from ..assertion_utils import assert_ast_equals, assert_ast_type, assert_ast_transform
-from ...src.Typhon.Grammar.typhon_ast import is_var, is_let
+from ....src.Typhon.Grammar.typhon_ast import is_var, is_let
 import ast
 
 code_for = """

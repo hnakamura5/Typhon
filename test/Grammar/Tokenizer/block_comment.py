@@ -1,6 +1,5 @@
 from ..assertion_utils import show_token, assert_ast_equals, RawTokenStreamAsserter
 from tokenize import NAME, OP, NEWLINE, ENDMARKER, NUMBER, COMMENT, INDENT, DEDENT
-from ...src.Typhon.Driver.debugging import set_debug_mode
 
 block_comment_code = """
 let x = 10 #(comment in line)#
@@ -91,7 +90,6 @@ x = 10 + 20 - 30
 
 
 def test_block_comment_sandwich():
-    set_debug_mode(True)
     show_token(block_comment_sandwich_code)
     ta = RawTokenStreamAsserter(block_comment_sandwich_code)
     ta.next(NEWLINE, "\n")

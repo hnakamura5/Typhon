@@ -15,9 +15,9 @@ def gather_directory(dir_path: Path) -> list[str]:
     return test_files
 
 
-def gather_test_in_dir(dir_name: str) -> list[str]:
+def gather_test_in_unittest_dir(dir_name: str) -> list[str]:
     root = get_project_root()
-    dir_path = Path(root) / "test" / dir_name
+    dir_path = Path(root) / "test" / "grammar" / dir_name
     if not dir_path.exists():
         print(f"Test directory {dir_path} does not exist.")
         return []
@@ -25,15 +25,15 @@ def gather_test_in_dir(dir_name: str) -> list[str]:
 
 
 def gather_tokenizer_tests() -> list[str]:
-    return gather_test_in_dir("Tokenizer")
+    return gather_test_in_unittest_dir("Tokenizer")
 
 
-def gather_grammar_tests() -> list[str]:
-    return gather_test_in_dir("Grammar")
+def gather_parser_tests() -> list[str]:
+    return gather_test_in_unittest_dir("Parser")
 
 
 def gather_scope_tests() -> list[str]:
-    return gather_test_in_dir("Scope")
+    return gather_test_in_unittest_dir("Scope")
 
 
 def run_all_tests() -> int:
@@ -48,7 +48,7 @@ def run_all_tests() -> int:
     ):  # Failed
         return 1
 
-    test_files = gather_grammar_tests() + gather_scope_tests()
+    test_files = gather_parser_tests() + gather_scope_tests()
     if not test_files:
         print("No tests were found to run.")
         return 1

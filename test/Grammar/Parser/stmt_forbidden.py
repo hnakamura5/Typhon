@@ -1,5 +1,5 @@
 from ..assertion_utils import assert_transform_error
-from ...src.Typhon.Grammar.syntax_errors import ForbiddenStatementError
+from ....src.Typhon.Grammar.syntax_errors import ForbiddenStatementError
 
 
 stmt_code_error_code = """
