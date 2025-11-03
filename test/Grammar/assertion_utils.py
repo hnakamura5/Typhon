@@ -56,8 +56,13 @@ class RawTokenStreamAsserter:
         assert_token(token, type_, string, start, end)
 
 
-def assert_ast_equals(typhon_code: str, python_code: str) -> ast.Module:
-    show_token(typhon_code)
+def assert_ast_equals(
+    typhon_code: str,
+    python_code: str,
+    show_typhon_token: bool = True,
+    show_python_token: bool = True,
+) -> ast.Module:
+    show_token(typhon_code, show_typhon_token, show_python_token)
     parsed = parse_string(typhon_code, mode="exec", verbose=PARSER_VERBOSE)
     assert isinstance(parsed, ast.Module)
     print(ast.dump(parsed))
@@ -117,16 +122,20 @@ def assert_ast_type[T](node: ast.AST, t: Type[T]) -> T:
     return node
 
 
-def show_token(source: str):
-    print("Tokens of Raw tokenizer:")
-    for tok in tokenize.generate_tokens(io.StringIO(source).readline):
-        print(f"    {tok}")
-    print("Tokens of Token Factory:")
+def show_token(
+    source: str, show_typhon_token: bool = True, show_python_token: bool = True
+):
+    if show_python_token:
+        print("Tokens of Python tokenizer:")
+        for tok in tokenize.generate_tokens(io.StringIO(source).readline):
+            print(f"    {tok}")
+    if show_typhon_token:
+        print("Tokens of Typhon Token Factory:")
+        tok_stream = token_stream_factory(io.StringIO(source).readline)
+        for tok in tok_stream:
+            print(f"    {tok}")
+    print("Tokens of Typhon Custom tokenizer:")
     tok_stream = token_stream_factory(io.StringIO(source).readline)
-    for tok in tok_stream:
-        print(f"    {tok}")
-    print("Tokens of Custom tokenizer:")
-    tok_stream = tokenize.generate_tokens(io.StringIO(source).readline)
     tokenizer = TokenizerCustom(tok_stream, verbose=True)
     tok = tokenizer.getnext()
     while tok.type != tokenize.ENDMARKER:

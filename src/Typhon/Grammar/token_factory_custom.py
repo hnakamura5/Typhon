@@ -1,12 +1,13 @@
-from typing import Callable, Iterator
+from typing import Callable, Iterator, Literal
 from tokenize import TokenInfo, generate_tokens
 import tokenize
 import re
 from dataclasses import dataclass
 from ..Driver.debugging import debug_print, debug_verbose_print
+from enum import Enum, auto
 
 
-def regularize_token_type(token_type: int) -> int:
+def _regularize_token_type(token_type: int) -> int:
     """Convert token type to a regularized form for Typhon.
 
     NL -> NEWLINE
@@ -17,7 +18,7 @@ def regularize_token_type(token_type: int) -> int:
 
 
 @dataclass
-class BlockComment:
+class _BlockComment:
     start_line: int
     start_col: int
     end_line: int
@@ -34,100 +35,323 @@ class BlockComment:
         )
 
 
-_BLOCK_COMMENT_BEGIN_IN_FRONT = re.compile(r"^#+\(.*")
-_BLOCK_COMMENT_BEGIN_OR_END_RE = re.compile(r"(?P<begin>#+\()|(?P<end>\)#+)")
+class _StrKind(Enum):
+    SINGLE_QUOTE = auto()
+    DOUBLE_QUOTE = auto()
+    SINGLE_QUOTE_DOCSTRING = auto()
+    DOUBLE_QUOTE_DOCSTRING = auto()
+    FSTRING_START = auto()
 
 
-def token_stream_factory(readline: Callable[[], str]) -> Iterator[TokenInfo]:
-    line_num: int = 0
-    block_comment_begin_stack: list[BlockComment] = []
-    unconsumed_block_comment: list[BlockComment] = []
-    block_comment_already_output: set[BlockComment] = set()
+@dataclass
+class _StrPrefix:
+    is_raw: bool
+    is_fstring: bool
 
-    def readline_wrapper() -> str:
-        nonlocal line_num, block_comment_begin_stack, unconsumed_block_comment
-        line_num += 1
-        line: str | None = readline()
-        if line.startswith("#") and not _BLOCK_COMMENT_BEGIN_IN_FRONT.match(line):
-            return line  # Normal comment line
-        result = ""
-        line_last_took = 0
-        while line:
-            begin_ends = _BLOCK_COMMENT_BEGIN_OR_END_RE.finditer(line)
-            for match in begin_ends:
-                if block_comment_begin_stack:
-                    # Accumulate comment content to outermost block comment
-                    debug_verbose_print(
-                        f"Adding block comment mid part : {line[line_last_took : match.start()]!r}"
-                    )
-                    block_comment_begin_stack[0].comment += line[
-                        line_last_took : match.start()
-                    ]
-                    line_last_took = match.start()
-                else:
-                    result += line[line_last_took : match.start()]
-                if match.group("begin"):
-                    debug_print(
-                        f"Block comment begins at line {line_num} col {match.start()}:{match.end()} stack={len(block_comment_begin_stack)}"
-                    )
-                    # Stack the begin to distinguish the corresponding end.
-                    block_comment_begin_stack.append(
-                        BlockComment(
-                            start_line=line_num,
-                            start_col=match.start(),
-                            end_line=0,
-                            end_col=0,
-                            comment="",
-                            lines=line,
-                        )
-                    )
-                    # Add comment delimiting part to outermost.
-                    debug_verbose_print(
-                        f"Adding block comment begin part : {line[match.start() : match.end()]!r}"
-                    )
-                    block_comment_begin_stack[0].comment += line[
-                        match.start() : match.end()
-                    ]
-                    line_last_took = match.end()
-                elif match.group("end") and block_comment_begin_stack:
-                    debug_verbose_print(
-                        f"Block comment ends at line {line_num} col {match.start()}:{match.end()} stack={len(block_comment_begin_stack)} comment={block_comment_begin_stack[0].comment!r}"
-                    )
-                    if len(block_comment_begin_stack) == 1:
-                        # Outermost block comment ends here.
-                        block_comment = block_comment_begin_stack[-1]
-                        block_comment.end_line = line_num
-                        block_comment.end_col = match.end()
-                        unconsumed_block_comment.append(block_comment)
-                        result += " "  # Replace block comment with space
-                    # Add comment delimiting part to outermost.
-                    debug_verbose_print(
-                        f"Adding block comment end part : {line[line_last_took : match.end()]!r}"
-                    )
-                    block_comment_begin_stack[0].comment += line[
-                        line_last_took : match.end()
-                    ]
-                    line_last_took = match.end()
-                    block_comment_begin_stack.pop()
-            if block_comment_begin_stack:
-                # Still inside block comment, continue to next line.
-                block_comment_begin_stack[0].comment += line[line_last_took:]
-                debug_verbose_print(
-                    f"Adding remaining line to block comment: {line[line_last_took:]!r}"
-                )
-                line = readline()
-                if line:
-                    block_comment_begin_stack[0].lines += "\n" + line
-                line_num += 1
-                line_last_took = 0
+
+@dataclass
+class _Str:
+    prefix: _StrPrefix
+    kind: _StrKind
+
+    def is_raw(self) -> bool:
+        return self.prefix.is_raw
+
+    def is_fstring(self) -> bool:
+        return self.prefix.is_fstring
+
+
+# Line parser that handles block comments and strings.
+# This is ONLY for implementing block comments that can span multiple lines.
+class _LineParser:
+    def __init__(self, readline: Callable[[], str]) -> None:
+        self.readline = readline
+        self.line = ""
+        self.result_line = ""
+        self.line_num = 0
+        self._column = 0
+        # Is inside string. Note this is false in f-string expression parts unless not in the string in the expression.
+        self.in_string = False
+        self.in_comment = False
+
+        self.interpolation_stack: list[Literal["{"]] = []
+        self.str_context: list[_Str] = []
+        self.bracket_stack_in_interpolation: list[str] = []
+        self.block_comment_begin_stack: list[_BlockComment] = []
+        self.outermost_block_comments: list[_BlockComment] = []
+
+    def _next_char(self) -> str | None:
+        if self._column >= len(self.line):
+            return None
+        ch = self.line[self._column]
+        self._column += 1
+        return ch
+
+    # Current column of character taken last time.
+    def _get_char_column(self) -> int:
+        return self._column - 1
+
+    def _peek_char(self, offset: int = 0) -> str | None:
+        if self._column + offset >= len(self.line):
+            return None
+        return self.line[self._column + offset]
+
+    def _passed(self) -> str:
+        return self.line[: self._column]
+
+    def _pop_index(self, bracket: str) -> int | None:
+        for idx in range(len(self.bracket_stack_in_interpolation) - 1, -1, -1):
+            if self.bracket_stack_in_interpolation[idx] == bracket:
+                return idx
+        return None
+
+    def _commit(self, ch: str | None) -> None:
+        if ch is not None:
+            if self.block_comment_begin_stack:
+                # Inside block comment, do not commit to result line
+                self.block_comment_begin_stack[0].comment += ch
             else:
-                result += line[line_last_took:]
+                # Normal code
+                self.result_line += ch
+
+    def _handle_bracket(self, ch: str) -> None:
+        if self.interpolation_stack:
+            if ch == "{":
+                self.bracket_stack_in_interpolation.append("{")
+            elif ch == "[":
+                self.bracket_stack_in_interpolation.append("[")
+            elif ch == "(":
+                self.bracket_stack_in_interpolation.append("(")
+            # Unclosed brackets to be ignored.
+            elif ch == "}":
+                if (pop_idx := self._pop_index("{")) is not None:
+                    self.bracket_stack_in_interpolation = (
+                        self.bracket_stack_in_interpolation[:pop_idx]
+                    )
+                    if not self.bracket_stack_in_interpolation:
+                        # All brackets closed, end of interpolation
+                        self.interpolation_stack.pop()
+                        self.in_string = True
+            elif ch == "]":
+                if (pop_idx := self._pop_index("[")) is not None:
+                    self.bracket_stack_in_interpolation = (
+                        self.bracket_stack_in_interpolation[:pop_idx]
+                    )
+            elif ch == ")":
+                if (pop_idx := self._pop_index("(")) is not None:
+                    self.bracket_stack_in_interpolation = (
+                        self.bracket_stack_in_interpolation[:pop_idx]
+                    )
+        elif self.str_context and self.str_context[-1].is_fstring() and ch == "{":
+            self.interpolation_stack.append("{")
+            self.bracket_stack_in_interpolation.append("{")
+            self.in_string = False
+
+    def _get_str_prefix(self) -> _StrPrefix:
+        is_raw = False
+        is_fstring = False
+        for back_ch in reversed(self._passed()[:-1]):
+            if back_ch in {"r", "R"}:
+                is_raw = True
+            elif back_ch in {"f", "F", "t", "T"}:
+                is_fstring = True
+            elif back_ch in {"b", "B"}:
+                continue
+            else:
                 break
+        return _StrPrefix(is_raw=is_raw, is_fstring=is_fstring)
+
+    def _handle_string_delim(self, ch: str) -> None:
+        if self.in_string:
+            # Possible string end
+            assert self.str_context, "String context stack should not be empty"
+            prefix = self.str_context[-1].prefix
+            kind = self.str_context[-1].kind
+            debug_verbose_print(
+                f"Handling string may end delim: {ch!r} kind={kind} prefix={prefix} column={self._get_char_column()}"
+            )
+            if kind == _StrKind.SINGLE_QUOTE and ch == "'":
+                self.str_context.pop()
+                self.in_string = False
+                return
+            elif kind == _StrKind.DOUBLE_QUOTE and ch == '"':
+                self.str_context.pop()
+                self.in_string = False
+                return
+            elif kind == _StrKind.SINGLE_QUOTE_DOCSTRING and ch == "'":
+                next_ch = self._peek_char()
+                third_ch = self._peek_char(1)
+                if next_ch == "'" and third_ch == "'":
+                    self._commit(self._next_char())  # consume
+                    self._commit(self._next_char())  # consume
+                    self.str_context.pop()
+                    self.in_string = False
+                    return
+            elif kind == _StrKind.DOUBLE_QUOTE_DOCSTRING and ch == '"':
+                next_ch = self._peek_char()
+                third_ch = self._peek_char(1)
+                if next_ch == '"' and third_ch == '"':
+                    self._commit(self._next_char())  # consume
+                    self._commit(self._next_char())  # consume
+                    self.str_context.pop()
+                    self.in_string = False
+                    return
+        else:
+            # String start
+            prefix = self._get_str_prefix()
+            next_ch = self._peek_char()
+            debug_verbose_print(
+                f"Handling string start delim: {ch!r} next_ch={next_ch!r} prefix={prefix} passed={self._passed()}"
+            )
+            self.in_string = True
+            if next_ch == ch:
+                # Maybe triple quote
+                third_ch = self._peek_char(1)
+                if third_ch == ch:
+                    self._commit(self._next_char())  # consume
+                    self._commit(self._next_char())  # consume
+                    # Docstring
+                    if ch == "'":
+                        self.str_context.append(
+                            _Str(prefix, _StrKind.SINGLE_QUOTE_DOCSTRING)
+                        )
+                    else:
+                        self.str_context.append(
+                            _Str(prefix, _StrKind.DOUBLE_QUOTE_DOCSTRING)
+                        )
+                    return
+            if ch == "'":
+                self.str_context.append(_Str(prefix, _StrKind.SINGLE_QUOTE))
+            else:
+                self.str_context.append(_Str(prefix, _StrKind.DOUBLE_QUOTE))
+            return
+
+    def _handle_comment(self) -> None:
+        first_sharp_column = self._get_char_column()
+        debug_verbose_print(
+            f"Handling comment at line {self.line_num} col {first_sharp_column} in line: {self.line!r}"
+        )
+        # Block comment begin in front
+        while self._peek_char() == "#":
+            self._next_char()
+        if self._peek_char() == "(":
+            # Block comment begin
+            # Consume the '('
+            self._next_char()
+            # All # and (
+            comment_starter = self.line[
+                first_sharp_column : self._get_char_column() + 1
+            ]
+            debug_verbose_print(
+                f"Block comment begin detected at col {first_sharp_column} in line comment_starter={comment_starter}: {self.line!r}"
+            )
+            self.block_comment_begin_stack.append(
+                _BlockComment(
+                    start_line=self.line_num,
+                    start_col=first_sharp_column,
+                    end_line=0,
+                    end_col=0,
+                    comment="",
+                    lines=self.line,
+                )
+            )
+            # Accumulate the begin part to the outermost block comment
+            self.block_comment_begin_stack[0].comment += comment_starter
+        elif not self.block_comment_begin_stack:
+            # Normal comment line, skip to end
+            self.result_line += self.line[first_sharp_column:]
+            self._column = len(self.line)
+        else:
+            # Inside block comment, just commit the '#'
+            self.block_comment_begin_stack[0].comment += self.line[
+                first_sharp_column : self._get_char_column()
+            ]
+
+    def _handle_block_comment_end(self) -> None:
+        if self.block_comment_begin_stack:
+            while self._peek_char() == "#":
+                self._commit(self._next_char())
+            debug_verbose_print(
+                f"Block comment end detected at col {self._column} in line: {self.line!r} "
+            )
+            if len(self.block_comment_begin_stack) == 1:
+                block_comment = self.block_comment_begin_stack[-1]
+                block_comment.end_line = self.line_num
+                block_comment.end_col = self._column  # after the last '#'
+                self.outermost_block_comments.append(block_comment)
+                self.in_comment = False
+                debug_verbose_print(
+                    f"block comment from line {block_comment.start_line} col {block_comment.start_col} "
+                    f"to line {block_comment.end_line} col {block_comment.end_col}"
+                )
+                self.result_line += " "  # Replace block comment with space
+            # Pop the block comment begin
+            self.block_comment_begin_stack.pop()
+
+    def _next_line(self) -> None:
+        self.line = self.readline()
+        self._column = 0
+        self.line_num += 1
+
+    # Parse the line and return true start/end of block comment.
+    # block comment begin/end is ignored in string/docstring.
+    # They are valid in f-string expressions.
+    def parse_next_line(self) -> str:
+        self._next_line()
+        ch = ""
+        while True:
+            ch = self._next_char()
+            if ch is None:
+                # End of line. Continue if block comment continues.
+                if self.block_comment_begin_stack:
+                    self._next_line()
+                    continue
+                # True end of line
+                break
+            if self.block_comment_begin_stack:
+                # Inside block comment
+                if ch == "#":
+                    self._handle_comment()
+                if ch == ")" and self._peek_char() == "#":
+                    self._commit(ch)
+                    self._handle_block_comment_end()
+                else:
+                    self._commit(ch)
+            elif self.in_string:  # Inside string
+                self._commit(ch)
+                if ch in {"'", '"'}:
+                    self._handle_string_delim(ch)
+                elif ch == "\\" and not self.str_context[-1].is_raw():
+                    self._commit(self._next_char())  # consume escape character
+                elif (
+                    ch == "{" and self.str_context and self.str_context[-1].is_fstring()
+                ):
+                    # Possible interpolation start
+                    self._handle_bracket(ch)
+            else:  # Normal code
+                if ch == "#":
+                    self._handle_comment()
+                else:
+                    self._commit(ch)
+                    if ch in {"'", '"'}:
+                        self._handle_string_delim(ch)
+                    elif ch in {"{", "}", "(", ")", "[", "]"}:
+                        self._handle_bracket(ch)
+        result = self.result_line
+        self.result_line = ""
+        debug_verbose_print(f"Parsed line {self.line_num} result: {result!r}")
         return result
 
+
+def generate_and_postprocess_tokens(
+    readline: Callable[[], str],
+    unconsumed_block_comment: list[_BlockComment],
+) -> Iterator[TokenInfo]:
+    """Generate tokens from readline, handling block comments."""
     line_offset_already_consumed = 0
+    block_comment_already_output: set[_BlockComment] = set()
     # Adjust token positions from generated tokens, and mix in block comment tokens.
-    for tok in generate_tokens(readline_wrapper):
+    for tok in generate_tokens(readline):
         debug_verbose_print(
             f"Generated token: {tok.string!r} type={tok.type} start={tok.start} end={tok.end}"
         )
@@ -166,7 +390,7 @@ def token_stream_factory(readline: Callable[[], str]) -> Iterator[TokenInfo]:
             # This block comment is before the token, yield here first.
             if block_comment not in block_comment_already_output:
                 block_comment_already_output.add(block_comment)
-                debug_print(
+                debug_verbose_print(
                     f"Yielding block comment at start=({block_comment.start_line}, {block_comment.start_col}) "
                     f"end=({block_comment.end_line}, {block_comment.end_col})"
                 )
@@ -231,7 +455,7 @@ def token_stream_factory(readline: Callable[[], str]) -> Iterator[TokenInfo]:
             f"end=({adjusted_end_line}, {adjusted_end_col})"
         )
         yield TokenInfo(
-            type=regularize_token_type(tok.type),
+            type=_regularize_token_type(tok.type),
             string=tok.string,
             start=(adjusted_start_line, adjusted_start_col),
             end=(adjusted_end_line, adjusted_end_col),
@@ -251,3 +475,11 @@ def token_stream_factory(readline: Callable[[], str]) -> Iterator[TokenInfo]:
                 end=(block_comment.end_line, block_comment.end_col),
                 line=block_comment.lines,
             )
+
+
+def token_stream_factory(readline: Callable[[], str]) -> Iterator[TokenInfo]:
+    line_parser = _LineParser(readline)
+
+    yield from generate_and_postprocess_tokens(
+        line_parser.parse_next_line, line_parser.outermost_block_comments
+    )

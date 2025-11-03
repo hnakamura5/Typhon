@@ -1,5 +1,18 @@
 from ..assertion_utils import show_token, assert_ast_equals, RawTokenStreamAsserter
-from tokenize import NAME, OP, NEWLINE, ENDMARKER, NUMBER, COMMENT, INDENT, DEDENT
+from tokenize import (
+    NAME,
+    OP,
+    NEWLINE,
+    ENDMARKER,
+    NUMBER,
+    COMMENT,
+    INDENT,
+    DEDENT,
+    STRING,
+    FSTRING_START,
+    FSTRING_MIDDLE,
+    FSTRING_END,
+)
 
 block_comment_code = """
 let x = 10 #(comment in line)#
@@ -112,3 +125,174 @@ def test_block_comment_sandwich():
     ta.next(DEDENT, "", (8, 0), (8, 0))
     ta.next(ENDMARKER, "")
     assert_ast_equals(block_comment_sandwich_code, block_comment_sandwich_result)
+
+
+block_comment_string_code = """
+let s = "This is #(not a comment)# string" #(this is a comment)#
+"""
+block_comment_string_result = """
+s = 'This is #(not a comment)# string'
+"""
+
+
+def test_block_comment_string():
+    ta = RawTokenStreamAsserter(block_comment_string_code)
+    ta.next(NEWLINE, "\n")
+    ta.next(NAME, "let")
+    ta.next(NAME, "s")
+    ta.next(OP, "=")
+    ta.next(STRING, '"This is #(not a comment)# string"', (2, 8), (2, 42))
+    ta.next(COMMENT, "#(this is a comment)#", (2, 43), (2, 64))
+    ta.next(NEWLINE, "\n", (2, 64), (2, 65))
+    ta.next(ENDMARKER, "")
+    assert_ast_equals(block_comment_string_code, block_comment_string_result)
+
+
+block_comment_f_string_code = """
+def func(i: int) {
+    let s = f'This is #(not a comment)# {i#(but this is a comment)#} inside f-string' #(and this is a comment)#
+    print(s)
+}
+"""
+block_comment_f_string_result = """
+def func(i: int):
+    s = f'This is #(not a comment)# {i} inside f-string'
+    print(s)
+"""
+
+
+def test_block_comment_f_string():
+    show_token(block_comment_f_string_code, show_python_token=False)
+    ta = RawTokenStreamAsserter(block_comment_f_string_code)
+    ta.next(NEWLINE, "\n")
+    ta.next(NAME, "def")
+    ta.next(NAME, "func")
+    ta.next(OP, "(")
+    ta.next(NAME, "i")
+    ta.next(OP, ":")
+    ta.next(NAME, "int")
+    ta.next(OP, ")")
+    ta.next(OP, "{")
+    ta.next(NEWLINE, "\n")
+    ta.next(NAME, "let")
+    ta.next(NAME, "s")
+    ta.next(OP, "=")
+    ta.next(FSTRING_START, "f'", (3, 12), (3, 14))
+    ta.next(FSTRING_MIDDLE, "This is #(not a comment)# ", (3, 14), (3, 40))
+    ta.next(OP, "{", (3, 40), (3, 41))
+    ta.next(NAME, "i", (3, 41), (3, 42))
+    ta.next(COMMENT, "#(but this is a comment)#", (3, 42), (3, 67))
+    ta.next(OP, "}", (3, 67), (3, 68))
+    ta.next(FSTRING_MIDDLE, " inside f-string", (3, 68), (3, 84))
+    ta.next(FSTRING_END, "'", (3, 84), (3, 85))
+    ta.next(COMMENT, "#(and this is a comment)#", (3, 86), (3, 111))
+    ta.next(NEWLINE, "\n", (3, 111), (3, 112))
+    ta.next(NAME, "print")
+    ta.next(OP, "(")
+    ta.next(NAME, "s")
+    ta.next(OP, ")")
+    ta.next(NEWLINE, "\n", (4, 12), (4, 13))
+    ta.next(OP, "}")
+    ta.next(NEWLINE, "\n", (5, 1), (5, 2))
+    ta.next(ENDMARKER, "")
+
+    assert_ast_equals(
+        block_comment_f_string_code,
+        block_comment_f_string_result,
+        # Python tokenizer fails to parse block comments because
+        # it becomes line comment that terminates f-string invalidly
+        show_python_token=False,
+    )
+
+
+block_comment_docstring_code = '''
+def func() {
+    """
+    This is a docstring with #(not a comment inside.
+    This should not be treated as a comment.
+    """
+    pass
+}
+'''
+block_comment_docstring_result = '''
+def func():
+    """
+    This is a docstring with #(not a comment inside.
+    This should not be treated as a comment.
+    """
+    pass
+'''
+
+
+def test_block_comment_docstring():
+    assert_ast_equals(block_comment_docstring_code, block_comment_docstring_result)
+
+
+block_comment_docstring_single_code = """
+def func() {
+    'This is a single-quoted docstring with #(not a comment)# inside.'
+    pass
+}
+"""
+block_comment_docstring_single_result = '''
+def func():
+    """This is a single-quoted docstring with #(not a comment)# inside."""
+    pass
+'''
+
+
+def test_block_comment_docstring_single():
+    assert_ast_equals(
+        block_comment_docstring_single_code, block_comment_docstring_single_result
+    )
+
+
+block_comment_docstring_f_string_code = '''
+def func() {
+    f"""
+    This is a f-string docstring with #(not a comment)#
+    inside. {42#(comment inside interpolation)#}"""
+    pass
+}
+'''
+block_comment_docstring_f_string_result = """
+def func():
+    f'\\n    This is a f-string docstring with #(not a comment)#\\n    inside. {42}'
+    pass
+"""
+
+
+def test_block_comment_docstring_f_string():
+    assert_ast_equals(
+        block_comment_docstring_f_string_code,
+        block_comment_docstring_f_string_result,
+        show_python_token=False,
+    )
+
+
+string_inside_block_comment_code = """
+let x = 10 #("This is a string inside block comment)# + " "
+"""
+string_inside_block_comment_result = """
+x = 10 + ' '
+"""
+
+
+def test_string_inside_block_comment():
+    show_token(string_inside_block_comment_code)
+    ta = RawTokenStreamAsserter(string_inside_block_comment_code)
+    ta.next(NEWLINE, "\n")
+    ta.next(NAME, "let")
+    ta.next(NAME, "x")
+    ta.next(OP, "=")
+    ta.next(NUMBER, "10", (2, 8), (2, 10))
+    ta.next(COMMENT, '#("This is a string inside block comment)#', (2, 11), (2, 53))
+    ta.next(OP, "+", (2, 54), (2, 55))
+    ta.next(STRING, '" "', (2, 56), (2, 59))
+    ta.next(NEWLINE, "\n", (2, 59), (2, 60))
+    ta.next(ENDMARKER, "")
+    assert_ast_equals(
+        string_inside_block_comment_code,
+        string_inside_block_comment_result,
+        show_python_token=False,
+    )
