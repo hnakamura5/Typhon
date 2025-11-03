@@ -1,0 +1,13 @@
+let seq = (for (let i in range(0, 3))
+               for (let j in range(0, 3))
+                   yield {|x = i, y = j|})
+
+while (let {|x = 0, y|} = seq |> next) {
+    print(f"x: 0, y: {y}")
+}
+
+"""stdout
+x: 0, y: 0
+x: 0, y: 1
+x: 0, y: 2
+"""

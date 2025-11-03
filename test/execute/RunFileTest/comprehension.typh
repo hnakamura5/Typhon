@@ -1,0 +1,25 @@
+# Complex comprehension with nested conditionals and exception handling.
+# Do not write such a code in real projects; this is just for testing.
+
+let comp = (for (let x in range(0, 5))
+                for (let y in range(0, 5))
+                    if (x < y)
+                        yield (if (x < 3) (try y // x except 0)
+                               else       (try y // x) ?? 0)#(is same as above)#)
+
+for (let v in comp) {
+    print(v)
+}
+
+"""stdout
+0
+0
+0
+0
+2
+3
+4
+1
+2
+1
+"""

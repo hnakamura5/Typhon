@@ -1,0 +1,7 @@
+from .subdir.submodule import submodule_function
+
+submodule_function()
+
+"""stdout
+Function in submodule
+"""
