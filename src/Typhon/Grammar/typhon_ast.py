@@ -1721,10 +1721,3 @@ def add_import_alias_top(mod: ast.Module, from_module: str, name: str, as_name: 
         **get_empty_pos_attributes(),
     )
     mod.body.insert(0, import_stmt)
-
-
-def is_body_jump_away(body: list[ast.stmt]) -> bool:
-    if not body:
-        return False
-    last_stmt = body[-1]
-    return isinstance(last_stmt, (ast.Break, ast.Continue, ast.Return, ast.Raise))

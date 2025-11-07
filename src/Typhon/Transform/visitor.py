@@ -25,7 +25,6 @@ class _ScopeManagerMixin:
     parent_exprs: list[ast.expr]
     name_gen: UniqueNameGenerator
     parent_python_scopes: list[PythonScope]
-    parent_block_scopes: list[tuple[ast.AST, list[ast.stmt]]]
 
     def __init__(self, module: ast.Module):
         super().__init__()
@@ -35,7 +34,6 @@ class _ScopeManagerMixin:
         self.parent_functions = []
         self.name_gen = UniqueNameGenerator(module)
         self.parent_python_scopes = []
-        self.parent_block_scopes = []
 
     @contextmanager
     def _parent_class(self, node: ast.AST):

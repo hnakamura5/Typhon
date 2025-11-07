@@ -5,11 +5,11 @@ from ..Grammar.typhon_ast import (
     is_let_else,
     set_is_var,
     set_is_let_else,
-    is_body_jump_away,
 )
 from .visitor import TyphonASTTransformer, flat_append
 from contextlib import contextmanager
 from dataclasses import dataclass
+from .utils import is_body_jump_away
 
 
 class IfMultipleLetTransformer(TyphonASTTransformer):
@@ -36,19 +36,25 @@ class IfMultipleLetTransformer(TyphonASTTransformer):
             <orelse>
 
     --> (transformation here)
-
-        <else_flag> = True
+        when <body> jumps away:
         match <subject1>:
             case <pattern1>:
-                match <subject2>:
-                    case <pattern2>:
                         ...
                             match <subjectN>:
                                 case <patternN> if <cond>:
                                     <body>
-                                    # Only when last of body does not jump away.
+        <orelse> # Unconditional execution of orelse
+
+        when <body> does not jump away:
+        <else_flag> = True
+        match <subject1>:
+            case <pattern1>:
+                        ...
+                            match <subjectN>:
+                                case <patternN> if <cond>:
                                     <else_flag> = False
-        if <else_flag>:
+                                    <body>
+        if <else_flag>: # Only when body did not execute
             <orelse>
     """
 
@@ -58,6 +64,14 @@ class IfMultipleLetTransformer(TyphonASTTransformer):
         if body is None:
             return node
         pos = get_pos_attributes(node)
+        # When jump away, does not need flag control.
+        jump_away = is_body_jump_away(body)
+        if jump_away:
+            result: list[ast.stmt] = node.body
+            if node.orelse:
+                result.extend(node.orelse)
+            return result
+        # Need flag control.
         # <else_flag> = True
         else_flag_name = self.new_temp_variable_name()
         else_flag_assign = ast.Assign(
@@ -66,14 +80,13 @@ class IfMultipleLetTransformer(TyphonASTTransformer):
             **pos,
         )
         set_is_var(else_flag_assign)
-        if not is_body_jump_away(body):
-            # <else_flag> = False
-            else_flag_set_false = ast.Assign(
-                targets=[ast.Name(id=else_flag_name, ctx=ast.Store(), **pos)],
-                value=ast.Constant(value=False),
-                **pos,
-            )
-            body.append(else_flag_set_false)
+        # <else_flag> = False
+        else_flag_set_false = ast.Assign(
+            targets=[ast.Name(id=else_flag_name, ctx=ast.Store(), **pos)],
+            value=ast.Constant(value=False),
+            **pos,
+        )
+        body.insert(0, else_flag_set_false)
         result: list[ast.stmt] = [else_flag_assign]
         result.extend(node.body)
         if node.orelse:

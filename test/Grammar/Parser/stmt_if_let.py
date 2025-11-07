@@ -1,4 +1,5 @@
 from ..assertion_utils import assert_ast_equals, assert_ast_error, assert_ast_transform
+from ....src.Typhon.Driver.debugging import set_debug_mode, set_debug_verbose
 
 
 if_let_none_check_code = """
@@ -19,8 +20,8 @@ y: int | None = None
 _typh_vr_m0_0_ = True
 match y:
     case _typh_cn_m0_1_x if _typh_cn_m0_1_x is not None:
-        print(_typh_cn_m0_1_x)
         _typh_vr_m0_0_ = False
+        print(_typh_cn_m0_1_x)
 """
 
 
@@ -181,22 +182,20 @@ class Point:
     z: int
 
 def func(point1: Point, point2: Point) -> int | None:
-    _typh_vr_f2_1_ = True
+    _typh_vr_f2_0_ = True
     match point1:
         case Point(x=a, y=b, z=c):
             match point2:
                 case Point(d, e, f) if a > d:
+                    _typh_vr_f2_0_ = False
                     print(a + b + c + d + e + f)
-                    _typh_vr_f2_1_ = False
-    if _typh_vr_f2_1_:
-        _typh_vr_f2_0_ = True
+    if _typh_vr_f2_0_:
         match point1:
             case Point(a, b, c):
                 match point2:
                     case Point(x=d, y=e, z=f):
                         return a + b + c + d + e + f
-        if _typh_vr_f2_0_:
-            print('No match')
+        print('No match')
     return None
 """
 
@@ -238,15 +237,57 @@ def func(x: (int,)) -> int:
 """
 let_else_transformed = """
 def func(x: int | None) -> int:
-    _typh_vr_f1_0_ = True
     match x:
         case y if y is not None:
             return y
-    if _typh_vr_f1_0_:
-        return 0
+    return 0
 """
 
 
 def test_stmt_let_else():
     assert_ast_equals(let_else_code, let_else_result)
     assert_ast_transform(let_else_code, let_else_transformed)
+
+
+let_else_with_code = """
+def func(x: int) -> int {
+    let i = (try 2 // x) else {
+        return -1
+    }
+    with let f = open('file.txt')
+    f.write(str(i))
+    return i
+}
+"""
+let_else_with_result = """
+def func(x: int) -> int:
+    if True:
+        match __try_comp:
+            case i if i is not None:
+    else:
+        return -1
+    with open('file.txt') as f:
+    f.write(str(i))
+    return i
+"""
+let_else_with_transformed = """
+def func(x: int) -> int:
+
+    def _typh_cc_f1_0():
+        try:
+            return 2 // x
+        except:
+            return None
+    match _typh_cc_f1_0():
+        case i if i is not None:
+            with open('file.txt') as f:
+                f.write(str(i))
+                return i
+    return -1
+"""
+
+
+def test_stmt_let_else_with():
+    set_debug_verbose(True)
+    assert_ast_equals(let_else_with_code, let_else_with_result)
+    assert_ast_transform(let_else_with_code, let_else_with_transformed)

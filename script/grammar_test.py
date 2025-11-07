@@ -36,6 +36,10 @@ def gather_scope_tests() -> list[str]:
     return gather_test_in_unittest_dir("Scope")
 
 
+def gather_utils_tests() -> list[str]:
+    return gather_test_in_unittest_dir("Utils")
+
+
 def run_all_tests() -> int:
     build_grammar()
 
@@ -48,7 +52,7 @@ def run_all_tests() -> int:
     ):  # Failed
         return 1
 
-    test_files = gather_parser_tests() + gather_scope_tests()
+    test_files = gather_parser_tests() + gather_scope_tests() + gather_utils_tests()
     if not test_files:
         print("No tests were found to run.")
         return 1

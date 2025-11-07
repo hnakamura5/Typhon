@@ -50,12 +50,10 @@ comp_if_let_transformed = """
 def func(a: int | None) -> int | None:
 
     def _typh_cc_f1_0():
-        _typh_vr_f2_0_ = True
         match a:
-            case _typh_cn_f2_1_a if _typh_cn_f2_1_a is not None:
-                return _typh_cn_f2_1_a
-        if _typh_vr_f2_0_:
-            return None
+            case _typh_cn_f2_0_a if _typh_cn_f2_0_a is not None:
+                return _typh_cn_f2_0_a
+        return None
     return _typh_cc_f1_0()
 """
 
@@ -106,22 +104,19 @@ class Point:
 def func(point1: Point, point2: Point) -> int | None:
 
     def _typh_cc_f2_0():
-        _typh_vr_f3_0_ = True
         match point1:
             case Point(x=a, y=b, z=c):
                 match point2:
                     case Point(d, e, f) if a > d:
                         return a + b + c + d + e + f
-        if _typh_vr_f3_0_:
 
-            def _typh_cc_f3_1():
-                _typh_vr_f4_0_ = True
-                match point1:
-                    case Point(a, b, c):
-                        match point2:
-                            case Point(x=d, y=e, z=f):
-                                return a + b + c + d + e + f
-            return _typh_cc_f3_1()
+        def _typh_cc_f3_0():
+            match point1:
+                case Point(a, b, c):
+                    match point2:
+                        case Point(x=d, y=e, z=f):
+                            return a + b + c + d + e + f
+        return _typh_cc_f3_0()
     return _typh_cc_f2_0()
 """
 

@@ -519,17 +519,19 @@ for_stmt[Union[ast.For, ast.AsyncFor]]:
 # --------------
 
 with_stmt[Union[ast.With, ast.AsyncWith]]:
-    | invalid_with_stmt_indent
     | is_async=['async'] 'with' '(' a=';'.with_item+ [';'] ')' NEWLINE* b=block {
         make_with_stmt(is_async=is_async is not None, items=sum(a, []), body=b, is_inline=False, LOCATIONS)
      }
+    | inline_with
+    | invalid_with_stmt
+
+inline_with[Union[ast.With, ast.AsyncWith]]:
     | is_async=['async'] 'with' a=with_item DELIMITER {
         make_with_stmt(is_async=is_async is not None, items=a, body=[], is_inline=True, LOCATIONS)
      }
-    | invalid_with_stmt
 
 with_item[List[ast.withitem]]:
-    | a=declaration_assignment &(',' | ')' | ';') { list(map(declaration_as_withitem, a)) }
+    | a=declaration_assignment &(',' | ')' | DELIMITER) { list(map(declaration_as_withitem, a)) }
     | invalid_with_item
     | e=expression { [ast.withitem(context_expr=e, optional_vars=None)] }
 

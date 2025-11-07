@@ -5,6 +5,8 @@
   "reportUnusedVariable": "none",
   "reportUnusedImport": "warning",
   "reportUnusedClass": "warning",
+  "reportUnusedFunction": "warning",
+  "reportUnusedExpression": "warning",
   "reportUnnecessaryIsInstance": "warning",
   "exclude": [
     "**/private/**",

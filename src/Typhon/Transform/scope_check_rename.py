@@ -51,23 +51,20 @@ def get_builtins() -> set[str]:
 
 
 class SymbolScopeVisitor(TyphonASTVisitor):
-    scopes: list[dict[str, SymbolDeclaration]]  # Stack of scopes
-    symbols: dict[str, list[SymbolDeclaration]]  # Synchronized with scopes stack
-    declaration_context: DeclarationContext | None
-    non_declaration_assign_context: bool
-    builtins_symbols: set[str]
-
     def __init__(self, module: ast.Module):
         super().__init__(module)
-        self.scopes = []
-        self.symbols = {}
+        # Stack of scopes
+        self.scopes: list[dict[str, SymbolDeclaration]] = []
+        # Synchronized with scopes stack
+        self.symbols: dict[str, list[SymbolDeclaration]] = {}
         self.visiting_left_hand_side = False
-        self.declaration_context = None
+        self.declaration_context: DeclarationContext | None = None
         self.non_declaration_assign_context = False
-        self.suspended_symbols = set()
-        self.suspended_resolves = {}
-        self.require_global = {}
-        self.require_nonlocal = {}
+        self.suspended_symbols: set[str] = set()
+        # suspended_resolves[dead_accessor_name][undeclared_name]
+        self.suspended_resolves: dict[str, dict[str, list[SuspendedResolveAccess]]] = {}
+        self.require_global: dict[str, set[PythonScope]] = {}
+        self.require_nonlocal: dict[str, set[PythonScope]] = {}
         self.builtins_symbols = get_builtins()
 
     def _enter_scope(self):
@@ -111,6 +108,18 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         self.non_declaration_assign_context = True
         yield
         self.non_declaration_assign_context = False
+
+    @contextmanager
+    def right_value_maybe_in_declaration(self, node: ast.AST):
+        # Temporarily clear declaration context
+        # e.g. a[0] = 0 is valid even if a is immutable.
+        current_declaration = self.declaration_context
+        current_non_declaration_assign = self.non_declaration_assign_context
+        self.declaration_context = None
+        self.non_declaration_assign_context = False
+        yield
+        self.declaration_context = current_declaration
+        self.non_declaration_assign_context = current_non_declaration_assign
 
     def get_symbol(self, name: str) -> SymbolDeclaration | None:
         decs = self.symbols.get(name, [])
@@ -557,10 +566,15 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             for if_node in node.ifs:  # TODO: if let here?
                 self.visit(if_node)
 
+    def visit_Subscript(self, node: ast.Subscript):
+        with self.right_value_maybe_in_declaration(node):
+            self.generic_visit(node)
+
+    def visit_Attribute(self, node: ast.Attribute):
+        with self.right_value_maybe_in_declaration(node):
+            self.generic_visit(node)
+
     # Static Temporal Dead Zone(TDZ) handling.
-    # suspended_resolves[dead_accessor_name][undeclared_name]
-    suspended_resolves: dict[str, dict[str, list[SuspendedResolveAccess]]]
-    suspended_symbols: set[str]
     type SuspendableScope = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
 
     def add_suspended_resolve(
@@ -641,9 +655,6 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             self.suspended_resolves.pop(temp_dead_name)
 
     # global/nonlocal handling
-    require_global: dict[str, set[PythonScope]]
-    require_nonlocal: dict[str, set[PythonScope]]
-
     def add_require_global(self, name: str, python_scope: PythonScope):
         if name in self.builtins_symbols:
             return

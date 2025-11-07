@@ -4,11 +4,12 @@ from ..Grammar.typhon_ast import (
     clear_inline_with,
     is_let_else,
     get_let_pattern_body,
-    is_body_jump_away,
 )
 from .visitor import TyphonASTVisitor, flat_append
 from contextlib import contextmanager
 from dataclasses import dataclass
+from ..Driver.debugging import debug_print, debug_verbose_print
+from .utils import is_body_jump_away
 
 
 @dataclass
@@ -60,7 +61,7 @@ class _InlineStatementBlockCaptureGather(TyphonASTVisitor):
             }
             <after>
 
-        --> (is represented here)
+        --> (is represented here in my mind)
 
             if (let <pattern1> = <subject1>, <pattern2> = <subject2>, ...,
                     <patternN> = <subjectN>) {
@@ -70,7 +71,21 @@ class _InlineStatementBlockCaptureGather(TyphonASTVisitor):
             }
             <after>
 
-        --> (transformation here)
+        --> (is represented here actually)
+
+            if True: # multiple_let_pattern_body set to empty
+                match <subject1>:
+                    case <pattern1>:
+                        match <subject2>:
+                            ...
+                                match <subjectN>:
+                                    case <patternN>:
+                                        # empty
+            else:
+                <orelse> # Must jump away.
+            <after>
+
+        --> (transformation here in my mind)
 
             if (let <pattern1> = <subject1>, <pattern2> = <subject2>, ...,
                     <patternN> = <subjectN>) {
@@ -78,6 +93,19 @@ class _InlineStatementBlockCaptureGather(TyphonASTVisitor):
             } else {
                 <orelse> # Must jump away.
             }
+
+        --> (transformation here actually)
+
+            if True: # multiple_let_pattern_body set to empty
+                match <subject1>:
+                    case <pattern1>:
+                        match <subject2>:
+                            ...
+                                match <subjectN>:
+                                    case <patternN>:
+                                        <after>
+            else:
+                <orelse> # Must jump away.
         """
         body = get_let_pattern_body(node)
         if body is None or not is_let_else(node):
@@ -92,13 +120,16 @@ class _InlineStatementBlockCaptureGather(TyphonASTVisitor):
             parent_block_body=parent_block_body,
             body_capture_into=body,
         )
+        debug_print(
+            f"Found let else: \n    node:{ast.dump(node)} \n        parent:{ast.dump(parent_block_node)}\n            body:{list(map(ast.dump, body))}"
+        )
         if not is_body_jump_away(node.orelse):
             raise RuntimeError(
                 "let-else's else body must jump away"
             )  # TODO: Arrow NoReturn function call
         self._visit_list_scoped(node, node.orelse)
-        # Hack to make parent of the followings to if's body
-        self.parent_block_scopes[-1] = (node, node.body)
+        # Hack to make parent of the followings to case's body
+        self.parent_block_scopes[-1] = (node, body)
 
     def visit_For(self, node: ast.For):
         # No need to visit target, iter
@@ -141,6 +172,9 @@ class _InlineStatementBlockCaptureGather(TyphonASTVisitor):
                 parent_block_body=parent_block_body,
                 body_capture_into=node.body,
             )
+            debug_print(
+                f"Found inline with: {ast.dump(node)} \n    parent:{ast.dump(parent_block_node)}\n        body:{list(map(ast.dump, node.body))}"
+            )
             # Hack to make parent of the followings to with's body
             self.parent_block_scopes[-1] = (node, node.body)
         else:
@@ -175,6 +209,9 @@ def inline_statement_block_capture(module: ast.Module):
         # parent_block_node = inline_node.parent_block_body
         parent_block_body = inline_node.parent_block_body
         body_capture_into = inline_node.body_capture_into
+        debug_print(
+            f"Move: node:{ast.dump(node)} \n    inline_node:{ast.dump(inline_node.node)} \n        parent:{list(map(ast.dump, parent_block_body))}\n    body_capture_into:{list(map(ast.dump, body_capture_into))}"
+        )
         if node not in parent_block_body:
             raise RuntimeError("Parent block not found")  # TODO: proper error handling
         index = parent_block_body.index(node)
@@ -183,3 +220,6 @@ def inline_statement_block_capture(module: ast.Module):
         body_capture_into.extend(parent_block_body[index + 1 :])
         # Remove the remained stmts from parent block
         del parent_block_body[index + 1 :]
+        debug_verbose_print(
+            f"After move: node:{ast.dump(node)}\n    body_capture_into:{list(map(ast.dump, body_capture_into))} \n        parent:{list(map(ast.dump, parent_block_body))}"
+        )

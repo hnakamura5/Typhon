@@ -1,11 +1,12 @@
 import ast
 import tokenize
-from typing import Type, Union
+from typing import Type, Union, Any
 import io
 from ...src.Typhon.Grammar.parser import parse_string
 from ...src.Typhon.Transform.transform import transform
 from ...src.Typhon.Grammar.tokenizer_custom import TokenizerCustom
 from ...src.Typhon.Grammar.token_factory_custom import token_stream_factory
+import inspect
 
 PARSER_VERBOSE = False
 
@@ -141,3 +142,22 @@ def show_token(
     while tok.type != tokenize.ENDMARKER:
         print(f"    {tok}")
         tok = tokenizer.getnext()
+
+
+def get_func_source_ast(func: Any) -> ast.FunctionDef:
+    # Workaround to remove indent from inspect.getsource, because it cannot handle
+    # nested functions properly.
+    def _remove_indent(source: str) -> str:
+        lines = source.splitlines()
+        if not lines:
+            return source
+        first_line = lines[0]
+        indent = len(first_line) - len(first_line.lstrip())
+        trimmed_lines = [
+            line[indent:] if len(line) >= indent else line for line in lines
+        ]
+        return "\n".join(trimmed_lines)
+
+    source = _remove_indent(inspect.getsource(func))
+    func_def = assert_ast_type(ast.parse(source).body[0], ast.FunctionDef)
+    return func_def

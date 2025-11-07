@@ -209,14 +209,14 @@ def f(r: _typh_cl_f1_2_[int, tuple[int, str]]) -> None:
     _typh_vr_f1_9_ = True
     match r:
         case _typh_cl_f1_5_(x=a, y=[0, c]):
-            print(a, c)
             _typh_vr_f1_9_ = False
+            print(a, c)
     if _typh_vr_f1_9_:
         _typh_vr_f1_8_ = True
         match r:
             case _typh_cl_f1_7_(x=a):
-                print(a)
                 _typh_vr_f1_8_ = False
+                print(a)
 f(_typh_cl_m0_2_(x=1, y=(2, 'example')))
 """
 

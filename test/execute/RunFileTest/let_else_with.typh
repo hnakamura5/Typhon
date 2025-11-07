@@ -1,0 +1,45 @@
+class Context {
+    def __init__(i: int) {
+        self.i = i
+    }
+    def __enter__() -> "Context" {
+        print(f"Entering context with i={self.i}")
+        return self
+    }
+    def __exit__(*args) {
+        print(f"Exiting context with i={self.i}")
+    }
+    def get_value() -> int {
+        return self.i * 10
+    }
+}
+
+def func(x: int) -> int {
+    let i = (try 2 // x) else {
+        print("Division by zero")
+        return -1
+    }
+    with let c = Context(i)
+    print(f"Value from context: {c.get_value()}")
+    return i
+}
+
+for (let i in range(0, 3)) {
+    let result = func(i)
+    print(f"Result for i={i}: {result}")
+}
+
+"""stdout
+Division by zero
+Result for i=0: -1
+Entering context with i=2
+Value from context: 20
+Exiting context with i=2
+Result for i=1: 2
+Entering context with i=1
+Value from context: 10
+Exiting context with i=1
+Result for i=2: 1
+"""
+
+
