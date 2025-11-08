@@ -12,6 +12,8 @@ while True:
     match y:
         case x if x is not None:
             print(x)
+        case _:
+            pass
 """
 
 
@@ -54,6 +56,10 @@ def func(point1: Point, point2: Point) -> int | None:
                 match point2:
                     case Point(d, e, f) if a > d:
                         print(a + b + c + d + e + f)
+                    case _:
+                        pass
+            case _:
+                pass
     else:
         print('No match')
     return None
@@ -77,6 +83,10 @@ def func(point1: Point, point2: Point) -> int | None:
                     case Point(d, e, f) if a > d:
                         print(a + b + c + d + e + f)
                         _typh_vr_f2_0_ = True
+                    case _:
+                        pass
+            case _:
+                pass
     else:
         print('No match')
     return None

@@ -1,3 +1,5 @@
+from types import TracebackType
+
 class Context {
     def __init__(i: int) {
         self.i = i
@@ -6,7 +8,7 @@ class Context {
         print(f"Entering context with i={self.i}")
         return self
     }
-    def __exit__(*args) {
+    def __exit__(exc_type: BaseException, exc_value: TracebackType, traceback: BaseException) {
         print(f"Exiting context with i={self.i}")
     }
     def get_value() -> int {

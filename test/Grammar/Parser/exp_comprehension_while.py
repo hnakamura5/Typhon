@@ -40,6 +40,8 @@ def _typh_cc_m0_0():
                     case [x, y]:
                         yield (x, y)
                         _typh_vr_f2_0_ = True
+                    case _:
+                        pass
         return _typh_cc_f1_0()
 parsed = _typh_cc_m0_0()
 """

@@ -282,6 +282,15 @@ def test_match_irrefutable():
     assert_func_body_jump_away(match_stmt_irrefutable, True)
 
 
+def test_match_guard_no_return():
+    def match_stmt_guard_no_return(x: int) -> int | None:
+        match x:
+            case y if y > 0:
+                return y
+
+    assert_func_body_jump_away(match_stmt_guard_no_return, False)
+
+
 def test_complex():
     def sequence_stmt(x: int) -> int:
         if x > 0:
@@ -289,6 +298,8 @@ def test_complex():
                 match i:
                     case 0:
                         return 0
+                    case _:
+                        pass
             else:
                 if x % 2 == 0:
                     return -1

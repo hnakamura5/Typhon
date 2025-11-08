@@ -1,6 +1,4 @@
-from ..Grammar.typhon_ast import (
-    add_import_alias_top,
-)
+from ..Grammar.typhon_ast import add_import_alias_top, is_case_irrefutable
 from .name_generator import (
     get_protocol_name,
     get_final_name,
@@ -41,16 +39,6 @@ def get_insert_point_for_class(module: ast.Module) -> int:
         if not isinstance(stmt, (ast.Import, ast.ImportFrom)):
             return index
     return len(module.body)
-
-
-def is_pattern_irrefutable(pattern: ast.pattern) -> bool:
-    if isinstance(pattern, ast.MatchAs):
-        if pattern.pattern is None:
-            return True
-        return is_pattern_irrefutable(pattern.pattern)
-    if isinstance(pattern, ast.MatchOr):
-        return any(is_pattern_irrefutable(p) for p in pattern.patterns)
-    return False
 
 
 @dataclass
@@ -132,7 +120,7 @@ class _JumpAwayVisitor(ast.NodeVisitor):
         jump_away = True
         found_irrefutable = False
         for case in node.cases:
-            if is_pattern_irrefutable(case.pattern):
+            if is_case_irrefutable(case):
                 found_irrefutable = True
             jump_away &= self.visit_stmt_list(case.body)
         return jump_away and found_irrefutable

@@ -16,17 +16,18 @@ type TypeCheckLevel = Literal[
 ]
 translate_config = {
     "typeCheckingMode": "strict",
-    "reportUnusedExpression": "warn",
-    "reportUnusedClass": "warn",
-    "reportUnusedImport": "warn",
-    "reportUnusedFunction": "warn",
-    "reportUnusedVariable": "warn",
-    "reportUnusedCallResult": "warn",
-    "reportUnnecessaryIsInstance": "warn",
-    "reportUnnecessaryCast": "warn",
-    "reportUnnecessaryComparison": "warn",
-    "reportUnnecessaryContains": "warn",
-    "reportDeprecated": "warn",
+    "reportUnusedExpression": "warning",
+    "reportUnusedClass": "warning",
+    "reportUnusedImport": "warning",
+    "reportUnusedFunction": "warning",
+    "reportUnusedVariable": "warning",
+    "reportUnusedCallResult": "warning",
+    "reportUnnecessaryIsInstance": "warning",
+    "reportUnnecessaryCast": "warning",
+    "reportUnnecessaryComparison": "warning",
+    "reportUnnecessaryContains": "warning",
+    "reportMatchNotExhaustive": "warning",
+    "reportDeprecated": "warning",
 }
 script_config = {
     "typeCheckingMode": "strict",
@@ -40,6 +41,7 @@ script_config = {
     "reportUnnecessaryCast": "none",
     "reportUnnecessaryComparison": "none",
     "reportUnnecessaryContains": "none",
+    "reportMatchNotExhaustive": "none",
     "reportDeprecated": "none",
 }
 
@@ -83,8 +85,16 @@ def run_pyright(py_file_or_dir: Path, level: TypeCheckLevel = "translate") -> bo
         stderr=subprocess.PIPE,
     )
     # TODO: Currently printing directly. Take json and convert lines to Typhon source locations.
-    if not output.stdout.decode().startswith("0 errors, 0 warnings, 0 notes"):
-        print(output.stdout.decode())
+    decoded = output.stdout.decode()
+    result_line = decoded.strip().split("\n")[-1]
+    print(f"Pyright result: {result_line}")
     if len(output.stderr) > 0:
+        print(decoded, file=sys.stderr)
         return False
-    return True
+    if (
+        not result_line.startswith("0 errors, 0 warnings, 0 notes")
+        or len(output.stderr) > 0
+    ):
+        print(decoded, file=sys.stderr)
+    num_errors = result_line.split(" errors,")[0]
+    return num_errors == "0"

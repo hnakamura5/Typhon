@@ -168,10 +168,14 @@ def f(r: __record_type) -> None:
         match r:
             case __record_pattern(x=a, y=[0, c]):
                 print(a, c)
+            case _:
+                pass
     elif True:
         match r:
             case __record_pattern(x=a):
                 print(a)
+            case _:
+                pass
 f(__record_literal)
 """
 record_pattern_if_let_transformed = """
@@ -211,12 +215,16 @@ def f(r: _typh_cl_f1_2_[int, tuple[int, str]]) -> None:
         case _typh_cl_f1_5_(x=a, y=[0, c]):
             _typh_vr_f1_9_ = False
             print(a, c)
+        case _:
+            pass
     if _typh_vr_f1_9_:
         _typh_vr_f1_8_ = True
         match r:
             case _typh_cl_f1_7_(x=a):
                 _typh_vr_f1_8_ = False
                 print(a)
+            case _:
+                pass
 f(_typh_cl_m0_2_(x=1, y=(2, 'example')))
 """
 

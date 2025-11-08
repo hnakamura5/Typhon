@@ -51,7 +51,12 @@ def run_file(source: Path, capture_output: bool, *args: str) -> RunResult:
     output_file = temp_output_dir / (source.stem + ".py")
     # Translate source file to temp output file.
     translate_file(source, output_file)
-    run_type_check(output_file, run_mode=True)
+    if not run_type_check(output_file, run_mode=True):
+        return RunResult(
+            stdout="",
+            stderr="",
+            returncode=1,
+        )
     subprocess_args = [
         sys.executable,
         str(output_file),
@@ -76,7 +81,12 @@ def run_directory(source_dir: Path, capture_output: bool, *args: str) -> RunResu
     module_output_dir = temp_output_dir / source_dir.name
     # Translate source directory to temp output directory as module.
     translate_directory(source_dir, module_output_dir)
-    run_type_check(module_output_dir, run_mode=True)
+    if not run_type_check(module_output_dir, run_mode=True):
+        return RunResult(
+            stdout="",
+            stderr="",
+            returncode=1,
+        )
     subprocess_args = [
         sys.executable,
         "-m",

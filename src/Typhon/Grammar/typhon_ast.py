@@ -703,30 +703,6 @@ def _make_if_let_single_case(
         )
 
 
-def _make_if_let_single(
-    subject: ast.expr,
-    pattern: ast.pattern,
-    cond: ast.expr | None,
-    body: list[ast.stmt],
-    orelse: list[ast.stmt] | None,
-    **kwargs: Unpack[PosAttributes],
-) -> ast.Match:
-    cases: list[ast.match_case] = []
-    cases.append(_make_if_let_single_case(pattern, cond, body, make_none_check=True))
-    # Default wildcard _ case represents orelse clause.
-    if orelse:
-        cases.append(
-            # wildcard _ case.
-            ast.match_case(
-                pattern=ast.MatchAs(
-                    pattern=None, name=None, **pos_attribute_noneless(kwargs)
-                ),
-                body=orelse or [],
-            )
-        )
-    return ast.Match(subject=subject, cases=cases, **kwargs)
-
-
 def _make_nested_match_for_multiple_let(
     pattern_subjects: list[tuple[ast.pattern, ast.expr]],
     cond: ast.expr | None,
@@ -735,13 +711,20 @@ def _make_nested_match_for_multiple_let(
 ) -> list[ast.stmt]:
     # Build nested match statements from inside out.
     for pattern, subject in reversed(pattern_subjects):
+        cases = [
+            _make_if_let_single_case(pattern, cond, body, make_none_check=cond is None),
+            # Add a wildcard case to handle non-matching case to avoid linter error.
+            ast.match_case(  # case _: pass
+                pattern=ast.MatchAs(
+                    name=None, pattern=None, **pos_attribute_noneless(kwargs)
+                ),
+                guard=None,
+                body=[ast.Pass(**kwargs)],
+            ),
+        ]
         nested_match: ast.stmt = ast.Match(
             subject=subject,
-            cases=[
-                _make_if_let_single_case(
-                    pattern, cond, body, make_none_check=cond is None
-                )
-            ],
+            cases=cases,
             **kwargs,
         )
         body = [nested_match]
@@ -1721,3 +1704,19 @@ def add_import_alias_top(mod: ast.Module, from_module: str, name: str, as_name: 
         **get_empty_pos_attributes(),
     )
     mod.body.insert(0, import_stmt)
+
+
+def is_pattern_irrefutable(pattern: ast.pattern) -> bool:
+    if isinstance(pattern, ast.MatchAs):
+        if pattern.pattern is None:
+            return True
+        return is_pattern_irrefutable(pattern.pattern)
+    if isinstance(pattern, ast.MatchOr):
+        return any(is_pattern_irrefutable(p) for p in pattern.patterns)
+    return False
+
+
+def is_case_irrefutable(case: ast.match_case) -> bool:
+    if case.guard:
+        return False
+    return is_pattern_irrefutable(case.pattern)

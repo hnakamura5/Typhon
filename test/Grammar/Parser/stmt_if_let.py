@@ -14,6 +14,8 @@ if True:
     match y:
         case x if x is not None:
             print(x)
+        case _:
+            pass
 """
 if_let_none_check_transformed = """
 y: int | None = None
@@ -22,6 +24,8 @@ match y:
     case _typh_cn_m0_1_x if _typh_cn_m0_1_x is not None:
         _typh_vr_m0_0_ = False
         print(_typh_cn_m0_1_x)
+    case _:
+        pass
 """
 
 
@@ -40,6 +44,8 @@ if True:
     match (x, y, z):
         case [1, *rest]:
             w = rest
+        case _:
+            pass
 """
 
 
@@ -76,6 +82,8 @@ def func(point: Point) -> int | None:
         match point:
             case Point(a, b):
                 return a + b
+            case _:
+                pass
     return None
 """
 
@@ -115,6 +123,8 @@ def func(point: Point) -> int | None:
         match point:
             case Point(a, y=b, z=c) if a > 0:
                 return a + b + c
+            case _:
+                pass
     return None
 """
 
@@ -162,12 +172,20 @@ def func(point1: Point, point2: Point) -> int | None:
                 match point2:
                     case Point(d, e, f) if a > d:
                         print(a + b + c + d + e + f)
+                    case _:
+                        pass
+            case _:
+                pass
     elif True:
         match point1:
             case Point(a, b, c):
                 match point2:
                     case Point(x=d, y=e, z=f):
                         return a + b + c + d + e + f
+                    case _:
+                        pass
+            case _:
+                pass
     else:
         print('No match')
     return None
@@ -189,12 +207,20 @@ def func(point1: Point, point2: Point) -> int | None:
                 case Point(d, e, f) if a > d:
                     _typh_vr_f2_0_ = False
                     print(a + b + c + d + e + f)
+                case _:
+                    pass
+        case _:
+            pass
     if _typh_vr_f2_0_:
         match point1:
             case Point(a, b, c):
                 match point2:
                     case Point(x=d, y=e, z=f):
                         return a + b + c + d + e + f
+                    case _:
+                        pass
+            case _:
+                pass
         print('No match')
     return None
 """
@@ -231,6 +257,8 @@ def func(x: (int,)) -> int:
     if True:
         match x:
             case y if y is not None:
+            case _:
+                pass
     else:
         return 0
     return y
@@ -240,6 +268,8 @@ def func(x: int | None) -> int:
     match x:
         case y if y is not None:
             return y
+        case _:
+            pass
     return 0
 """
 
@@ -264,6 +294,8 @@ def func(x: int) -> int:
     if True:
         match __try_comp:
             case i if i is not None:
+            case _:
+                pass
     else:
         return -1
     with open('file.txt') as f:
@@ -283,6 +315,8 @@ def func(x: int) -> int:
             with open('file.txt') as f:
                 f.write(str(i))
                 return i
+        case _:
+            pass
     return -1
 """
 

@@ -4,7 +4,7 @@ let l = range(0, 10)
         |> map(_ * 2, _)
         |> map((if (_ < 10) 0 else 1), _)
 
-for (let v in l) {
+for (let v: int in l) {
     print(v)
 }
 

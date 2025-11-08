@@ -53,6 +53,8 @@ def func(a: int | None) -> int | None:
         match a:
             case _typh_cn_f2_0_a if _typh_cn_f2_0_a is not None:
                 return _typh_cn_f2_0_a
+            case _:
+                pass
         return None
     return _typh_cc_f1_0()
 """
@@ -109,6 +111,10 @@ def func(point1: Point, point2: Point) -> int | None:
                 match point2:
                     case Point(d, e, f) if a > d:
                         return a + b + c + d + e + f
+                    case _:
+                        pass
+            case _:
+                pass
 
         def _typh_cc_f3_0():
             match point1:
@@ -116,6 +122,10 @@ def func(point1: Point, point2: Point) -> int | None:
                     match point2:
                         case Point(x=d, y=e, z=f):
                             return a + b + c + d + e + f
+                        case _:
+                            pass
+                case _:
+                    pass
         return _typh_cc_f3_0()
     return _typh_cc_f2_0()
 """

@@ -8,6 +8,7 @@
   "reportUnusedFunction": "warning",
   "reportUnusedExpression": "warning",
   "reportUnnecessaryIsInstance": "warning",
+  "reportMatchNotExhaustive": "warning",
   "exclude": [
     "**/private/**",
     "**/.venv/**"
