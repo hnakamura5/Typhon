@@ -4,7 +4,7 @@ from ..Grammar.typhon_ast import (
     get_record_literal_fields,
     get_record_type_fields,
     get_pos_attributes,
-    pos_attribute_noneless,
+    pos_attribute_to_range,
     get_empty_pos_attributes,
     PosAttributes,
     set_is_var,
@@ -221,7 +221,7 @@ def _type_vars_for_fields(
     type_params: list[ast.type_param] = []
     for tv in type_variables:
         type_params.append(
-            ast.TypeVar(name=tv, **pos_attribute_noneless(get_pos_attributes(record)))
+            ast.TypeVar(name=tv, **pos_attribute_to_range(get_pos_attributes(record)))
         )
     return type_params
 

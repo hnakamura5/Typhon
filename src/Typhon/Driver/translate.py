@@ -65,12 +65,15 @@ def translate(
     if source_path.is_file():
         output_file = output_dir_path / (source_path.stem + ".py")
         translate_file(source_path, output_file)
-        run_type_check(output_file)
+        result = run_type_check(output_file)
     elif source_path.is_dir():
         translate_directory(source_path, output_dir_path / source_path.name)
-        run_type_check(output_dir_path)
+        result = run_type_check(output_dir_path)
     else:
         raise FileNotFoundError(f"Source path '{source}' does not exist.")
+    print(result.to_string())
+    if not result.is_successful():
+        raise RuntimeError("Type checking failed.")
 
 
 @copy_type(translate)

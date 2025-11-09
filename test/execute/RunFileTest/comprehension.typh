@@ -7,7 +7,7 @@ let comp = (for (let x in range(0, 5))
                         yield (if (x < 3) (try y // x except 0)
                                else       (try y // x) ?? 0)#(is same as above)#)
 
-for (let v in comp) {
+for (let v: int in comp) {
     print(v)
 }
 

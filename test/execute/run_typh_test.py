@@ -11,6 +11,7 @@ def test_typh_files():
     for test in test_dir.glob("*.typh"):
         result = run_file(test, capture_output=True)
         debug_print(f"Test file: {test} result:\n{result}")
+        assert result.returncode == 0
         assert_file_stdout(test, result.stdout)
         assert_file_stderr(test, result.stderr)
 

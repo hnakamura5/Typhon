@@ -2,8 +2,10 @@ import sys
 from pathlib import Path
 import subprocess
 from ..Driver.debugging import debug_print
-from typing import Literal
+from typing import Literal, cast, Any
 import json
+from .result import Severity, Diagnostic, TypeCheckResult, result_to_string
+from ..Grammar.typhon_ast import PosRange
 
 # https://docs.basedpyright.com/dev/configuration/config-files/
 type TypeCheckLevel = Literal[
@@ -78,23 +80,66 @@ def write_pyright_config(
     return str(config_path)
 
 
-def run_pyright(py_file_or_dir: Path, level: TypeCheckLevel = "translate") -> bool:
+def _try_read_attr[T](d: Any, attr: str, default: T) -> T:
+    result = d.get(attr, default)
+    return cast(T, result)
+
+
+def _parse_pos_range(pos: Any) -> PosRange:
+    start = _try_read_attr(pos, "start", {})
+    end = _try_read_attr(pos, "end", {})
+    return PosRange(
+        lineno=start.get("line", 0),
+        col_offset=start.get("character", 0),
+        end_lineno=end.get("line", 0),
+        end_col_offset=end.get("character", 0),
+    )
+
+
+def _parse_diagnostic(diag: Any) -> Diagnostic:
+    return Diagnostic(
+        file_path=_try_read_attr(diag, "file", ""),
+        severity=Severity[_try_read_attr(diag, "severity", "INFO").upper()],
+        message=_try_read_attr(diag, "message", ""),
+        pos=_parse_pos_range(diag["range"]),
+        rule=_try_read_attr(diag, "rule", ""),
+    )
+
+
+def parse_json_output(output: str, returncode: int, stderr: str) -> TypeCheckResult:
+    data = json.loads(output)
+    diagnostics = [
+        _parse_diagnostic(diag) for diag in data.get("generalDiagnostics", [])
+    ]
+    summary = _try_read_attr(data, "summary", {})
+    return TypeCheckResult(
+        returncode=returncode,
+        stderr=stderr,
+        files_analyzed=_try_read_attr(summary, "filesAnalyzed", 0),
+        num_errors=_try_read_attr(summary, "errorCount", 0),
+        num_warnings=_try_read_attr(summary, "warningCount", 0),
+        num_info=_try_read_attr(summary, "informationCount", 0),
+        time_in_sec=_try_read_attr(summary, "timeInSec", 0.0),
+        diagnostics=diagnostics,
+    )
+
+
+def run_pyright(
+    py_file_or_dir: Path, level: TypeCheckLevel = "translate"
+) -> TypeCheckResult:
     output = subprocess.run(
-        [sys.executable, "-m", "basedpyright", str(py_file_or_dir)],
+        [
+            sys.executable,
+            "-m",
+            "basedpyright",
+            str(py_file_or_dir),
+            "--outputjson",
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        shell=False,
     )
-    # TODO: Currently printing directly. Take json and convert lines to Typhon source locations.
-    decoded = output.stdout.decode()
-    result_line = decoded.strip().split("\n")[-1]
-    print(f"Pyright result: {result_line}")
-    if len(output.stderr) > 0:
-        print(decoded, file=sys.stderr)
-        return False
-    if (
-        not result_line.startswith("0 errors, 0 warnings, 0 notes")
-        or len(output.stderr) > 0
-    ):
-        print(decoded, file=sys.stderr)
-    num_errors = result_line.split(" errors,")[0]
-    return num_errors == "0"
+    result = parse_json_output(
+        output.stdout.decode(), output.returncode, output.stderr.decode()
+    )
+    return result

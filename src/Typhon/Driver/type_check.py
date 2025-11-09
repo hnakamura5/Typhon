@@ -1,8 +1,10 @@
+import sys
 from pathlib import Path
 from ..Typing.pyright import run_pyright, TypeCheckLevel, write_pyright_config
+from ..Typing.result import TypeCheckResult, result_to_string
 
 
-def run_type_check(py_file_or_dir: Path, run_mode: bool = False) -> bool:
+def run_type_check(py_file_or_dir: Path, run_mode: bool = False) -> TypeCheckResult:
     # TODO: Now fixed to pyright, support other type checkers later.
     contained_dir = (
         py_file_or_dir.parent if py_file_or_dir.is_file() else py_file_or_dir
@@ -12,7 +14,7 @@ def run_type_check(py_file_or_dir: Path, run_mode: bool = False) -> bool:
     return run_pyright(py_file_or_dir, level)
 
 
-def type_check(source: str, level: TypeCheckLevel = "translate") -> bool:
+def type_check(source: str, level: TypeCheckLevel = "translate") -> None:
     """
     Runs type checking on the given Python source file or directory using Pyright.
 
@@ -24,4 +26,8 @@ def type_check(source: str, level: TypeCheckLevel = "translate") -> bool:
         bool: True if type checking passed without errors, False otherwise.
     """
     source_path = Path(source)
-    return run_pyright(source_path, level)
+    result = run_pyright(source_path, level)
+    if result.returncode != 0:
+        print(result.stderr, file=sys.stderr)
+        raise RuntimeError("Type checking process failed.")
+    print(result_to_string(result))

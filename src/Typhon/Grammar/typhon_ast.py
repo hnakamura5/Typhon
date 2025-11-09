@@ -6,6 +6,7 @@ from copy import copy
 from ..Driver.debugging import debug_print, debug_verbose_print
 
 
+# Same as ast module's position attributes
 class PosAttributes(TypedDict):
     lineno: int
     col_offset: int
@@ -13,19 +14,19 @@ class PosAttributes(TypedDict):
     end_col_offset: int | None
 
 
-class PostAttributesNoneless(TypedDict):
+class PosRange(TypedDict):
     lineno: int
     col_offset: int
     end_lineno: int
     end_col_offset: int
 
 
-def pos_attribute_noneless(pos: PosAttributes) -> PostAttributesNoneless:
+def pos_attribute_to_range(pos: PosAttributes) -> PosRange:
     if getattr(pos, "end_lineno", None) is None:
         pos["end_lineno"] = pos["lineno"]
     if getattr(pos, "end_col_offset", None) is None:
         pos["end_col_offset"] = pos["col_offset"]
-    return cast(PostAttributesNoneless, pos)
+    return cast(PosRange, pos)
 
 
 type PosNode = (
@@ -716,7 +717,7 @@ def _make_nested_match_for_multiple_let(
             # Add a wildcard case to handle non-matching case to avoid linter error.
             ast.match_case(  # case _: pass
                 pattern=ast.MatchAs(
-                    name=None, pattern=None, **pos_attribute_noneless(kwargs)
+                    name=None, pattern=None, **pos_attribute_to_range(kwargs)
                 ),
                 guard=None,
                 body=[ast.Pass(**kwargs)],
@@ -1400,7 +1401,7 @@ def make_let_comp(
         cast(
             ast.stmt,
             assign_as_declaration(
-                "let", a, len(assignments) > 0, **pos_attribute_noneless(kwargs)
+                "let", a, len(assignments) > 0, **pos_attribute_to_range(kwargs)
             ),
         )
         for a in assignments
@@ -1642,7 +1643,7 @@ def make_record_pattern(
             p
             if p is not None
             # Only name is given, capture by member name.
-            else ast.MatchAs(pattern=None, name=k, **pos_attribute_noneless(kwargs))
+            else ast.MatchAs(pattern=None, name=k, **pos_attribute_to_range(kwargs))
         )
         for k, p in keywords
     ]
@@ -1656,7 +1657,7 @@ def make_record_pattern(
         patterns=[],
         kwd_attrs=kwd_attrs,
         kwd_patterns=kwd_patterns,
-        **pos_attribute_noneless(kwargs),
+        **pos_attribute_to_range(kwargs),
     )
 
 
