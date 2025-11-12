@@ -6,6 +6,7 @@ from ...src.Typhon.Grammar.parser import parse_string
 from ...src.Typhon.Transform.transform import transform
 from ...src.Typhon.Grammar.tokenizer_custom import TokenizerCustom
 from ...src.Typhon.Grammar.token_factory_custom import token_stream_factory
+from ...src.Typhon.SourceMap.ast_matching import match_ast
 import inspect
 
 PARSER_VERBOSE = False
@@ -123,6 +124,39 @@ def assert_ast_type[T](node: ast.AST, t: Type[T]) -> T:
     return node
 
 
+def assert_ast_match_unparse_code(code: Any):
+    func_ast = get_code_source_ast(code)
+    func_unparsed_ast = ast.parse(ast.unparse(func_ast)).body[0]
+    assert (
+        match_ast(
+            func_ast,
+            func_unparsed_ast,
+        )
+        is not None
+    )
+
+
+def assert_ast_match_unparse(node: ast.AST):
+    unparse = ast.unparse(node)
+    print(f"Unparsed code:\n{unparse}")
+    unparsed_ast = ast.parse(unparse)
+    assert (
+        match_ast(
+            node,
+            unparsed_ast,
+        )
+        is not None
+    )
+
+
+def assert_code_match_unparse(code: str):
+    parsed = parse_string(code)
+    assert parsed
+    assert isinstance(parsed, ast.Module)
+    transform(parsed)
+    assert_ast_match_unparse(parsed)
+
+
 def show_token(
     source: str, show_typhon_token: bool = True, show_python_token: bool = True
 ):
@@ -144,7 +178,7 @@ def show_token(
         tok = tokenizer.getnext()
 
 
-def get_func_source_ast(func: Any) -> ast.FunctionDef:
+def get_code_source_ast(code: Any) -> ast.AST:
     # Workaround to remove indent from inspect.getsource, because it cannot handle
     # nested functions properly.
     def _remove_indent(source: str) -> str:
@@ -158,6 +192,6 @@ def get_func_source_ast(func: Any) -> ast.FunctionDef:
         ]
         return "\n".join(trimmed_lines)
 
-    source = _remove_indent(inspect.getsource(func))
-    func_def = assert_ast_type(ast.parse(source).body[0], ast.FunctionDef)
-    return func_def
+    source = _remove_indent(inspect.getsource(code))
+    code_def = ast.parse(source).body[0]
+    return code_def

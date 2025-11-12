@@ -2,6 +2,7 @@ from ..assertion_utils import (
     assert_ast_equals,
     assert_transform_equals,
     assert_ast_error,
+    assert_code_match_unparse,
 )
 
 
@@ -29,6 +30,7 @@ _typh_cl_m0_2_(x=1, y='2')
 def test_record_literal():
     parsed = assert_ast_equals(record_literal_code, record_literal_result)
     assert_transform_equals(parsed, record_literal_transformed)
+    assert_code_match_unparse(record_literal_code)
 
 
 record_literal_positional_error_code = """
@@ -69,6 +71,7 @@ def test_record_literal_annotation():
         record_literal_annotation_code, record_literal_annotation_result
     )
     assert_transform_equals(parsed, record_literal_annotation_transformed)
+    assert_code_match_unparse(record_literal_annotation_code)
 
 
 record_type_code = """
@@ -100,6 +103,7 @@ def func(r: _typh_cl_f1_2_[int, str]) -> None:
 def test_record_type():
     parsed = assert_ast_equals(record_type_code, record_type_result)
     assert_transform_equals(parsed, record_type_transformed)
+    assert_code_match_unparse(record_type_code)
 
 
 record_type_positional_error_code = """
@@ -150,6 +154,7 @@ def f(r):
 def test_record_pattern():
     parsed = assert_ast_equals(record_pattern_code, record_pattern_result)
     assert_transform_equals(parsed, record_pattern_transformed)
+    assert_code_match_unparse(record_pattern_code)
 
 
 record_pattern_if_let_code = """
@@ -232,6 +237,7 @@ f(_typh_cl_m0_2_(x=1, y=(2, 'example')))
 def test_record_pattern_if_let():
     parsed = assert_ast_equals(record_pattern_if_let_code, record_pattern_if_let_result)
     assert_transform_equals(parsed, record_pattern_if_let_transformed)
+    assert_code_match_unparse(record_pattern_if_let_code)
 
 
 record_pattern_positional_code = """
@@ -273,3 +279,4 @@ def test_record_pattern_positional():
         record_pattern_positional_code, record_pattern_positional_result
     )
     assert_transform_equals(parsed, record_pattern_positional_transformed)
+    assert_code_match_unparse(record_pattern_positional_code)

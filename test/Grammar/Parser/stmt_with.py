@@ -2,6 +2,7 @@ from ..assertion_utils import (
     assert_ast_equals,
     assert_ast_type,
     assert_transform_equals,
+    assert_code_match_unparse,
 )
 import ast
 from ....src.Typhon.Grammar.typhon_ast import is_var, is_let
@@ -147,3 +148,4 @@ print('a')
 def test_stmt_inline_with():
     parsed = assert_ast_equals(code_inline_with, result_inline_with)
     assert_transform_equals(parsed, result_inline_with_transformed)
+    assert_code_match_unparse(code_inline_with)

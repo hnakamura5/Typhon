@@ -12,32 +12,38 @@ def gather_directory(dir_path: Path) -> list[str]:
         for file in test_py_files
         if file.is_file() and file.name != "__init__.py"
     ]
+    for subdir in dir_path.iterdir():
+        if subdir.is_dir():
+            test_files.extend(gather_directory(subdir))
     return test_files
 
 
-def gather_test_in_unittest_dir(dir_name: str) -> list[str]:
+def gather_test_in_grammar_test_dir(dir_name: str) -> list[str]:
     root = get_project_root()
     dir_path = Path(root) / "test" / "grammar" / dir_name
     if not dir_path.exists():
-        print(f"Test directory {dir_path} does not exist.")
         return []
     return gather_directory(dir_path)
 
 
 def gather_tokenizer_tests() -> list[str]:
-    return gather_test_in_unittest_dir("Tokenizer")
+    return gather_test_in_grammar_test_dir("Tokenizer")
 
 
 def gather_parser_tests() -> list[str]:
-    return gather_test_in_unittest_dir("Parser")
+    return gather_test_in_grammar_test_dir("Parser")
 
 
 def gather_scope_tests() -> list[str]:
-    return gather_test_in_unittest_dir("Scope")
+    return gather_test_in_grammar_test_dir("Scope")
 
 
 def gather_utils_tests() -> list[str]:
-    return gather_test_in_unittest_dir("Utils")
+    return gather_test_in_grammar_test_dir("Utils")
+
+
+def gather_sourcemap_tests() -> list[str]:
+    return gather_test_in_grammar_test_dir("SourceMap")
 
 
 def run_all_tests() -> int:
@@ -52,7 +58,12 @@ def run_all_tests() -> int:
     ):  # Failed
         return 1
 
-    test_files = gather_parser_tests() + gather_scope_tests() + gather_utils_tests()
+    test_files = (
+        gather_parser_tests()
+        + gather_scope_tests()
+        + gather_utils_tests()
+        + gather_sourcemap_tests()
+    )
     if not test_files:
         print("No tests were found to run.")
         return 1
@@ -64,5 +75,18 @@ def run_all_tests() -> int:
     return result.returncode
 
 
+def run_single_grammar_test(test_dir_name: str) -> int:
+    build_grammar()
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest"]
+        + gather_test_in_grammar_test_dir(test_dir_name),
+    )
+    return result.returncode
+
+
 if __name__ == "__main__":
-    exit(run_all_tests())
+    if len(sys.argv) > 1:
+        test_dir_name = sys.argv[1]
+        exit(run_single_grammar_test(test_dir_name))
+    else:
+        exit(run_all_tests())

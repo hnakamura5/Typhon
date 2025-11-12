@@ -124,7 +124,10 @@ class _OptionalQuestionTransformer(TyphonASTTransformer):
             f"Unexpected element in OptionalQuestion: {ast.dump(elt)}"
         )
         result = ast.BinOp(
-            left=elt, op=ast.BitOr(), right=ast.Name(id="None", ctx=ast.Load()), **pos
+            left=elt,
+            op=ast.BitOr(),
+            right=ast.Constant(value=None),
+            **pos,
         )
         return self.generic_visit(result)
 

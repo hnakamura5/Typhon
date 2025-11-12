@@ -2,6 +2,7 @@ from ..assertion_utils import (
     assert_ast_equals,
     assert_transform_equals,
     assert_transform_error,
+    assert_code_match_unparse,
 )
 
 
@@ -37,6 +38,7 @@ def test_exp_placeholder_func_literal():
         placeholder_func_literal_code, placeholder_func_literal_result
     )
     assert_transform_equals(parsed, placeholder_func_literal_transformed)
+    assert_code_match_unparse(placeholder_func_literal_code)
 
 
 placeholder_multiple_code = """
@@ -53,6 +55,7 @@ f = lambda _typh_ag_m0_0_0, _typh_ag_m0_1_1, _typh_ag_m0_2_2, /: _typh_ag_m0_0_0
 def test_exp_placeholder_multiple():
     parsed = assert_ast_equals(placeholder_multiple_code, placeholder_multiple_result)
     assert_transform_equals(parsed, placeholder_multiple_transformed)
+    assert_code_match_unparse(placeholder_multiple_code)
 
 
 placeholder_func_literal_kw_code = """
@@ -87,6 +90,7 @@ def test_exp_placeholder_func_literal_kw_kw():
         placeholder_func_literal_kw_code, placeholder_func_literal_kw_result
     )
     assert_transform_equals(parsed, placeholder_func_literal_kw_transformed)
+    assert_code_match_unparse(placeholder_func_literal_kw_code)
 
 
 placeholder_boundary_code = """
@@ -107,6 +111,7 @@ def func(x: list[int]) -> list[int]:
 def test_exp_placeholder_nested():
     parsed = assert_ast_equals(placeholder_boundary_code, placeholder_nested_result)
     assert_transform_equals(parsed, placeholder_nested_transformed)
+    assert_code_match_unparse(placeholder_boundary_code)
 
 
 placeholder_alone_error_code = """

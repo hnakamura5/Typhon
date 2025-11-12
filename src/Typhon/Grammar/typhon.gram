@@ -52,7 +52,7 @@ def parse_file(
 
 def parse_string(
     source: str,
-    mode: Union[Literal["eval"], Literal["exec"]],
+    mode: Union[Literal["eval"], Literal["exec"]] = "exec",
     py_version: Optional[tuple[int, int]]=None,
     # token_stream_factory: Optional[
     #     Callable[[Callable[[], str]], Iterator[tokenize.TokenInfo]]

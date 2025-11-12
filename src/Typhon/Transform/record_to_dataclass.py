@@ -230,11 +230,21 @@ def _add_repr_to_dataclass(
     class_def: ast.ClassDef, record: ast.Name, fields: list[RecordFieldInfo]
 ):
     repr_values: list[ast.expr] = []
-    repr_values.append(ast.Constant(value="{|", **get_pos_attributes(record)))
-    for field in fields:
-        repr_values.append(
-            ast.Constant(value=f"{field.name.id}=", **get_pos_attributes(field.name))
-        )
+    for i, field in enumerate(fields):
+        if i == 0:
+            # Start the string with {|.
+            repr_values.append(
+                ast.Constant(
+                    value="{|" + f"{field.name.id}=", **get_pos_attributes(record)
+                )
+            )
+        else:
+            # Otherwise, join with comma.
+            repr_values.append(
+                ast.Constant(
+                    value=f", {field.name.id}=", **get_pos_attributes(field.name)
+                )
+            )
         repr_values.append(
             ast.FormattedValue(
                 value=ast.Attribute(
@@ -249,9 +259,6 @@ def _add_repr_to_dataclass(
                 format_spec=None,
             )
         )
-        repr_values.append(ast.Constant(value=", ", **get_pos_attributes(field.name)))
-    if len(repr_values) > 1:
-        repr_values.pop()  # Remove the last comma
     repr_values.append(ast.Constant(value="|}", **get_pos_attributes(record)))
     # __repr__ method return the f-string.
     repr_func_def = ast.FunctionDef(

@@ -1,6 +1,6 @@
 import ast
 from ....src.Typhon.Transform.utils import is_body_jump_away
-from ..assertion_utils import get_func_source_ast, assert_ast_type
+from ..assertion_utils import get_code_source_ast, assert_ast_type
 from typing import Any
 
 
@@ -9,7 +9,7 @@ def assert_body_jump_away(body: list[ast.stmt], jump_away: bool):
 
 
 def assert_func_body_jump_away(func: Any, jump_away: bool):
-    func_def = get_func_source_ast(func)
+    func_def = get_code_source_ast(func)
     assert_body_jump_away(func_def.body, jump_away)
 
 
@@ -326,7 +326,7 @@ def test_break_outside_loop():
                 break
 
     assert_func_body_jump_away(break_outside_loop, False)
-    func = get_func_source_ast(break_outside_loop)
+    func = get_code_source_ast(break_outside_loop)
     while_stmt = assert_ast_type(func.body[0], ast.While)
     if_stmt = assert_ast_type(while_stmt.body[0], ast.If)
     assert_body_jump_away(if_stmt.body, True)

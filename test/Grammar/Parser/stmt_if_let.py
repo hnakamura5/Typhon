@@ -1,4 +1,9 @@
-from ..assertion_utils import assert_ast_equals, assert_ast_error, assert_ast_transform
+from ..assertion_utils import (
+    assert_ast_equals,
+    assert_ast_error,
+    assert_ast_transform,
+    assert_code_match_unparse,
+)
 from ....src.Typhon.Driver.debugging import set_debug_mode, set_debug_verbose
 
 
@@ -32,18 +37,30 @@ match y:
 def test_if_let_none_check():
     assert_ast_equals(if_let_none_check_code, if_let_none_check_result)
     assert_ast_transform(if_let_none_check_code, if_let_none_check_transformed)
+    assert_code_match_unparse(if_let_none_check_code)
 
 
 if_let_star_code = """
-if (let (1, *rest) = (x, y, z)) {
-    w = rest
+def func(x: int, y: int, z: int) {
+    if (let (1, *rest) = (x, y, z)) {
+        return rest
+    }
 }
 """
 if_let_star_result = """
-if True:
+def func(x: int, y: int, z: int):
+    if True:
+        match (x, y, z):
+            case [1, *rest]:
+                return rest
+            case _:
+                pass
+"""
+if_let_star_transformed = """
+def func(x: int, y: int, z: int):
     match (x, y, z):
         case [1, *rest]:
-            w = rest
+            return rest
         case _:
             pass
 """
@@ -51,6 +68,8 @@ if True:
 
 def test_stmt_if_let_star():
     assert_ast_equals(if_let_star_code, if_let_star_result)
+    assert_ast_transform(if_let_star_code, if_let_star_transformed)
+    assert_code_match_unparse(if_let_star_code)
 
 
 if_let_class_code = """
@@ -90,6 +109,7 @@ def func(point: Point) -> int | None:
 
 def test_stmt_if_let_class_code():
     assert_ast_equals(if_let_class_code, if_let_class_result)
+    assert_code_match_unparse(if_let_class_code)
 
 
 if_let_class_keyword_pattern_code = """
@@ -133,6 +153,7 @@ def test_stmt_if_let_class_keyword_pattern():
     assert_ast_equals(
         if_let_class_keyword_pattern_code, if_let_class_keyword_pattern_result
     )
+    assert_code_match_unparse(if_let_class_keyword_pattern_code)
 
 
 if_let_multiple_code = """
@@ -229,6 +250,7 @@ def func(point1: Point, point2: Point) -> int | None:
 def test_stmt_if_let_multiple():
     assert_ast_equals(if_let_multiple_code, if_let_multiple_result)
     assert_ast_transform(if_let_multiple_code, if_let_multiple_transformed)
+    assert_code_match_unparse(if_let_multiple_code)
 
 
 if_let_comma_error_code = """
@@ -277,6 +299,7 @@ def func(x: int | None) -> int:
 def test_stmt_let_else():
     assert_ast_equals(let_else_code, let_else_result)
     assert_ast_transform(let_else_code, let_else_transformed)
+    assert_code_match_unparse(let_else_code)
 
 
 let_else_with_code = """
@@ -325,3 +348,4 @@ def test_stmt_let_else_with():
     set_debug_verbose(True)
     assert_ast_equals(let_else_with_code, let_else_with_result)
     assert_ast_transform(let_else_with_code, let_else_with_transformed)
+    assert_code_match_unparse(let_else_with_code)

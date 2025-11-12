@@ -1,4 +1,8 @@
-from ..assertion_utils import assert_ast_equals, assert_transform_equals
+from ..assertion_utils import (
+    assert_ast_equals,
+    assert_transform_equals,
+    assert_code_match_unparse,
+)
 
 
 code_while_comp = """
@@ -18,6 +22,7 @@ inf = _typh_cc_m0_0()
 def test_while_comp():
     parsed = assert_ast_equals(code_while_comp, result_while_comp)
     assert_transform_equals(parsed, transformed_while_comp)
+    assert_code_match_unparse(code_while_comp)
 
 
 code_while_let_comp = """
@@ -50,3 +55,4 @@ parsed = _typh_cc_m0_0()
 def test_while_let_comp():
     parsed = assert_ast_equals(code_while_let_comp, result_while_let_comp)
     assert_transform_equals(parsed, transformed_while_let_comp)
+    assert_code_match_unparse(code_while_let_comp)

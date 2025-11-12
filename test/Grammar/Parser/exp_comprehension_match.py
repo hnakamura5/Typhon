@@ -1,4 +1,8 @@
-from ..assertion_utils import assert_ast_equals, assert_transform_equals
+from ..assertion_utils import (
+    assert_ast_equals,
+    assert_transform_equals,
+    assert_code_match_unparse,
+)
 
 match_comp_code = """
 from dataclasses import dataclass
@@ -47,6 +51,7 @@ def func(point: Point) -> int | None:
 def test_comp_match():
     parsed = assert_ast_equals(match_comp_code, match_comp_result)
     assert_transform_equals(parsed, match_comp_transformed)
+    assert_code_match_unparse(match_comp_code)
 
 
 match_comp_guard_code = """
@@ -99,3 +104,4 @@ def func(point: Point) -> int | None:
 def test_comp_match_guard():
     parsed = assert_ast_equals(match_comp_guard_code, match_comp_guard_result)
     assert_transform_equals(parsed, match_comp_guard_transformed)
+    assert_code_match_unparse(match_comp_guard_code)

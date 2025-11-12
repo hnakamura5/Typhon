@@ -2,6 +2,7 @@ from ..assertion_utils import (
     assert_ast_equals,
     assert_transform_equals,
     assert_transform_error,
+    assert_code_match_unparse,
 )
 from ....src.Typhon.Grammar.syntax_errors import TypeAnnotationError
 
@@ -20,6 +21,7 @@ t: tuple[int, str] = (1, 'a')
 def test_exp_tuple_type():
     parsed = assert_ast_equals(tuple_type_code, tuple_type_result)
     assert_transform_equals(parsed, tuple_type_transformed)
+    assert_code_match_unparse(tuple_type_code)
 
 
 list_type_code = """
@@ -36,6 +38,7 @@ l: list[int] = [1, 2, 3]
 def test_exp_list_type():
     parsed = assert_ast_equals(list_type_code, list_type_result)
     assert_transform_equals(parsed, list_type_transformed)
+    assert_code_match_unparse(list_type_code)
 
 
 list_type_nested_code = """
@@ -52,6 +55,7 @@ l: list[list[int]] = [[1, 2], [3, 4]]
 def test_exp_list_type_nested():
     parsed = assert_ast_equals(list_type_nested_code, list_type_nested_result)
     assert_transform_equals(parsed, list_type_nested_transformed)
+    assert_code_match_unparse(list_type_nested_code)
 
 
 list_type_error_code = """
@@ -82,3 +86,4 @@ def test_exp_tuple_list_type_nested():
         tuple_list_type_nested_code, tuple_list_type_nested_result
     )
     assert_transform_equals(parsed, tuple_list_type_nested_transformed)
+    assert_code_match_unparse(tuple_list_type_nested_code)
