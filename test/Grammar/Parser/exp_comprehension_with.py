@@ -1,7 +1,7 @@
 from ..assertion_utils import (
     assert_ast_equals,
     assert_transform_equals,
-    assert_code_match_unparse,
+    assert_typh_code_match_unparse,
 )
 
 code_with_comp = """
@@ -21,7 +21,7 @@ result = _typh_cc_m0_0()
 def test_with_comp():
     parsed = assert_ast_equals(code_with_comp, code_with_comp_result)
     assert_transform_equals(parsed, code_with_comp_transformed)
-    assert_code_match_unparse(code_with_comp)
+    assert_typh_code_match_unparse(code_with_comp)
 
 
 code_with_call_comp = """
@@ -59,4 +59,4 @@ def func(f: _typh_ar_f1_1):
 def test_with_comp_in_call():
     parsed = assert_ast_equals(code_with_call_comp, code_with_call_comp_result)
     assert_transform_equals(parsed, code_with_call_comp_transformed)
-    assert_code_match_unparse(code_with_call_comp)
+    assert_typh_code_match_unparse(code_with_call_comp)

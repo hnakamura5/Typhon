@@ -50,6 +50,17 @@ def get_pos_attributes(node: PosNode) -> PosAttributes:
     )
 
 
+def get_pos_attributes_if_exists(node: ast.AST) -> PosAttributes | None:
+    if hasattr(node, "lineno") and hasattr(node, "col_offset"):
+        return PosAttributes(
+            lineno=getattr(node, "lineno"),
+            col_offset=getattr(node, "col_offset"),
+            end_lineno=getattr(node, "end_lineno", None),
+            end_col_offset=getattr(node, "end_col_offset", None),
+        )
+    return None
+
+
 def get_empty_pos_attributes() -> PosAttributes:
     return PosAttributes(
         lineno=0,

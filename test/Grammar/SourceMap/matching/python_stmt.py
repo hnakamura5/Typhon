@@ -1,4 +1,4 @@
-from ...assertion_utils import assert_ast_match_unparse_code
+from ...assertion_utils import assert_ast_match_unparse_code, assert_source_map_ident
 
 
 def test_match_for_if():
@@ -10,6 +10,7 @@ def test_match_for_if():
         return y
 
     assert_ast_match_unparse_code(left_func)
+    assert_source_map_ident(left_func)
 
 
 def test_match_nested_func():
@@ -23,6 +24,7 @@ def test_match_nested_func():
         return nested_func1(x) + nested_func2(x)
 
     assert_ast_match_unparse_code(left_func)
+    assert_source_map_ident(left_func)
 
 
 def test_match_class_with_method():
@@ -36,6 +38,7 @@ def test_match_class_with_method():
     assert_ast_match_unparse_code(A)
     assert_ast_match_unparse_code(A.method1)
     assert_ast_match_unparse_code(A.method2)
+    assert_source_map_ident(A)
 
 
 def test_match_try_except():
@@ -46,6 +49,7 @@ def test_match_try_except():
             return 0
 
     assert_ast_match_unparse_code(left_func)
+    assert_source_map_ident(left_func)
 
 
 def test_match_with_statement():
@@ -55,3 +59,4 @@ def test_match_with_statement():
         return content
 
     assert_ast_match_unparse_code(left_func)
+    assert_source_map_ident(left_func)

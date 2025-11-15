@@ -2,11 +2,14 @@ import ast
 import tokenize
 from typing import Type, Union, Any
 import io
+from ...src.Typhon.Grammar.typhon_ast import get_pos_attributes_if_exists
 from ...src.Typhon.Grammar.parser import parse_string
 from ...src.Typhon.Transform.transform import transform
 from ...src.Typhon.Grammar.tokenizer_custom import TokenizerCustom
 from ...src.Typhon.Grammar.token_factory_custom import token_stream_factory
 from ...src.Typhon.SourceMap.ast_matching import match_ast
+from ...src.Typhon.SourceMap.ast_match_based_map import MatchBasedSourceMap
+from ...src.Typhon.SourceMap.datatype import Range
 import inspect
 
 PARSER_VERBOSE = False
@@ -125,36 +128,65 @@ def assert_ast_type[T](node: ast.AST, t: Type[T]) -> T:
 
 
 def assert_ast_match_unparse_code(code: Any):
-    func_ast = get_code_source_ast(code)
-    func_unparsed_ast = ast.parse(ast.unparse(func_ast)).body[0]
-    assert (
-        match_ast(
-            func_ast,
-            func_unparsed_ast,
-        )
-        is not None
-    )
+    code_ast = get_code_source_ast(code)
+    code_unparsed_ast = ast.parse(ast.unparse(code_ast)).body[0]
+    result = match_ast(code_ast, code_unparsed_ast)
+    assert result is not None
+    return result
 
 
-def assert_ast_match_unparse(node: ast.AST):
+def assert_ast_match_unparse_success(node: ast.AST):
     unparse = ast.unparse(node)
-    print(f"Unparsed code:\n{unparse}")
     unparsed_ast = ast.parse(unparse)
-    assert (
-        match_ast(
-            node,
-            unparsed_ast,
-        )
-        is not None
-    )
+    result = match_ast(node, unparsed_ast)
+    assert result is not None
+    return result
 
 
-def assert_code_match_unparse(code: str):
+def assert_typh_code_match_unparse(code: str):
     parsed = parse_string(code)
     assert parsed
     assert isinstance(parsed, ast.Module)
     transform(parsed)
-    assert_ast_match_unparse(parsed)
+    return assert_ast_match_unparse_success(parsed)
+
+
+def assert_node_range(node: ast.AST, expected_range: Range | None):
+    attr = get_pos_attributes_if_exists(node)
+    if attr is None or expected_range is None:
+        assert attr == expected_range, f"Expected range {expected_range}, got {attr}"
+    if attr is not None:
+        node_range = Range.from_pos_attr_may_not_end(attr)
+        assert node_range == expected_range, (
+            f"Expected range {expected_range}, got {node_range}"
+        )
+
+
+def assert_source_map_ident(code: Any):
+    code_ast = get_code_source_ast(code)
+    mapping = match_ast(code_ast, code_ast)
+    assert mapping is not None
+    source_map = MatchBasedSourceMap(mapping.left_to_right, mapping.right_to_left)
+    for left_node, right_node in mapping.left_to_right.items():
+        print(f"Asserting node range for {ast.dump(left_node)}")
+        print(f"    mapped to {ast.dump(right_node)}")
+        assert_node_range(
+            right_node, source_map.origin_node_to_unparsed_range(left_node)
+        )
+
+
+class SourceMapAsserter:
+    def __init__(self, typhon_code: str):
+        mapping = assert_typh_code_match_unparse(typhon_code)
+        self.source_map = MatchBasedSourceMap(
+            mapping.left_to_right, mapping.right_to_left
+        )
+
+    def assert_range(self, origin_range: Range, unparsed_range: Range):
+        mapped_range = self.source_map.unparsed_range_to_origin(unparsed_range)
+        assert mapped_range == origin_range, (
+            f"Expected mapped range {origin_range}, got {mapped_range}"
+        )
 
 
 def show_token(

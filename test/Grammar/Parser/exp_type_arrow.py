@@ -2,7 +2,7 @@ from ..assertion_utils import (
     assert_ast_equals,
     show_token,
     assert_transform_equals,
-    assert_code_match_unparse,
+    assert_typh_code_match_unparse,
 )
 
 type_arrow_annot_code = """
@@ -25,7 +25,7 @@ x: _typh_ar_m0_0
 def test_type_arrow_annot():
     parsed = assert_ast_equals(type_arrow_annot_code, type_arrow_annot_result)
     assert_transform_equals(parsed, type_arrow_annot_transformed)
-    assert_code_match_unparse(type_arrow_annot_code)
+    assert_typh_code_match_unparse(type_arrow_annot_code)
 
 
 type_arrow_param_annot_code = """
@@ -50,7 +50,7 @@ def test_type_arrow_param_annot():
         type_arrow_param_annot_code, type_arrow_param_annot_result
     )
     assert_transform_equals(parsed, type_arrow_param_annot_transformed)
-    assert_code_match_unparse(type_arrow_param_annot_code)
+    assert_typh_code_match_unparse(type_arrow_param_annot_code)
 
 
 type_arrow_def_param_code = """
@@ -107,7 +107,7 @@ def test_type_arrow_func_literal():
         type_arrow_func_literal_code, type_arrow_func_literal_result
     )
     assert_transform_equals(parsed, type_arrow_func_literal_transformed)
-    assert_code_match_unparse(type_arrow_func_literal_code)
+    assert_typh_code_match_unparse(type_arrow_func_literal_code)
 
 
 type_arrow_star_etc_code = """
@@ -130,7 +130,7 @@ f: _typh_ar_m0_0
 def test_type_arrow_star_etc():
     parsed = assert_ast_equals(type_arrow_star_etc_code, type_arrow_star_etc_result)
     assert_transform_equals(parsed, type_arrow_star_etc_transformed)
-    assert_code_match_unparse(type_arrow_star_etc_code)
+    assert_typh_code_match_unparse(type_arrow_star_etc_code)
 
 
 type_arrow_single_no_paren_code = """
@@ -155,7 +155,7 @@ def test_type_arrow_single_no_paren():
         type_arrow_single_no_paren_code, type_arrow_single_no_paren_result
     )
     assert_transform_equals(parsed, type_arrow_single_no_paren_transformed)
-    assert_code_match_unparse(type_arrow_single_no_paren_code)
+    assert_typh_code_match_unparse(type_arrow_single_no_paren_code)
 
 
 type_arrow_in_subscript_code = """
@@ -180,7 +180,7 @@ def test_type_arrow_in_subscript():
         type_arrow_in_subscript_code, type_arrow_in_subscript_result
     )
     assert_transform_equals(parsed, type_arrow_in_subscript_transformed)
-    assert_code_match_unparse(type_arrow_in_subscript_code)
+    assert_typh_code_match_unparse(type_arrow_in_subscript_code)
 
 
 type_arrow_to_subscript_code = """
@@ -210,7 +210,7 @@ def test_type_arrow_to_subscript():
         type_arrow_to_subscript_code, type_arrow_in_subscript_result
     )
     assert_transform_equals(parsed, type_arrow_to_subscript_transformed)
-    assert_code_match_unparse(type_arrow_to_subscript_code)
+    assert_typh_code_match_unparse(type_arrow_to_subscript_code)
 
 
 type_arrow_single_no_paren_chain_code = """
@@ -265,4 +265,4 @@ def test_type_arrow_single_no_paren_chain():
         type_arrow_single_no_paren_chain_code, type_arrow_single_no_paren_chain_result
     )
     assert_transform_equals(parsed, type_arrow_single_no_paren_chain_transformed)
-    assert_code_match_unparse(type_arrow_single_no_paren_chain_code)
+    assert_typh_code_match_unparse(type_arrow_single_no_paren_chain_code)

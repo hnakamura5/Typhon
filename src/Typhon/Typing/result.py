@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from ..Grammar.typhon_ast import PosRange
+from ..SourceMap.datatype import Range
 
 
 class Severity(Enum):
@@ -14,7 +14,7 @@ class Diagnostic:
     file_path: str
     severity: Severity
     message: str
-    pos: PosRange
+    pos: Range
     rule: str
 
     def to_string(self) -> str:
@@ -58,7 +58,7 @@ def diagnostic_to_string(diag: Diagnostic) -> str:
     message = diag.message.replace("\xa0", " ")
     rule = f" ({diag.rule})" if diag.rule else ""
     return (
-        f"{diag.severity.value}: {diag.file_path}:{diag.pos['lineno']}:{diag.pos['col_offset']}{rule}\n"
+        f"{diag.severity.value}: {diag.file_path}:{diag.pos.start.line}:{diag.pos.start.column}{rule}\n"
         f"  {message}"
     )
 

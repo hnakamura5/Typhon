@@ -1,4 +1,9 @@
-from ...assertion_utils import assert_code_match_unparse
+from ...assertion_utils import (
+    assert_typh_code_match_unparse,
+    assert_ast_transform,
+    SourceMapAsserter,
+)
+from .....src.Typhon.SourceMap.datatype import Range, Pos
 
 
 code_stmt_if = """
@@ -12,10 +17,34 @@ def left_func(x: int) -> int {
     return y;
 }
 """
+transformed_code_stmt_if = """
+def left_func(x: int) -> int:
+    y = 0
+    for i in range(x):
+        if i % 2 == 0:
+            y += i
+    return y
+"""
 
 
 def test_match_typhon_stmt_if():
-    assert_code_match_unparse(code_stmt_if)
+    assert_ast_transform(code_stmt_if, transformed_code_stmt_if)
+    assert_typh_code_match_unparse(code_stmt_if)
+    sa = SourceMapAsserter(code_stmt_if)
+    sa.assert_range(  # left_func (part of FunctionDef)
+        Range(Pos(2, 4), Pos(2, 13)),
+        Range(Pos(1, 4), Pos(1, 13)),
+    )
+    sa.assert_range(  # x: int
+        Range(start=Pos(2, 14), end=Pos(2, 20)),
+        Range(start=Pos(1, 14), end=Pos(1, 20)),
+    )
+    sa.assert_range(  # var y = 0
+        Range(start=Pos(3, 4), end=Pos(3, 13)),
+        Range(start=Pos(2, 4), end=Pos(2, 9)),
+    )
+
+    # TODO: e.g. "left_func" is only included in FunctionDef. The range is of course whole function. How to match such a thing?
 
 
 code_stmt_nested_func = """
@@ -34,7 +63,7 @@ def left_func(x: int) -> int {
 
 
 def test_match_typhon_stmt_nested_func():
-    assert_code_match_unparse(code_stmt_nested_func)
+    assert_typh_code_match_unparse(code_stmt_nested_func)
 
 
 code_stmt_class_with_method = """
@@ -51,7 +80,7 @@ class A {
 
 
 def test_match_typhon_stmt_class_with_method():
-    assert_code_match_unparse(code_stmt_class_with_method)
+    assert_typh_code_match_unparse(code_stmt_class_with_method)
 
 
 code_stmt_try_except = """
@@ -66,7 +95,7 @@ def left_func(x: int) -> int {
 
 
 def test_match_typhon_stmt_try_except():
-    assert_code_match_unparse(code_stmt_try_except)
+    assert_typh_code_match_unparse(code_stmt_try_except)
 
 
 code_stmt_with = """
@@ -80,7 +109,7 @@ def left_func(file_path: str) -> str {
 
 
 def test_match_typhon_stmt_with():
-    assert_code_match_unparse(code_stmt_with)
+    assert_typh_code_match_unparse(code_stmt_with)
 
 
 code_stmt_if_let = """
@@ -95,7 +124,7 @@ def left_func(opt_x: int?, opt_y: int?) -> int {
 
 
 def test_match_typhon_stmt_if_let():
-    assert_code_match_unparse(code_stmt_if_let)
+    assert_typh_code_match_unparse(code_stmt_if_let)
 
 
 code_stmt_let_else = """
@@ -109,7 +138,7 @@ def left_func(opt_x: int?) -> int {
 
 
 def test_match_typhon_stmt_let_else():
-    assert_code_match_unparse(code_stmt_let_else)
+    assert_typh_code_match_unparse(code_stmt_let_else)
 
 
 code_while_let_multiple_code = """
@@ -128,4 +157,4 @@ def func(point1: (int?, int), point2: (int?, int)) -> int? {
 
 
 def test_match_typhon_stmt_while_let_multiple():
-    assert_code_match_unparse(code_while_let_multiple_code)
+    assert_typh_code_match_unparse(code_while_let_multiple_code)

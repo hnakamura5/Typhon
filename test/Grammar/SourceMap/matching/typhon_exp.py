@@ -1,4 +1,4 @@
-from ...assertion_utils import assert_code_match_unparse
+from ...assertion_utils import assert_typh_code_match_unparse
 
 
 code_exp_arithmetic = """
@@ -9,7 +9,7 @@ def left_func(x: int, y: int) -> int {
 
 
 def test_exp_arithmetic():
-    assert_code_match_unparse(code_exp_arithmetic)
+    assert_typh_code_match_unparse(code_exp_arithmetic)
 
 
 code_exp_list_comprehension = """
@@ -20,7 +20,7 @@ def left_func(n: int) -> list[int] {
 
 
 def test_exp_list_comprehension():
-    assert_code_match_unparse(code_exp_list_comprehension)
+    assert_typh_code_match_unparse(code_exp_list_comprehension)
 
 
 code_exp_dict_comprehension = """
@@ -31,7 +31,7 @@ def left_func(n: int) -> dict[int, int] {
 
 
 def test_exp_dict_comprehension():
-    assert_code_match_unparse(code_exp_dict_comprehension)
+    assert_typh_code_match_unparse(code_exp_dict_comprehension)
 
 
 code_exp_f_string = """
@@ -42,7 +42,7 @@ def left_func(name: str, age: int) -> str {
 
 
 def test_exp_f_string():
-    assert_code_match_unparse(code_exp_f_string)
+    assert_typh_code_match_unparse(code_exp_f_string)
 
 
 code_exp_nested_func_calls = """
@@ -53,7 +53,7 @@ def left_func(x: int) -> int {
 
 
 def test_exp_nested_func_calls():
-    assert_code_match_unparse(code_exp_nested_func_calls)
+    assert_typh_code_match_unparse(code_exp_nested_func_calls)
 
 
 code_exp_pipe_placeholder = """
@@ -64,4 +64,4 @@ def left_func(x: [int]) -> int {
 
 
 def test_exp_pipe_placeholder():
-    assert_code_match_unparse(code_exp_pipe_placeholder)
+    assert_typh_code_match_unparse(code_exp_pipe_placeholder)
