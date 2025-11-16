@@ -148,6 +148,13 @@ Syntax in Python is supported unless it is explicitly changed or forbidden.
 
 - Note all the forbidden keywords are still reserved.
 
+## Temporal Restrictions (TODO)
+
+- Type inference for function literal works only when function body is translated into single expression. (TODO)
+- `let/var` is planned to be pattern match. Currently it is still unpack. (TODO)
+- The column end of error message is not precise. (TODO)
+- Type annotation for placeholder is not supported yet. (TODO)
+
 ## Bundled Libraries (TDOO)
 
 TBD
