@@ -22,11 +22,18 @@ class PosRange(TypedDict):
 
 
 def pos_attribute_to_range(pos: PosAttributes) -> PosRange:
-    if getattr(pos, "end_lineno", None) is None:
-        pos["end_lineno"] = pos["lineno"]
-    if getattr(pos, "end_col_offset", None) is None:
-        pos["end_col_offset"] = pos["col_offset"]
-    return cast(PosRange, pos)
+    result: PosRange = {
+        "lineno": pos["lineno"],
+        "col_offset": pos["col_offset"],
+        "end_lineno": pos["end_lineno"]
+        if pos["end_lineno"] is not None
+        else pos["lineno"],
+        "end_col_offset": pos["end_col_offset"]
+        if pos["end_col_offset"] is not None
+        else pos["col_offset"],
+    }
+
+    return result
 
 
 type PosNode = (

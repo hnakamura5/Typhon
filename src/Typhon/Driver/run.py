@@ -7,7 +7,12 @@ from ..Grammar.parser import parse_file
 from .utils import shorthand, TYPHON_EXT, copy_type, default_output_dir
 from ..Transform.transform import transform
 from .debugging import is_debug_mode, debug_print, is_debug_verbose
-from .translate import translate_directory, translate_file
+from .translate import (
+    translate_directory,
+    translate_file,
+    translate_and_run_type_check_file,
+    translate_and_run_type_check_directory,
+)
 from ..Driver.type_check import run_type_check
 
 
@@ -28,21 +33,6 @@ class RunResult:
         )
 
 
-def _run_file_by_exec(source: Path, *args: str):
-    # TODO: temporal implementation. Switch to save and run style after source map is implemented, to be consistent with directory run.
-    debug_print(f"Running source file: {source}")
-    ast_tree = parse_file(source.as_posix(), verbose=is_debug_verbose())
-    transform(ast_tree)
-    code_object = compile(ast_tree, filename=source.as_posix(), mode="exec")
-    # Run script as __main__, pass args as sys.argv.
-    original_argv = sys.argv
-    sys.argv = [source.as_posix()] + list(args)
-    try:
-        exec(code_object, {"__name__": "__main__", "__file__": source.as_posix()})
-    finally:
-        sys.argv = original_argv
-
-
 # Run source file as script.
 # Return RunResult containing stdout, stderr only if capture_output is True.
 def run_file(source: Path, capture_output: bool, *args: str) -> RunResult:
@@ -50,15 +40,14 @@ def run_file(source: Path, capture_output: bool, *args: str) -> RunResult:
     temp_output_dir.mkdir(exist_ok=True)
     output_file = temp_output_dir / (source.stem + ".py")
     # Translate source file to temp output file.
-    translate_file(source, output_file)
-    result = run_type_check(output_file, run_mode=True)
-    print(result.to_string())
-    if not result.is_successful():
+    type_check_result = translate_and_run_type_check_file(source, output_file)
+    if not type_check_result.is_successful():
         return RunResult(
             stdout="",
             stderr="",
             returncode=1,
         )
+    # Run translated output file as script once type checking is successful.
     subprocess_args = [
         sys.executable,
         str(output_file),
@@ -82,9 +71,9 @@ def run_directory(source_dir: Path, capture_output: bool, *args: str) -> RunResu
     temp_output_dir.mkdir(exist_ok=True)
     module_output_dir = temp_output_dir / source_dir.name
     # Translate source directory to temp output directory as module.
-    translate_directory(source_dir, module_output_dir)
-    type_check_result = run_type_check(module_output_dir, run_mode=True)
-    print(type_check_result.to_string())
+    type_check_result = translate_and_run_type_check_directory(
+        source_dir, module_output_dir
+    )
     if not type_check_result.is_successful():
         return RunResult(
             stdout="",

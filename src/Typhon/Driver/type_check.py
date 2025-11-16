@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 from ..Typing.pyright import run_pyright, TypeCheckLevel, write_pyright_config
-from ..Typing.result import TypeCheckResult, result_to_string
+from ..Typing.result_diagnostic import TypeCheckResult
 
 
 def run_type_check(py_file_or_dir: Path, run_mode: bool = False) -> TypeCheckResult:
@@ -30,4 +30,4 @@ def type_check(source: str, level: TypeCheckLevel = "translate") -> None:
     if result.returncode != 0:
         print(result.stderr, file=sys.stderr)
         raise RuntimeError("Type checking process failed.")
-    print(result_to_string(result))
+    print(result.make_output_message())

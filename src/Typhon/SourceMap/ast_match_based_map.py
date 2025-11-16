@@ -2,6 +2,7 @@ import ast
 from .datatype import Range, Pos, RangeIntervalTree
 from ..Grammar.typhon_ast import get_pos_attributes_if_exists
 from ..Driver.debugging import debug_print, debug_verbose_print
+from ..SourceMap.ast_matching import match_ast
 
 
 class MatchBasedSourceMap:
@@ -9,11 +10,15 @@ class MatchBasedSourceMap:
         self,
         origin_to_unparsed: dict[ast.AST, ast.AST],
         unparsed_to_origin: dict[ast.AST, ast.AST],
+        source_code: str,
+        source_file: str,
     ):
         self.origin_to_unparsed = origin_to_unparsed
         self.unparsed_to_origin = unparsed_to_origin
         self.origin_interval_tree = RangeIntervalTree[ast.AST]()
         self.unparsed_interval_tree = RangeIntervalTree[ast.AST]()
+        self.source_code = source_code
+        self.source_file = source_file
         self._setup_interval_trees()
 
     def _setup_interval_trees(self):
@@ -21,7 +26,7 @@ class MatchBasedSourceMap:
             origin_pos = get_pos_attributes_if_exists(origin_node)
             if origin_pos is not None:
                 debug_verbose_print(
-                    f"Adding to origin interval tree:   range={Range.from_pos_attr_may_not_end(origin_pos)} {ast.dump(origin_node)}"
+                    f"Adding to origin interval tree:\n  range={Range.from_pos_attr_may_not_end(origin_pos)}\n    {ast.dump(origin_node)}\n    pos: {origin_pos}"
                 )
                 self.origin_interval_tree.add(
                     Range.from_pos_attr_may_not_end(origin_pos), origin_node
@@ -102,6 +107,15 @@ class MatchBasedSourceMap:
             self.unparsed_to_origin,
         )
 
+    def unparsed_range_to_source_code(
+        self,
+        range_unparsed: Range,
+    ) -> str | None:
+        range_in_origin = self.unparsed_range_to_origin(range_unparsed)
+        if range_in_origin is None:
+            return None
+        return range_in_origin.of_string(self.source_code)
+
     def origin_range_to_unparsed(
         self,
         range_origin: Range,
@@ -122,3 +136,17 @@ class MatchBasedSourceMap:
             return None
         range_origin_part = Range.from_pos_attr_may_not_end(range_origin)
         return self.origin_range_to_unparsed(range_origin_part)
+
+
+def map_from_transformed_ast(
+    origin_ast: ast.AST,
+    unparsed_ast: ast.AST,
+    source_code: str,
+    source_file: str,
+) -> MatchBasedSourceMap | None:
+    mapping = match_ast(origin_ast, unparsed_ast)
+    if mapping is None:
+        return None
+    return MatchBasedSourceMap(
+        mapping.left_to_right, mapping.right_to_left, source_code, source_file
+    )

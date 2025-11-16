@@ -51,20 +51,21 @@ def test_parse_pyright_json_with_error():
     assert diag1.severity.name == "ERROR"
     assert "Generator[int, Any, None]" in diag1.message
     assert "tuple[int, str]" in diag1.message
-    assert diag1.pos.start.line == 17
-    assert diag1.pos.start.column == 24
-    assert diag1.pos.end.line == 17
-    assert diag1.pos.end.column == 39
+    # Line and column are 1-based in Range object but 0-based in pyright JSON.
+    assert diag1.pos.start.line - 1 == 17
+    assert diag1.pos.start.column - 1 == 24
+    assert diag1.pos.end.line - 1 == 17
+    assert diag1.pos.end.column - 1 == 39
     assert diag1.rule == "reportAssignmentType"
     diag2 = result.diagnostics[1]
     assert diag2.file_path.endswith("comprehension.py")
     assert diag2.severity.name == "ERROR"
     assert "int | str" in diag2.message
     assert "str" in diag2.message
-    assert diag2.pos.start.line == 19
-    assert diag2.pos.start.column == 4
-    assert diag2.pos.end.line == 19
-    assert diag2.pos.end.column == 19
+    assert diag2.pos.start.line - 1 == 19
+    assert diag2.pos.start.column - 1 == 4
+    assert diag2.pos.end.line - 1 == 19
+    assert diag2.pos.end.column - 1 == 19
     assert diag2.rule == "reportAssignmentType"
 
 

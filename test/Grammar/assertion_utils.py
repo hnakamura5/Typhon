@@ -166,7 +166,9 @@ def assert_source_map_ident(code: Any):
     code_ast = get_code_source_ast(code)
     mapping = match_ast(code_ast, code_ast)
     assert mapping is not None
-    source_map = MatchBasedSourceMap(mapping.left_to_right, mapping.right_to_left)
+    source_map = MatchBasedSourceMap(
+        mapping.left_to_right, mapping.right_to_left, ast.unparse(code_ast), "<string>"
+    )
     for left_node, right_node in mapping.left_to_right.items():
         print(f"Asserting node range for {ast.dump(left_node)}")
         print(f"    mapped to {ast.dump(right_node)}")
@@ -179,7 +181,7 @@ class SourceMapAsserter:
     def __init__(self, typhon_code: str):
         mapping = assert_typh_code_match_unparse(typhon_code)
         self.source_map = MatchBasedSourceMap(
-            mapping.left_to_right, mapping.right_to_left
+            mapping.left_to_right, mapping.right_to_left, typhon_code, "<string>"
         )
 
     def assert_range(self, origin_range: Range, unparsed_range: Range):

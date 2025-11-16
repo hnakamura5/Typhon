@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from ..Grammar.typhon_ast import PosAttributes, PosRange, get_pos_attributes_if_exists
+from ..Driver.debugging import debug_verbose_print
 from intervaltree import IntervalTree, Interval
 from typing import Iterable
 import ast
@@ -46,7 +47,7 @@ class Pos:
         end_column_start = 0
         if offset.end.line == 0:
             end_column_start = new_start_column
-        print(
+        debug_verbose_print(
             f"Applying offset: pos={self}, offset={offset} -> new_start_column={
                 new_start_column
             }, end_column_start={end_column_start} = {
@@ -112,6 +113,8 @@ class Range:
 
     @staticmethod
     def from_pos_attr_may_not_end(attr: PosAttributes) -> "Range":
+        start_line = attr["lineno"]
+        start_column = attr["col_offset"]
         end_line = (
             attr["end_lineno"] if attr["end_lineno"] is not None else attr["lineno"]
         )
@@ -120,8 +123,10 @@ class Range:
             if attr["end_col_offset"] is not None
             else attr["col_offset"] + 1
         )
+        if end_line == start_line and start_column == end_column:
+            end_column += 1  # Ensure non-zero length
         return Range(
-            start=Pos(line=attr["lineno"], column=attr["col_offset"]),
+            start=Pos(line=start_line, column=start_column),
             end=Pos(line=end_line, column=end_column),
         )
 
@@ -148,21 +153,30 @@ class Range:
         return Range(start=start, end=end)
 
     def of_string(self, source: str) -> str:
+        lines = source.splitlines()
+        return self.of_lines(lines)
+
+    def of_lines(self, lines: list[str]) -> str:
+        # Range is 1 based. Convert to 0 based for string slicing.
+        start_line = self.start.line - 1
+        end_line = self.end.line - 1
+        start_column = self.start.column - 1
+        end_column = self.end.column - 1
+
         def get_in_line(line: str, start_col: int, end_col: int) -> str:
             return line[start_col : min(end_col, len(line))]
 
-        lines = source.splitlines()
-        if self.start.line >= len(lines) or self.end.line >= len(lines):
+        if start_line >= len(lines) or end_line >= len(lines):
             return ""
-        if self.start.line == self.end.line:
-            the_line = lines[self.start.line]
-            return get_in_line(the_line, self.start.column, self.end.column)
+        if start_line == end_line:
+            the_line = lines[start_line]
+            return get_in_line(the_line, start_column, end_column)
         else:
             result_lines: list[str] = []
-            result_lines.append(lines[self.start.line][self.start.column :])
-            for line_num in range(self.start.line + 1, self.end.line):
+            result_lines.append(lines[start_line][start_column:])
+            for line_num in range(start_line, end_line):
                 result_lines.append(lines[line_num])
-            result_lines.append(get_in_line(lines[self.end.line], 0, self.end.column))
+            result_lines.append(get_in_line(lines[end_line], 0, end_column))
             return "\n".join(result_lines)
 
 

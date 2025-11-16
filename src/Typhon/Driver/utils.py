@@ -1,5 +1,7 @@
 from typing import Callable, cast, ParamSpec
 from pathlib import Path
+import os
+
 
 TYPHON_EXT = ".typh"
 
@@ -37,3 +39,9 @@ def copy_type[**P, T](
         return cast(Callable[P, T], f)
 
     return decorator
+
+
+# Canonicalize path to be used as dictionary key.
+# For windows, convert all to lower case and resolve.
+def canonicalize_path(path: Path) -> str:
+    return Path(os.path.normcase(str(path))).resolve().as_posix()
