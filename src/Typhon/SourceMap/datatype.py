@@ -142,6 +142,17 @@ class Range:
         return Range.from_pos_attr(attr)
 
     @staticmethod
+    def from_syntax_error(e: SyntaxError) -> "Range":
+        start_line = e.lineno or 0
+        start_column = e.offset or 0
+        end_line = e.end_lineno or start_line
+        end_column = e.end_offset or (start_column + 1)
+        return Range(
+            start=Pos(line=start_line, column=start_column),
+            end=Pos(line=end_line, column=end_column),
+        )
+
+    @staticmethod
     def merge_ranges(ranges: Iterable["Range"]) -> "Range | None":
         if not ranges:
             return None

@@ -5,6 +5,7 @@ from ..SourceMap import SourceMap
 from pathlib import Path
 from ..Driver.utils import canonicalize_path
 from ..Driver.debugging import debug_print
+from ..Driver.diagnostic import diag_error_file_position, positioned_source_code
 
 
 class Severity(Enum):
@@ -34,9 +35,12 @@ class Diagnostic:
                 debug_print(
                     f"Mapped diagnostic position from\n    {self.pos}\n  to origin position\n    {pos}"
                 )
-        return (
-            f"{self.severity.value}: {file_path}:{pos.start.line}:{pos.start.column}{rule}\n"
-            f"  {message}"
+        return diag_error_file_position(
+            self.severity.value,
+            file_path,
+            pos,
+            rule,
+            message,
         )
 
 
@@ -98,19 +102,5 @@ def source_position_diagnostic(
     range_in_source = source_map.unparsed_range_to_origin(diag.pos)
     if range_in_source is None:
         return ""
-    result = ""
     source_lines = source_map.source_code.splitlines()
-    len_in_digit = len(str(range_in_source.end.line)) + 1
-    for line_num in range(range_in_source.start.line, range_in_source.end.line + 1):
-        if line_num >= 1 and line_num <= len(source_lines):
-            result += f"    {line_num:<{len_in_digit}}|  {source_lines[line_num - 1]}\n"
-            if (
-                range_in_source.start.line == range_in_source.end.line
-                and line_num == range_in_source.start.line
-            ):
-                indicator_line = " " * (range_in_source.start.column + len_in_digit + 7)
-                indicator_line += "^" * max(
-                    1, range_in_source.end.column - range_in_source.start.column
-                )
-                result += f"{indicator_line}\n"
-    return result
+    return positioned_source_code(source_lines, range_in_source)

@@ -12,7 +12,7 @@ def build_grammar():
             "pegen",
             f"{get_project_root()}/src/Typhon/Grammar/typhon.gram",
             "-o",
-            f"{get_project_root()}/src/Typhon/Grammar/parser.py",
+            f"{get_project_root()}/src/Typhon/Grammar/_typhon_parser.py",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -26,7 +26,7 @@ def build_grammar():
             "-m",
             "ruff",
             "format",
-            f"{get_project_root()}/src/Typhon/Grammar/parser.py",
+            f"{get_project_root()}/src/Typhon/Grammar/_typhon_parser.py",
         ],
         check=True,
         stdout=subprocess.PIPE,
@@ -53,7 +53,7 @@ def type_check(source_file: str) -> bool:
 
 
 def clean_grammar():
-    os.remove(f"{get_project_root()}/src/Typhon/Grammar/parser.py")
+    os.remove(f"{get_project_root()}/src/Typhon/Grammar/_typhon_parser.py")
 
 
 def package_build():

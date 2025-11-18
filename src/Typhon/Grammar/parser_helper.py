@@ -29,7 +29,6 @@ from typing import (
 from pegen.tokenizer import Tokenizer
 from pegen.parser import P, memoize, memoize_left_rec, logger, Parser as PegenParser
 
-
 EXPR_NAME_MAPPING: dict[type, str] = {
     ast.Attribute: "attribute",
     ast.Subscript: "subscript",

@@ -29,41 +29,15 @@ from .parser_helper import Parser, Load, Store, Del, Target
 from .tokenizer_custom import TokenizerCustom
 from .token_factory_custom import token_stream_factory
 
-def parse_file(
-    path: str,
+def parse(
+    filename: str,
+    tokenizer: TokenizerCustom,
+    mode: Union[Literal["eval"], Literal["exec"], Literal["file"]],
     py_version: Optional[tuple[int, int]]=None,
-    # token_stream_factory: Optional[
-    #     Callable[[Callable[[], str]], Iterator[tokenize.TokenInfo]]
-    # ] = None,
-    verbose:bool = False,
-) -> ast.Module:
-    """Parse a file."""
-    with open(path) as f:
-        tok_stream = token_stream_factory(f.readline)
-        tokenizer = TokenizerCustom(tok_stream, verbose=verbose, path=path)
-        parser = TyphonParser(
-            tokenizer,
-            verbose=verbose,
-            filename=os.path.basename(path),
-            py_version=py_version
-        )
-        return parser.parse("file")
-
-
-def parse_string(
-    source: str,
-    mode: Union[Literal["eval"], Literal["exec"]] = "exec",
-    py_version: Optional[tuple[int, int]]=None,
-    # token_stream_factory: Optional[
-    #     Callable[[Callable[[], str]], Iterator[tokenize.TokenInfo]]
-    # ] = None,
     verbose:bool = False,
 ) -> ast.AST | None:
-    """Parse a string."""
-    tok_stream = token_stream_factory(io.StringIO(source).readline)
-    tokenizer = TokenizerCustom(tok_stream, verbose=verbose)
     parser = TyphonParser(tokenizer, verbose=verbose, py_version=py_version)
-    return parser.parse(mode if mode == "eval" else "file")
+    return parser.parse(mode)
 '''
 
 
@@ -2129,6 +2103,7 @@ invalid_while_stmt[NoReturn]:
         )
      }
 invalid_for_stmt[NoReturn]:
+    | ['async'] 'for' !'(' { self.raise_syntax_error("expected '('") }
     | ['async'] 'for' star_targets 'in' star_expressions NEWLINE { self.raise_syntax_error("expected ':'") }
     | ['async'] a='for' star_targets 'in' star_expressions ':' NEWLINE !INDENT {
         self.raise_indentation_error(

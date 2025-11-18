@@ -214,4 +214,4 @@ temp
 private
 
 # Auto Generated files
-src/Typhon/Grammar/Parser.py
+src/Typhon/Grammar/_typhon_parser.py

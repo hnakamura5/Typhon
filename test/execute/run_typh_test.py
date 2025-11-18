@@ -22,3 +22,13 @@ def test_typh_directory():
     debug_print(f"Test directory: {test_dir} result:\n{result}")
     assert_file_stdout(test_dir / "__main__.typh", result.stdout)
     assert_file_stderr(test_dir / "__main__.typh", result.stderr)
+
+
+def test_typh_errors():
+    test_dir = Path(__file__).parent / "RunFileError"
+    for test in test_dir.glob("*.typh"):
+        result = run_file(test, capture_output=True)
+        debug_print(f"Test file: {test} result:\n{result}")
+        assert result.returncode != 0
+        assert_file_stdout(test, result.stdout)
+        assert_file_stderr(test, result.stderr)

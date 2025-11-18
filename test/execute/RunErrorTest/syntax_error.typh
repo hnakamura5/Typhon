@@ -1,0 +1,13 @@
+for let i in range(1) {
+
+}
+
+
+"""strerr
+syntax error: C:/Users/hnakamura5/Projects/Typhon/test/execute/RunErrorTest/syntax_error.typh:1:5
+  expected '('
+    1 |  for let i in range(1) {
+              ^^^
+
+Error: Syntax error during translation.
+"""

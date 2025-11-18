@@ -30,4 +30,6 @@ def type_check(source: str, level: TypeCheckLevel = "translate") -> None:
     if result.returncode != 0:
         print(result.stderr, file=sys.stderr)
         raise RuntimeError("Type checking process failed.")
-    print(result.make_output_message())
+    output_message = result.make_output_message()
+    if output_message:
+        print(output_message, file=sys.stderr)

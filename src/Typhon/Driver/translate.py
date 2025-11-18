@@ -2,6 +2,7 @@ from pathlib import Path
 import ast
 from dataclasses import dataclass
 from ..Grammar.parser import parse_file
+from ..Grammar.syntax_errors import diag_syntax_error
 from .utils import (
     shorthand,
     TYPHON_EXT,
@@ -21,11 +22,21 @@ class TranslateResult:
     source_path_canonical: str
     output_path_canonical: str
     source_map: SourceMap | None
+    syntax_error: SyntaxError | None
 
 
 def translate_file(source: Path, output: Path) -> TranslateResult:
     debug_print(f"Translating source: {source} to output_dir: {output}")
-    ast_tree = parse_file(source.as_posix(), verbose=is_debug_verbose())
+    try:
+        ast_tree = parse_file(source.as_posix(), verbose=is_debug_verbose())
+    except SyntaxError as e:
+        debug_print(f"Error parsing file {source}: {e}")
+        return TranslateResult(
+            source_path_canonical=canonicalize_path(source),
+            output_path_canonical=canonicalize_path(output),
+            source_map=None,
+            syntax_error=e,
+        )
     transform(ast_tree)
     translated_code = ast.unparse(ast_tree)
     source_code = source.read_text(encoding="utf-8")
@@ -37,11 +48,21 @@ def translate_file(source: Path, output: Path) -> TranslateResult:
         source_path_canonical=canonicalize_path(source),
         output_path_canonical=canonicalize_path(output),
         source_map=mapping,
+        syntax_error=None,
     )
 
 
 def translate_and_run_type_check_file(source: Path, output: Path) -> TypeCheckResult:
     translate_result = translate_file(source, output)
+    if translate_result.syntax_error is not None:
+        print(
+            diag_syntax_error(
+                translate_result.syntax_error,
+                source=source,
+                source_code=source.read_text(encoding="utf-8"),
+            )
+        )
+        raise RuntimeError("Syntax error during translation.")
     type_check_result = run_type_check(output)
     print(
         type_check_result.make_output_message(
@@ -84,6 +105,21 @@ def translate_and_run_type_check_directory(
     source_dir: Path, module_output_dir: Path
 ) -> TypeCheckResult:
     translate_result = translate_directory(source_dir, module_output_dir)
+    exists_syntax_error = False
+    for t in translate_result.values():
+        if t.syntax_error is not None:
+            exists_syntax_error = True
+            print(
+                diag_syntax_error(
+                    t.syntax_error,
+                    source=Path(t.source_path_canonical),
+                    source_code=Path(t.source_path_canonical).read_text(
+                        encoding="utf-8"
+                    ),
+                )
+            )
+    if exists_syntax_error:
+        raise RuntimeError("Syntax errors during translation.")
     type_check_result = run_type_check(module_output_dir, run_mode=True)
     print(
         type_check_result.make_output_message(
