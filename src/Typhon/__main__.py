@@ -1,7 +1,7 @@
 import sys
 import fire
 from .Driver.translate import translate, tr
-from .Driver.debugging import set_debug_mode
+from .Driver.debugging import set_debug_mode, set_debug_verbose, set_debug_first_error
 from .Driver.run import run
 from .Driver.type_check import type_check
 
@@ -12,7 +12,12 @@ def _setup_debug_mode():
         sys.argv.remove("--debug")
     if "--debug-verbose" in sys.argv:
         set_debug_mode(True)
+        set_debug_verbose(True)
         sys.argv.remove("--debug-verbose")
+    if "--debug-first-error" in sys.argv:
+        set_debug_mode(True)
+        set_debug_first_error(True)
+        sys.argv.remove("--debug-first-error")
 
 
 def main():

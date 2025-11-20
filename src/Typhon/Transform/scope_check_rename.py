@@ -2,6 +2,7 @@ import ast
 import builtins
 from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import Unpack
 
 from ..Grammar.typhon_ast import (
     is_var,
@@ -13,7 +14,11 @@ from ..Grammar.typhon_ast import (
     set_is_placeholder,
     get_type_annotation,
 )
-from ..Grammar.syntax_errors import raise_scope_error
+from ..Grammar.syntax_errors import (
+    raise_scope_error,
+    try_handle_syntax_error_or,
+    raise_must_have_resolved,
+)
 from .visitor import TyphonASTVisitor, PythonScope
 from .name_generator import NameKind
 from ..Driver.debugging import debug_print, debug_verbose_print
@@ -77,6 +82,13 @@ class SymbolScopeVisitor(TyphonASTVisitor):
 
     def current_scope(self):
         return self.scopes[-1]
+
+    def scope_error(self, message: str, **pos: Unpack[PosAttributes]):
+        try_handle_syntax_error_or(
+            None,
+            self.module,
+            lambda: raise_scope_error(message, **pos),
+        )
 
     @contextmanager
     def scope(self):
@@ -175,28 +187,28 @@ class SymbolScopeVisitor(TyphonASTVisitor):
 
     def error_reference_undeclared(self, name: ast.Name) -> ast.Name:
         # TODO: Raise error or keep for TDZ handling
-        raise_scope_error(
+        self.scope_error(
             f"Symbol '{name.id}' is referenced before declaration.",
             **get_pos_attributes(name),
         )
         return name
 
     def error_assign_to_immutable(self, name: ast.Name) -> ast.Name:
-        raise_scope_error(
+        self.scope_error(
             f"Cannot assign to immutable variable '{name.id}'.",
             **get_pos_attributes(name),
         )
         return name
 
     def error_assign_to_undeclared(self, name: ast.Name) -> ast.Name:
-        raise_scope_error(
+        self.scope_error(
             f"Cannot assign to undeclared symbol '{name.id}'.",
             **get_pos_attributes(name),
         )
         return name
 
     def error_duplicate_declaration(self, name: ast.Name) -> ast.Name:
-        raise_scope_error(
+        self.scope_error(
             f"Symbol '{name.id}' is already declared in this scope.",
             **get_pos_attributes(name),
         )
@@ -209,10 +221,10 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         for _, suspends in depends.items():
             for suspend in suspends:
                 if suspend.is_mutation:
-                    suspended_message += f"  Suspended mutation to '{suspend.name.id} at {get_pos_attributes(name)}'\n"
+                    suspended_message += f"  Violates suspended mutation to '{suspend.name.id} at {get_pos_attributes(name)}'\n"
                 else:
-                    suspended_message += f"  Suspended reference to '{suspend.name.id} at {get_pos_attributes(name)}'\n"
-        raise_scope_error(
+                    suspended_message += f"  Violates suspended reference to '{suspend.name.id} at {get_pos_attributes(name)}'\n"
+        self.scope_error(
             f"Symbol '{name.id}' is accessed in its temporal dead zone (TDZ).\n{suspended_message}",
             **get_pos_attributes(name),
         )
@@ -248,7 +260,8 @@ class SymbolScopeVisitor(TyphonASTVisitor):
     def visit_ImportFrom(self, node: ast.ImportFrom):
         for alias in node.names:
             if alias.name == "*":  # TODO Make this syntax error?
-                raise NotImplementedError("from module import * is not supported")
+                raise_must_have_resolved("from module import * is not supported")
+                return node
             sym = self.add_symbol_declaration(
                 alias.asname or alias.name,
                 is_mutable=False,

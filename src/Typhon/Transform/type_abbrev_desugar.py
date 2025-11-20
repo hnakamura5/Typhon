@@ -12,7 +12,10 @@ from ..Grammar.typhon_ast import (
     is_typing_expression,
     is_optional_question,
 )
-from ..Grammar.syntax_errors import raise_type_annotation_error
+from ..Grammar.syntax_errors import (
+    raise_type_annotation_error,
+    try_handle_syntax_error_or,
+)
 from .visitor import TyphonASTVisitor, TyphonASTTransformer
 from .utils import add_import_for_protocol, get_insert_point_for_class
 from ..Driver.debugging import debug_print, debug_verbose_print
@@ -116,8 +119,10 @@ class _OptionalQuestionTransformer(TyphonASTTransformer):
             return self.generic_visit(node)
         pos = get_pos_attributes(node)
         if len(node.elts) != 1:
-            raise_type_annotation_error(
-                "Postfix `?` type annotation must have exactly one element type.", **pos
+            return self._raise_type_annotation_error_default(
+                self.generic_visit(node),
+                "Postfix `?` type annotation must have exactly one element type.",
+                pos,
             )
         elt = node.elts[0]
         assert isinstance(elt, ast.expr), (
@@ -171,8 +176,10 @@ class _TupleListTransformer(TyphonASTTransformer):
         pos = get_pos_attributes(node)
         debug_verbose_print(f"Desugaring List to list[]: {ast.dump(node)}")
         if len(node.elts) != 1:
-            raise_type_annotation_error(
-                "List type annotation must have exactly one element type.", **pos
+            return self._raise_type_annotation_error_default(
+                self.generic_visit(node),
+                "List type annotation must have exactly one element type.",
+                pos,
             )
         return ast.Subscript(
             value=ast.Name(id="list", **pos),

@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform, assert_transform_error
+from ..assertion_utils import assert_ast_transform, assert_transform_first_error
 from ....src.Typhon.Grammar.syntax_errors import ScopeError
 
 tdz_code = """
@@ -44,7 +44,7 @@ def g(y) {
 
 
 def test_tdz_violation_error():
-    assert_transform_error(
+    assert_transform_first_error(
         tdz_violation_error_code,
         ScopeError,
         "'f' is accessed in its temporal dead zone",
@@ -100,7 +100,7 @@ def g(y) {
 
 
 def test_tdz_violation_class_error():
-    assert_transform_error(
+    assert_transform_first_error(
         tdz_violation_class_error_code,
         ScopeError,
         "'A' is accessed in its temporal dead zone",
@@ -137,7 +137,7 @@ var x = 10;
 
 
 def test_tdz_mutation_violation_error():
-    assert_transform_error(
+    assert_transform_first_error(
         tdz_mutation_violation_error_code,
         ScopeError,
         "'f' is accessed in its temporal dead zone",
@@ -180,7 +180,7 @@ var x = 10;
 
 
 def test_tdz_shadow_violation_error():
-    assert_transform_error(
+    assert_transform_first_error(
         tdz_shadow_violation_error_code,
         ScopeError,
         "'f' is accessed in its temporal dead zone",
@@ -229,7 +229,7 @@ var x = 10;
 
 
 def test_tdz_violation_mutual_recursion_error():
-    assert_transform_error(
+    assert_transform_first_error(
         tdz_violation_mutual_recursion_error_code,
         ScopeError,
         "'f' is accessed in its temporal dead zone",

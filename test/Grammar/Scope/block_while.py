@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform, assert_transform_error
+from ..assertion_utils import assert_ast_transform, assert_transform_first_error
 
 
 block_while_code = """

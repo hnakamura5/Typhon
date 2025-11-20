@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform, assert_transform_error
+from ..assertion_utils import assert_ast_transform, assert_transform_first_error
 from ....src.Typhon.Grammar.syntax_errors import ScopeError
 
 block_try_code = """
@@ -94,6 +94,6 @@ try {
 
 
 def test_block_try_except_immutable_error():
-    assert_transform_error(
+    assert_transform_first_error(
         block_try_except_immutable_error_code, ScopeError, "assign to immutable"
     )

@@ -11,7 +11,7 @@ from ..Grammar.typhon_ast import (
     is_optional_pipe,
     clear_is_optional,
 )
-from ..Grammar.syntax_errors import raise_type_annotation_error
+
 from .visitor import TyphonASTTransformer
 from .name_generator import get_unwrap_name, get_unwrap_error_name
 
@@ -67,14 +67,15 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
     def _visit_unwrap(self, node: ast.Tuple):
         pos = get_pos_attributes(node)
         if len(node.elts) != 1:
-            raise_type_annotation_error(
-                "Postfix `?` type annotation must have exactly one element type.", **pos
+            return self._raise_type_annotation_error_default(
+                self.generic_visit(node),
+                "Postfix `?` type annotation must have exactly one element type.",
+                pos,
             )
         elt = node.elts[0]
         assert isinstance(elt, ast.expr), (
             f"Unexpected element in OptionalQuestion: {ast.dump(elt)}"
         )
-
         self.unwrap_inserted = True
         result = ast.Call(
             func=ast.Name(id=get_unwrap_name(), ctx=ast.Load()),
@@ -87,9 +88,10 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
     def _visit_coalescing(self, node: ast.Tuple):
         pos = get_pos_attributes(node)
         if len(node.elts) != 2:
-            raise_type_annotation_error(
+            return self._raise_type_annotation_error_default(
+                self.generic_visit(node),
                 "Postfix `??` type annotation must have exactly two element types.",
-                **pos,
+                pos,
             )
         left = node.elts[0]
         right = node.elts[1]
@@ -132,8 +134,10 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
             )
         else:  # is_optional_pipe
             if len(node.args) != 1:
-                raise_type_annotation_error(
-                    "Postfix `?|>` operator must have exactly one argument.", **pos
+                return self._raise_type_annotation_error_default(
+                    self.generic_visit(node),
+                    "Postfix `?|>` operator must have exactly one argument.",
+                    pos,
                 )
             arg = node.args[0]
             result = self._optional_check_if_exp(

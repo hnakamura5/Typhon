@@ -2,6 +2,7 @@ from .utils import copy_type
 
 _debug = False
 _debug_verbose = False
+_debug_first_error = False
 
 
 def set_debug_mode(debug: bool):
@@ -16,12 +17,22 @@ def set_debug_verbose(verbose: bool):
         set_debug_mode(True)
 
 
+def set_debug_first_error(first_error: bool):
+    global _debug_first_error
+    _debug_first_error = first_error
+
+
 def is_debug_mode() -> bool:
     return _debug
 
 
 def is_debug_verbose() -> bool:
     return _debug_verbose
+
+
+# Whether to stop transformation at the first error encountered.
+def is_debug_first_error() -> bool:
+    return _debug_first_error
 
 
 @copy_type(print)

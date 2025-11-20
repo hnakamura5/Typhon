@@ -14,6 +14,8 @@ from .comprehension_to_function import comprehension_to_function
 from .placeholder_to_function import placeholder_to_func
 from .record_to_dataclass import record_to_dataclass
 
+from ..Grammar.syntax_errors import raise_from_module_syntax_errors
+
 
 def transform(mod: ast.Module):
     check_forbidden_statements(mod)
@@ -41,3 +43,4 @@ def transform(mod: ast.Module):
     debug_verbose_print(f"After func_type_to_protocol:\n{ast.unparse(mod)}\n")
     const_member_to_final(mod)
     debug_print(f"After transform:\n{ast.unparse(mod)}\n")
+    raise_from_module_syntax_errors(mod)

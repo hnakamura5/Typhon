@@ -1,7 +1,7 @@
 from ..assertion_utils import (
     assert_ast_equals,
     assert_transform_equals,
-    assert_transform_error,
+    assert_transform_first_error,
     assert_typh_code_match_unparse,
 )
 
@@ -122,4 +122,4 @@ def func(x: int) -> int {
 
 
 def placeholder_alone_error_transformed():
-    assert_transform_error(placeholder_alone_error_code, SyntaxError)
+    assert_transform_first_error(placeholder_alone_error_code, SyntaxError)

@@ -10,38 +10,49 @@ from ..Grammar.typhon_ast import (
     copy_is_let_var,
     clear_type_annotation,
 )
-from ..Grammar.syntax_errors import raise_type_annotation_error
+from ..Grammar.syntax_errors import (
+    raise_type_annotation_error,
+    handle_syntax_error,
+    TyphonSyntaxError,
+)
 from .visitor import TyphonASTTransformer, TyphonASTVisitor, flat_append
 from ..Driver.debugging import debug_print, debug_verbose_print
 
 
 def _expand_target_annotation(
+    module: ast.Module,
     target: ast.expr,
     annotation: ast.expr,
     orig_node: ast.Assign | ast.AnnAssign | ast.For | ast.withitem | ast.comprehension,
     pos: PosAttributes,
 ) -> list[ast.AST]:
-    result: list[ast.AST] = []
-    annotations = get_annotations_of_declaration_target(target, annotation)
-    if not annotations:
-        return raise_type_annotation_error(
-            "Type annotation form error in declaration", **pos
-        )
-    for target, type_annotation in annotations:
-        if not type_annotation:
-            return raise_type_annotation_error(
+    try:
+        result: list[ast.AST] = []
+        annotations = get_annotations_of_declaration_target(target, annotation)
+        if not annotations:
+            raise_type_annotation_error(
                 "Type annotation form error in declaration", **pos
             )
-        new_assign = ast.AnnAssign(
-            target=target,
-            annotation=type_annotation,
-            value=None,  # Type annotation only
-            simple=1,
-            **pos,
-        )
-        result.append(new_assign)
-        copy_is_let_var(orig_node, new_assign)
-    return result
+            return []  # TODO: This may cause further errors.
+        for target, type_annotation in annotations:
+            if not type_annotation:
+                raise_type_annotation_error(
+                    "Type annotation form error in declaration", **pos
+                )
+                return []
+            new_assign = ast.AnnAssign(
+                target=target,
+                annotation=type_annotation,
+                value=None,  # Type annotation only
+                simple=1,
+                **pos,
+            )
+            result.append(new_assign)
+            copy_is_let_var(orig_node, new_assign)
+        return result
+    except TyphonSyntaxError as e:
+        handle_syntax_error(module, e)
+        return []
 
 
 class _StmtTypeAnnotationCheckExpand(TyphonASTTransformer):
@@ -59,12 +70,15 @@ class _StmtTypeAnnotationCheckExpand(TyphonASTTransformer):
             return self.generic_visit(node)
         if isinstance(node.target, ast.Name):
             return self.generic_visit(node)
+        expanded = _expand_target_annotation(
+            self.module,
+            node.target,
+            node.annotation,
+            node,
+            get_pos_attributes(node),
+        )
         if node.value is None:
-            return [
-                *_expand_target_annotation(
-                    node.target, node.annotation, node, get_pos_attributes(node)
-                ),
-            ]
+            return expanded
         # Convert value assignment part into simple Assign.
         assign = ast.Assign(
             targets=[node.target],
@@ -72,9 +86,7 @@ class _StmtTypeAnnotationCheckExpand(TyphonASTTransformer):
             **get_pos_attributes(node),
         )
         return [
-            *_expand_target_annotation(
-                node.target, node.annotation, node, get_pos_attributes(node)
-            ),
+            *expanded,
             self.generic_visit(assign),
         ]
 
@@ -86,7 +98,7 @@ class _StmtTypeAnnotationCheckExpand(TyphonASTTransformer):
         clear_type_annotation(node)
         return [
             *_expand_target_annotation(
-                node.target, annotation, node, get_pos_attributes(node)
+                self.module, node.target, annotation, node, get_pos_attributes(node)
             ),
             self.generic_visit(node),
         ]
@@ -100,7 +112,11 @@ class _StmtTypeAnnotationCheckExpand(TyphonASTTransformer):
                 continue
             annotation_assignments.extend(
                 _expand_target_annotation(
-                    item.optional_vars, annotation, item, get_pos_attributes(node)
+                    self.module,
+                    item.optional_vars,
+                    annotation,
+                    item,
+                    get_pos_attributes(node),
                 )
             )
             clear_type_annotation(item)
@@ -151,7 +167,11 @@ class _ComprehensionTypeAnnotationExpand(TyphonASTTransformer):
                     continue
                 result.extend(
                     _expand_target_annotation(
-                        clause.target, annotation, clause, get_pos_attributes(node)
+                        self.module,
+                        clause.target,
+                        annotation,
+                        clause,
+                        get_pos_attributes(node),
                     )
                 )
                 clear_type_annotation(clause)

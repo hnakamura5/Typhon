@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform, assert_transform_error
+from ..assertion_utils import assert_ast_transform, assert_transform_first_error
 from ....src.Typhon.Grammar.syntax_errors import ScopeError
 
 block_with_code = """
@@ -35,7 +35,7 @@ with (let x = open('file.txt')) {
 
 
 def test_block_with_immutable_error():
-    assert_transform_error(
+    assert_transform_first_error(
         block_with_immutable_error_code, ScopeError, "assign to immutable"
     )
 

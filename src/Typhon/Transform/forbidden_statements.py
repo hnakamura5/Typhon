@@ -7,33 +7,44 @@ from ..Grammar.typhon_ast import (
     get_pos_attributes,
     is_decl_assign,
     is_multi_decl,
+    PosAttributes,
 )
-from ..Grammar.syntax_errors import raise_forbidden_statement_error
+from ..Grammar.syntax_errors import (
+    raise_forbidden_statement_error,
+    try_handle_syntax_error_or,
+)
 from .visitor import TyphonASTVisitor
 
 
 class ForbiddenStatementChecker(TyphonASTVisitor):
+    def _raise_forbidden_statement(self, message: str, pos: PosAttributes):
+        try_handle_syntax_error_or(
+            None,
+            self.module,
+            lambda: raise_forbidden_statement_error(message, **pos),
+        )
+
     def visit_Delete(self, node: ast.Delete):
-        raise_forbidden_statement_error(
-            "`del` statement is forbidden", **get_pos_attributes(node)
+        self._raise_forbidden_statement(
+            "`del` statement is forbidden", get_pos_attributes(node)
         )
 
     def visit_Global(self, node: ast.Global):
-        raise_forbidden_statement_error(
-            "`global` statement is forbidden", **get_pos_attributes(node)
+        self._raise_forbidden_statement(
+            "`global` statement is forbidden", get_pos_attributes(node)
         )
 
     def visit_Nonlocal(self, node: ast.Nonlocal):
-        raise_forbidden_statement_error(
-            "`nonlocal` statement is forbidden", **get_pos_attributes(node)
+        self._raise_forbidden_statement(
+            "`nonlocal` statement is forbidden", get_pos_attributes(node)
         )
 
     def visit_ImportFrom(self, node: ast.ImportFrom):
         for alias in node.names:
             if alias.name == "*":
-                raise_forbidden_statement_error(
+                self._raise_forbidden_statement(
                     "Wildcard import is forbidden",
-                    **get_pos_attributes(node),
+                    get_pos_attributes(node),
                 )
         return self.generic_visit(node)
 
@@ -79,15 +90,15 @@ class ForbiddenStatementChecker(TyphonASTVisitor):
             self.parent_python_scopes[-1], ast.ClassDef
         ):
             if not self._is_valid_stmt_in_class(node):
-                raise_forbidden_statement_error(
+                self._raise_forbidden_statement(
                     "Only class/function definitions, variable declarations, imports and docstring are allowed inside class definition",
-                    **get_pos_attributes(node),
+                    get_pos_attributes(node),
                 )
             if isinstance(node, (ast.AnnAssign, ast.Assign)):
                 if not self.is_valid_assignment_in_class(node):
-                    raise_forbidden_statement_error(
+                    self._raise_forbidden_statement(
                         "Only single variable declaration is allowed inside class definition",
-                        **get_pos_attributes(node),
+                        get_pos_attributes(node),
                     )
         super().visit(node)
 

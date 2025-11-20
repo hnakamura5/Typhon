@@ -4,7 +4,13 @@ from pathlib import Path
 import subprocess
 from dataclasses import dataclass
 from ..Grammar.parser import parse_file
-from .utils import shorthand, TYPHON_EXT, copy_type, default_output_dir
+from .utils import (
+    shorthand,
+    TYPHON_EXT,
+    copy_type,
+    default_output_dir,
+    prepare_default_output_file,
+)
 from ..Transform.transform import transform
 from .debugging import is_debug_mode, debug_print, is_debug_verbose
 from .translate import (
@@ -36,9 +42,7 @@ class RunResult:
 # Run source file as script.
 # Return RunResult containing stdout, stderr only if capture_output is True.
 def run_file(source: Path, capture_output: bool, *args: str) -> RunResult:
-    temp_output_dir = default_output_dir(source.as_posix())
-    temp_output_dir.mkdir(exist_ok=True)
-    output_file = temp_output_dir / (source.stem + ".py")
+    output_file = prepare_default_output_file(source)
     # Translate source file to temp output file.
     type_check_result = translate_and_run_type_check_file(source, output_file)
     if not type_check_result.is_successful():

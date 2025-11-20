@@ -1,7 +1,7 @@
 from ..assertion_utils import (
     assert_ast_equals,
     assert_ast_transform,
-    assert_transform_error,
+    assert_transform_first_error,
 )
 from ....src.Typhon.Grammar.typhon_ast import (
     is_var_assign,
@@ -10,6 +10,7 @@ from ....src.Typhon.Grammar.typhon_ast import (
 )
 from ....src.Typhon.Grammar.syntax_errors import TypeAnnotationError
 import ast
+from ....src.Typhon.Driver.debugging import set_debug_first_error
 
 
 def assert_not_decl_assign(node: ast.AST):
@@ -324,15 +325,15 @@ var (a, b, c): (int, int);
 
 
 def test_decl_assign_unpack_annotation_error():
-    assert_transform_error(
+    assert_transform_first_error(
         "var (a, b, c): (int, int);",
         TypeAnnotationError,
     )
-    assert_transform_error(
+    assert_transform_first_error(
         "var (a, b, c): (int, int, int, int);",
         TypeAnnotationError,
     )
-    assert_transform_error(
+    assert_transform_first_error(
         "var [a, b, c]: list[int, str];",
         TypeAnnotationError,
     )

@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform, assert_transform_error
+from ..assertion_utils import assert_ast_transform, assert_transform_first_error
 from ....src.Typhon.Grammar.syntax_errors import ScopeError
 
 
@@ -57,7 +57,9 @@ print(x);
 
 
 def test_global_let_error():
-    assert_transform_error(global_let_error_code, ScopeError, "assign to immutable")
+    assert_transform_first_error(
+        global_let_error_code, ScopeError, "assign to immutable"
+    )
 
 
 nonlocal_var_code = """
@@ -128,4 +130,6 @@ f();
 
 
 def test_nonlocal_let_error():
-    assert_transform_error(nonlocal_let_error_code, ScopeError, "assign to immutable")
+    assert_transform_first_error(
+        nonlocal_let_error_code, ScopeError, "assign to immutable"
+    )

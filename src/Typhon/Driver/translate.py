@@ -1,8 +1,13 @@
 from pathlib import Path
+import sys
 import ast
 from dataclasses import dataclass
 from ..Grammar.parser import parse_file
-from ..Grammar.syntax_errors import diag_syntax_error
+from ..Grammar.syntax_errors import (
+    diag_errors,
+    TyphonSyntaxError,
+    TyphonSyntaxErrorList,
+)
 from .utils import (
     shorthand,
     TYPHON_EXT,
@@ -22,14 +27,15 @@ class TranslateResult:
     source_path_canonical: str
     output_path_canonical: str
     source_map: SourceMap | None
-    syntax_error: SyntaxError | None
+    syntax_error: SyntaxError | TyphonSyntaxError | TyphonSyntaxErrorList | None
 
 
 def translate_file(source: Path, output: Path) -> TranslateResult:
     debug_print(f"Translating source: {source} to output_dir: {output}")
     try:
         ast_tree = parse_file(source.as_posix(), verbose=is_debug_verbose())
-    except SyntaxError as e:
+        transform(ast_tree)
+    except (SyntaxError, TyphonSyntaxError, TyphonSyntaxErrorList) as e:
         debug_print(f"Error parsing file {source}: {e}")
         return TranslateResult(
             source_path_canonical=canonicalize_path(source),
@@ -37,7 +43,6 @@ def translate_file(source: Path, output: Path) -> TranslateResult:
             source_map=None,
             syntax_error=e,
         )
-    transform(ast_tree)
     translated_code = ast.unparse(ast_tree)
     source_code = source.read_text(encoding="utf-8")
     mapping = map_from_transformed_ast(
@@ -56,11 +61,12 @@ def translate_and_run_type_check_file(source: Path, output: Path) -> TypeCheckRe
     translate_result = translate_file(source, output)
     if translate_result.syntax_error is not None:
         print(
-            diag_syntax_error(
+            diag_errors(
                 translate_result.syntax_error,
                 source=source,
                 source_code=source.read_text(encoding="utf-8"),
-            )
+            ),
+            file=sys.stderr,
         )
         raise RuntimeError("Syntax error during translation.")
     type_check_result = run_type_check(output)
@@ -69,7 +75,8 @@ def translate_and_run_type_check_file(source: Path, output: Path) -> TypeCheckRe
             source_maps={
                 translate_result.output_path_canonical: translate_result.source_map
             }
-        )
+        ),
+        file=sys.stderr if not type_check_result.is_successful() else sys.stdout,
     )
     return type_check_result
 
@@ -110,13 +117,14 @@ def translate_and_run_type_check_directory(
         if t.syntax_error is not None:
             exists_syntax_error = True
             print(
-                diag_syntax_error(
+                diag_errors(
                     t.syntax_error,
                     source=Path(t.source_path_canonical),
                     source_code=Path(t.source_path_canonical).read_text(
                         encoding="utf-8"
                     ),
-                )
+                ),
+                file=sys.stderr,
             )
     if exists_syntax_error:
         raise RuntimeError("Syntax errors during translation.")
@@ -127,7 +135,8 @@ def translate_and_run_type_check_directory(
                 t.output_path_canonical: t.source_map
                 for _, t in translate_result.items()
             }
-        )
+        ),
+        file=sys.stderr if not type_check_result.is_successful() else sys.stdout,
     )
     return type_check_result
 

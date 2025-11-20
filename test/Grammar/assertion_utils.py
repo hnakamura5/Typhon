@@ -10,7 +10,10 @@ from ...src.Typhon.Grammar.token_factory_custom import token_stream_factory
 from ...src.Typhon.SourceMap.ast_matching import match_ast
 from ...src.Typhon.SourceMap.ast_match_based_map import MatchBasedSourceMap
 from ...src.Typhon.SourceMap.datatype import Range
+from ...src.Typhon.Driver.debugging import set_debug_first_error, is_debug_first_error
+from ...src.Typhon.Grammar.syntax_errors import TyphonSyntaxErrorList
 import inspect
+from contextlib import contextmanager
 
 PARSER_VERBOSE = False
 
@@ -110,16 +113,41 @@ def assert_ast_error(
         _assert_exception(e, exception, error_message)
 
 
-def assert_transform_error(
+@contextmanager
+def first_error_test():
+    previous_setting = is_debug_first_error()
+    set_debug_first_error(True)
+    yield
+    set_debug_first_error(previous_setting)
+
+
+def assert_transform_first_error(
     typhon_ast: str, exception: type = Exception, error_message: str = ""
 ):
+    parsed = parse_string(typhon_ast, mode="exec")
+    assert isinstance(parsed, ast.Module)
+    with first_error_test():
+        try:
+            transform(parsed)
+            assert False, "Expected exception but none was raised"
+        except Exception as e:
+            _assert_exception(e, exception, error_message)
+
+
+def assert_transform_errors(typhon_ast: str, exceptions: list[type]):
     parsed = parse_string(typhon_ast, mode="exec")
     assert isinstance(parsed, ast.Module)
     try:
         transform(parsed)
         assert False, "Expected exception but none was raised"
-    except Exception as e:
-        _assert_exception(e, exception, error_message)
+    except TyphonSyntaxErrorList as e:
+        assert len(e.errors) == len(exceptions), (
+            f"Expected {len(exceptions)} errors, got {len(e.errors)}"
+        )
+        for error, expected_exception in zip(e.errors, exceptions):
+            assert isinstance(error, expected_exception), (
+                f"Expected exception {expected_exception}, got {type(error)}"
+            )
 
 
 def assert_ast_type[T](node: ast.AST, t: Type[T]) -> T:

@@ -1,10 +1,11 @@
 from ..assertion_utils import (
     assert_ast_equals,
     assert_transform_equals,
-    assert_transform_error,
+    assert_transform_first_error,
     assert_typh_code_match_unparse,
 )
 from ....src.Typhon.Grammar.syntax_errors import TypeAnnotationError
+from ....src.Typhon.Driver.debugging import set_debug_first_error
 
 
 tuple_type_code = """
@@ -64,7 +65,7 @@ let l: [int, int] = [1, 2];
 
 
 def test_exp_list_type_error():
-    assert_transform_error(
+    assert_transform_first_error(
         list_type_error_code,
         exception=TypeAnnotationError,
     )

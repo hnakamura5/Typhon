@@ -32,6 +32,13 @@ def default_output_dir(source: str) -> Path:
     return Path(source).parent / ".typhon"
 
 
+def prepare_default_output_file(source: Path) -> Path:
+    temp_output_dir = default_output_dir(source.as_posix())
+    temp_output_dir.mkdir(exist_ok=True)
+    output_file = temp_output_dir / (source.stem + ".py")
+    return output_file
+
+
 def copy_type[**P, T](
     _: Callable[P, T],
 ) -> Callable[[Callable[..., T]], Callable[P, T]]:

@@ -14,8 +14,13 @@ from ..Grammar.typhon_ast import (
     set_control_comprehension_def,
     get_type_annotation,
     set_type_annotation,
+    PosAttributes,
 )
 from .name_generator import UniqueNameGenerator, PythonScope, NameKind
+from ..Grammar.syntax_errors import (
+    raise_type_annotation_error,
+    try_handle_syntax_error_or,
+)
 
 
 class _ScopeManagerMixin:
@@ -27,7 +32,6 @@ class _ScopeManagerMixin:
     parent_python_scopes: list[PythonScope]
 
     def __init__(self, module: ast.Module):
-        super().__init__()
         self.parent_stmts = []
         self.parent_exprs = []
         self.parent_classes = []
@@ -256,13 +260,33 @@ class _TyphonExtendedNodeTransformerMixin:
         return otherwise(node)
 
 
+class _ErrorHandlingMixin:
+    module: ast.Module
+
+    def __init__(self, module: ast.Module):
+        self.module = module
+
+    def _raise_type_annotation_error_default[T](
+        self, orelse: T, message: str, pos: PosAttributes
+    ) -> T:
+        return try_handle_syntax_error_or(
+            orelse,
+            self.module,
+            lambda: raise_type_annotation_error(message, **pos),
+        )
+
+
 class TyphonASTVisitor(
-    ast.NodeVisitor, _ScopeManagerMixin, _TyphonExtendedNodeTransformerMixin
+    ast.NodeVisitor,
+    _ScopeManagerMixin,
+    _TyphonExtendedNodeTransformerMixin,
+    _ErrorHandlingMixin,
 ):
     def __init__(self, module: ast.Module):
         ast.NodeVisitor.__init__(self)
         _ScopeManagerMixin.__init__(self, module)
         _TyphonExtendedNodeTransformerMixin.__init__(self)
+        _ErrorHandlingMixin.__init__(self, module)
         self.module = module
 
     def run(self):
@@ -291,12 +315,16 @@ class TyphonASTVisitor(
 
 
 class TyphonASTTransformer(
-    ast.NodeTransformer, _ScopeManagerMixin, _TyphonExtendedNodeTransformerMixin
+    ast.NodeTransformer,
+    _ScopeManagerMixin,
+    _TyphonExtendedNodeTransformerMixin,
+    _ErrorHandlingMixin,
 ):
     def __init__(self, module: ast.Module):
         ast.NodeTransformer.__init__(self)
         _ScopeManagerMixin.__init__(self, module)
         _TyphonExtendedNodeTransformerMixin.__init__(self)
+        _ErrorHandlingMixin.__init__(self, module)
         self.module = module
 
     def run(self):

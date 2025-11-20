@@ -39,8 +39,9 @@ class Diagnostic:
             self.severity.value,
             file_path,
             pos,
-            rule,
-            message,
+            source_lines=None,
+            rule=rule,
+            message=message,
         )
 
 

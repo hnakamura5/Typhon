@@ -1,0 +1,24 @@
+a = 1
+b = c + d
+
+"""stderr
+syntax error: $FILE:1:0
+  Symbol 'a' is referenced before declaration.
+    1 |  a = 1
+         ^
+
+syntax error: $FILE:2:4
+  Symbol 'c' is referenced before declaration.
+    2 |  b = c + d
+             ^
+
+syntax error: $FILE:2:8
+  Symbol 'd' is referenced before declaration.
+    2 |  b = c + d
+                 ^
+
+syntax error: $FILE:2:0
+  Symbol 'b' is referenced before declaration.
+    2 |  b = c + d
+         ^
+"""
