@@ -16,6 +16,8 @@ try {
 }
 ```
 
+`else` block is also supported, executed if no exception occurs.
+
 ## Raise
 
 Raise exceptions using `raise`.

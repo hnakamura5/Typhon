@@ -14,6 +14,7 @@ with (let f = open("file.txt")) {
 
 Typhon supports an inline `with` statement that applies to the rest of the current scope.
 
+```typhon
 if (True) {
     with let f = open("file.txt");
     f.read();
