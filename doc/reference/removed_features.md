@@ -21,6 +21,7 @@ Typhon removes several Python features to enforce cleaner code and stricter scop
 ## Rationale
 
 These removals aim to:
+
 - Simplify the language.
 - Make control flow and data flow more explicit.
 - Prevent common errors associated with dynamic scoping and side effects.

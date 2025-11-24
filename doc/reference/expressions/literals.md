@@ -27,6 +27,7 @@ print(record.x);
 They are typed as `{|x: int, y: int|}`.
 
 ### Translation
+
 The literal `{|x = 10, y = 20|}` is translated into an instantiation of an anonymous immutable dataclass.
 
 ```python

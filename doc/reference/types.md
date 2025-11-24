@@ -14,6 +14,7 @@ Typhon is a statically typed language. It supports Python's basic types and exte
 ## Collection Types
 
 ### Tuples
+
 Typhon introduces a dedicated syntax for tuple types: `(T1, T2, ...)`.
 
 ```typhon
@@ -21,6 +22,7 @@ let x: (int, str) = (1, "hello");
 ```
 
 ### Lists
+
 List types are denoted as `[T]`.
 
 ```typhon
@@ -44,6 +46,7 @@ let adder: (int, int) -> int = (x, y) => x + y;
 ```
 
 ### Translation
+
 This is syntactic sugar for `Protocol`.
 
 ```python
@@ -60,6 +63,7 @@ let point: {|x: int, y: int|} = {|x = 10, y = 20|};
 ```
 
 ### Translation
+
 This translates to a `Protocol` defining an immutable dataclass-like structure.
 
 ```python

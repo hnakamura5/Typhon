@@ -26,6 +26,7 @@ Identifiers follow standard rules but with a few Typhon-specific restrictions:
 Typhon retains most Python keywords but adds and removes some.
 
 ### New/Changed Keywords
+
 - `let`: Immutable variable declaration
 - `var`: Mutable variable declaration
 - `static`: Static member or compile-time construct
@@ -34,6 +35,7 @@ Typhon retains most Python keywords but adds and removes some.
 - `&&`, `||`, `!`: Logical operators (replacing `and`, `or`, `not` in most contexts, though `and`/`or`/`not` are still reserved)
 
 ### Forbidden Keywords
+
 - `del`
 - `global`
 - `nonlocal`
@@ -51,17 +53,17 @@ Typhon uses a mix of braces and significant whitespace, but with stricter rules 
 
 A line break is treated as **whitespace** (continuation) if it occurs:
 
-1.  **Just after**:
-    - Operators (e.g., `+`, `-`, `.`, `=`, `?`, `:`, `=>`, `->`, `,`).
-    - Open brackets (`(`, `[`, `{`).
-    - Modifiers and decorators (`static`, `async`, `@`).
-    - Statement keywords that expect a body or continuation (e.g., `class`, `def`, `if`, `elif`, `while`, `for`, `except`, `with`, `match`, `case`).
-    - The closing parenthesis `)` of a control statement header (e.g., `if (cond)`).
+1. **Just after**:
+   - Operators (e.g., `+`, `-`, `.`, `=`, `?`, `:`, `=>`, `->`, `,`).
+   - Open brackets (`(`, `[`, `{`).
+   - Modifiers and decorators (`static`, `async`, `@`).
+   - Statement keywords that expect a body or continuation (e.g., `class`, `def`, `if`, `elif`, `while`, `for`, `except`, `with`, `match`, `case`).
+   - The closing parenthesis `)` of a control statement header (e.g., `if (cond)`).
 
-2.  **Just before**:
-    - Operators (EXCEPT `@`, `await`).
-    - Closing brackets (`}`, `]`, `)`).
-    - Keywords that continue a statement (`elif`, `else`, `except`, `finally`, `case`).
+2. **Just before**:
+   - Operators (EXCEPT `@`, `await`).
+   - Closing brackets (`}`, `]`, `)`).
+   - Keywords that continue a statement (`elif`, `else`, `except`, `finally`, `case`).
 
 In all other cases, a line break is treated as a **semicolon** (statement terminator).
 
