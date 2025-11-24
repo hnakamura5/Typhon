@@ -67,6 +67,7 @@ Some Python features are removed to enforce safety and clarity. See [Removed Fea
 ## Usage
 
 Typhon can be run directly or translated to Python.
+`.typh` files are Typhon source files.
 
 ### Run
 
