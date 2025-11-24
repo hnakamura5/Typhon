@@ -2,6 +2,9 @@
 
 Typhon is a modernized syntax sugar for Python, designed to improve developer experience with features like static typing, brace-based scoping, and expressive functional programming capabilities.
 
+GitHub repository: [Typhon](https://github.com/hnakamura5/Typhon)
+PyPI package: [Typhon-Language](https://pypi.org/project/Typhon-Language/)
+
 ## Design Concepts
 
 Typhon is built on three core pillars:
@@ -97,10 +100,9 @@ See [Future Plans](doc/reference/future_plans.md) for planned features like comp
 
 Typhon draws inspiration from several modern programming languages:
 
-- **Python**: The foundation of Typhon's semantics and ecosystem.
-- **TypeScript**: Static typing on top of a dynamic language, structural typing concepts.
-- **Swift**: Optional chaining, `if-let` syntax, and clean closure syntax.
-- **Rust**: Expression-oriented syntax, `match` statement power, and immutable-by-default philosophy.
-- **Scala**: Functional programming features and concise syntax.
-- **F#**: Pipe operators and type inference concepts.
-- **C#**: Modern language features and tooling.
+- Python
+- TypeScript
+- Swift
+- Rust
+- Scala
+- F#

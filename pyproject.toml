@@ -1,5 +1,5 @@
 [project]
-name = "Typhon"
+name = "Typhon-Language"
 version = "0.1.0"
 description = "Typhon programming language"
 readme = "README.md"

@@ -165,7 +165,7 @@ wheels = [
 ]
 
 [[package]]
-name = "typhon"
+name = "typhon-language"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
