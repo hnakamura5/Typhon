@@ -37,7 +37,7 @@ Typhon retains most of Python's semantics but introduces significant syntax chan
 ### Syntax Extensions
 
 - **Null Safety**: `?.`, `??`, `?()`, `?[]` operators. See [Null Safety](doc/reference/expressions/null_safety.md).
-- **Function literals**: Unrestricted function literals with `(x) => { return x + 1 }` syntax, with totally the same capability as normal functions. See [Functions](doc/reference/items/functions.md).
+- **Function literals**: Unrestricted function literals with `(x) => { return x + 1 }` syntax, with totally the same capability as normal functions. See[Function literals](doc/reference/expressions/literals.md#function-literals).
 - **Pipe Operator**: `x |> f` for function chaining. See [Pipe Operator](doc/reference/expressions/pipe_operator.md).
 - **Placeholders**: `_` for concise anonymous functions (e.g., `_ + 1`). See [Placeholders](doc/reference/expressions/placeholders.md).
 - **Control Comprehensions**: Control statements as expressions (e.g., `(if (c) x else y)`). All `if/while/for/let/try/with/match` are supported as comprehension. See [Comprehensions](doc/reference/expressions/comprehensions.md).

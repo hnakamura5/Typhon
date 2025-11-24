@@ -2,18 +2,86 @@
 
 ## Basic Literals
 
+Basic literals in Typhon are the same as Python:
+
 - **Integers**: `1`, `42`, `-5`
 - **Floats**: `1.0`, `3.14`, `-0.01`
 - **Strings**: `"hello"`, `'world'`
 - **Booleans**: `True`, `False`
 - **None**: `None`
 
+### F-Strings
+
+Typhon supports f-strings (formatted string literals) with the same syntax as Python:
+
+```typhon
+let name = "World";
+let greeting = f"Hello, {name}!";
+print(greeting); # Hello, World!
+
+let x = 10;
+let y = 20;
+print(f"{x} + {y} = {x + y}"); # 10 + 20 = 30
+```
+
+F-strings can contain arbitrary expressions and format specifiers:
+
+```typhon
+let pi = 3.14159;
+print(f"Pi is approximately {pi:.2f}"); # Pi is approximately 3.14
+```
+
 ## Collection Literals
+
+Collection literals in Typhon are the same as Python:
 
 - **Lists**: `[1, 2, 3]`
 - **Tuples**: `(1, "a")`
 - **Dictionaries**: `{"a": 1, "b": 2}`
 - **Sets**: `{1, 2, 3}`
+
+## Function Literals
+
+Function literals (arrow functions) provide a concise syntax for creating anonymous functions. Unlike Python's `lambda`, Typhon's function literals have no restrictions and can contain multiple statements.
+
+### Single-Expression Form
+
+For simple functions that return a single expression:
+
+```typhon
+let add = (x, y) => x + y;
+let square = (n) => n * n;
+let greet = (name) => f"Hello, {name}!";
+```
+
+### Block Form
+
+For multi-statement functions, use braces:
+
+```typhon
+let process = (x) => {
+    let doubled = x * 2;
+    let result = doubled + 10;
+    return result;
+};
+```
+
+### With Type Annotations
+
+Function literals support full type annotations:
+
+```typhon
+let add: (int, int) -> int = (x: int, y: int) -> int => x + y;
+
+let validate = (value: str) -> bool => {
+    if (value.length > 0) {
+        return True;
+    }
+    return False;
+};
+```
+
+Function literals have the same capabilities as regular functions defined with `def`, including the ability to capture variables from their enclosing scope.
 
 ## Data Record Literals
 
