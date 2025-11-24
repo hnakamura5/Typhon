@@ -24,7 +24,7 @@ Default case is optional (result is `None` if no match).
 let val = (try x / y except (ZeroDivisionError) 0)
 ```
 
-Returns `None` if an exception occurs and is not caught by the expression's handler (or if the handler doesn't return a value? *Clarification needed: README says "(try x/y)" is None on exception. It implies simple try-except block behavior*).
+Returns `None` if an exception occurs and is not caught by the expression's handler.
 
 ## Let Comprehension
 

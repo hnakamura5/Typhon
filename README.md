@@ -19,6 +19,7 @@ Run Typhon from the command line:
 ```bash
 typhon --help
 ```
+
 Create a simple Typhon program in `hello.typh`:
 
 ```typhon
@@ -40,7 +41,6 @@ Or run directly using uvx:
 uvx --from typhon-language typhon run hello.typh
 ```
 
-
 ## Design Concepts
 
 Typhon is built on three core pillars:
@@ -48,6 +48,11 @@ Typhon is built on three core pillars:
 1. **Safety**: As expected in modern programming languages, Typhon enforces safety through static typing, lexical scopes, immutable-by-default variables (`let`), and null safety features (`?.`, `??`, `?()`, `?[]`).
 2. **Expressiveness**: Expression-oriented design with functional programming features. Control comprehension forms for `if`, `match`, `try`, and so on enable concise, value-returning expressions. Function literals, placeholders and pipe operators facilitate clean and readable code.
 3. **Python Interoperability**: Typhon compiles directly to Python, allowing you to use the vast ecosystem of Python libraries seamlessly while enjoying a modern syntax.
+
+### How it looks like
+
+You can see small code snippets in the test directory: [Typhon Tests](test/execute/RunFileTest/).
+
 
 ## Documentation
 
