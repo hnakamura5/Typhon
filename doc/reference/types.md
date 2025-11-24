@@ -18,7 +18,7 @@ Typhon is a statically typed language. It supports Python's basic types and exte
 Typhon introduces a dedicated syntax for tuple types: `(T1, T2, ...)`.
 
 ```typhon
-let x: (int, str) = (1, "hello");
+let x: (int, str) = (1, "hello")
 ```
 
 ### Lists
@@ -26,7 +26,7 @@ let x: (int, str) = (1, "hello");
 List types are denoted as `[T]`.
 
 ```typhon
-let numbers: [int] = [1, 2, 3];
+let numbers: [int] = [1, 2, 3]
 ```
 
 ## Optional Types
@@ -34,7 +34,7 @@ let numbers: [int] = [1, 2, 3];
 Optional types are written as `T?`, which is equivalent to `T | None`.
 
 ```typhon
-let maybe_int: int? = None;
+let maybe_int: int? = None
 ```
 
 ## Function Types
@@ -42,7 +42,7 @@ let maybe_int: int? = None;
 Arrow syntax is used for function types: `(ArgType1, ArgType2) -> ReturnType`.
 
 ```typhon
-let adder: (int, int) -> int = (x, y) => x + y;
+let adder: (int, int) -> int = (x, y) => x + y
 ```
 
 ### Translation
@@ -59,7 +59,7 @@ class MyProtocol(Protocol):
 Data records are anonymous immutable data structures, similar to anonymous dataclasses.
 
 ```typhon
-let point: {|x: int, y: int|} = {|x = 10, y = 20|};
+let point: {|x: int, y: int|} = {|x = 10, y = 20|}
 ```
 
 ### Translation

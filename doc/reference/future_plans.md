@@ -30,7 +30,7 @@ static if (VERSION >= 3.13) {
 ### Static Assert
 
 ```typhon
-static assert("ast_debug" in DEBUG_FLAGS);
+static assert("ast_debug" in DEBUG_FLAGS)
 ```
 
 Causes a compile error if the assertion fails.

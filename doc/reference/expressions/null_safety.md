@@ -7,8 +7,8 @@ Typhon provides operators to safely handle `None` (optional) values.
 Access attributes or methods only if the receiver is not `None`.
 
 ```typhon
-let x: Foo? = get_foo();
-let y = x?.bar; # y is None if x is None, else x.bar
+let x: Foo? = get_foo()
+let y = x?.bar # y is None if x is None, else x.bar
 ```
 
 ## Nullish Coalescing (`??`)
@@ -16,8 +16,8 @@ let y = x?.bar; # y is None if x is None, else x.bar
 Provide a default value if the left-hand side is `None`.
 
 ```typhon
-let x: int? = None;
-let y = x ?? 0; # y is 0
+let x: int? = None
+let y = x ?? 0 # y is 0
 ```
 
 ## Optional Call (`?()`)
@@ -25,8 +25,8 @@ let y = x ?? 0; # y is 0
 Call a function only if it is not `None`.
 
 ```typhon
-let f: ((int) -> int)? = None;
-f?(10); # Returns None, does not crash
+let f: ((int) -> int)? = None
+f?(10) # Returns None, does not crash
 ```
 
 ## Optional Subscript (`?[]`)
@@ -34,6 +34,6 @@ f?(10); # Returns None, does not crash
 Access an index/key only if the collection is not `None`.
 
 ```typhon
-let l: [int]? = None;
-let val = l?[0];
+let l: [int]? = None
+let val = l?[0]
 ```

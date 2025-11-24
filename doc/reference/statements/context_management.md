@@ -6,7 +6,7 @@ Manage resources using `with`.
 
 ```typhon
 with (let f = open("file.txt")) {
-    f.read();
+    f.read()
 }
 ```
 
@@ -16,7 +16,7 @@ Typhon supports an inline `with` statement that applies to the rest of the curre
 
 ```typhon
 if (True) {
-    with let f = open("file.txt");
-    f.read();
+    with let f = open("file.txt")
+    f.read()
 } # f is closed here
 ```

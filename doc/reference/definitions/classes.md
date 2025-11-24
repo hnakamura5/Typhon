@@ -6,12 +6,12 @@ Classes are defined using `class`.
 
 ```typhon
 class Point {
-    let x: int;
-    let y: int;
+    let x: int
+    let y: int
 
     def __init__(self, x: int, y: int) {
-        self.x = x;
-        self.y = y;
+        self.x = x
+        self.y = y
     }
 }
 ```
@@ -23,7 +23,7 @@ class Point {
 ```typhon
 class C {
     def method() {
-        print(self);
+        print(self)
     }
 }
 ```
@@ -35,7 +35,7 @@ Use `static def` for static methods (no `self`).
 ```typhon
 class C {
     static def create() {
-        return C();
+        return C()
     }
 }
 ```
@@ -46,7 +46,7 @@ class C {
 
 ```typhon
 class C {
-    let x: int = 10;
+    let x: int = 10
     # x = 20; # Error: Cannot assign to immutable member
 }
 ```

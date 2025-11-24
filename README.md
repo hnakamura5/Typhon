@@ -2,14 +2,50 @@
 
 Typhon is a modernized syntax sugar for Python, designed to improve developer experience with features like static typing, brace-based scoping, and expressive functional programming capabilities.
 
-GitHub repository: [Typhon](https://github.com/hnakamura5/Typhon)
-PyPI package: [Typhon-Language](https://pypi.org/project/Typhon-Language/)
+- GitHub repository: [Typhon](https://github.com/hnakamura5/Typhon)
+- PyPI package: [Typhon-Language](https://pypi.org/project/Typhon-Language/)
+- VSCode extension: [Typhon Language Support](https://marketplace.visualstudio.com/items?itemName=hnakamura5.typhon-language-support) from [GitHub Repository](https://github.com/hnakamura5/typhon-language-support)
+
+## Getting Started
+
+Install Typhon via pip:
+
+```bash
+pip install typhon-language
+```
+
+Run Typhon from the command line:
+
+```bash
+typhon --help
+```
+Create a simple Typhon program in `hello.typh`:
+
+```typhon
+def main() {
+    print("Hello, Typhon!")
+}
+main()
+```
+
+Run the program:
+
+```bash
+typhon run hello.typh
+```
+
+Or run directly using uvx:
+
+```bash
+uvx --from typhon-language typhon run hello.typh
+```
+
 
 ## Design Concepts
 
 Typhon is built on three core pillars:
 
-1. **Safety**: As expected from modern programming languages, Typhon enforces safety through static typing, lexical scopes, immutable-by-default variables (`let`), and null safety features (`?.`, `??`).
+1. **Safety**: As expected in modern programming languages, Typhon enforces safety through static typing, lexical scopes, immutable-by-default variables (`let`), and null safety features (`?.`, `??`, `?()`, `?[]`).
 2. **Expressiveness**: Expression-oriented design with functional programming features. Control comprehension forms for `if`, `match`, `try`, and so on enable concise, value-returning expressions. Function literals, placeholders and pipe operators facilitate clean and readable code.
 3. **Python Interoperability**: Typhon compiles directly to Python, allowing you to use the vast ecosystem of Python libraries seamlessly while enjoying a modern syntax.
 
@@ -33,8 +69,8 @@ Typhon retains most of Python's semantics but introduces significant syntax chan
 
 ### Main Changes
 
-- **Brace Scoping**: Typhon uses `{ ... }` for blocks, replacing indentation-based scoping. Both `;` and line breaks can also act as delimiters. See [Lexical Structure](doc/reference/lexical_structure.md).
-- **Static Typing**: Type checking is enforced at compile time.
+- **Brace Scoping**: Typhon uses `{ ... }` for blocks, replacing indentation-based scoping. Both `;` and line breaks can also act as delimiters. See [Lexical Structure](doc/reference/lexical_structure.md) for more details.
+- **Static Typing**: Type checking is enforced at compile time. Currently powered by [basedpyright](https://docs.basedpyright.com/latest/) type checker.
 - **Declarations**: Variables must be declared with `let` (immutable) or `var` (mutable). See [Variables](doc/reference/variables.md).
 
 ### Syntax Extensions
@@ -67,7 +103,10 @@ Some Python features are removed to enforce safety and clarity. See [Removed Fea
 ## Usage
 
 Typhon can be run directly or translated to Python.
-`.typh` files are Typhon source files.
+
+`.typh` files are Typhon source files. In directory mode, all `.typh` files are processed.
+
+Note Typhon uses `.typhon` directory in source paths to place translated Python files and caches.
 
 ### Run
 

@@ -3,7 +3,7 @@
 The underscore `_` can be used as a placeholder to create anonymous functions concisely.
 
 ```typhon
-let add_one = _ + 1;
+let add_one = _ + 1
 # Equivalent to: (x) => x + 1
 ```
 
@@ -13,7 +13,7 @@ let add_one = _ + 1;
 - Multiple `_` placeholders create a function with multiple arguments, assigned from left to right.
 
 ```typhon
-let add = _ + _;
+let add = _ + _
 # Equivalent to: (x, y) => x + y
 ```
 

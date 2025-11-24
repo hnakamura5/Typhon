@@ -6,11 +6,11 @@ Standard `if`, `elif`, `else` structure. Parentheses around the condition are re
 
 ```typhon
 if (x > 0) {
-    print("Positive");
+    print("Positive")
 } elif (x < 0) {
-    print("Negative");
+    print("Negative")
 } else {
-    print("Zero");
+    print("Zero")
 }
 ```
 
@@ -22,7 +22,7 @@ if (x > 0) {
 if (let x = maybe_val()) {
     # Executed if maybe_val() is not None
     # x is bound to the value
-    print(x);
+    print(x)
 }
 ```
 
@@ -39,10 +39,10 @@ if (let [1, x] = get_list()) { ... }
 
 ```typhon
 let Some(x) = maybe_val else {
-    return; # Must return, break, continue, or raise
+    return # Must return, break, continue, or raise
 }
 # x is available here
-print(x);
+print(x)
 ```
 
 ## Match Statement
@@ -51,9 +51,9 @@ Pattern matching with `match` and `case`.
 
 ```typhon
 match (val) {
-    case (0) { print("Zero"); }
-    case (x) if (x > 0) { print("Positive"); }
-    case (_) { print("Other"); }
+    case (0) { print("Zero") }
+    case (x) if (x > 0) { print("Positive") }
+    case (_) { print("Other") }
 }
 ```
 
@@ -63,7 +63,7 @@ Standard `while` loop.
 
 ```typhon
 while (x > 0) {
-    x -= 1;
+    x -= 1
 }
 ```
 
@@ -73,7 +73,7 @@ Iterate over iterables.
 
 ```typhon
 for (let x in range(10)) {
-    print(x);
+    print(x)
 }
 ```
 

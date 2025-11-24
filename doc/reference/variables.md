@@ -11,7 +11,7 @@ Variables must be declared using `let` or `var`.
 `let` declares an immutable binding. The value cannot be reassigned.
 
 ```typhon
-let x = 10;
+let x = 10
 # x = 20; # Error: Cannot assign to immutable variable
 ```
 
@@ -20,8 +20,8 @@ let x = 10;
 `var` declares a mutable variable.
 
 ```typhon
-var y = 10;
-y = 20; # OK
+var y = 10
+y = 20 # OK
 ```
 
 ## Type Annotations in Patterns
@@ -44,10 +44,10 @@ Typhon uses standard block scope (lexical scope). Variables declared inside a bl
 
 ```typhon
 if (True) {
-    let local = 100;
+    let local = 100
 }
 
-# print(local); # Error: Undefined symbol
+# print(local) # Error: Undefined symbol
 ```
 
 ### Shadowing
@@ -55,12 +55,12 @@ if (True) {
 Variables can be shadowed in inner scopes.
 
 ```typhon
-let x = 1;
+let x = 1
 if (True) {
-    let x = 2; # Shadows outer x
-    print(x); # Prints 2
+    let x = 2 # Shadows outer x
+    print(x) # Prints 2
 }
-print(x); # Prints 1
+print(x) # Prints 1
 ```
 
 ### Temporal Dead Zone (TDZ)
@@ -69,8 +69,8 @@ In general, variables in Typhon must be declared before they are accessed. There
 
 ```typhon
 # Error: x is not declared yet
-print(x);
-let x = 10;
+print(x)
+let x = 10
 ```
 
 #### Module Top-Level: Static TDZ for Recursion
@@ -85,11 +85,11 @@ At module top-level, functions can reference symbols that are declared later in 
 
    ```typhon
    def foo() -> int {
-       return bar(); # bar not yet defined - foo becomes DEAD
+       return bar() # bar not yet defined - foo becomes DEAD
    }
 
    def bar() -> int {
-       return 42;
+       return 42
    }
    # Now foo is no longer DEAD
    ```
@@ -97,18 +97,18 @@ At module top-level, functions can reference symbols that are declared later in 
 2. **DEAD propagates**: If function A references DEAD function B, then A also becomes DEAD.
 
    ```typhon
-   def a() { return b(); } # DEAD (b is DEAD)
-   def b() { return c(); } # DEAD (c not defined)
-   def c() { return 1; }   # Not DEAD
+   def a() { return b() } # DEAD (b is DEAD)
+   def b() { return c() } # DEAD (c not defined)
+   def c() { return 1 }   # Not DEAD
    ```
 
 3. **DEAD symbols cannot be called at top-level**: You cannot call a DEAD function in top-level executable code.
 
    ```typhon
-   let x = foo(); # Error: foo is DEAD
+   let x = foo() # Error: foo is DEAD
 
    def foo() -> int {
-       return 42;
+       return 42
    }
    ```
 

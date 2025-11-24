@@ -9,7 +9,7 @@ x |> f  # Equivalent to f(x)
 It is left-associative and has low precedence.
 
 ```typhon
-data |> process |> save;
+data |> process |> save
 # Equivalent to save(process(data))
 ```
 

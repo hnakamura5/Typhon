@@ -15,20 +15,20 @@ Basic literals in Typhon are the same as Python:
 Typhon supports f-strings (formatted string literals) with the same syntax as Python:
 
 ```typhon
-let name = "World";
-let greeting = f"Hello, {name}!";
-print(greeting); # Hello, World!
+let name = "World"
+let greeting = f"Hello, {name}!"
+print(greeting) # Hello, World!
 
-let x = 10;
-let y = 20;
-print(f"{x} + {y} = {x + y}"); # 10 + 20 = 30
+let x = 10
+let y = 20
+print(f"{x} + {y} = {x + y}") # 10 + 20 = 30
 ```
 
 F-strings can contain arbitrary expressions and format specifiers:
 
 ```typhon
-let pi = 3.14159;
-print(f"Pi is approximately {pi:.2f}"); # Pi is approximately 3.14
+let pi = 3.14159
+print(f"Pi is approximately {pi:.2f}") # Pi is approximately 3.14
 ```
 
 ## Collection Literals
@@ -49,9 +49,9 @@ Function literals (arrow functions) provide a concise syntax for creating anonym
 For simple functions that return a single expression:
 
 ```typhon
-let add = (x, y) => x + y;
-let square = (n) => n * n;
-let greet = (name) => f"Hello, {name}!";
+let add = (x, y) => x + y
+let square = (n) => n * n
+let greet = (name) => f"Hello, {name}!"
 ```
 
 ### Block Form
@@ -60,10 +60,10 @@ For multi-statement functions, use braces:
 
 ```typhon
 let process = (x) => {
-    let doubled = x * 2;
-    let result = doubled + 10;
-    return result;
-};
+    let doubled = x * 2
+    let result = doubled + 10
+    return result
+}
 ```
 
 ### With Type Annotations
@@ -71,14 +71,14 @@ let process = (x) => {
 Function literals support full type annotations:
 
 ```typhon
-let add: (int, int) -> int = (x: int, y: int) -> int => x + y;
+let add: (int, int) -> int = (x: int, y: int) -> int => x + y
 
 let validate = (value: str) -> bool => {
     if (value.length > 0) {
-        return True;
+        return True
     }
-    return False;
-};
+    return False
+}
 ```
 
 Function literals have the same capabilities as regular functions defined with `def`, including the ability to capture variables from their enclosing scope.
@@ -88,8 +88,8 @@ Function literals have the same capabilities as regular functions defined with `
 Data records are anonymous immutable objects.
 
 ```typhon
-let record = {|x = 10, y = 20|};
-print(record.x);
+let record = {|x = 10, y = 20|}
+print(record.x)
 ```
 
 They are typed as `{|x: int, y: int|}`.

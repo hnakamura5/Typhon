@@ -69,7 +69,7 @@ In all other cases, a line break is treated as a **semicolon** (statement termin
 
 ```typhon
 let x = 1
-+ 2; # Parsed as let x = 1 + 2;
++ 2 # Parsed as let x = 1 + 2;
 
 if (x > 0)
 { # Parsed as block of if

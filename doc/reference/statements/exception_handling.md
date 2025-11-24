@@ -6,13 +6,13 @@ Handle exceptions using `try`, `except`, and `finally`.
 
 ```typhon
 try {
-    dangerous_op();
+    dangerous_op()
 } except (ValueError as e) {
-    print("Value error:", e);
+    print("Value error:", e)
 } except {
-    print("Unknown error");
+    print("Unknown error")
 } finally {
-    cleanup();
+    cleanup()
 }
 ```
 
@@ -23,11 +23,11 @@ try {
 Raise exceptions using `raise`.
 
 ```typhon
-raise ValueError("Invalid value");
+raise ValueError("Invalid value")
 ```
 
 `raise from` is also supported.
 
 ```typhon
-raise RuntimeError("Wrap") from e;
+raise RuntimeError("Wrap") from e
 ```

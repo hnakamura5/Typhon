@@ -6,7 +6,7 @@ Functions are defined using `def`.
 
 ```typhon
 def add(x: int, y: int) -> int {
-    return x + y;
+    return x + y
 }
 ```
 
@@ -16,7 +16,7 @@ Functions can be marked as `static` (e.g., in classes).
 
 ```typhon
 class Math {
-    static def add(x, y) { return x + y; }
+    static def add(x, y) { return x + y }
 }
 ```
 
@@ -33,8 +33,8 @@ async def fetch_data() { ... }
 Typhon supports arrow functions for concise anonymous functions.
 
 ```typhon
-let add = (x, y) => x + y;
-let typed_add = (x: int, y: int) -> int => x + y;
+let add = (x, y) => x + y
+let typed_add = (x: int, y: int) -> int => x + y
 ```
 
 ## Parameters
@@ -48,7 +48,7 @@ Parameters are constant by default. Shadow them to modify.
 
 ```typhon
 def f(x) {
-    # x = 1; # Error
-    let x = 1; # OK (shadowing)
+    # x = 1 # Error
+    let x = 1 # OK (shadowing)
 }
 ```

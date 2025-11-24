@@ -14,8 +14,8 @@ Even if `__init__.typh` is not present, the directory is always treated as a mod
 Typhon supports standard Python imports, but wildcard imports `from m import *` are forbidden.
 
 ```typhon
-import math;
-from os import path;
+import math
+from os import path
 ```
 
 ## Static Temporal Dead Zone (TDZ)
