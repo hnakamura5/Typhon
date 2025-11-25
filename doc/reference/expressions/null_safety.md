@@ -37,3 +37,7 @@ Access an index/key only if the collection is not `None`.
 let l: [int]? = None
 let val = l?[0]
 ```
+
+## Optional Pipe (`?|>`)
+
+The optional pipe operator. See [Pipe Operator](pipe_operator.md)

@@ -2,7 +2,7 @@
 
 ## Comments
 
-Typhon supports block comments that can be nested. This is useful for commenting out large blocks of code that may already contain comments.
+Typhon also supports block comments that can be nested. This is useful for commenting out large blocks of code that may already contain comments.
 
 ```typhon
 #( This is a block comment )#
@@ -11,6 +11,15 @@ Typhon supports block comments that can be nested. This is useful for commenting
   Comments can be nested.
   #( Inner comment )#
 )#
+```
+
+```typhon
+  if (...#(in the middle)#&& ...) {
+    x = #(
+      multiple line #(
+        and nested comment
+    )#  is OK.)# 1
+  }
 ```
 
 Comments act as whitespace.
@@ -30,8 +39,6 @@ Typhon retains most Python keywords but adds and removes some.
 - `let`: Immutable variable declaration
 - `var`: Mutable variable declaration
 - `static`: Static member or compile-time construct
-- `implicit`: (Reserved for future use)
-- `match`, `case`: Pattern matching
 - `&&`, `||`, `!`: Logical operators (replacing `and`, `or`, `not` in most contexts, though `and`/`or`/`not` are still reserved)
 
 ### Forbidden Keywords
@@ -67,6 +74,8 @@ A line break is treated as **whitespace** (continuation) if it occurs:
 
 In all other cases, a line break is treated as a **semicolon** (statement terminator).
 
+Note especially that line breaks just after return like keywords (`return`, `yield`, `raise`, `break`, `continue`) are **delimiter**. Not treated as whitespace.
+
 ```typhon
 let x = 1
 + 2 # Parsed as let x = 1 + 2;
@@ -75,4 +84,18 @@ if (x > 0)
 { # Parsed as block of if
     print(x)
 }
+
+def f() {
+    yield
+    g() # Parsed as yield; g();
+}
+```
+
+### Dead Code
+
+The dead codes after scope exiting statement (`return`, `raise`, `break`, `continue`) are always syntax error.
+
+```typhon
+return
+2 # Syntax error
 ```

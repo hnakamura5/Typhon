@@ -51,25 +51,25 @@ This is syntactic sugar for `Protocol`.
 
 ```python
 class MyProtocol(Protocol):
-    def __call__(self, x1: T1, x2: T2) -> R: ...
+    def __call__(self, x1: int, x2: int) -> int: ...
 ```
 
 ## Data Record Types
 
-Data records are anonymous immutable data structures, similar to anonymous dataclasses.
+[Data records](./expressions/literals.md#data-record-literals) are anonymous immutable data structures, similar to anonymous dataclasses.
 
 ```typhon
-let point: {|x: int, y: int|} = {|x = 10, y = 20|}
+let point: {|x: int, y: str|} = {|x = 10, y = "20"|}
 ```
 
 ### Translation
 
-This translates to a `Protocol` defining an immutable dataclass-like structure.
+This is translated to a `Protocol` of a dataclass.
 
 ```python
-class DataRecordProtocol(Protocol):
-    @property
-    def x(self) -> int: ...
-    @property
-    def y(self) -> int: ...
+@dataclass(frozen=True, repr=False, unsafe_hash=True)
+class AnonRecord(Protocol):
+    x: int
+    y: str
 ```
+

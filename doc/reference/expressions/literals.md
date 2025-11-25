@@ -74,7 +74,7 @@ Function literals support full type annotations:
 let add: (int, int) -> int = (x: int, y: int) -> int => x + y
 
 let validate = (value: str) -> bool => {
-    if (value.length > 0) {
+    if (len(value) > 0) {
         return True
     }
     return False
@@ -88,21 +88,21 @@ Function literals have the same capabilities as regular functions defined with `
 Data records are anonymous immutable objects.
 
 ```typhon
-let record = {|x = 10, y = 20|}
+let record = {|x = 10, y = "20"|}
 print(record.x)
 ```
 
-They are typed as `{|x: int, y: int|}`.
+They are typed as `{|x: int, y: str|}`.
 
 ### Translation
 
-The literal `{|x = 10, y = 20|}` is translated into an instantiation of an anonymous immutable dataclass.
+The literal `{|x = 10, y = "20"|}` is translated into an instantiation of an anonymous immutable dataclass.
 
 ```python
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False, unsafe_hash=True, kw_only=True)
 class AnonRecord:
     x: int
-    y: int
+    y: str
 
-AnonRecord(x=10, y=20)
+AnonRecord(x=10, y="20")
 ```

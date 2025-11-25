@@ -38,16 +38,28 @@ match (v) {
 
 Note: In `match`, the annotation applies to the *result* of the match (the bound variable), it does not affect the matching logic itself (runtime check).
 
+## Builtin symbols
+
+Python's built-in symbols are available as global **immutable** symbols.
+
+```typhon
+print(1)
+```
+
+```typhon
+print = 1 # Error: Cannot assign to immutable symbol
+```
+
 ## Scoping Rules
 
 Typhon uses standard block scope (lexical scope). Variables declared inside a block `{ ... }` are not visible outside of it.
 
 ```typhon
 if (True) {
-    let local = 100
+    let x = 100
 }
 
-# print(local) # Error: Undefined symbol
+# print(x) # Error: Undefined symbol
 ```
 
 ### Shadowing
