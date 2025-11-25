@@ -1971,6 +1971,7 @@ invalid_import_from_targets[NoReturn]:
      }
 
 invalid_with_stmt[None]:
+    | ['async'] 'with' !'(' { self.raise_syntax_error("expected '('") }
     | ['async'] 'with' ','.(expression ['as' star_target])+ &&':' { UNREACHABLE }
     | ['async'] 'with' '(' ','.(expressions ['as' star_target])+ ','? ')' &&':' { UNREACHABLE }
 invalid_with_stmt_indent[NoReturn]:
@@ -2037,6 +2038,7 @@ invalid_except_star_stmt_indent:
         )
      }
 invalid_match_stmt[NoReturn]:
+    | "match" !'(' { self.raise_syntax_error("expected '('") }
     # | "match" subject_expr !':' {
     #     self.check_version(
     #         (3, 10),
@@ -2055,6 +2057,7 @@ invalid_match_stmt[NoReturn]:
      }
 invalid_case_block[NoReturn]:
     # | "case" patterns guard? !':' { self.raise_syntax_error("expected ':'") }
+    | "case" !'(' { self.raise_syntax_error("expected '('") }
     | a="case" patterns guard? ':' NEWLINE !INDENT {
         self.raise_indentation_error(
             f"expected an indented block after 'case' statement on line {a.start[0]}"
@@ -2076,6 +2079,7 @@ invalid_class_pattern[NoReturn]:
 invalid_class_argument_pattern[List[ast.pattern]]:
     | [positional_patterns ','] keyword_patterns ',' a=positional_patterns { a }
 invalid_if_stmt[NoReturn]:
+    | 'if' !'(' { self.raise_syntax_error("expected '('") }
     | 'if' named_expression NEWLINE { self.raise_syntax_error("expected ':'") }
     | a='if' a=named_expression ':' NEWLINE !INDENT {
         self.raise_indentation_error(
@@ -2083,6 +2087,7 @@ invalid_if_stmt[NoReturn]:
         )
      }
 invalid_elif_stmt[NoReturn]:
+    | 'elif' !'(' { self.raise_syntax_error("expected '('") }
     | 'elif' named_expression NEWLINE { self.raise_syntax_error("expected ':'") }
     | a='elif' named_expression ':' NEWLINE !INDENT {
         self.raise_indentation_error(
@@ -2096,6 +2101,7 @@ invalid_else_stmt[NoReturn]:
         )
      }
 invalid_while_stmt[NoReturn]:
+    | 'while' !'(' { self.raise_syntax_error("expected '('") }
     | 'while' named_expression NEWLINE { self.raise_syntax_error("expected ':'") }
     | a='while' named_expression ':' NEWLINE !INDENT {
         self.raise_indentation_error(

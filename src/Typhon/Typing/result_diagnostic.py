@@ -67,7 +67,7 @@ class TypeCheckResult:
         output_error: bool = True,
         output_warning: bool = True,
         output_info: bool = True,
-        output_summary_even_no_diag: bool = True,
+        output_summary_even_no_diag: bool = False,
         source_maps: dict[str, SourceMap | None] = {},
     ) -> str:
         diags: list[str] = []
