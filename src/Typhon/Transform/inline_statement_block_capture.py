@@ -9,7 +9,7 @@ from .visitor import TyphonASTVisitor, flat_append
 from contextlib import contextmanager
 from dataclasses import dataclass
 from ..Driver.debugging import debug_print, debug_verbose_print
-from .utils import is_body_jump_away
+from .utils.jump_away import is_body_jump_away
 
 
 @dataclass

@@ -17,7 +17,7 @@ from ..Grammar.syntax_errors import (
     try_handle_syntax_error_or,
 )
 from .visitor import TyphonASTVisitor, TyphonASTTransformer
-from .utils import add_import_for_protocol, get_insert_point_for_class
+from .utils.imports import add_import_for_protocol, get_insert_point_for_class
 from ..Driver.debugging import debug_print, debug_verbose_print
 
 

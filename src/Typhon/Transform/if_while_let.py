@@ -9,7 +9,7 @@ from ..Grammar.typhon_ast import (
 from .visitor import TyphonASTTransformer, flat_append
 from contextlib import contextmanager
 from dataclasses import dataclass
-from .utils import is_body_jump_away
+from .utils.jump_away import is_body_jump_away
 
 
 class IfMultipleLetTransformer(TyphonASTTransformer):

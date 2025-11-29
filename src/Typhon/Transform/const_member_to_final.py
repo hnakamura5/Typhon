@@ -6,7 +6,7 @@ from ..Grammar.typhon_ast import (
 )
 from .visitor import TyphonASTTransformer, flat_append
 from .name_generator import get_final_name
-from .utils import add_import_for_final
+from .utils.imports import add_import_for_final
 
 
 class ConstMemberToFinal(TyphonASTTransformer):

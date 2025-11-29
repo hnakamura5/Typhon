@@ -1563,10 +1563,8 @@ def clear_is_placeholder(node: ast.Name) -> None:
 
 _RECORD_LITERAL_FIELDS = "_typh_is_record_literal_fields"
 _RECORD_TYPE = "_typh_is_record_literal_type"
-_RECORD_PATTERN = "_typh_is_record_pattern"
 type RecordLiteral = ast.Name
 type RecordType = ast.Name
-type RecordPatternClass = ast.Name
 
 
 def set_record_literal_fields(
@@ -1637,24 +1635,29 @@ def make_record_type(
     return result
 
 
-def set_is_record_pattern(node: ast.Name, is_record_pattern: bool) -> ast.expr:
-    setattr(node, _RECORD_PATTERN, is_record_pattern)
+_ATTRIBUTES_PATTERN = "_typh_is_attributes_pattern"
+type AttributesPatternClass = ast.Name
+
+
+def set_is_attributes_pattern(node: ast.Name, is_record_pattern: bool) -> ast.expr:
+    setattr(node, _ATTRIBUTES_PATTERN, is_record_pattern)
     return node
 
 
-def is_record_pattern(node: ast.Name) -> bool:
-    return getattr(node, _RECORD_PATTERN, None) is not None
+def is_attributes_pattern(node: ast.Name) -> bool:
+    return getattr(node, _ATTRIBUTES_PATTERN, None) is not None
 
 
-def clear_is_record_pattern(node: ast.Name) -> None:
-    if hasattr(node, _RECORD_PATTERN):
-        delattr(node, _RECORD_PATTERN)
+def clear_is_attributes_pattern(node: ast.Name) -> None:
+    if hasattr(node, _ATTRIBUTES_PATTERN):
+        delattr(node, _ATTRIBUTES_PATTERN)
 
 
-def make_record_pattern(
+def make_attributes_pattern(
     keywords: list[tuple[str, ast.pattern]],
     **kwargs: Unpack[PosAttributes],
 ) -> ast.MatchClass:
+    print(f"Creating attributes pattern with keywords: {keywords}")
     kwd_attrs = [k for k, _ in keywords]
     kwd_patterns = [
         (
@@ -1666,17 +1669,19 @@ def make_record_pattern(
         for k, p in keywords
     ]
     cls_name = ast.Name(
-        id="__record_pattern",
+        id="__attribute_pattern",
         **kwargs,
     )
-    set_is_record_pattern(cls_name, True)
-    return ast.MatchClass(
+    set_is_attributes_pattern(cls_name, True)
+    result = ast.MatchClass(
         cls=cls_name,
         patterns=[],
         kwd_attrs=kwd_attrs,
         kwd_patterns=kwd_patterns,
         **pos_attribute_to_range(kwargs),
     )
+    print(f"Created attributes pattern: {ast.dump(result)}")
+    return result
 
 
 def if_comp_exp(
@@ -1699,7 +1704,25 @@ def get_postfix_operator_temp_name(symbol: str) -> str:
         raise ValueError(f"Unknown postfix operator symbol: {symbol}")
 
 
+_IMPORTS = "_typh_imports"
+
+
+def get_imports(mod: ast.Module) -> dict[tuple[str, str], ast.alias]:
+    imports: dict[tuple[str, str], ast.alias] | None = getattr(mod, _IMPORTS, None)
+    if imports is None:
+        imports = {}
+        setattr(mod, _IMPORTS, imports)
+    return imports
+
+
 def add_import_alias_top(mod: ast.Module, from_module: str, name: str, as_name: str):
+    print(f"Adding import: from {from_module} import {name} as {as_name}")
+    # Check if already imported.
+    imports = get_imports(mod)
+    if (from_module, name) in imports and imports[
+        (from_module, name)
+    ].asname == as_name:
+        return
     # Duplicate import is NOT a problem, but better to avoid it for speed.
     for stmt in mod.body:
         if isinstance(stmt, ast.ImportFrom):
@@ -1710,15 +1733,11 @@ def add_import_alias_top(mod: ast.Module, from_module: str, name: str, as_name: 
         else:
             break  # Only check the top sequence of import statements.
     # Add import at the top.
+    alias = ast.alias(name=name, asname=as_name, **get_empty_pos_attributes())
+    imports[(from_module, name)] = alias
     import_stmt = ast.ImportFrom(
         module=from_module,
-        names=[
-            ast.alias(
-                name=name,
-                asname=as_name,
-                **get_empty_pos_attributes(),
-            )
-        ],
+        names=[alias],
         level=0,
         **get_empty_pos_attributes(),
     )
