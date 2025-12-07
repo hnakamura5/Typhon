@@ -47,7 +47,7 @@ print(x)
 
 ## Match Statement
 
-Pattern matching with `match` and `case`.
+Pattern matching with `match` and `case`. See [Patterns](patterns.md) for details on available patterns.
 
 ```typhon
 match (val) {

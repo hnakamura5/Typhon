@@ -4,7 +4,7 @@ Typhon enforces strict variable declaration and lexical scoping.
 
 ## Declarations
 
-Variables must be declared using `let` or `var`.
+Variables must be declared using `let` or `var`. In Typhon, the left-hand side of a declaration is a **pattern**, not just a variable name. This allows for powerful destructuring and pattern matching capabilities right at the point of declaration.
 
 ### Immutable Variables (`let`)
 
@@ -23,6 +23,40 @@ let x = 10
 var y = 10
 y = 20 # OK
 ```
+
+## Pattern Matching in Declarations
+
+Since `let` and `var` accept patterns, you can destructure values immediately. For a full list of supported patterns, see [Patterns](statements/patterns.md).
+
+### Irrefutable Patterns
+
+Patterns that always match (like variable names or tuples of variable names) are called **irrefutable patterns**. These can be used directly in `let` and `var` declarations.
+
+```typhon
+let (a, b) = (1, 2)
+let {.x, .y} = {|x = 10, y = 20|}
+```
+
+### Refutable Patterns and `let-else`
+
+Patterns that might fail to match (like literals or specific enum variants) are called **refutable patterns**. When using a refutable pattern in a declaration, you must provide a `else` block to handle the failure case.
+
+The code inside the `else` block **must diverge** (e.g., `return`, `raise`, `continue`, `break`), ensuring that the rest of the scope is not entered with uninitialized variables.
+
+```typhon
+let (1, x) = (1, 100) else {
+    print("Pattern mismatch!")
+    return
+}
+# x is bound to 100 here
+
+let [head, *tail] = [] else {
+    print("List is empty")
+    return
+}
+```
+
+If you try to use a refutable pattern without `else`, it is a compile-time error.
 
 ## Type Annotations in Patterns
 

@@ -5,7 +5,6 @@ This section outlines features that are planned, currently under development, or
 ## Temporal Restrictions
 
 - **Type Inference for Function Literals**: Currently works only when the function body is a single expression.
-- **Pattern Matching in Declarations**: `let`/`var` is planned to support full pattern matching. Currently, it only supports tuple/list unpacking.
 - **Error Messages**: The column end of error messages is not yet precise.
 - **Placeholder Type Annotation**: Type annotations for placeholder expressions (`_`) are not supported yet.
 
