@@ -119,6 +119,34 @@ def copy_anonymous_name(src: ast.Name, ctx: ast.expr_context) -> ast.Name:
     return result
 
 
+_TYPE_IGNORE_NODES = "_typh_type_ignore"
+
+
+def get_type_ignore_tag(node: ast.AST) -> str | None:
+    return getattr(node, _TYPE_IGNORE_NODES, None)
+
+
+def get_type_ignore_comment(node: ast.AST) -> str | None:
+    tag = get_type_ignore_tag(node)
+    if tag is not None:
+        return f"# type: ignore[{tag}]"
+    return None
+
+
+def set_type_ignore_node(node: ast.AST, tag: str) -> ast.AST:
+    setattr(node, _TYPE_IGNORE_NODES, tag)
+    return node
+
+
+def is_type_ignore_node(node: ast.AST) -> bool:
+    return hasattr(node, _TYPE_IGNORE_NODES)
+
+
+def clear_type_ignore_node(node: ast.AST) -> None:
+    if hasattr(node, _TYPE_IGNORE_NODES):
+        delattr(node, _TYPE_IGNORE_NODES)
+
+
 # Normal assignments, let assignments for variable declarations,
 # and constant assignments for constant definitions.
 # They all are Assign/AnnAssign in Python, we distinguish them by
@@ -923,6 +951,26 @@ def _make_nested_match_for_multiple_let(
 ) -> list[ast.stmt]:
     # Build nested match statements from inside out.
     for pattern, subject in reversed(pattern_subjects):
+        # Add a wildcard case to handle non-matching case to avoid linter error.
+        default_case = ast.match_case(  # case _: pass
+            pattern=ast.MatchAs(
+                name=None, pattern=None, **pos_attribute_to_range(kwargs)
+            ),
+            guard=None,
+            body=[
+                ast.Raise(
+                    ast.Name(id="TypeError", ctx=ast.Load(), **kwargs),
+                    None,
+                    **kwargs,
+                )
+                if type_error_on_failure
+                else ast.Pass(**kwargs)
+            ],
+        )
+        if type_error_on_failure:
+            # Ignore unreachable clause error for this default case, because this is recovery for the
+            # case type check can not detect a pattern mismatch (e.g. due to cast).
+            set_type_ignore_node(default_case, "all")
         cases = [
             _make_if_let_single_case(
                 decl_type,
@@ -932,22 +980,7 @@ def _make_nested_match_for_multiple_let(
                 make_none_check=cond is None,
                 is_let_else=is_let_else,
             ),
-            # Add a wildcard case to handle non-matching case to avoid linter error.
-            ast.match_case(  # case _: pass
-                pattern=ast.MatchAs(
-                    name=None, pattern=None, **pos_attribute_to_range(kwargs)
-                ),
-                guard=None,
-                body=[
-                    ast.Raise(
-                        ast.Name(id="TypeError", ctx=ast.Load(), **kwargs),
-                        None,
-                        **kwargs,
-                    )
-                    if type_error_on_failure
-                    else ast.Pass(**kwargs)
-                ],
-            ),
+            default_case,
         ]
         nested_match: ast.stmt = ast.Match(
             subject=subject,

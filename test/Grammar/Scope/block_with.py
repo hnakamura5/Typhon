@@ -117,7 +117,7 @@ with f() as _typh_vr_m0_0_:
         case tuple([_typh_cn_m0_1_f1, _typh_cn_m0_2_f2]):
             _typh_cn_m0_3_line1 = _typh_cn_m0_1_f1.readline()
             _typh_cn_m0_4_line2 = _typh_cn_m0_2_f2.readline()
-        case _:
+        case _:# type: ignore[all]
             raise TypeError
 """
 
@@ -148,7 +148,7 @@ def g():
             case tuple([f1, f2]):
                 f1.readline()
                 f2.readline()
-            case _:
+            case _:# type: ignore[all]
                 raise TypeError
 """
 

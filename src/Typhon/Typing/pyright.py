@@ -136,6 +136,7 @@ def run_pyright(
         stderr=subprocess.PIPE,
         shell=False,
     )
+    print(output.stdout.decode())
     result = parse_json_output(
         output.stdout.decode(), output.returncode, output.stderr.decode()
     )

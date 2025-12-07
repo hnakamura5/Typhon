@@ -7,6 +7,7 @@ from ...src.Typhon.Grammar.parser import parse_string
 from ...src.Typhon.Transform.transform import transform
 from ...src.Typhon.Grammar.tokenizer_custom import TokenizerCustom
 from ...src.Typhon.Grammar.token_factory_custom import token_stream_factory
+from ...src.Typhon.Grammar.unparse_custom import unparse_custom
 from ...src.Typhon.SourceMap.ast_matching import match_ast
 from ...src.Typhon.SourceMap.ast_match_based_map import MatchBasedSourceMap
 from ...src.Typhon.SourceMap.datatype import Range
@@ -74,17 +75,17 @@ def assert_ast_equals(
     parsed = parse_string(typhon_code, mode="exec", verbose=PARSER_VERBOSE)
     assert isinstance(parsed, ast.Module)
     print(ast.dump(parsed))
-    print(ast.unparse(parsed))
-    assert ast.unparse(parsed) == python_code.strip()
+    print(unparse_custom(parsed))
+    assert unparse_custom(parsed) == python_code.strip()
     return parsed
 
 
 def assert_transform_equals(typhon_ast: ast.Module, python_code: str):
     assert isinstance(typhon_ast, ast.Module)
     transform(typhon_ast)
-    print(f"Typhon AST:\n\n{ast.unparse(typhon_ast)}")
-    print(f"\nTransform result:\n\n{ast.unparse(typhon_ast)}")
-    assert ast.unparse(typhon_ast) == python_code.strip()
+    print(f"Typhon AST:\n\n{unparse_custom(typhon_ast)}")
+    print(f"\nTransform result:\n\n{unparse_custom(typhon_ast)}")
+    assert unparse_custom(typhon_ast) == python_code.strip()
 
 
 def assert_ast_transform(typhon_code: str, python_code: str):
@@ -92,9 +93,9 @@ def assert_ast_transform(typhon_code: str, python_code: str):
     assert isinstance(parsed, ast.Module)
     transform(parsed)
     print(f"Typhon code:\n{typhon_code}")
-    print(f"Transform result:\n\n{ast.unparse(parsed)}")
+    print(f"Transform result:\n\n{unparse_custom(parsed)}")
     print(f"\nExpected Python code:\n\n{python_code.strip()}")
-    assert ast.unparse(parsed) == python_code.strip()
+    assert unparse_custom(parsed) == python_code.strip()
     return parsed
 
 
@@ -160,14 +161,14 @@ def assert_ast_type[T](node: ast.AST, t: Type[T]) -> T:
 
 def assert_ast_match_unparse_code(code: Any):
     code_ast = get_code_source_ast(code)
-    code_unparsed_ast = ast.parse(ast.unparse(code_ast)).body[0]
+    code_unparsed_ast = ast.parse(unparse_custom(code_ast)).body[0]
     result = match_ast(code_ast, code_unparsed_ast)
     assert result is not None
     return result
 
 
 def assert_ast_match_unparse_success(node: ast.AST):
-    unparse = ast.unparse(node)
+    unparse = unparse_custom(node)
     unparsed_ast = ast.parse(unparse)
     result = match_ast(node, unparsed_ast)
     assert result is not None
@@ -198,7 +199,10 @@ def assert_source_map_ident(code: Any):
     mapping = match_ast(code_ast, code_ast)
     assert mapping is not None
     source_map = MatchBasedSourceMap(
-        mapping.left_to_right, mapping.right_to_left, ast.unparse(code_ast), "<string>"
+        mapping.left_to_right,
+        mapping.right_to_left,
+        unparse_custom(code_ast),
+        "<string>",
     )
     for left_node, right_node in mapping.left_to_right.items():
         print(f"Asserting node range for {ast.dump(left_node)}")

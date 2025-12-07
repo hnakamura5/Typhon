@@ -214,7 +214,7 @@ decl_assign_unpack_tuple_result = """
 if True:
     match (1, 2, 'str'):
         case [a, b, c]:
-        case _:
+        case _:# type: ignore[all]
             raise TypeError
 """
 
@@ -242,7 +242,7 @@ c: str
 match (1, 2, 'str'):
     case tuple([a, b, c]):
         pass
-    case _:
+    case _:# type: ignore[all]
         raise TypeError
 """
 

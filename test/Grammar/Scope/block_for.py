@@ -37,7 +37,7 @@ for _typh_vr_m0_1__typh_vr_m0_0_ in [(1, 1.0), (2, 2.0)]:
         case tuple([_typh_cn_m0_2_a, _typh_cn_m0_3_b]):
             print(_typh_cn_m0_2_a)
             print(_typh_cn_m0_3_b)
-        case _:
+        case _:# type: ignore[all]
             raise TypeError
 """
 

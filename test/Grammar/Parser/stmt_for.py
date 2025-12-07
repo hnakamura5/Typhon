@@ -68,7 +68,7 @@ for _typh_anonymous_0 in [(1, 1.0), (2, 2.0)]:
             case [a, b]:
                 print(a)
                 print(b)
-            case _:
+            case _:# type: ignore[all]
                 raise TypeError
 """
 
@@ -93,7 +93,7 @@ for _typh_vr_m0_0_ in [(1, 1.0), (2, 2.0)]:
         case tuple([_typh_cn_m0_1_a, _typh_cn_m0_2_b]):
             print(_typh_cn_m0_1_a)
             print(_typh_cn_m0_2_b)
-        case _:
+        case _:# type: ignore[all]
             raise TypeError
 """
 

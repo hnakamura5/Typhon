@@ -8,6 +8,7 @@ from ..Grammar.syntax_errors import (
     TyphonSyntaxError,
     TyphonSyntaxErrorList,
 )
+from ..Grammar.unparse_custom import unparse_custom
 from .utils import (
     shorthand,
     TYPHON_EXT,
@@ -43,7 +44,7 @@ def translate_file(source: Path, output: Path) -> TranslateResult:
             source_map=None,
             syntax_error=e,
         )
-    translated_code = ast.unparse(ast_tree)
+    translated_code = unparse_custom(ast_tree)
     source_code = source.read_text(encoding="utf-8")
     mapping = map_from_transformed_ast(
         ast_tree, ast.parse(translated_code), source_code, source.as_posix()
