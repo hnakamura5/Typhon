@@ -93,7 +93,6 @@ class _Transform(TyphonASTTransformer):
         return lambda_expr
 
     def visit(self, node: ast.AST):
-        debug_print(f"placeholder_to_function _transform visit: {ast.dump(node)}")
         # Transform the expression transformed into function.
         if isinstance(node, ast.expr):
             if node in self.bound_exprs_to_placeholders:

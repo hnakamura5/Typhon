@@ -2,6 +2,7 @@
 
 import ast
 from typing import Union, Unpack, TypedDict, Tuple, cast
+from dataclasses import dataclass
 from copy import copy
 from ..Driver.debugging import debug_print, debug_verbose_print
 
@@ -77,6 +78,47 @@ def get_empty_pos_attributes() -> PosAttributes:
     )
 
 
+_ANONYMOUS_NAME = "_typh_anonymous"
+_anonymous_global_id = 0
+
+
+def set_anonymous_name_id(node: ast.Name, id: int) -> ast.Name:
+    setattr(node, _ANONYMOUS_NAME, id)
+    return node
+
+
+def get_anonymous_name_id(node: ast.Name) -> int | None:
+    return getattr(node, _ANONYMOUS_NAME, None)
+
+
+def clear_anonymous_name(node: ast.Name) -> None:
+    if hasattr(node, _ANONYMOUS_NAME):
+        delattr(node, _ANONYMOUS_NAME)
+
+
+def is_anonymous_name(node: ast.Name) -> bool:
+    return hasattr(node, _ANONYMOUS_NAME)
+
+
+def make_anonymous_name(
+    ctx: ast.expr_context, **kwargs: Unpack[PosAttributes]
+) -> tuple[ast.Name, int]:
+    global _anonymous_global_id
+    anon_id = _anonymous_global_id
+    name = ast.Name(f"{_ANONYMOUS_NAME}_{anon_id}", ctx, **kwargs)
+    set_anonymous_name_id(name, anon_id)
+    _anonymous_global_id += 1
+    return name, anon_id
+
+
+def copy_anonymous_name(src: ast.Name, ctx: ast.expr_context) -> ast.Name:
+    result = ast.Name(src.id, ctx, **get_pos_attributes(src))
+    anon_id = get_anonymous_name_id(src)
+    if anon_id is not None:
+        set_anonymous_name_id(result, anon_id)
+    return result
+
+
 # Normal assignments, let assignments for variable declarations,
 # and constant assignments for constant definitions.
 # They all are Assign/AnnAssign in Python, we distinguish them by
@@ -93,7 +135,13 @@ def is_decl_stmt(node: ast.AST) -> bool:
 
 
 type DeclarableStmt = Union[
-    ast.Assign, ast.AnnAssign, ast.withitem, ast.For, ast.AsyncFor, ast.comprehension
+    ast.Assign,
+    ast.AnnAssign,
+    ast.withitem,
+    ast.For,
+    ast.AsyncFor,
+    ast.comprehension,
+    ast.pattern,
 ]
 
 _IS_VAR = "_typh_is_var"
@@ -399,6 +447,99 @@ def declaration_as_withitem(assign: Union[ast.Assign, ast.AnnAssign]) -> ast.wit
         return item
 
 
+def _make_with_let_pattern(
+    is_async: bool,
+    decl_type: str,
+    pattern_subjects: list[tuple[ast.pattern, ast.expr]],
+    body: list[ast.stmt],
+    **kwargs: Unpack[PosAttributes],
+) -> tuple[ast.stmt, list[ast.withitem]]:
+    items: list[ast.withitem] = []
+    pattern_vars: list[tuple[ast.pattern, ast.expr]] = []
+    for pattern, subject in pattern_subjects:
+        var, var_id = make_anonymous_name(ast.Store(), **get_pos_attributes(pattern))
+        item = ast.withitem(context_expr=subject, optional_vars=var)
+        _set_is_let_var(item, decl_type)
+        items.append(item)
+        pattern_vars.append((pattern, copy_anonymous_name(var, ast.Load())))
+    let_pattern_stmt = make_if_let(
+        decl_type,
+        pattern_subjects=pattern_vars,
+        cond=None,
+        body=body,
+        orelse=None,
+        is_let_else=True,
+        **kwargs,
+    )
+    return let_pattern_stmt, items
+
+
+def make_with_let_pattern(
+    is_async: bool,
+    decl_type: str,
+    pattern_subjects: list[tuple[ast.pattern, ast.expr]],
+    body: list[ast.stmt],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.With | ast.AsyncWith:
+    let_pattern_stmt, items = _make_with_let_pattern(
+        is_async,
+        decl_type,
+        pattern_subjects,
+        body,
+        **kwargs,
+    )
+    return make_with_stmt(
+        is_async=is_async,
+        items=items,
+        body=[let_pattern_stmt],
+        is_inline=False,
+        **kwargs,
+    )
+
+
+def make_inline_with_let_pattern(
+    is_async: bool,
+    decl_type: str,
+    pattern_subjects: list[tuple[ast.pattern, ast.expr]],
+    **kwargs: Unpack[PosAttributes],
+) -> list[ast.stmt]:
+    """
+    with <expr1> as <temp_name1>, ...: # inline with_let_pattern
+    if True: # Sequentially expanded. Captured later.
+        match <temp_name1>:
+            case <pattern1>:
+                match <temp_name2>:
+                    case <pattern2>:
+                        ...
+                            match <temp_nameN>:
+                                case <patternN> if <cond>:
+                                    <body>
+                                case _:
+                                    pass
+                        ...
+                    case _:
+                        pass
+            case _:
+                pass
+    """
+    let_pattern_stmt, items = _make_with_let_pattern(
+        is_async,
+        decl_type,
+        pattern_subjects,
+        body=[],
+        **kwargs,
+    )
+    inline_with = make_with_stmt(
+        is_async=is_async,
+        items=items,
+        body=[],
+        is_inline=True,
+        **kwargs,
+    )
+    # inline_with will capture the let pattern stmt (and the following stmts) in its body later.
+    return [inline_with, let_pattern_stmt]
+
+
 # Use Name as a function literal. Replaced to name of FunctionDef.
 type FunctionLiteral = ast.Name
 
@@ -628,6 +769,40 @@ def make_for_stmt(
         return result
 
 
+def make_for_let_pattern(
+    decl_type: str,
+    pattern: ast.pattern,
+    iter: ast.expr,
+    body: list[ast.stmt],
+    orelse: list[ast.stmt] | None,
+    type_comment: str | None,
+    is_async: bool,
+    **kwargs: Unpack[PosAttributes],
+):
+    temp_name, anon_id = make_anonymous_name(ast.Load(), **get_pos_attributes(pattern))
+    let_stmt = make_if_let(
+        decl_type,
+        pattern_subjects=[(pattern, temp_name)],
+        cond=None,
+        body=body,
+        orelse=None,
+        is_let_else=True,
+        **kwargs,
+    )
+    temp_name_store = copy_anonymous_name(temp_name, ast.Store())
+    return make_for_stmt(
+        decl_type=decl_type,
+        target=temp_name_store,
+        type_annotation=None,
+        iter=iter,
+        body=[let_stmt],
+        orelse=orelse,
+        type_comment=type_comment,
+        is_async=is_async,
+        **kwargs,
+    )
+
+
 def _make_none_check(name: str, pos: PosAttributes) -> ast.Compare:
     return ast.Compare(
         left=ast.Name(id=name, ctx=ast.Load(), **pos),
@@ -641,12 +816,18 @@ _LET_PATTERN_BODY = "_typh_multiple_let_pattern_body"
 _IS_LET_ELSE = "_typh_is_let_else"
 
 
-def get_let_pattern_body(node: ast.While | ast.If) -> list[ast.stmt] | None:
+@dataclass
+class LetPatternInfo:
+    body: list[ast.stmt]
+    is_all_pattern_irrefutable: bool
+
+
+def get_let_pattern_body(node: ast.While | ast.If) -> LetPatternInfo | None:
     return getattr(node, _LET_PATTERN_BODY, None)
 
 
 def set_let_pattern_body(
-    node: ast.While | ast.If, body: list[ast.stmt]
+    node: ast.While | ast.If, body: LetPatternInfo
 ) -> ast.While | ast.If:
     setattr(node, _LET_PATTERN_BODY, body)
     return node
@@ -672,6 +853,7 @@ def clear_is_let_else(node: ast.If | ast.Match) -> None:
 
 
 def make_if_let(
+    decl_type: str,
     pattern_subjects: list[tuple[ast.pattern, ast.expr]],
     cond: ast.expr | None,
     body: list[ast.stmt],
@@ -681,25 +863,23 @@ def make_if_let(
 ) -> ast.stmt:
     if len(pattern_subjects) == 0:
         raise SyntaxError("if let must have at least one pattern")
-    # elif len(pattern_subjects) == 1:
-    #     (pattern, subject) = pattern_subjects[0]
-    #     return set_is_let_else(
-    #         _make_if_let_single(subject, pattern, cond, body, orelse, **kwargs),
-    #         is_let_else,
-    #     )
     else:
         return set_is_let_else(
-            _make_if_let_multiple(pattern_subjects, cond, body, orelse, **kwargs),
+            _make_if_let_multiple(
+                decl_type, pattern_subjects, cond, body, orelse, is_let_else, **kwargs
+            ),
             is_let_else,
         )
 
 
 def _make_if_let_single_case(
+    decl_type: str,
     pattern: ast.pattern,
     cond: ast.expr | None,
     body: list[ast.stmt],
     make_none_check: bool,
 ) -> ast.match_case:
+    _set_is_let_var(pattern, decl_type)
     if (
         isinstance(pattern, ast.MatchAs)
         and pattern.pattern is None
@@ -723,22 +903,34 @@ def _make_if_let_single_case(
 
 
 def _make_nested_match_for_multiple_let(
+    decl_type: str,
     pattern_subjects: list[tuple[ast.pattern, ast.expr]],
     cond: ast.expr | None,
     body: list[ast.stmt],
+    type_error_on_failure: bool,
     **kwargs: Unpack[PosAttributes],
 ) -> list[ast.stmt]:
     # Build nested match statements from inside out.
     for pattern, subject in reversed(pattern_subjects):
         cases = [
-            _make_if_let_single_case(pattern, cond, body, make_none_check=cond is None),
+            _make_if_let_single_case(
+                decl_type, pattern, cond, body, make_none_check=cond is None
+            ),
             # Add a wildcard case to handle non-matching case to avoid linter error.
             ast.match_case(  # case _: pass
                 pattern=ast.MatchAs(
                     name=None, pattern=None, **pos_attribute_to_range(kwargs)
                 ),
                 guard=None,
-                body=[ast.Pass(**kwargs)],
+                body=[
+                    ast.Raise(
+                        ast.Name(id="TypeError", ctx=ast.Load(), **kwargs),
+                        None,
+                        **kwargs,
+                    )
+                    if type_error_on_failure
+                    else ast.Pass(**kwargs)
+                ],
             ),
         ]
         nested_match: ast.stmt = ast.Match(
@@ -753,10 +945,12 @@ def _make_nested_match_for_multiple_let(
 
 # Multiple patterns are combined into nested match statements.
 def _make_if_let_multiple(
+    decl_type: str,
     pattern_subjects: list[tuple[ast.pattern, ast.expr]],
     cond: ast.expr | None,
     body: list[ast.stmt],
     orelse: list[ast.stmt] | None,
+    is_let_else: bool,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.If:
     """
@@ -777,19 +971,48 @@ def _make_if_let_multiple(
                                 match <subjectN>:
                                     case <patternN> if <cond>:
                                         <body>
+                                    case _:
+                                        pass
+                            ...
+                        case _:
+                            pass
+                case _:
+                    pass
         else:
             <orelse>
     """
     # Build nested match statements from inside out.
+    is_all_pattern_irrefutable = all(
+        is_pattern_irrefutable(pat) for pat, _ in pattern_subjects
+    )
+    is_all_pattern_truly_irrefutable = all(
+        is_pattern_irrefutable(pat, assume_type_checked=False)
+        for pat, _ in pattern_subjects
+    )
     result = ast.If(
         test=ast.Constant(value=True, **kwargs),
         body=_make_nested_match_for_multiple_let(
-            pattern_subjects, cond, body, **kwargs
+            decl_type,
+            pattern_subjects,
+            cond,
+            body,
+            type_error_on_failure=(
+                is_let_else
+                and (orelse is None)
+                and (not is_all_pattern_truly_irrefutable)
+            ),
+            **kwargs,
         ),
         orelse=orelse or [],
         **kwargs,
     )
-    set_let_pattern_body(result, body)
+    set_let_pattern_body(
+        result,
+        LetPatternInfo(
+            body=body,
+            is_all_pattern_irrefutable=is_all_pattern_irrefutable,
+        ),
+    )
     return result
 
 
@@ -842,12 +1065,20 @@ def _make_while_let(
     result = ast.While(
         test=ast.Constant(value=True, **kwargs),
         body=_make_nested_match_for_multiple_let(
-            pattern_subjects, cond, body, **kwargs
+            "let", pattern_subjects, cond, body, False, **kwargs
         ),
         orelse=orelse or [],
         **kwargs,
     )
-    set_let_pattern_body(result, body)
+    set_let_pattern_body(
+        result,
+        LetPatternInfo(
+            body=body,
+            is_all_pattern_irrefutable=all(
+                is_pattern_irrefutable(pat) for pat, _ in pattern_subjects
+            ),
+        ),
+    )
     return result
 
 
@@ -1358,6 +1589,7 @@ def make_if_let_comp(
         args=_empty_args(),
         body=[
             make_if_let(
+                "let",
                 pattern_subjects,
                 cond,
                 [ast.Return(value=body, **get_pos_attributes(body))],
@@ -1657,7 +1889,7 @@ def make_attributes_pattern(
     keywords: list[tuple[str, ast.pattern]],
     **kwargs: Unpack[PosAttributes],
 ) -> ast.MatchClass:
-    print(f"Creating attributes pattern with keywords: {keywords}")
+    debug_verbose_print(f"Creating attributes pattern with keywords: {keywords}")
     kwd_attrs = [k for k, _ in keywords]
     kwd_patterns = [
         (
@@ -1680,7 +1912,7 @@ def make_attributes_pattern(
         kwd_patterns=kwd_patterns,
         **pos_attribute_to_range(kwargs),
     )
-    print(f"Created attributes pattern: {ast.dump(result)}")
+    debug_verbose_print(f"Created attributes pattern: {ast.dump(result)}")
     return result
 
 
@@ -1716,7 +1948,7 @@ def get_imports(mod: ast.Module) -> dict[tuple[str, str], ast.alias]:
 
 
 def add_import_alias_top(mod: ast.Module, from_module: str, name: str, as_name: str):
-    print(f"Adding import: from {from_module} import {name} as {as_name}")
+    debug_verbose_print(f"Adding import: from {from_module} import {name} as {as_name}")
     # Check if already imported.
     imports = get_imports(mod)
     if (from_module, name) in imports and imports[
@@ -1744,13 +1976,62 @@ def add_import_alias_top(mod: ast.Module, from_module: str, name: str, as_name: 
     mod.body.insert(0, import_stmt)
 
 
-def is_pattern_irrefutable(pattern: ast.pattern) -> bool:
+_PATTERN_IS_TUPLE = "_typh_pattern_is_tuple"
+
+
+def set_pattern_is_tuple(pattern: ast.pattern, is_tuple: bool = True) -> ast.pattern:
+    setattr(pattern, _PATTERN_IS_TUPLE, is_tuple)
+    return pattern
+
+
+def is_pattern_tuple(pattern: ast.pattern) -> bool:
+    return getattr(pattern, _PATTERN_IS_TUPLE, False)
+
+
+def clear_pattern_is_tuple(pattern: ast.pattern) -> None:
+    if hasattr(pattern, _PATTERN_IS_TUPLE):
+        delattr(pattern, _PATTERN_IS_TUPLE)
+
+
+def make_tuple_pattern(
+    patterns: list[ast.pattern],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.MatchSequence:
+    result = ast.MatchSequence(
+        patterns=patterns,
+        **pos_attribute_to_range(kwargs),
+    )
+    set_pattern_is_tuple(result, True)
+    return result
+
+
+def is_pattern_irrefutable(
+    pattern: ast.pattern, assume_type_checked: bool = True
+) -> bool:
     if isinstance(pattern, ast.MatchAs):
-        if pattern.pattern is None:
+        if pattern.pattern is None:  # Wildcard pattern or variable capture.
             return True
         return is_pattern_irrefutable(pattern.pattern)
     if isinstance(pattern, ast.MatchOr):
         return any(is_pattern_irrefutable(p) for p in pattern.patterns)
+    if assume_type_checked:  # Irrefutable if type is correct.
+        if isinstance(pattern, ast.MatchClass):
+            for p in pattern.patterns:
+                if not is_pattern_irrefutable(p, assume_type_checked):
+                    return False
+            for p in pattern.kwd_patterns:
+                if not is_pattern_irrefutable(p, assume_type_checked):
+                    return False
+            return True
+        if isinstance(pattern, ast.MatchSequence):
+            # Sequence is in general refutable due to length mismatch,
+            # but if we assume tuple is type-checked, we can consider it irrefutable.
+            if is_pattern_tuple(pattern):
+                for p in pattern.patterns:
+                    if not is_pattern_irrefutable(p, assume_type_checked):
+                        return False
+                return True
+    # Other patterns are considered refutable.
     return False
 
 

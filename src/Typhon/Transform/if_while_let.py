@@ -5,11 +5,13 @@ from ..Grammar.typhon_ast import (
     is_let_else,
     set_is_var,
     set_is_let_else,
+    LetPatternInfo,
 )
 from .visitor import TyphonASTTransformer, flat_append
 from contextlib import contextmanager
 from dataclasses import dataclass
 from .utils.jump_away import is_body_jump_away
+from ..Grammar.syntax_errors import raise_let_missing_else_error
 
 
 class IfMultipleLetTransformer(TyphonASTTransformer):
@@ -32,6 +34,13 @@ class IfMultipleLetTransformer(TyphonASTTransformer):
                                 match <subjectN>:
                                     case <patternN> if <cond>:
                                         <body>
+                                    case _:
+                                        pass
+                            ...
+                        case _:
+                            pass
+                case _:
+                    pass
         else:
             <orelse>
 
@@ -43,6 +52,11 @@ class IfMultipleLetTransformer(TyphonASTTransformer):
                             match <subjectN>:
                                 case <patternN> if <cond>:
                                     <body>
+                                case _:
+                                    pass
+                        ...
+            case _:
+                pass
         <orelse> # Unconditional execution of orelse
 
         when <body> does not jump away:
@@ -54,20 +68,22 @@ class IfMultipleLetTransformer(TyphonASTTransformer):
                                 case <patternN> if <cond>:
                                     <else_flag> = False
                                     <body>
+                                case _:
+                                    pass
+                        ...
+            case _:
+                pass
         if <else_flag>: # Only when body did not execute
             <orelse>
     """
 
-    def visit_If(self, node: ast.If):
-        self.generic_visit(node)
-        body = get_let_pattern_body(node)
-        if body is None:
-            return node
+    def visit_IfLet(self, node: ast.If, info: LetPatternInfo) -> list[ast.stmt]:
+        body = info.body
         pos = get_pos_attributes(node)
         # When jump away, does not need flag control.
         jump_away = is_body_jump_away(body)
         if jump_away:
-            result: list[ast.stmt] = node.body
+            result: list[ast.stmt] = node.body  # Inside if True
             if node.orelse:
                 result.extend(node.orelse)
             return result
@@ -100,6 +116,101 @@ class IfMultipleLetTransformer(TyphonASTTransformer):
                 )
             )
         return result
+
+    """
+        let <pattern1> = <subject1>, <pattern2> = <subject2>, ...,
+            <patternN> = <subjectN>
+        else { # else clause is required unless all patterns are irrefutable
+            <orelse> # If exists, must jump away.
+        }
+        <body>
+
+    --> (temporary represented now)
+
+        if True: # multiple_let_pattern_body set to <body>
+            match <subject1>:
+                case <pattern1>:
+                    match <subject2>:
+                        case <pattern2>:
+                            ...
+                                match <subjectN>:
+                                    case <patternN>:
+                                        <body>
+                                    case _:
+                                        pass
+                                        (raise TypeError) # If else does not exist
+                            ...
+                        case _:
+                            pass
+                            (raise TypeError) # If else does not exist
+                case _:
+                    pass
+                    (raise TypeError) # If else does not exist
+        else: # If exists
+            <orelse>
+
+    --> (transformation here)
+
+        The case when <body> does jumps away:
+
+        match <subject1>:
+            case <pattern1>:
+                ...
+                    match <subjectN>:
+                        case <patternN>:
+                            <body>
+                        case _:
+                            pass
+                            (raise TypeError) # If else does not exist
+                ...
+            case _:
+                pass
+        <orelse> # Unconditional execution of orelse
+
+        The case when <body> does not jump away:
+
+        <else_flag> = True
+        match <subject1>:
+            case <pattern1>:
+                ...
+                    match <subjectN>:
+                        case <patternN>:
+                            <else_flag> = False
+                            <body>
+                        case _:
+                            pass
+                            (raise TypeError) # If else does not exist
+                ...
+            case _:
+                pass
+                (raise TypeError) # If else does not exist
+        if <else_flag>: # Only when body did not execute
+            <orelse> # If exists
+    """
+
+    def visit_LetElse(self, node: ast.If, info: LetPatternInfo) -> list[ast.stmt]:
+        pos = get_pos_attributes(node)
+        orelse = node.orelse
+        if not orelse:
+            if info.is_all_pattern_irrefutable:
+                return node.body  # Simply return inside if True
+            else:
+                raise_let_missing_else_error(
+                    "let pattern is irrefutable, possibly fails to match. else clause of let-else statement is required.",
+                    **pos,
+                )
+        # With orelse, same as IfLet.
+        return self.visit_IfLet(node, info)
+
+    def visit_If(self, node: ast.If):
+        self.generic_visit(node)  # Visit children first
+        info = get_let_pattern_body(node)
+        if info is None:  # Not a if-let nor let-else
+            return node
+        if is_let_else(node):
+            return self.visit_LetElse(node, info)
+        else:
+            return self.visit_IfLet(node, info)
 
 
 class WhileLetTransformer(TyphonASTTransformer):
@@ -149,8 +260,8 @@ class WhileLetTransformer(TyphonASTTransformer):
 
     def visit_While(self, node: ast.While):
         self.generic_visit(node)
-        body = get_let_pattern_body(node)
-        if body is None:
+        info = get_let_pattern_body(node)
+        if info is None:
             return node
         pos = get_pos_attributes(node)
         # <continue_flag> = True
@@ -161,14 +272,14 @@ class WhileLetTransformer(TyphonASTTransformer):
             **pos,
         )
         set_is_var(continue_flag_assign_true)
-        if not is_body_jump_away(body):
+        if not is_body_jump_away(info.body):
             # <continue_flag> = True at end of body
             continue_flag_set_true = ast.Assign(
                 targets=[ast.Name(id=continue_flag_name, ctx=ast.Store(), **pos)],
                 value=ast.Constant(value=True),
                 **pos,
             )
-            body.append(continue_flag_set_true)
+            info.body.append(continue_flag_set_true)
         # <continue_flag> = False at start of while body
         continue_flag_set_false = ast.Assign(
             targets=[ast.Name(id=continue_flag_name, ctx=ast.Store(), **pos)],

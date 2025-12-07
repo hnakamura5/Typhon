@@ -345,7 +345,43 @@ def func(x: int) -> int:
 
 
 def test_stmt_let_else_with():
-    set_debug_verbose(True)
     assert_ast_equals(let_else_with_code, let_else_with_result)
     assert_ast_transform(let_else_with_code, let_else_with_transformed)
     assert_typh_code_match_unparse(let_else_with_code)
+
+
+let_else_annotation_code = """
+def func(x: int?) -> int {
+    let y: int = x else {
+        return 0
+    }
+    return y
+}
+"""
+let_else_annotation_result = """
+def func(x: (int,)) -> int:
+    if True:
+        match x:
+            case y if y is not None:
+            case _:
+                pass
+    else:
+        return 0
+    return y
+"""
+let_else_annotation_transformed = """
+def func(x: int | None) -> int:
+    _typh_cn_f1_0_y: int
+    match x:
+        case _typh_cn_f1_0_y if _typh_cn_f1_0_y is not None:
+            return _typh_cn_f1_0_y
+        case _:
+            pass
+    return 0
+"""
+
+
+def test_stmt_let_else_annotation():
+    assert_ast_equals(let_else_annotation_code, let_else_annotation_result)
+    assert_ast_transform(let_else_annotation_code, let_else_annotation_transformed)
+    assert_typh_code_match_unparse(let_else_annotation_code)

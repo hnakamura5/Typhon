@@ -80,6 +80,7 @@ class _JumpAwayVisitor(ast.NodeVisitor):
         return jump_away
 
     def visit_Match(self, node: ast.Match):
+        # Check that all cases jump away, and at least one is irrefutable.
         jump_away = True
         found_irrefutable = False
         for case in node.cases:

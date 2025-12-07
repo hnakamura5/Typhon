@@ -116,6 +116,17 @@ def raise_type_annotation_error(
     raise TypeAnnotationError(message, **pos)
 
 
+class LetMissingElseError(TyphonSyntaxError):
+    pass
+
+
+def raise_let_missing_else_error(
+    message: str,
+    **pos: Unpack[PosAttributes],
+):
+    raise LetMissingElseError(message, **pos)
+
+
 def _get_range_of_error(
     syntax_error: SyntaxError | TyphonSyntaxError,
 ) -> Range:

@@ -23,7 +23,7 @@ from .typhon_ast import (
     make_with_comp, make_try_comp, make_try_comp_except, make_match_comp,
     make_match_comp_case, make_while_comp, make_if_let_comp,
     make_while_let_comp, make_let_comp,
-    make_record_literal, make_record_type, make_attributes_pattern,
+    make_record_literal, make_record_type, make_attributes_pattern, make_tuple_pattern, make_for_let_pattern, make_with_let_pattern, make_inline_with_let_pattern,
 )
 from .parser_helper import Parser, Load, Store, Del, Target
 from .tokenizer_custom import TokenizerCustom
@@ -62,7 +62,7 @@ DELIMITER: ';' | NEWLINE
 
 statements[List[ast.stmt]]: NEWLINE* a=statement* { sum(a, []) }
 
-statement[List[ast.stmt]]: a=compound_stmt NEWLINE* { [a] } | a=expansive_stmt NEWLINE* { a } | a=simple_stmts NEWLINE* { a }
+statement[List[ast.stmt]]: a=expansive_stmt NEWLINE* { a } | a=compound_stmt NEWLINE* [DELIMITER] { [a] } | a=simple_stmts NEWLINE* { a }
 
 statement_newline[List[ast.stmt]]:
     | a=compound_stmt NEWLINE { [a] }
@@ -108,7 +108,8 @@ decl_keyword: 'var' | 'let'
 
 # Statement expanded into several Python statements. Including single and compound.
 expansive_stmt[List[ast.stmt]]:
-    | &decl_keyword a=declaration_assignment [DELIMITER] { a }
+    | &decl_keyword a=declaration_assignment !'else' [DELIMITER] { a }
+    | &('with' | 'async') inline_with_stmt
 
 # SIMPLE STATEMENTS
 # =================
@@ -188,15 +189,15 @@ declaration_assignment[List[ast.stmt]]:
 
 # let-else / var-else
 declaration_else:
-    | d=decl_keyword pat_sub=','.pattern_assignment+ NEWLINE* 'else' b=block {
-        make_if_let(pattern_subjects=pat_sub, cond=None, body=[], orelse=b, is_let_else=True, LOCATIONS)
-    }
+    | d=decl_keyword pat_sub=','.pattern_assignment+ e=['else' b=block {b}] {
+        make_if_let(decl_type=d.string, pattern_subjects=pat_sub, cond=None, body=[], orelse=e, is_let_else=True, LOCATIONS)
+     }
 
 declaration_single_assignment[Tuple[ast.expr, Optional[ast.expr], Optional[ast.expr]]]:
     | a=decl_star_target b=annotation c=['=' d=annotated_rhs { d }] { (a, b, c) }
     | a=decl_star_target '=' c=annotated_rhs { (a, None, c) }
 
-pattern_assignment:
+pattern_assignment[Tuple[ast.pattern, ast.expr]]:
     | pattern=pattern '=' subject=star_named_expression { (pattern, subject) }
 
 # Operator like form statements
@@ -442,10 +443,10 @@ if_stmt[ast.stmt]:
     | 'if' '(' a=named_expression ')' NEWLINE* b=block c=[else_block] { ast.If(test=a, body=b, orelse=c or [], LOCATIONS) }
     # if-let statement as pattern matching
     | 'if' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=elif_stmt {
-        make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, is_let_else=False, LOCATIONS)
+        make_if_let(decl_type="let", pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, is_let_else=False, LOCATIONS)
      }
     | 'if' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=[else_block] {
-        make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, is_let_else=False, LOCATIONS)
+        make_if_let(decl_type="let", pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, is_let_else=False, LOCATIONS)
      }
 
 elif_stmt[List[ast.stmt]]:
@@ -454,10 +455,10 @@ elif_stmt[List[ast.stmt]]:
     | 'elif' '(' a=named_expression ')' NEWLINE* b=block c=[else_block] { [ast.If(test=a, body=b, orelse=c or [], LOCATIONS)] }
     # elif-let statement as pattern matching
     | 'elif' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=elif_stmt {
-        [make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c or [], is_let_else=False, LOCATIONS)]
+        [make_if_let(decl_type="let", pattern_subjects=pat_sub, cond=cond, body=b, orelse=c or [], is_let_else=False, LOCATIONS)]
      }
     | 'elif' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=block c=[else_block] {
-        [make_if_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c or [], is_let_else=False, LOCATIONS)]
+        [make_if_let(decl_type="let", pattern_subjects=pat_sub, cond=cond, body=b, orelse=c or [], is_let_else=False, LOCATIONS)]
      }
 else_block[List[ast.stmt]]:
     | invalid_else_stmt
@@ -481,33 +482,46 @@ while_stmt[ast.While]:
 
 for_stmt[Union[ast.For, ast.AsyncFor]]:
     | invalid_for_stmt
-    | 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] NEWLINE* b=block el=[else_block] {
-        make_for_stmt(decl_type=d.string, target=t, type_annotation=a, iter=ex, body=b, orelse=el or [], type_comment=tc, is_async=False, LOCATIONS)
-    }
-    | 'async' 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] NEWLINE* b=block el=[else_block] {
-        make_for_stmt(decl_type=d.string, target=t, type_annotation=a, iter=ex, body=b, orelse=el or [], type_comment=tc, is_async=True, LOCATIONS)
-    }
+    | is_async=['async'] 'for' '(' d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] NEWLINE* b=block el=[else_block] {
+        make_for_stmt(decl_type=d.string, target=t, type_annotation=a, iter=ex, body=b, orelse=el or [], type_comment=tc, is_async=is_async is not None, LOCATIONS)
+     }
+    | is_async=['async'] 'for' '(' d=decl_keyword pat=pattern 'in' ~ ex=star_expressions ')' tc=[TYPE_COMMENT] NEWLINE* b=block el=[else_block] {
+        make_for_let_pattern(decl_type=d.string, pattern=pat,iter=ex, body=b, orelse=el or [], type_comment=tc, is_async=is_async is not None, LOCATIONS)
+     }
     | invalid_for_target
 
 # With statement
 # --------------
 
 with_stmt[Union[ast.With, ast.AsyncWith]]:
-    | is_async=['async'] 'with' '(' a=';'.with_item+ [';'] ')' NEWLINE* b=block {
-        make_with_stmt(is_async=is_async is not None, items=sum(a, []), body=b, is_inline=False, LOCATIONS)
-     }
-    | inline_with
+    | block_with
     | invalid_with_stmt
 
-inline_with[Union[ast.With, ast.AsyncWith]]:
+block_with[Union[ast.With, ast.AsyncWith]]:
+    | is_async=['async'] 'with' '(' a=with_item ')' NEWLINE* b=block {
+        make_with_stmt(is_async=is_async is not None, items=a, body=b, is_inline=False, LOCATIONS)
+     }
+    | is_async=['async'] 'with' '(' a=with_pattern_item ')' NEWLINE* b=block {
+        make_with_let_pattern(is_async=is_async is not None, decl_type=a[0], pattern_subjects=a[1], body=b, LOCATIONS)
+     }
+
+inline_with_stmt[List[ast.stmt]]:
     | is_async=['async'] 'with' a=with_item DELIMITER {
-        make_with_stmt(is_async=is_async is not None, items=a, body=[], is_inline=True, LOCATIONS)
+        [make_with_stmt(is_async=is_async is not None, items=a, body=[], is_inline=True, LOCATIONS)]
+     }
+    | is_async=['async'] 'with' a=with_pattern_item DELIMITER {
+        make_inline_with_let_pattern(is_async=is_async is not None, decl_type=a[0], pattern_subjects=a[1], LOCATIONS)
      }
 
 with_item[List[ast.withitem]]:
     | a=declaration_assignment &(',' | ')' | DELIMITER) { list(map(declaration_as_withitem, a)) }
     | invalid_with_item
-    | e=expression { [ast.withitem(context_expr=e, optional_vars=None)] }
+    | exprs=','.expression+ [','] {
+        list(map(lambda e: ast.withitem(context_expr=e, optional_vars=None), exprs))
+     }
+
+with_pattern_item[Tuple[str, List[Tuple[ast.pattern, ast.expr]]]]:
+    | d=decl_keyword pat_sub=','.pattern_assignment+ &(',' | ')' | DELIMITER) { (d.string, pat_sub) }
 
 # Try statement
 # -------------
@@ -583,7 +597,7 @@ guard: 'if' '(' guard=named_expression ')' { guard }
 
 patterns:
     | patterns=open_sequence_pattern {
-        ast.MatchSequence(patterns=patterns, LOCATIONS)
+        make_tuple_pattern(patterns=patterns, LOCATIONS)
      }
     | pattern
 
@@ -704,7 +718,7 @@ group_pattern:
 
 sequence_pattern["ast.MatchSequence"]:
     | '[' patterns=maybe_sequence_pattern? ']' { ast.MatchSequence(patterns=patterns or [], LOCATIONS) }
-    | '(' patterns=open_sequence_pattern? ')' { ast.MatchSequence(patterns=patterns or [], LOCATIONS) }
+    | '(' patterns=open_sequence_pattern? ')' { make_tuple_pattern(patterns=patterns or [], LOCATIONS) }
 
 open_sequence_pattern:
     | pattern=maybe_star_pattern ',' patterns=maybe_sequence_pattern? {
@@ -1677,8 +1691,8 @@ del_t_atom:
     | '[' a=[del_targets] ']' { ast.List(elts=a, ctx=Del, LOCATIONS) }
 
 
-# Declaration targets
-# -------------------
+# Declaration targets (irrefutable unpack special case)
+# -----------------------------------------------------
 
 decl_star_target[ast.Starred | ast.Name | ast.Tuple | ast.List](memo):
     | '*' a=(!'*' decl_star_target) {
@@ -1688,17 +1702,10 @@ decl_star_target[ast.Starred | ast.Name | ast.Tuple | ast.List](memo):
 
 decl_star_atom[ast.Name | ast.Tuple | ast.List]:
     | a=NAME { ast.Name(id=a.string, ctx=Store, LOCATIONS) }
-    | '(' a=[decl_star_targets_tuple_seq] ')' { ast.Tuple(elts=a, ctx=Store, LOCATIONS) }
-    | '[' a=[decl_star_targets_list_seq] ']' {  ast.List(elts=a, ctx=Store, LOCATIONS) }
 
 decl_star_target_may_annot[ast.expr]:
     | a=decl_star_target b=annotation? { set_type_annotation(a, b) }
 
-decl_star_targets_list_seq[List[ast.expr]]: a=','.decl_star_target_may_annot+ [','] { a }
-
-decl_star_targets_tuple_seq[List[ast.expr]]:
-    | a=decl_star_target_may_annot b=(',' c=decl_star_target_may_annot { c })+ [','] { [a] + b }
-    | a=decl_star_target_may_annot ',' { [a] }
 
 # TYPING ELEMENTS
 # ---------------

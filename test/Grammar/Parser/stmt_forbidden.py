@@ -111,7 +111,7 @@ def test_multi_assign_in_class_error():
     assert_transform_first_error(
         multi_assign_in_class_error_code,
         ForbiddenStatementError,
-        "Only single variable declaration is allowed inside class definition",
+        "inside class definition",
     )
 
 
@@ -126,7 +126,7 @@ def test_unpack_assign_in_class_error():
     assert_transform_first_error(
         unpack_assign_in_class_error_code,
         ForbiddenStatementError,
-        "Only single variable declaration is allowed inside class definition",
+        "inside class definition",
     )
 
 

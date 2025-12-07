@@ -26,9 +26,8 @@ translate_config = {
     "reportUnusedCallResult": "warning",
     "reportUnnecessaryIsInstance": "warning",
     "reportUnnecessaryCast": "warning",
-    "reportUnnecessaryComparison": "warning",
+    # "reportUnnecessaryComparison": "warning", # To check type of patterns
     "reportUnnecessaryContains": "warning",
-    "reportMatchNotExhaustive": "warning",
     "reportDeprecated": "warning",
 }
 script_config = {
@@ -41,9 +40,8 @@ script_config = {
     "reportUnusedCallResult": "none",
     "reportUnnecessaryIsInstance": "none",
     "reportUnnecessaryCast": "none",
-    "reportUnnecessaryComparison": "none",
+    # "reportUnnecessaryComparison": "none",  # To check type of patterns
     "reportUnnecessaryContains": "none",
-    "reportMatchNotExhaustive": "none",
     "reportDeprecated": "none",
 }
 

@@ -1,6 +1,7 @@
 from ..assertion_utils import assert_ast_equals, assert_ast_type, assert_ast_transform
 from ....src.Typhon.Grammar.typhon_ast import is_var, is_let
 import ast
+from ....src.Typhon.Driver.debugging import set_debug_verbose
 
 code_for = """
 for (let i in range(10)) {
@@ -61,9 +62,14 @@ for (let (a, b) in [(1, 1.0), (2, 2.0)]) {
 }
 """
 result_for_unpack = """
-for a, b in [(1, 1.0), (2, 2.0)]:
-    print(a)
-    print(b)
+for _typh_anonymous_0 in [(1, 1.0), (2, 2.0)]:
+    if True:
+        match _typh_anonymous_0:
+            case [a, b]:
+                print(a)
+                print(b)
+            case _:
+                raise TypeError
 """
 
 
@@ -74,18 +80,20 @@ def test_stmt_for_unpack():
 
 
 code_for_unpack_annot = """
-for (let (a:int, b):(int, float) in [(1, 1.0), (2, 2.0)]) {
+for (let (a:int, b:float) in [(1, 1.0), (2, 2.0)]) {
     print(a);
     print(b);
 }
 """
 result_for_unpack_annot = """
-_typh_cn_m0_0_a: int
-_typh_cn_m0_0_a: int
-_typh_cn_m0_1_b: float
-for _typh_cn_m0_0_a, _typh_cn_m0_1_b in [(1, 1.0), (2, 2.0)]:
-    print(_typh_cn_m0_0_a)
-    print(_typh_cn_m0_1_b)
+for _typh_vr_m0_0_ in [(1, 1.0), (2, 2.0)]:
+    _typh_cn_m0_1_a: int
+    _typh_cn_m0_2_b: float
+    match _typh_vr_m0_0_:
+        case [_typh_cn_m0_1_a, _typh_cn_m0_2_b]:
+            pass
+        case _:
+            raise TypeError
 """
 
 

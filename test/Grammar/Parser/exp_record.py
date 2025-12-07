@@ -151,7 +151,6 @@ def f(r):
 
 
 def test_attribute_pattern():
-    set_debug_mode(True)
     parsed = assert_ast_equals(attribute_pattern_code, attribute_pattern_result)
     assert_transform_equals(parsed, attribute_pattern_transformed)
     assert_typh_code_match_unparse(attribute_pattern_code)

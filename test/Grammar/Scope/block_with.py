@@ -102,7 +102,7 @@ block_with_star_annotation_code = """
 def f() {
     ...
 }
-with (let (f1, f2): (TextIO, TextIO) = f()) {
+with (let (f1: TextIO, f2: TextIO) = f()) {
     let line1 = f1.readline();
     let line2 = f2.readline();
 }
@@ -110,11 +110,14 @@ with (let (f1, f2): (TextIO, TextIO) = f()) {
 block_with_star_annotation_result = """
 def f():
     ...
-_typh_cn_m0_0_f1: TextIO
-_typh_cn_m0_1_f2: TextIO
-with f() as (_typh_cn_m0_0_f1, _typh_cn_m0_1_f2):
-    _typh_cn_m0_2_line1 = _typh_cn_m0_0_f1.readline()
-    _typh_cn_m0_3_line2 = _typh_cn_m0_1_f2.readline()
+with f() as _typh_vr_m0_0_:
+    _typh_cn_m0_1_f1: TextIO
+    _typh_cn_m0_2_f2: TextIO
+    match _typh_vr_m0_0_:
+        case [_typh_cn_m0_1_f1, _typh_cn_m0_2_f2]:
+            pass
+        case _:
+            raise TypeError
 """
 
 
@@ -122,3 +125,28 @@ def test_block_with_star_annotation():
     assert_ast_transform(
         block_with_star_annotation_code, block_with_star_annotation_result
     )
+
+
+inline_with_let_code = """
+def f() {
+    ...
+}
+with let (f1, f2) = f()
+f1.readline()
+f2.readline()
+"""
+inline_with_let_result = """
+def f():
+    ...
+with f() as _typh_vr_m0_0_:
+    match _typh_vr_m0_0_:
+        case [_typh_cn_m0_1_f1, _typh_cn_m0_2_f2]:
+            _typh_cn_m0_1_f1.readline()
+            _typh_cn_m0_2_f2.readline()
+        case _:
+            raise TypeError
+"""
+
+
+def test_inline_with_let():
+    assert_ast_transform(inline_with_let_code, inline_with_let_result)

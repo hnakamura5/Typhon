@@ -13,6 +13,8 @@ from ..Grammar.typhon_ast import (
     is_inline_with,
     set_is_placeholder,
     get_type_annotation,
+    is_anonymous_name,
+    get_anonymous_name_id,
 )
 from ..Grammar.syntax_errors import (
     raise_scope_error,
@@ -71,6 +73,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         self.require_global: dict[str, set[PythonScope]] = {}
         self.require_nonlocal: dict[str, set[PythonScope]] = {}
         self.builtins_symbols = get_builtins()
+        self.anonymous_names: dict[int, str] = {}
 
     def _enter_scope(self):
         self.scopes.append({})
@@ -696,9 +699,28 @@ class SymbolScopeVisitor(TyphonASTVisitor):
                 ast.Name(id=sym.name, ctx=ast.Store(), **get_empty_pos_attributes())
             )
 
+    def handle_anonymous_name(self, node: ast.Name):
+        anon_id = get_anonymous_name_id(node)
+        if anon_id is None:
+            return False
+        if anon_id in self.anonymous_names:
+            debug_verbose_print(
+                f"Reused anonymous variable for '{node.id}' as '{self.anonymous_names[anon_id]}'"
+            )
+            node.id = self.anonymous_names[anon_id]
+        else:
+            new_name = self.new_name(NameKind.VARIABLE, "")
+            debug_verbose_print(
+                f"Renamed anonymous variable '{node.id}' to '{new_name}'"
+            )
+            self.anonymous_names[anon_id] = new_name
+            node.id = new_name
+        return True
+
     # The main part of this visitor.
     # Variable reference and declaration. Rename if necessary.
     def visit_Name(self, node: ast.Name):
+        is_anon = self.handle_anonymous_name(node)
         if self.declaration_context:
             # Left-hand side of an declaration assignment
             if self.current_scope().get(node.id):
@@ -707,10 +729,13 @@ class SymbolScopeVisitor(TyphonASTVisitor):
                 node.id,
                 is_mutable=self.declaration_context.is_mutable,
                 pos=get_pos_attributes(node),
-                is_force_rename=self.declaration_context.is_force_rename,
+                is_force_rename=self.declaration_context.is_force_rename
+                and not is_anon,
                 rename_on_demand_to_kind=(
                     NameKind.VARIABLE
                     if self.declaration_context.is_mutable
+                    else None
+                    if is_anon
                     else NameKind.CONST
                 ),
             )

@@ -4,6 +4,7 @@ from ..Grammar.typhon_ast import (
     clear_inline_with,
     is_let_else,
     get_let_pattern_body,
+    get_pos_attributes,
 )
 from .visitor import TyphonASTVisitor, flat_append
 from contextlib import contextmanager
@@ -73,14 +74,14 @@ class _InlineStatementBlockCaptureGather(TyphonASTVisitor):
 
         --> (is represented here actually)
 
-            if True: # multiple_let_pattern_body set to empty
+            if True:
                 match <subject1>:
                     case <pattern1>:
                         match <subject2>:
                             ...
                                 match <subjectN>:
                                     case <patternN>:
-                                        # empty
+                                        # empty # info.body
             else:
                 <orelse> # Must jump away.
             <after>
@@ -96,7 +97,7 @@ class _InlineStatementBlockCaptureGather(TyphonASTVisitor):
 
         --> (transformation here actually)
 
-            if True: # multiple_let_pattern_body set to empty
+            if True: # let_pattern_body set to empty
                 match <subject1>:
                     case <pattern1>:
                         match <subject2>:
@@ -107,8 +108,8 @@ class _InlineStatementBlockCaptureGather(TyphonASTVisitor):
             else:
                 <orelse> # Must jump away.
         """
-        body = get_let_pattern_body(node)
-        if body is None or not is_let_else(node):
+        info = get_let_pattern_body(node)
+        if info is None or not is_let_else(node):
             self._visit_list_scoped(node, node.body)
             self._visit_list_scoped(node, node.orelse)
             return
@@ -118,18 +119,23 @@ class _InlineStatementBlockCaptureGather(TyphonASTVisitor):
             node=node,
             parent_block=parent_block_node,
             parent_block_body=parent_block_body,
-            body_capture_into=body,
+            body_capture_into=info.body,
         )
         debug_print(
-            f"Found let else: \n    node:{ast.dump(node)} \n        parent:{ast.dump(parent_block_node)}\n            body:{list(map(ast.dump, body))}"
+            f"Found let else: \n    node:{ast.dump(node)} \n        parent:{ast.dump(parent_block_node)}\n            body:{list(map(ast.dump, info.body))}"
         )
-        if not is_body_jump_away(node.orelse):
-            raise RuntimeError(
-                "let-else's else body must jump away"
-            )  # TODO: Arrow NoReturn function call
+        if node.orelse:
+            if not is_body_jump_away(node.orelse):
+                raise RuntimeError(
+                    "let-else's else body must jump away"
+                )  # TODO: Arrow NoReturn function call
+        else:
+            # Empty else body. The pattern must be irrefutable.
+            # The error is checked in if_while_let_transform.
+            pass
         self._visit_list_scoped(node, node.orelse)
         # Hack to make parent of the followings to case's body
-        self.parent_block_scopes[-1] = (node, body)
+        self.parent_block_scopes[-1] = (node, info.body)
 
     def visit_For(self, node: ast.For):
         # No need to visit target, iter
@@ -215,9 +221,11 @@ def inline_statement_block_capture(module: ast.Module):
         if node not in parent_block_body:
             raise RuntimeError("Parent block not found")  # TODO: proper error handling
         index = parent_block_body.index(node)
-        # Move the remained stmts into with_node's body
+        # Move the remained stmts into capturer's body
         body_capture_into.clear()
         body_capture_into.extend(parent_block_body[index + 1 :])
+        if not body_capture_into:
+            body_capture_into.append(ast.Pass(**get_pos_attributes(node)))
         # Remove the remained stmts from parent block
         del parent_block_body[index + 1 :]
         debug_verbose_print(

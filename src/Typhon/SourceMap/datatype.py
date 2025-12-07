@@ -156,11 +156,11 @@ class Range:
     def merge_ranges(ranges: Iterable["Range"]) -> "Range | None":
         if not ranges:
             return None
-        print("Merging ranges: ", ranges)
+        debug_verbose_print("Merging ranges: ", ranges)
         ranges = list(ranges)
         start = min(r.start for r in ranges)
         end = max([r.end for r in ranges] + [start])
-        print(f"Merged range: start={start}, end={end}")
+        debug_verbose_print(f"Merged range: start={start}, end={end}")
         return Range(start=start, end=end)
 
     def of_string(self, source: str) -> str:
