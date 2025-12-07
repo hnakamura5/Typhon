@@ -214,7 +214,7 @@ class _typh_cl_m0_2_[_typh_tv_m0_0_x, _typh_tv_m0_1_y]:
 def f(r: _typh_cl_f1_2_[int, tuple[int, str]]) -> None:
     _typh_vr_f1_9_ = True
     match r:
-        case _typh_cl_f1_5_(x=a, y=[0, c]):
+        case _typh_cl_f1_5_(x=a, y=tuple([0, c])):
             _typh_vr_f1_9_ = False
             print(a, c)
         case _:

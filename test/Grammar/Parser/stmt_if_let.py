@@ -42,7 +42,7 @@ def test_if_let_none_check():
 
 if_let_star_code = """
 def func(x: int, y: int, z: int) {
-    if (let (1, *rest) = (x, y, z)) {
+    if (let [1, *rest] = (x, y, z)) {
         return rest
     }
 }

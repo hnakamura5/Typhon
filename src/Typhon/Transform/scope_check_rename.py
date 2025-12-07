@@ -192,7 +192,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             or is_force_rename
         )
         if name not in self.builtins_symbols:
-            print(
+            debug_verbose_print(
                 f"Renaming condition of '{name}': {rename_condition} is_shadowed={self.is_shadowed(name, python_scope_to_add)}, is_top_level={is_top_level}, in_scope_non_python_top_level={in_scope_non_python_top_level}, is_force_rename={is_force_rename}) len(scopes)={len(self.scopes)} len(parent_python_scopes)={len(self.parent_python_scopes)} rename_on_demand_to_kind={rename_on_demand_to_kind} "
             )
         # Rename if required

@@ -13,6 +13,7 @@ from ..Grammar.typhon_ast import (
     is_record_literal,
     is_record_type,
     is_attributes_pattern,
+    is_pattern_tuple,
 )
 from .visitor import TyphonASTVisitor, TyphonASTTransformer, flat_append
 from .utils.imports import (
@@ -95,6 +96,21 @@ class _Transform(TyphonASTTransformer):
             info = self.info_for_record_pattern[node]
             return ast.Name(
                 id=class_def.name, ctx=ast.Load(), **get_pos_attributes(node)
+            )
+        return self.generic_visit(node)
+
+    # Convert tuple pattern
+    def visit_MatchSequence(self, node: ast.MatchSequence):
+        if is_pattern_tuple(node):
+            pos = get_pos_attributes(node)
+            return ast.MatchClass(
+                cls=ast.Name(id="tuple", ctx=ast.Load(), **pos),
+                patterns=[
+                    ast.MatchSequence(node.patterns, **pos_attribute_to_range(pos))
+                ],
+                kwd_attrs=[],
+                kwd_patterns=[],
+                **pos_attribute_to_range(pos),
             )
         return self.generic_visit(node)
 

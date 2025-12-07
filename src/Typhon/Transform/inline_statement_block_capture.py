@@ -222,7 +222,6 @@ def inline_statement_block_capture(module: ast.Module):
             raise RuntimeError("Parent block not found")  # TODO: proper error handling
         index = parent_block_body.index(node)
         # Move the remained stmts into capturer's body
-        body_capture_into.clear()
         body_capture_into.extend(parent_block_body[index + 1 :])
         if not body_capture_into:
             body_capture_into.append(ast.Pass(**get_pos_attributes(node)))

@@ -90,8 +90,9 @@ for _typh_vr_m0_0_ in [(1, 1.0), (2, 2.0)]:
     _typh_cn_m0_1_a: int
     _typh_cn_m0_2_b: float
     match _typh_vr_m0_0_:
-        case [_typh_cn_m0_1_a, _typh_cn_m0_2_b]:
-            pass
+        case tuple([_typh_cn_m0_1_a, _typh_cn_m0_2_b]):
+            print(_typh_cn_m0_1_a)
+            print(_typh_cn_m0_2_b)
         case _:
             raise TypeError
 """

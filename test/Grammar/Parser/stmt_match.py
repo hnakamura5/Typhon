@@ -213,7 +213,7 @@ def func(x: tuple[int, str]) -> int:
     _typh_cn_f1_1_b: str
     _typh_cn_f1_2_a: str
     match x:
-        case [_typh_cn_f1_0_a, _typh_cn_f1_1_b]:
+        case tuple([_typh_cn_f1_0_a, _typh_cn_f1_1_b]):
             return _typh_cn_f1_0_a + len(_typh_cn_f1_1_b)
         case _typh_cn_f1_2_a:
             return _typh_cn_f1_2_a

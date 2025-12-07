@@ -33,12 +33,12 @@ print(x);
 block_match_result = """
 x = 10
 match x:
-    case [_typh_cn_m0_0_x, _typh_cn_m0_1_y] if _typh_cn_m0_0_x > 5:
+    case tuple([_typh_cn_m0_0_x, _typh_cn_m0_1_y]) if _typh_cn_m0_0_x > 5:
         print(_typh_cn_m0_0_x)
         _typh_vr_m0_2_x = 20
         _typh_vr_m0_2_x = _typh_vr_m0_2_x + _typh_cn_m0_1_y
         print(_typh_vr_m0_2_x)
-    case [_typh_cn_m0_3_y, *_typh_cn_m0_4_x] if len(_typh_cn_m0_4_x) > 2:
+    case tuple([_typh_cn_m0_3_y, *_typh_cn_m0_4_x]) if len(_typh_cn_m0_4_x) > 2:
         print(_typh_cn_m0_4_x)
         _typh_vr_m0_5_x = 5
         print(_typh_vr_m0_5_x)

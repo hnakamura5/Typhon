@@ -240,7 +240,7 @@ a: int
 b: int
 c: str
 match (1, 2, 'str'):
-    case [a, b, c]:
+    case tuple([a, b, c]):
         pass
     case _:
         raise TypeError

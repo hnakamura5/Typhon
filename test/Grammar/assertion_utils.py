@@ -82,7 +82,8 @@ def assert_ast_equals(
 def assert_transform_equals(typhon_ast: ast.Module, python_code: str):
     assert isinstance(typhon_ast, ast.Module)
     transform(typhon_ast)
-    print(f"Transform result:\n{ast.unparse(typhon_ast)}")
+    print(f"Typhon AST:\n\n{ast.unparse(typhon_ast)}")
+    print(f"\nTransform result:\n\n{ast.unparse(typhon_ast)}")
     assert ast.unparse(typhon_ast) == python_code.strip()
 
 
