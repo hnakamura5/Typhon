@@ -15,6 +15,7 @@ from ..Grammar.typhon_ast import (
     get_type_annotation,
     is_anonymous_name,
     get_anonymous_name_id,
+    is_let_else,
 )
 from ..Grammar.syntax_errors import (
     raise_scope_error,
@@ -175,14 +176,28 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         is_top_level = self.now_is_top_level(ignore_current=add_to_parent_python_scope)
         if is_top_level:
             self.resolve_suspended_resolves(name)
-        in_scope_non_python_top_level = len(self.scopes) > 1
+        considering_python_scopes = (
+            len(self.parent_python_scopes) - 1
+            if add_to_parent_python_scope
+            else len(self.parent_python_scopes)
+        )
+        in_scope_non_python_top_level = (
+            len(self.scopes) > considering_python_scopes and len(self.scopes) > 1
+        )
+        rename_condition = (
+            # To realize shadowing
+            self.is_shadowed(name, python_scope_to_add)
+            # To prevent to expose to top-level scope
+            or (is_top_level and in_scope_non_python_top_level)
+            or is_force_rename
+        )
+        if name not in self.builtins_symbols:
+            print(
+                f"Renaming condition of '{name}': {rename_condition} is_shadowed={self.is_shadowed(name, python_scope_to_add)}, is_top_level={is_top_level}, in_scope_non_python_top_level={in_scope_non_python_top_level}, is_force_rename={is_force_rename}) len(scopes)={len(self.scopes)} len(parent_python_scopes)={len(self.parent_python_scopes)} rename_on_demand_to_kind={rename_on_demand_to_kind} "
+            )
         # Rename if required
         if rename_on_demand_to_kind is not None:
-            if (
-                self.is_shadowed(name, python_scope_to_add)
-                or (is_top_level and in_scope_non_python_top_level)
-                or is_force_rename
-            ):
+            if rename_condition:
                 new_name = self.new_name(rename_on_demand_to_kind, name)
                 dec.renamed_to = new_name
                 debug_print(f"Renamed variable '{dec.name}' to '{new_name}'")
@@ -440,18 +455,30 @@ class SymbolScopeVisitor(TyphonASTVisitor):
 
     def visit_Match(self, node: ast.Match):
         self.visit(node.subject)
-        self.visit_list_scoped(node.cases)
+        # self.visit_list_scoped(node.cases) # Each case has its own scope
+        for case in node.cases:
+            self.visit(case)
         return node
 
     # Match patterns. Basis of declarative patterns are MatchAs, MatchStar.
     # Other patterns are composed of these.
     # Declarations in patterns are immutable.
     def visit_match_case(self, node: ast.match_case):
-        with self.scope():
+        def visit_children():
             self.visit(node.pattern)
             if node.guard:
                 self.visit(node.guard)
             self.visit_list_scoped(node.body)
+
+        debug_verbose_print(
+            f"Visiting match_case: pattern={ast.dump(node)} is_let_else={is_let_else(node)}"
+        )
+
+        if is_let_else(node):
+            visit_children()
+        else:
+            with self.scope():
+                visit_children()
 
     def visit_MatchAs(self, node: ast.MatchAs):
         if node.pattern:
@@ -462,7 +489,8 @@ class SymbolScopeVisitor(TyphonASTVisitor):
                 name,
                 is_mutable=False,
                 # Force rename to avoid conflict to other patterns when type annotations is specified, because they are expanded in the same scope.
-                is_force_rename=get_type_annotation(node) is not None,
+                is_force_rename=get_type_annotation(node) is not None
+                and len(self.scopes) > 1,
             )
             node.name = name.id
         return node
@@ -474,7 +502,8 @@ class SymbolScopeVisitor(TyphonASTVisitor):
                 name,
                 is_mutable=False,
                 # Force rename to avoid conflict to other patterns when type annotations is specified, because they are expanded in the same scope.
-                is_force_rename=get_type_annotation(node) is not None,
+                is_force_rename=get_type_annotation(node) is not None
+                and len(self.scopes) > 1,
             )
             node.name = name.id
         return node

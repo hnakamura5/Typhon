@@ -131,20 +131,24 @@ inline_with_let_code = """
 def f() {
     ...
 }
-with let (f1, f2) = f()
-f1.readline()
-f2.readline()
+def g() {
+    with let (f1, f2) = f()
+    f1.readline()
+    f2.readline()
+}
 """
 inline_with_let_result = """
 def f():
     ...
-with f() as _typh_vr_m0_0_:
-    match _typh_vr_m0_0_:
-        case [_typh_cn_m0_1_f1, _typh_cn_m0_2_f2]:
-            _typh_cn_m0_1_f1.readline()
-            _typh_cn_m0_2_f2.readline()
-        case _:
-            raise TypeError
+
+def g():
+    with f() as _typh_vr_f2_0_:
+        match _typh_vr_f2_0_:
+            case [f1, f2]:
+                f1.readline()
+                f2.readline()
+            case _:
+                raise TypeError
 """
 
 

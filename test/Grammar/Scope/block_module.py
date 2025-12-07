@@ -1,5 +1,6 @@
 from ..assertion_utils import assert_ast_transform, assert_transform_first_error
 from ....src.Typhon.Grammar.syntax_errors import ScopeError
+from ....src.Typhon.Driver.debugging import set_debug_verbose
 
 # Symbol in block must not exported to outer scope through top-level.
 block_module_rename_code = """
@@ -29,6 +30,7 @@ y = 20
 
 
 def test_block_module_rename():
+    set_debug_verbose(True)
     assert_ast_transform(block_module_rename_code, block_module_rename_result)
 
 

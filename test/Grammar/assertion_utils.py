@@ -90,7 +90,9 @@ def assert_ast_transform(typhon_code: str, python_code: str):
     parsed = parse_string(typhon_code, mode="exec", verbose=PARSER_VERBOSE)
     assert isinstance(parsed, ast.Module)
     transform(parsed)
-    print(f"Transform result:\n{ast.unparse(parsed)}")
+    print(f"Typhon code:\n{typhon_code}")
+    print(f"Transform result:\n\n{ast.unparse(parsed)}")
+    print(f"\nExpected Python code:\n\n{python_code.strip()}")
     assert ast.unparse(parsed) == python_code.strip()
     return parsed
 

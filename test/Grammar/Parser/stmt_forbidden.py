@@ -130,6 +130,47 @@ def test_unpack_assign_in_class_error():
     )
 
 
+inline_with_top_level_error_code = """
+with let x = open('file.txt')
+"""
+
+
+def test_inline_with_top_level_error():
+    assert_transform_first_error(
+        inline_with_top_level_error_code,
+        ForbiddenStatementError,
+        "module top level",
+    )
+
+
+inline_async_with_top_level_error_code = """
+async with let x = open('file.txt')
+"""
+
+
+def test_inline_async_with_top_level_error():
+    assert_transform_first_error(
+        inline_async_with_top_level_error_code,
+        ForbiddenStatementError,
+        "module top level",
+    )
+
+
+let_else_top_level_error_code = """
+let x = 10 else {
+    raise ValueError()
+}
+"""
+
+
+def test_let_else_top_level_error():
+    assert_transform_first_error(
+        let_else_top_level_error_code,
+        ForbiddenStatementError,
+        "module top level",
+    )
+
+
 multiple_errors_code = """
 var x = 10;
 del x;

@@ -838,16 +838,19 @@ def clear_let_pattern_body(node: ast.While | ast.If) -> None:
         delattr(node, _LET_PATTERN_BODY)
 
 
-def is_let_else(node: ast.If | ast.Match) -> bool:
+type LetElseAnnotatedNode = ast.If | ast.Match | ast.match_case
+
+
+def is_let_else(node: LetElseAnnotatedNode) -> bool:
     return getattr(node, _IS_LET_ELSE, False)
 
 
-def set_is_let_else(node: ast.If | ast.Match, is_let_else: bool) -> ast.stmt:
+def set_is_let_else[T: LetElseAnnotatedNode](node: T, is_let_else: bool) -> T:
     setattr(node, _IS_LET_ELSE, is_let_else)
     return node
 
 
-def clear_is_let_else(node: ast.If | ast.Match) -> None:
+def clear_is_let_else(node: LetElseAnnotatedNode) -> None:
     if hasattr(node, _IS_LET_ELSE):
         delattr(node, _IS_LET_ELSE)
 
@@ -878,6 +881,7 @@ def _make_if_let_single_case(
     cond: ast.expr | None,
     body: list[ast.stmt],
     make_none_check: bool,
+    is_let_else: bool,
 ) -> ast.match_case:
     _set_is_let_var(pattern, decl_type)
     if (
@@ -889,16 +893,22 @@ def _make_if_let_single_case(
     ):
         # Variable capture pattern, e.g. `let x = ...` without condition.
         # In this case, the condition is None check.
-        return ast.match_case(
-            pattern=pattern,
-            guard=_make_none_check(pattern.name, get_pos_attributes(pattern)),
-            body=body,
+        return set_is_let_else(
+            ast.match_case(
+                pattern=pattern,
+                guard=_make_none_check(pattern.name, get_pos_attributes(pattern)),
+                body=body,
+            ),
+            is_let_else,
         )
     else:
-        return ast.match_case(
-            pattern=pattern,
-            guard=cond,
-            body=body,
+        return set_is_let_else(
+            ast.match_case(
+                pattern=pattern,
+                guard=cond,
+                body=body,
+            ),
+            is_let_else,
         )
 
 
@@ -908,13 +918,19 @@ def _make_nested_match_for_multiple_let(
     cond: ast.expr | None,
     body: list[ast.stmt],
     type_error_on_failure: bool,
+    is_let_else: bool,
     **kwargs: Unpack[PosAttributes],
 ) -> list[ast.stmt]:
     # Build nested match statements from inside out.
     for pattern, subject in reversed(pattern_subjects):
         cases = [
             _make_if_let_single_case(
-                decl_type, pattern, cond, body, make_none_check=cond is None
+                decl_type,
+                pattern,
+                cond,
+                body,
+                make_none_check=cond is None,
+                is_let_else=is_let_else,
             ),
             # Add a wildcard case to handle non-matching case to avoid linter error.
             ast.match_case(  # case _: pass
@@ -1001,6 +1017,7 @@ def _make_if_let_multiple(
                 and (orelse is None)
                 and (not is_all_pattern_truly_irrefutable)
             ),
+            is_let_else=is_let_else,
             **kwargs,
         ),
         orelse=orelse or [],
@@ -1065,7 +1082,7 @@ def _make_while_let(
     result = ast.While(
         test=ast.Constant(value=True, **kwargs),
         body=_make_nested_match_for_multiple_let(
-            "let", pattern_subjects, cond, body, False, **kwargs
+            "let", pattern_subjects, cond, body, False, False, **kwargs
         ),
         orelse=orelse or [],
         **kwargs,

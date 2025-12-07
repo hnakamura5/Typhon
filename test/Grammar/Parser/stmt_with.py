@@ -93,7 +93,7 @@ def test_stmt_async_with():
 
 
 code_inline_with = """
-if (True) {
+def func() {
     with var f1 = open('file1.txt');
     let x = f1.readline();
     with let f2 = open('file2.txt');
@@ -102,7 +102,7 @@ if (True) {
 print('a')
 """
 result_inline_with = """
-if True:
+def func():
     with open('file1.txt') as f1:
     x = f1.readline()
     with open('file2.txt') as f2:
@@ -110,11 +110,11 @@ if True:
 print('a')
 """
 result_inline_with_transformed = """
-if True:
-    with open('file1.txt') as _typh_vr_m0_0_f1:
-        _typh_cn_m0_1_x = _typh_vr_m0_0_f1.readline()
-        with open('file2.txt') as _typh_cn_m0_2_f2:
-            _typh_cn_m0_3_y = _typh_cn_m0_2_f2.readline()
+def func():
+    with open('file1.txt') as f1:
+        x = f1.readline()
+        with open('file2.txt') as f2:
+            y = f2.readline()
 print('a')
 """
 

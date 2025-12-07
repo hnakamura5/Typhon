@@ -14,7 +14,11 @@ from ....src.Typhon.Grammar.syntax_errors import (
     LetMissingElseError,
 )
 import ast
-from ....src.Typhon.Driver.debugging import set_debug_first_error, set_debug_mode
+from ....src.Typhon.Driver.debugging import (
+    set_debug_first_error,
+    set_debug_mode,
+    set_debug_verbose,
+)
 
 
 def assert_not_decl_assign(node: ast.AST):
@@ -232,11 +236,11 @@ decl_assign_unpack_annotation_each_code = """
 let (a:int, b:int, c:str) = (1, 2, 'str')
 """
 decl_assign_unpack_annotation_each_transformed = """
-_typh_cn_m0_0_a: int
-_typh_cn_m0_1_b: int
-_typh_cn_m0_2_c: str
+a: int
+b: int
+c: str
 match (1, 2, 'str'):
-    case [_typh_cn_m0_0_a, _typh_cn_m0_1_b, _typh_cn_m0_2_c]:
+    case [a, b, c]:
         pass
     case _:
         raise TypeError

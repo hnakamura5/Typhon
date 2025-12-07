@@ -8,6 +8,8 @@ from ..Grammar.typhon_ast import (
     is_decl_assign,
     is_multi_decl,
     PosAttributes,
+    is_let_else,
+    is_inline_with,
 )
 from ..Grammar.syntax_errors import (
     raise_forbidden_statement_error,
@@ -46,6 +48,28 @@ class ForbiddenStatementChecker(TyphonASTVisitor):
                     "Wildcard import is forbidden",
                     get_pos_attributes(node),
                 )
+        return self.generic_visit(node)
+
+    def visit_With_AsyncWith(self, node: ast.With | ast.AsyncWith):
+        if is_inline_with(node) and self.now_is_top_level():
+            self._raise_forbidden_statement(
+                "Inline `with` statement in module top level is forbidden",
+                get_pos_attributes(node),
+            )
+        return self.generic_visit(node)
+
+    def visit_With(self, node: ast.With):
+        self.visit_With_AsyncWith(node)
+
+    def visit_AsyncWith(self, node: ast.AsyncWith):
+        self.visit_With_AsyncWith(node)
+
+    def visit_If(self, node: ast.If):
+        if is_let_else(node) and self.now_is_top_level() and node.orelse:
+            self._raise_forbidden_statement(
+                "`let-else` statement in module top level is forbidden",
+                get_pos_attributes(node),
+            )
         return self.generic_visit(node)
 
     # TODO: Check control statements inside class definition.
