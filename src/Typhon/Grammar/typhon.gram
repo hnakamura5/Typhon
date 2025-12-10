@@ -550,13 +550,11 @@ try_stmt[ast.Try]:
 # ----------------
 
 except_block[ast.ExceptHandler]:
-    | invalid_except_stmt_indent
     | 'except' '(' e=expression t=['as' z=NAME { z.string }] ')' NEWLINE* b=block {
         ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS) }
     | 'except' b=block { ast.ExceptHandler(type=None, name=None, body=b, LOCATIONS) }
     | invalid_except_stmt
 except_star_block[ast.ExceptHandler]:
-    | invalid_except_star_stmt_indent
     | 'except' '*' '(' e=expression t=['as' z=NAME { z.string }]')' NEWLINE* b=block {
         ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS)
      }
@@ -957,7 +955,6 @@ typing_expression[ast.expr](memo):
 
 typing_expression_impl[ast.expr](memo):
     | invalid_expression
-    | invalid_legacy_expression
     | &'(' typing_arrow_type
     #| typing_disjunction
     | typing_arrow_single_param_type
@@ -1034,7 +1031,6 @@ expressions:
 
 expression (memo):
     | invalid_expression
-    | invalid_legacy_expression
     | pipe_operator
 
 yield_expr:
@@ -1800,13 +1796,6 @@ invalid_kwarg[NoReturn]:
 expression_without_invalid[ast.AST]:
     | pipe_operator
 
-invalid_legacy_expression:
-    | a=NAME !'(' b=star_expressions {
-        self.raise_syntax_error_known_range(
-            f"Missing parentheses in call to '{a.string}' . Did you mean {a.string}(...)?", a, b,
-        ) if a.string in ("exec", "print") else
-        None
-     }
 invalid_expression[NoReturn]:
     # !(NAME STRING) is not matched so we don't show this error with some invalid string prefixes like: kf"dsfsdf"
     # Soft keywords need to also be ignored because they can be parsed as NAME NAME
@@ -1978,104 +1967,55 @@ invalid_import_from_targets[NoReturn]:
      }
 
 invalid_with_stmt[None]:
-    | ['async'] 'with' !'(' { self.raise_syntax_error("expected '('") }
-    | ['async'] 'with' ','.(expression ['as' star_target])+ &&':' { UNREACHABLE }
-    | ['async'] 'with' '(' ','.(expressions ['as' star_target])+ ','? ')' &&':' { UNREACHABLE }
-invalid_with_stmt_indent[NoReturn]:
-    | ['async'] a='with' ','.(expression ['as' star_target])+ ':' NEWLINE !INDENT {
-        self.raise_indentation_error(
-            f"expected an indented block after 'with' statement on line {a.start[0]}"
-        )
-     }
-    | ['async'] a='with' '(' ','.(expressions ['as' star_target])+ ','? ')' ':' NEWLINE !INDENT {
-        self.raise_indentation_error(
-            f"expected an indented block after 'with' statement on line {a.start[0]}"
-        )
-     }
+    | ['async'] 'with' !('(' | decl_keyword) { self.raise_syntax_error("expected '('") }
+    | ['async'] 'with' '(' a=with_item ')' NEWLINE* !'{' {
+        self.raise_syntax_error("expected '{'")
+    }
 
 invalid_try_stmt[NoReturn]:
-    | a='try' ':' NEWLINE !INDENT {
-        self.raise_indentation_error(
-            f"expected an indented block after 'try' statement on line {a.start[0]}",
-        )
+    | 'try' !'{' {
+        self.raise_syntax_error("expected '{'")
      }
-    | 'try' ':' block !('except' | 'finally') {
+    | 'try' block !('except' | 'finally') {
         self.raise_syntax_error("expected 'except' or 'finally' block")
      }
-    | 'try' ':' block* except_block+ a='except' b='*' expression ['as' NAME] ':' {
+    | 'try' block* except_block+ a='except' b='*' {
         self.raise_syntax_error_known_range(
             "cannot have both 'except' and 'except*' on the same 'try'", a, b
         )
      }
-    | 'try' ':' block* except_star_block+ a='except' [expression ['as' NAME]] ':' {
+    | 'try' block* except_star_block+ a='except' {
         self.raise_syntax_error_known_location(
             "cannot have both 'except' and 'except*' on the same 'try'", a
         )
      }
 invalid_except_stmt[None]:
-    | 'except' '*'? a=expression ',' expressions ['as' NAME ] ':' {
+    | 'except' '*'? '(' a=expression ',' expressions ['as' NAME ] ')' {
         self.raise_syntax_error_starting_from("multiple exception types must be parenthesized", a)
      }
-    | a='except' '*'? expression ['as' NAME ] NEWLINE { self.raise_syntax_error("expected ':'") }
-    | a='except' '*'? NEWLINE { self.raise_syntax_error("expected ':'") }
-    | a='except' '*' (NEWLINE | ':') {
+    | a='except' '*'? '(' expression ['as' NAME ] ')' NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
+    | a='except' '*'? !('{'|'(') { self.raise_syntax_error("expected '('") }
+    | a='except' '*' NEWLINE* '{' {
         self.raise_syntax_error("expected one or more exception types")
      }
 invalid_finally_stmt[NoReturn]:
-    | a='finally' ':' NEWLINE !INDENT {
-        self.raise_indentation_error(
-            f"expected an indented block after 'finally' statement on line {a.start[0]}"
-        )
-     }
-invalid_except_stmt_indent[NoReturn]:
-    | a='except' expression ['as' NAME ] ':' NEWLINE !INDENT {
-        self.raise_indentation_error(
-            f"expected an indented block after 'except' statement on line {a.start[0]}"
-        )
-     }
-    | a='except' ':' NEWLINE !INDENT {
-        self.raise_indentation_error(
-            f"expected an indented block after 'except' statement on line {a.start[0]}"
-        )
-     }
-invalid_except_star_stmt_indent:
-    | a='except' '*' expression ['as' NAME ] ':' NEWLINE !INDENT {
-        self.raise_indentation_error(
-            f"expected an indented block after 'except*' statement on line {a.start[0]}"
-        )
+    | a='finally' !'{' {
+        self.raise_syntax_error("expected '{'")
      }
 invalid_match_stmt[NoReturn]:
     | "match" !'(' { self.raise_syntax_error("expected '('") }
-    # | "match" subject_expr !':' {
-    #     self.check_version(
-    #         (3, 10),
-    #         "Pattern matching is",
-    #         self.raise_syntax_error("expected ':'")
-    #     )
-    #  }
-    | a="match" subject=subject_expr ':' NEWLINE !INDENT {
-        self.check_version(
-            (3, 10),
-            "Pattern matching is",
-            self.raise_indentation_error(
-                f"expected an indented block after 'match' statement on line {a.start[0]}"
-            )
-        )
+    | "match" '(' subject=subject_expr ')' NEWLINE* !'{' {
+        self.raise_syntax_error("expected '{'")
      }
 invalid_case_block[NoReturn]:
-    # | "case" patterns guard? !':' { self.raise_syntax_error("expected ':'") }
     | "case" !'(' { self.raise_syntax_error("expected '('") }
-    | a="case" patterns guard? ':' NEWLINE !INDENT {
-        self.raise_indentation_error(
-            f"expected an indented block after 'case' statement on line {a.start[0]}"
-        )
-     }
+    | "case" '(' pattern=patterns ')' NEWLINE* guard=guard? NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
 invalid_as_pattern[NoReturn]:
     | or_pattern 'as' a="_" {
-        self.raise_syntax_error_known_location("cannot use '_' as a target", a)
+        self.raise_syntax_error_known_location("cannot use '_' as a target of as pattern", a)
      }
-    | or_pattern 'as' !NAME a=expression {
-        self.raise_syntax_error_known_location("invalid pattern target", a)
+    | or_pattern 'as' !NAME {
+        self.raise_syntax_error("invalid as pattern target")
      }
 invalid_class_pattern[NoReturn]:
     | name_or_attr '(' a=invalid_class_argument_pattern  {
@@ -2085,57 +2025,36 @@ invalid_class_pattern[NoReturn]:
      }
 invalid_class_argument_pattern[List[ast.pattern]]:
     | [positional_patterns ','] keyword_patterns ',' a=positional_patterns { a }
+
 invalid_if_stmt[NoReturn]:
     | 'if' !'(' { self.raise_syntax_error("expected '('") }
-    | 'if' named_expression NEWLINE { self.raise_syntax_error("expected ':'") }
-    | a='if' a=named_expression ':' NEWLINE !INDENT {
-        self.raise_indentation_error(
-            f"expected an indented block after 'if' statement on line {a.start[0]}"
-        )
-     }
+    | 'if' '(' a=named_expression ')' NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
+    | 'if' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
+
 invalid_elif_stmt[NoReturn]:
     | 'elif' !'(' { self.raise_syntax_error("expected '('") }
-    | 'elif' named_expression NEWLINE { self.raise_syntax_error("expected ':'") }
-    | a='elif' named_expression ':' NEWLINE !INDENT {
-        self.raise_indentation_error(
-            f"expected an indented block after 'elif' statement on line {a.start[0]}"
-        )
-     }
+    | 'elif' '(' a=named_expression ')' NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
+    | 'elif' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
+
 invalid_else_stmt[NoReturn]:
-    | a='else' ':' NEWLINE !INDENT {
-        self.raise_indentation_error(
-            f"expected an indented block after 'else' statement on line {a.start[0]}"
-        )
-     }
+    | a='else' NEWLINE * !'{' { self.raise_syntax_error("expected '{'") }
+
 invalid_while_stmt[NoReturn]:
     | 'while' !'(' { self.raise_syntax_error("expected '('") }
-    | 'while' named_expression NEWLINE { self.raise_syntax_error("expected ':'") }
-    | a='while' named_expression ':' NEWLINE !INDENT {
-        self.raise_indentation_error(
-            f"expected an indented block after 'while' statement on line {a.start[0]}"
-        )
-     }
+    | 'while' '(' a=named_expression ')' NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
+    # while-let statement as pattern matching
+    | 'while' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
+
 invalid_for_stmt[NoReturn]:
     | ['async'] 'for' !'(' { self.raise_syntax_error("expected '('") }
-    | ['async'] 'for' star_targets 'in' star_expressions NEWLINE { self.raise_syntax_error("expected ':'") }
-    | ['async'] a='for' star_targets 'in' star_expressions ':' NEWLINE !INDENT {
-        self.raise_indentation_error(
-            f"expected an indented block after 'for' statement on line {a.start[0]}"
-        )
-     }
+
 invalid_def_raw[NoReturn]:
-    | ['async'] a='def' NAME  [type_params] '(' [params] ')' ['->' expression] ':' NEWLINE !INDENT {
-        self.raise_indentation_error(
-            f"expected an indented block after function definition on line {a.start[0]}"
-        )
-     }
+    | ['async'] a='def' NAME  [type_params] '(' [params] ')' '->' expression NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
+    | ['async'] a='def' NAME  [type_params] '(' [params] ')' ':' { self.raise_syntax_error("use '->' for function return type") }
+    | ['async'] a='def' NAME  [type_params] '(' [params] ')' !('{' | '->') { self.raise_syntax_error("expected '{'") }
+
 invalid_class_def_raw[NoReturn]:
-    | 'class' NAME [type_params] ['(' [arguments] ')'] NEWLINE { self.raise_syntax_error("expected ':'") }
-    | a='class' NAME  [type_params] ['(' [arguments] ')'] ':' NEWLINE !INDENT {
-        self.raise_indentation_error(
-            f"expected an indented block after class definition on line {a.start[0]}"
-        )
-     }
+    | 'class' NAME [type_params] ['(' [arguments] ')'] NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
 
 invalid_double_starred_kvpairs[None]:
     | ','.double_starred_kvpair+ ',' invalid_kvpair
