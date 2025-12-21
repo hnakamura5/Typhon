@@ -24,14 +24,30 @@ def parse_file(
     with open(file_path) as f:
         tok_stream = token_stream_factory(f.readline)
         tokenizer = TokenizerCustom(tok_stream, verbose=verbose, path=file_path)
-        parsed = parse(
-            filename=os.path.basename(file_path),
-            tokenizer=tokenizer,
-            mode="file",
+        parsed = parse_tokenizer(
+            tokenizer,
             py_version=py_version,
             verbose=verbose,
         )
-    assert isinstance(parsed, ast.Module)
+        assert isinstance(parsed, ast.Module)
+        return parsed
+
+
+def parse_tokenizer(
+    tokenizer: TokenizerCustom,
+    py_version: Optional[tuple[int, int]] = None,
+    verbose: bool = False,
+) -> ast.AST:
+    """Parse using a tokenizer."""
+    parsed = parse(
+        filename="<tokenizer>",
+        tokenizer=tokenizer,
+        mode="file",
+        py_version=py_version,
+        verbose=verbose,
+    )
+    # Must be successful parse
+    assert isinstance(parsed, ast.AST)
     return parsed
 
 

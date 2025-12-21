@@ -1,7 +1,9 @@
-from .build import build_grammar, type_check
-from .util import get_project_root
 import subprocess
 import sys
+import pathlib
+import os
+
+PROJECT_ROOT = str(pathlib.Path(__file__).resolve().parent.parent)
 
 
 def invoke_main():
@@ -9,18 +11,14 @@ def invoke_main():
         [
             sys.executable,
             "-m",
-            "src.Typhon.main",
+            "src.Typhon",
         ]
         + sys.argv[1:],
+        env={"PYTHONPATH": PROJECT_ROOT, **dict(os.environ)},
+        stdout=sys.stdout,
+        stderr=sys.stderr,
     )
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python run.py <input_file>")
-        sys.exit(1)
-    build_grammar()
-    if not type_check(sys.argv[1]):
-        print("Type checking failed. Exiting.")
-        sys.exit(1)
     invoke_main()

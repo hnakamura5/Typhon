@@ -1,4 +1,9 @@
-from ..assertion_utils import show_token, assert_ast_equals, RawTokenStreamAsserter
+from ..assertion_utils import (
+    show_token,
+    assert_ast_equals,
+    RawTokenStreamAsserter,
+    AllTokenAsserter,
+)
 from tokenize import (
     NAME,
     OP,
@@ -296,3 +301,14 @@ def test_string_inside_block_comment():
         string_inside_block_comment_result,
         show_python_token=False,
     )
+    aa = AllTokenAsserter(string_inside_block_comment_code)
+    aa.assert_length(9)
+    aa.next(NAME, "let")
+    aa.next(NAME, "x")
+    aa.next(OP, "=")
+    aa.next(NUMBER, "10", (2, 8), (2, 10))
+    aa.next(COMMENT, '#("This is a string inside block comment)#', (2, 11), (2, 53))
+    aa.next(OP, "+", (2, 54), (2, 55))
+    aa.next(STRING, '" "', (2, 56), (2, 59))
+    aa.next(NEWLINE, "\n", (2, 59), (2, 60))
+    aa.next(ENDMARKER, "")

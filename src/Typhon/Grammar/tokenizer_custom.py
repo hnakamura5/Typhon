@@ -2,10 +2,13 @@ from typing import NamedTuple
 from tokenize import TokenInfo, OP, NAME
 import tokenize
 import token
+import io
 from pegen.tokenizer import Tokenizer as PegenTokenizer
 from typing import override
 from .line_break import line_breakable_after, line_breakable_before
 from .typhon_ast import get_postfix_operator_temp_name
+from ..Driver.debugging import debug_verbose_print
+from .token_factory_custom import token_stream_factory
 
 
 # Combine sequencial 2 tokens (optionally without space between) into 1
@@ -186,6 +189,7 @@ class TokenizerCustom(PegenTokenizer):
         while True:
             tok = next(self._tokengen)
             if self._is_token_to_skip(tok):
+                self._all_tokens.append(tok)
                 continue
             if tok.type == token.ENDMARKER:
                 self._end_tok = tok
@@ -209,6 +213,7 @@ class TokenizerCustom(PegenTokenizer):
 
     def _commit_token(self, tok: TokenInfo) -> None:
         self._tokens.append(tok)
+        self._all_tokens.append(tok)
         if not self._path and tok.start[0] not in self._lines:
             self._lines[tok.start[0]] = tok.line
 
@@ -295,3 +300,29 @@ class TokenizerCustom(PegenTokenizer):
                 continue
             self._commit_token(tok)
         return self._tokens[self._index]
+
+    def read_all_tokens(self) -> list[TokenInfo]:
+        """Return all tokens including comments."""
+        # Force to consume all tokens
+        debug_verbose_print("Reading all tokens for tokenizer.")
+        while tok := self.getnext():
+            debug_verbose_print(f"  Token: {tok}")
+            if tok.type == token.ENDMARKER:
+                break
+        debug_verbose_print("Finished reading all tokens.")
+        return sorted(self._all_tokens, key=lambda t: t.start)
+
+
+def tokenizer_for_file(file_path: str) -> TokenizerCustom:
+    """Tokenize the specified file."""
+    with open(file_path) as f:
+        tok_stream = token_stream_factory(f.readline)
+        tokenizer = TokenizerCustom(tok_stream, path=file_path)
+    return tokenizer
+
+
+def tokenizer_for_string(source: str) -> TokenizerCustom:
+    """Tokenize the specified string."""
+    tok_stream = token_stream_factory(io.StringIO(source).readline)
+    tokenizer = TokenizerCustom(tok_stream)
+    return tokenizer

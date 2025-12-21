@@ -50,6 +50,32 @@ class TokenizerAsserter:
         assert_token(token, type_, string, start, end)
 
 
+class AllTokenAsserter:
+    def __init__(self, code: str):
+        tok_stream = token_stream_factory(io.StringIO(code).readline)
+        self.tokenizer = TokenizerCustom(tok_stream, verbose=True)
+        self.tokens = self.tokenizer.read_all_tokens()
+        self.index = 0
+        print(f"All tokens: {self.tokens}")
+
+    def next(
+        self,
+        type_: int,
+        string: str,
+        start: tuple[int, int] | None = None,
+        end: tuple[int, int] | None = None,
+    ):
+        assert self.index < len(self.tokens), "No more tokens"
+        token = self.tokens[self.index]
+        self.index += 1
+        assert_token(token, type_, string, start, end)
+
+    def assert_length(self, length: int):
+        assert len(self.tokens) == length, (
+            f"Expected {length} tokens, got {len(self.tokens)}"
+        )
+
+
 class RawTokenStreamAsserter:
     def __init__(self, code: str):
         self.tokens = token_stream_factory(io.StringIO(code).readline)

@@ -3,6 +3,7 @@ from ..assertion_utils import (
     assert_ast_equals,
     TokenizerAsserter,
     assert_ast_transform,
+    AllTokenAsserter,
 )
 from ....src.Typhon.Grammar.typhon_ast import (
     OPTIONAL_QUESTION,
@@ -204,3 +205,29 @@ def test_optional_subscript():
     assert isinstance(return_stmt, ast.Return)
     assert isinstance(return_stmt.value, ast.Subscript)
     assert is_optional(return_stmt.value)
+    aa = AllTokenAsserter(optional_subscript_code)
+    aa.assert_length(24)
+    aa.next(NAME, "def")
+    aa.next(NAME, "func")
+    aa.next(OP, "(")
+    aa.next(NAME, "a")
+    aa.next(OP, ":")
+    aa.next(NAME, "list")
+    aa.next(OP, "[")
+    aa.next(NAME, "int")
+    aa.next(OP, "]")
+    aa.next(NAME, OPTIONAL_QUESTION)
+    aa.next(OP, ")")
+    aa.next(OP, "->")
+    aa.next(NAME, "int")
+    aa.next(NAME, OPTIONAL_QUESTION)
+    aa.next(OP, "{")
+    aa.next(NAME, "return")
+    aa.next(NAME, "a")
+    aa.next(OP, "?[")  # This is optional subscript.
+    aa.next(NUMBER, "0")
+    aa.next(OP, "]")
+    aa.next(OP, ";")
+    aa.next(OP, "}")
+    aa.next(NEWLINE, "\n")
+    aa.next(ENDMARKER, "")
