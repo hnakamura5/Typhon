@@ -5,7 +5,7 @@ from ...src.Typhon.Driver.translate import (
     translate_and_run_type_check_file,
 )
 from ...src.Typhon.Driver.utils import prepare_default_output_file
-from ...src.Typhon.Driver.debugging import debug_print
+from ...src.Typhon.Driver.debugging import debug_print, set_debug_mode
 from .file_check_util import assert_file_stdout, assert_file_stderr
 from ...src.Typhon.Grammar.syntax_errors import diag_errors
 
@@ -23,6 +23,7 @@ def test_typh_files():
 
 
 def test_typh_directory():
+    set_debug_mode(True)
     test_dir = Path(__file__).parent / "RunDirTest" / "test_module"
     result = run_directory(test_dir, capture_output=True)
     debug_print(f"Test directory: {test_dir} result:\n{result}")

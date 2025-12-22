@@ -92,7 +92,7 @@ def run_directory(source_dir: Path, capture_output: bool, *args: str) -> RunResu
     # Set up environment with modified PYTHONPATH
     orig_pythonpath = os.environ.get("PYTHONPATH", "")
     if orig_pythonpath:
-        orig_pythonpath = f":{orig_pythonpath}"
+        orig_pythonpath = f"{os.pathsep}{orig_pythonpath}"
     subprocess_env = {
         **dict(os.environ),
         # Override PYTHONPATH to include temp_output_dir

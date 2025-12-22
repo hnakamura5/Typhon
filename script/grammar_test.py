@@ -1,21 +1,8 @@
 import subprocess
 import sys
 from pathlib import Path
-from .util import get_project_root
+from .util import get_project_root, gather_directory
 from .build import build_grammar, type_check
-
-
-def gather_directory(dir_path: Path) -> list[str]:
-    test_py_files = dir_path.glob("*.py")
-    test_files = [
-        str(file)
-        for file in test_py_files
-        if file.is_file() and file.name != "__init__.py"
-    ]
-    for subdir in dir_path.iterdir():
-        if subdir.is_dir():
-            test_files.extend(gather_directory(subdir))
-    return test_files
 
 
 def gather_test_in_grammar_test_dir(dir_name: str) -> list[str]:
