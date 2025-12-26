@@ -69,7 +69,7 @@ class Pos:
         )
 
 
-# Common central datatype for source range
+# Common central datatype for source range. All are 0 based.
 @dataclass(frozen=True, unsafe_hash=True, order=True)
 class Range:
     start: Pos
@@ -98,17 +98,20 @@ class Range:
     @staticmethod
     def from_pos_range(pos_range: PosRange) -> "Range":
         return Range(
-            start=Pos(line=pos_range["lineno"], column=pos_range["col_offset"]),
-            end=Pos(line=pos_range["end_lineno"], column=pos_range["end_col_offset"]),
+            start=Pos(line=pos_range["lineno"] - 1, column=pos_range["col_offset"]),
+            end=Pos(
+                line=pos_range["end_lineno"] - 1, column=pos_range["end_col_offset"]
+            ),
         )
 
     @staticmethod
     def from_pos_attr(attr: PosAttributes) -> "Range | None":
+        # Python ast position is 1-based for line, 0-based for column
         if attr["end_lineno"] is None or attr["end_col_offset"] is None:
             return None
         return Range(
-            start=Pos(line=attr["lineno"], column=attr["col_offset"]),
-            end=Pos(line=attr["end_lineno"], column=attr["end_col_offset"]),
+            start=Pos(line=attr["lineno"] - 1, column=attr["col_offset"]),
+            end=Pos(line=attr["end_lineno"] - 1, column=attr["end_col_offset"]),
         )
 
     @staticmethod
@@ -126,8 +129,8 @@ class Range:
         if end_line == start_line and start_column == end_column:
             end_column += 1  # Ensure non-zero length
         return Range(
-            start=Pos(line=start_line, column=start_column),
-            end=Pos(line=end_line, column=end_column),
+            start=Pos(line=start_line - 1, column=start_column),
+            end=Pos(line=end_line - 1, column=end_column),
         )
 
     @staticmethod
@@ -143,13 +146,13 @@ class Range:
 
     @staticmethod
     def from_syntax_error(e: SyntaxError) -> "Range":
-        start_line = e.lineno or 0
+        start_line = e.lineno or 1
         start_column = e.offset or 0
         end_line = e.end_lineno or start_line
         end_column = e.end_offset or (start_column + 1)
         return Range(
-            start=Pos(line=start_line, column=start_column),
-            end=Pos(line=end_line, column=end_column),
+            start=Pos(line=start_line - 1, column=start_column),
+            end=Pos(line=end_line - 1, column=end_column),
         )
 
     @staticmethod
@@ -168,11 +171,10 @@ class Range:
         return self.of_lines(lines)
 
     def of_lines(self, lines: list[str]) -> str:
-        # Range is 1 based. Convert to 0 based for string slicing.
-        start_line = self.start.line - 1
-        end_line = self.end.line - 1
-        start_column = self.start.column - 1
-        end_column = self.end.column - 1
+        start_line = self.start.line
+        end_line = self.end.line
+        start_column = self.start.column
+        end_column = self.end.column
 
         def get_in_line(line: str, start_col: int, end_col: int) -> str:
             return line[start_col : min(end_col, len(line))]
@@ -247,6 +249,7 @@ class RangeIntervalTree[T]:
 
     def minimal_containers(self, range: Range) -> list[RangeInterval[T]]:
         containers = self._container_intervals(range)
+        debug_verbose_print(f"Minimal containers for range {range}: {containers}")
         if not containers:
             return []
         result: list[RangeInterval[T]] = []
@@ -255,10 +258,13 @@ class RangeIntervalTree[T]:
             is_minimal = True
             for j, other_interval in enumerate(containers):
                 if (
-                    i != j and interval.contains_interval(other_interval)  # type: ignore[misc]
+                    i != j
+                    and interval.contains_interval(other_interval)  # type: ignore[misc]
+                    and not interval.range_matches(other_interval)  # type: ignore[misc]
                 ):
                     is_minimal = False
                     break
             if is_minimal:
+                debug_verbose_print(f"  Minimal container: {interval}")
                 result.append((Range.from_interval(interval), interval.data))  # type: ignore[misc]
         return result

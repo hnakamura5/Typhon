@@ -2,22 +2,22 @@ a = 1
 b = c + d
 
 """stderr
-syntax error: $FILE:1:0
+syntax error: $FILE:1:1
   Symbol 'a' is referenced before declaration.
     1 |  a = 1
          ^
 
-syntax error: $FILE:2:4
+syntax error: $FILE:2:5
   Symbol 'c' is referenced before declaration.
     2 |  b = c + d
              ^
 
-syntax error: $FILE:2:8
+syntax error: $FILE:2:9
   Symbol 'd' is referenced before declaration.
     2 |  b = c + d
                  ^
 
-syntax error: $FILE:2:0
+syntax error: $FILE:2:1
   Symbol 'b' is referenced before declaration.
     2 |  b = c + d
          ^

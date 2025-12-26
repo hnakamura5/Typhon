@@ -3,6 +3,7 @@ import ast
 from contextlib import contextmanager
 from typing import Any, cast
 from ..Driver.debugging import debug_verbose_print
+from ..Grammar.typhon_ast import DefinesName, get_defined_name
 
 
 # Match the AST node to right module recursively
@@ -47,9 +48,17 @@ class MatchingVisitor(ast.NodeVisitor):
         if type(node) is not type(right):
             # TODO: Error rescue: Type mismatch
             raise ValueError(f"Type mismatch: {ast.dump(node)} vs {ast.dump(right)}")
-
+        # Commit the match
         self._commit(node, right)
-
+        # Check defined name
+        if isinstance(node, DefinesName):
+            left_name = get_defined_name(node)
+            right_name = get_defined_name(cast(DefinesName, right))
+            if left_name is not None and right_name is not None:
+                with self._with_right(right_name):
+                    self.visit(left_name)
+            # Allow defined name not matching
+        # Recursively visit fields
         for field, value in ast.iter_fields(node):
             right_value = getattr(right, field, None)
             if isinstance(value, list):

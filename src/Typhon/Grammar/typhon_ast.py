@@ -1,9 +1,9 @@
 # Ast Extensions for Typhon
-
 import ast
 from typing import Union, Unpack, TypedDict, Tuple, cast
 from dataclasses import dataclass
 from copy import copy
+from tokenize import TokenInfo
 from ..Driver.debugging import debug_print, debug_verbose_print
 
 
@@ -70,10 +70,11 @@ def get_pos_attributes_if_exists(node: ast.AST) -> PosAttributes | None:
 
 
 def get_empty_pos_attributes() -> PosAttributes:
+    # Python ast position is 1-based for line, 0-based for column
     return PosAttributes(
-        lineno=0,
+        lineno=1,
         col_offset=0,
-        end_lineno=0,
+        end_lineno=1,
         end_col_offset=0,
     )
 
@@ -1143,10 +1144,45 @@ def is_static(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     return getattr(node, IS_STATIC, False)
 
 
+_DEFINED_NAME = "_typh_defined_name"
+DefinesName = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.alias
+
+
+def get_defined_name(node: DefinesName) -> ast.Name | None:
+    return getattr(node, _DEFINED_NAME, None)
+
+
+def set_defined_name(
+    node: DefinesName,
+    name: ast.Name,
+):
+    setattr(node, _DEFINED_NAME, name)
+
+
+def set_defined_name_token(
+    node: DefinesName,
+    name: TokenInfo,
+):
+    name_node = ast.Name(
+        id=name.string,
+        lineno=name.start[0],
+        col_offset=name.start[1],
+        end_lineno=name.end[0],
+        end_col_offset=name.end[1],
+        ctx=ast.Store(),
+    )
+    setattr(node, _DEFINED_NAME, name_node)
+
+
+def clear_defined_name(node: DefinesName):
+    if hasattr(node, _DEFINED_NAME):
+        delattr(node, _DEFINED_NAME)
+
+
 def make_function_def(
     is_async: bool,
     is_static: bool,
-    name: str,
+    name: TokenInfo | str,
     args: ast.arguments,
     returns: ast.expr | None,
     body: list[ast.stmt],
@@ -1156,7 +1192,7 @@ def make_function_def(
 ) -> ast.FunctionDef | ast.AsyncFunctionDef:
     if is_async:
         result = ast.AsyncFunctionDef(
-            name=name,
+            name=name.string if isinstance(name, TokenInfo) else name,
             args=args,
             returns=returns,
             body=body,
@@ -1166,7 +1202,7 @@ def make_function_def(
         )
     else:
         result = ast.FunctionDef(
-            name=name,
+            name=name.string if isinstance(name, TokenInfo) else name,
             args=args,
             returns=returns,
             body=body,
@@ -1175,6 +1211,64 @@ def make_function_def(
             **kwargs,
         )
     set_is_static(result, is_static)
+    if isinstance(name, TokenInfo):
+        set_defined_name_token(result, name)
+    return result
+
+
+def make_class_def(
+    name: TokenInfo,
+    bases: list[ast.expr],
+    keywords: list[ast.keyword],
+    body: list[ast.stmt],
+    decorator_list: list[ast.expr],
+    type_params: list[ast.type_param],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.ClassDef:
+    result = ast.ClassDef(
+        name=name.string,
+        bases=bases,
+        keywords=keywords,
+        body=body,
+        decorator_list=decorator_list,
+        type_params=type_params,
+        **kwargs,
+    )
+    set_defined_name_token(result, name)
+    return result
+
+
+def make_alias(
+    name: list[TokenInfo],
+    asname: TokenInfo | None,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.alias:
+    result = ast.alias(
+        name=".".join(n.string for n in name),
+        asname=asname.string if asname else None,
+        **kwargs,
+    )
+    if asname is not None:
+        set_defined_name_token(result, asname)
+    else:
+        set_defined_name_token(result, name[-1])
+    return result
+
+
+# Used only the case module part exists.
+def make_import_from(
+    module: list[TokenInfo] | None,
+    names: list[ast.alias],
+    level: int,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.ImportFrom:
+    mod_name = ".".join(n.string for n in module) if module else None
+    result = ast.ImportFrom(
+        module=mod_name,
+        names=names,
+        level=level,
+        **kwargs,
+    )
     return result
 
 

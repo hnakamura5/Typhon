@@ -4,6 +4,7 @@ from ...assertion_utils import (
     SourceMapAsserter,
 )
 from .....src.Typhon.SourceMap.datatype import Range, Pos
+from .....src.Typhon.Driver.debugging import set_debug_verbose
 
 
 code_stmt_if = """
@@ -31,20 +32,58 @@ def test_match_typhon_stmt_if():
     assert_ast_transform(code_stmt_if, transformed_code_stmt_if)
     assert_typh_code_match_unparse(code_stmt_if)
     sa = SourceMapAsserter(code_stmt_if)
-    sa.assert_range(  # left_func (part of FunctionDef)
-        Range(Pos(2, 4), Pos(2, 13)),
+    sa.assert_range_text(  # left_func (defined name of FunctionDef)
         Range(Pos(1, 4), Pos(1, 13)),
+        "left_func",
+        Range(Pos(0, 4), Pos(0, 13)),
+        "left_func",
     )
     sa.assert_range(  # x: int
-        Range(start=Pos(2, 14), end=Pos(2, 20)),
-        Range(start=Pos(1, 14), end=Pos(1, 20)),
+        Range(start=Pos(1, 13), end=Pos(1, 19)),
+        Range(start=Pos(0, 13), end=Pos(0, 19)),
     )
     sa.assert_range(  # var y = 0
-        Range(start=Pos(3, 4), end=Pos(3, 13)),
-        Range(start=Pos(2, 4), end=Pos(2, 9)),
+        Range(start=Pos(2, 4), end=Pos(2, 13)),
+        Range(start=Pos(1, 4), end=Pos(1, 9)),
     )
 
-    # TODO: e.g. "left_func" is only included in FunctionDef. The range is of course whole function. How to match such a thing?
+
+code_def = """
+from decorators import my_decorator
+
+@my_decorator
+def
+left_func(x: int) -> int {
+    return x + 1
+}
+"""
+transformed_code_def = """
+from decorators import my_decorator
+
+@my_decorator
+def left_func(x: int) -> int:
+    return x + 1
+"""
+
+
+def test_match_typhon_stmt_def():
+    set_debug_verbose(True)
+    assert_ast_transform(code_def, transformed_code_def)
+    assert_typh_code_match_unparse(code_def)
+
+    sa = SourceMapAsserter(code_def)
+    sa.assert_range_text(  # my_decorator (defined name of import)
+        Range(Pos(1, 23), Pos(1, 35)),
+        "my_decorator",
+        Range(Pos(0, 23), Pos(0, 35)),
+        "my_decorator",
+    )
+    sa.assert_range_text(  # left_func (defined name of FunctionDef)
+        Range(Pos(5, 0), Pos(5, 9)),
+        "left_func",
+        Range(Pos(3, 4), Pos(3, 13)),
+        "left_func",
+    )
 
 
 code_stmt_nested_func = """

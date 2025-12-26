@@ -424,9 +424,10 @@ class Parser(PegenParser):
         # tokenize.py index column offset from 0 while Cpython index column
         # offset at 1 when reporting SyntaxError, so we need to increment
         # the column offset when reporting the error.
-        args = (self.filename, start[0], start[1] + 1, line)
+        # But in Typhon, first we take all the ranges as 0-based.
+        args = (self.filename, start[0], start[1], line)
         if sys.version_info >= (3, 10):
-            args += (end[0], end[1] + 1)
+            args += (end[0], end[1])
 
         return SyntaxError(message, args)
 

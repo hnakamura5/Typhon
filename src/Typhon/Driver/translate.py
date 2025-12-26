@@ -47,7 +47,11 @@ def translate_file(source: Path, output: Path) -> TranslateResult:
     translated_code = unparse_custom(ast_tree)
     source_code = source.read_text(encoding="utf-8")
     mapping = map_from_transformed_ast(
-        ast_tree, ast.parse(translated_code), source_code, source.as_posix()
+        ast_tree,
+        ast.parse(translated_code),
+        source_code,
+        source.as_posix(),
+        translated_code,
     )
     output.write_text(translated_code)
     return TranslateResult(

@@ -45,8 +45,8 @@ def test_range_from_ast_node():
     assign_node = node.body[0]  # ast.Assign
     range = Range.from_ast_node(assign_node)
     assert range
-    assert range.start == Pos(1, 0)
-    assert range.end == Pos(1, 6)  # "x = 10" ends at column 6
+    assert range.start == Pos(0, 0)
+    assert range.end == Pos(0, 6)  # "x = 10" ends at column 6
 
 
 def test_merge_ranges():

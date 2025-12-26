@@ -85,6 +85,7 @@ class ForbiddenStatementChecker(TyphonASTVisitor):
                     ast.Import,
                     ast.AnnAssign,
                     ast.Assign,
+                    ast.Pass,
                 ),
             )
         ):

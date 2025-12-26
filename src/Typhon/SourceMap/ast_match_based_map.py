@@ -3,6 +3,7 @@ from .datatype import Range, Pos, RangeIntervalTree
 from ..Grammar.typhon_ast import get_pos_attributes_if_exists
 from ..Driver.debugging import debug_print, debug_verbose_print
 from ..SourceMap.ast_matching import match_ast
+from .defined_name_retrieve import defined_name_retrieve
 
 
 class MatchBasedSourceMap:
@@ -26,7 +27,7 @@ class MatchBasedSourceMap:
             origin_pos = get_pos_attributes_if_exists(origin_node)
             if origin_pos is not None:
                 debug_verbose_print(
-                    f"Adding to origin interval tree:\n  range={Range.from_pos_attr_may_not_end(origin_pos)}\n    {ast.dump(origin_node)}\n    pos: {origin_pos}"
+                    f"Adding to origin interval tree:\n    range={Range.from_pos_attr_may_not_end(origin_pos)}\n    {ast.dump(origin_node)}\n    pos: {origin_pos}"
                 )
                 self.origin_interval_tree.add(
                     Range.from_pos_attr_may_not_end(origin_pos), origin_node
@@ -34,7 +35,7 @@ class MatchBasedSourceMap:
             unparsed_pos = get_pos_attributes_if_exists(unparsed_node)
             if unparsed_pos is not None:
                 debug_verbose_print(
-                    f"Adding to unparsed interval tree: range={Range.from_pos_attr_may_not_end(unparsed_pos)} {ast.dump(unparsed_node)}"
+                    f"  Adding to unparsed interval tree:\n    range={Range.from_pos_attr_may_not_end(unparsed_pos)}\n    {ast.dump(unparsed_node)}\n    pos: {unparsed_pos}"
                 )
                 self.unparsed_interval_tree.add(
                     Range.from_pos_attr_may_not_end(unparsed_pos), unparsed_node
@@ -143,10 +144,15 @@ def map_from_transformed_ast(
     unparsed_ast: ast.AST,
     source_code: str,
     source_file: str,
+    unparsed_code: str,
 ) -> MatchBasedSourceMap | None:
+    defined_name_retrieve(unparsed_ast, unparsed_code)
     mapping = match_ast(origin_ast, unparsed_ast)
     if mapping is None:
         return None
     return MatchBasedSourceMap(
-        mapping.left_to_right, mapping.right_to_left, source_code, source_file
+        mapping.left_to_right,
+        mapping.right_to_left,
+        source_code,
+        source_file,
     )

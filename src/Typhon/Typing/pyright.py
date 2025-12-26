@@ -86,10 +86,9 @@ def _try_read_attr[T](d: Any, attr: str, default: T) -> T:
 def _parse_pos_range(pos: Any) -> Range:
     start = _try_read_attr(pos, "start", {})
     end = _try_read_attr(pos, "end", {})
-    # All lines and columns are 0-based, convert to 1-based.
     return Range(
-        start=Pos(line=start.get("line", 0) + 1, column=start.get("character", 0) + 1),
-        end=Pos(line=end.get("line", 0) + 1, column=end.get("character", 0) + 1),
+        start=Pos(line=start.get("line", 0), column=start.get("character", 0)),
+        end=Pos(line=end.get("line", 0), column=end.get("character", 0)),
     )
 
 

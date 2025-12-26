@@ -8,8 +8,9 @@ from ...src.Typhon.Transform.transform import transform
 from ...src.Typhon.Grammar.tokenizer_custom import TokenizerCustom
 from ...src.Typhon.Grammar.token_factory_custom import token_stream_factory
 from ...src.Typhon.Grammar.unparse_custom import unparse_custom
-from ...src.Typhon.SourceMap.ast_matching import match_ast
+from ...src.Typhon.SourceMap.ast_matching import match_ast, MatchResult
 from ...src.Typhon.SourceMap.ast_match_based_map import MatchBasedSourceMap
+from ...src.Typhon.SourceMap.defined_name_retrieve import defined_name_retrieve
 from ...src.Typhon.SourceMap.datatype import Range
 from ...src.Typhon.Driver.debugging import set_debug_first_error, is_debug_first_error
 from ...src.Typhon.Grammar.syntax_errors import TyphonSyntaxErrorList
@@ -102,7 +103,7 @@ def assert_ast_equals(
     assert isinstance(parsed, ast.Module)
     print(ast.dump(parsed))
     print(unparse_custom(parsed))
-    assert unparse_custom(parsed) == python_code.strip()
+    assert unparse_custom(parsed).strip() == python_code.strip()
     return parsed
 
 
@@ -111,7 +112,7 @@ def assert_transform_equals(typhon_ast: ast.Module, python_code: str):
     transform(typhon_ast)
     print(f"Typhon AST:\n\n{unparse_custom(typhon_ast)}")
     print(f"\nTransform result:\n\n{unparse_custom(typhon_ast)}")
-    assert unparse_custom(typhon_ast) == python_code.strip()
+    assert unparse_custom(typhon_ast).strip() == python_code.strip()
 
 
 def assert_ast_transform(typhon_code: str, python_code: str):
@@ -121,7 +122,7 @@ def assert_ast_transform(typhon_code: str, python_code: str):
     print(f"Typhon code:\n{typhon_code}")
     print(f"Transform result:\n\n{unparse_custom(parsed)}")
     print(f"\nExpected Python code:\n\n{python_code.strip()}")
-    assert unparse_custom(parsed) == python_code.strip()
+    assert unparse_custom(parsed).strip() == python_code.strip()
     return parsed
 
 
@@ -193,15 +194,19 @@ def assert_ast_match_unparse_code(code: Any):
     return result
 
 
-def assert_ast_match_unparse_success(node: ast.AST):
+def assert_ast_match_unparse_success(node: ast.AST) -> tuple[MatchResult, str]:
     unparse = unparse_custom(node)
     unparsed_ast = ast.parse(unparse)
+    defined_name_retrieve(unparsed_ast, unparse)
+    print(
+        f"Unparsed code:\n{unparse}\nunparsed lines:{unparse.splitlines()}\nunparsed AST:{ast.dump(unparsed_ast)}"
+    )
     result = match_ast(node, unparsed_ast)
     assert result is not None
-    return result
+    return result, unparse
 
 
-def assert_typh_code_match_unparse(code: str):
+def assert_typh_code_match_unparse(code: str) -> tuple[MatchResult, str]:
     parsed = parse_string(code)
     assert parsed
     assert isinstance(parsed, ast.Module)
@@ -240,15 +245,47 @@ def assert_source_map_ident(code: Any):
 
 class SourceMapAsserter:
     def __init__(self, typhon_code: str):
-        mapping = assert_typh_code_match_unparse(typhon_code)
+        mapping, unparsed_code = assert_typh_code_match_unparse(typhon_code)
         self.source_map = MatchBasedSourceMap(
-            mapping.left_to_right, mapping.right_to_left, typhon_code, "<string>"
+            mapping.left_to_right,
+            mapping.right_to_left,
+            typhon_code,
+            "<string>",
         )
+        self.origin_code = typhon_code
+        self.unparsed_code = unparsed_code
 
     def assert_range(self, origin_range: Range, unparsed_range: Range):
         mapped_range = self.source_map.unparsed_range_to_origin(unparsed_range)
         assert mapped_range == origin_range, (
             f"Expected mapped range {origin_range}, got {mapped_range}"
+        )
+
+    def assert_range_text(
+        self,
+        origin_range: Range,
+        origin_text: str,
+        unparsed_range: Range,
+        unparsed_text: str,
+    ):
+        mapped_range = self.source_map.unparsed_range_to_origin(unparsed_range)
+        print(
+            f"Unparsed interval tree: {self.source_map.unparsed_interval_tree.interval_tree}"
+        )
+        assert mapped_range is not None, "Mapped range is None"
+        print(
+            f"Mapped range: origin: {origin_range} origin_text get:'{origin_range.of_string(self.origin_code)}' origin_lines:{self.origin_code.splitlines()} unparsed: {mapped_range} unparsed_text get:'{mapped_range.of_string(self.unparsed_code)}' unparsed_lines:{self.unparsed_code.splitlines()}"
+        )
+        assert mapped_range == origin_range, (
+            f"Expected mapped range {origin_range}, got {mapped_range}"
+        )
+        mapped_text = mapped_range.of_string(self.origin_code)
+        assert mapped_text == origin_text, (
+            f"Expected mapped text '{origin_text}', got '{mapped_text}'"
+        )
+        unparsed_mapped_text = unparsed_range.of_string(self.unparsed_code)
+        assert unparsed_mapped_text == unparsed_text, (
+            f"Expected unparsed text '{unparsed_text}', got '{unparsed_mapped_text}'"
         )
 
 

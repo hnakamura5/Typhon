@@ -9,8 +9,9 @@ def diag_error_file_position(
     rule: str | None,
     message: str,
 ):
+    # Range is 0-based, but line numbers displayed are 1-based
     return (
-        f"{error_type}: {file_path}:{position.start.line}:{position.start.column}{rule if rule else ''}\n"
+        f"{error_type}: {file_path}:{position.start.line + 1}:{position.start.column + 1}{rule if rule else ''}\n"
         f"  {message}"
     )
 
@@ -22,8 +23,8 @@ def positioned_source_code(
     result = ""
     len_in_digit = len(str(range_in_source.end.line)) + 1
     for line_num in range(range_in_source.start.line, range_in_source.end.line + 1):
-        if line_num >= 1 and line_num <= len(source_lines):
-            result += f"    {line_num:<{len_in_digit}}|  {source_lines[line_num - 1]}\n"
+        if line_num >= 0 and line_num < len(source_lines):
+            result += f"    {line_num + 1:<{len_in_digit}}|  {source_lines[line_num]}\n"
             if (
                 range_in_source.start.line == range_in_source.end.line
                 and line_num == range_in_source.start.line
