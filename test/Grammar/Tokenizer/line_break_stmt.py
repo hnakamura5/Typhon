@@ -1,4 +1,4 @@
-from ..assertion_utils import show_token, assert_ast_equals, TokenizerAsserter
+from ..assertion_utils import show_token, assert_parse, TokenizerAsserter
 from tokenize import NAME, OP, NEWLINE, ENDMARKER, NUMBER
 
 code_class_line_brk = """
@@ -86,7 +86,7 @@ def test_class_line_brk():
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
 
-    assert_ast_equals(code_class_line_brk, result_class_line_brk)
+    assert_parse(code_class_line_brk, result_class_line_brk)
 
 
 code_stmt_line_brk = """
@@ -227,4 +227,4 @@ def test_stmt_line_brk():
     ta.next(OP, "}")
     ta.next(NEWLINE, "\n")  # This is ignored NEWLINE in function
     ta.next(ENDMARKER, "")
-    assert_ast_equals(code_stmt_line_brk, result_stmt_line_brk)
+    assert_parse(code_stmt_line_brk, result_stmt_line_brk)

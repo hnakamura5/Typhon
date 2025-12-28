@@ -1,8 +1,8 @@
 from ..assertion_utils import (
     show_token,
-    assert_ast_equals,
+    assert_parse,
     TokenizerAsserter,
-    assert_ast_transform,
+    assert_transform,
 )
 from ....src.Typhon.Grammar.typhon_ast import OPTIONAL_QUESTION, FORCE_UNWRAP
 from tokenize import NAME, OP, NEWLINE, ENDMARKER
@@ -31,8 +31,8 @@ def test_postfix_op():
     ta.next(NAME, "None")
     ta.next(OP, ";")
     ta.next(ENDMARKER, "")
-    assert_ast_equals(code_postfix_op, result_postfix_op)
-    assert_ast_transform(code_postfix_op, transformed_postfix_op)
+    assert_parse(code_postfix_op, result_postfix_op)
+    assert_transform(code_postfix_op, transformed_postfix_op)
 
 
 code_postfix_op_unwrap = """
@@ -83,4 +83,4 @@ def test_postfix_op_unwrap():
     ta.next(NAME, FORCE_UNWRAP)
     ta.next(OP, ";")
     ta.next(OP, "}")
-    assert_ast_equals(code_postfix_op_unwrap, result_postfix_op_unwrap)
+    assert_parse(code_postfix_op_unwrap, result_postfix_op_unwrap)

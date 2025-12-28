@@ -1,5 +1,7 @@
 import ast
 import tokenize
+import traceback
+import contextlib
 from typing import Type, Union, Any
 import io
 from ...src.Typhon.Grammar.typhon_ast import get_pos_attributes_if_exists
@@ -13,11 +15,28 @@ from ...src.Typhon.SourceMap.ast_match_based_map import MatchBasedSourceMap
 from ...src.Typhon.SourceMap.defined_name_retrieve import defined_name_retrieve
 from ...src.Typhon.SourceMap.datatype import Range
 from ...src.Typhon.Driver.debugging import set_debug_first_error, is_debug_first_error
-from ...src.Typhon.Grammar.syntax_errors import TyphonSyntaxErrorList
+from ...src.Typhon.Grammar.syntax_errors import (
+    TyphonSyntaxErrorList,
+    get_syntax_error_in_module,
+)
 import inspect
 from contextlib import contextmanager
 
-PARSER_VERBOSE = False
+_parser_verbose = False
+
+
+def set_parser_verbose(verbose: bool):
+    global _parser_verbose
+    _parser_verbose = verbose
+
+
+@contextmanager
+def with_parser_verbose(verbose: bool):
+    global _parser_verbose
+    previous_verbose = _parser_verbose
+    _parser_verbose = verbose
+    yield
+    _parser_verbose = previous_verbose
 
 
 def assert_token(
@@ -92,22 +111,26 @@ class RawTokenStreamAsserter:
         assert_token(token, type_, string, start, end)
 
 
-def assert_ast_equals(
+def assert_parse(
     typhon_code: str,
     python_code: str,
     show_typhon_token: bool = True,
     show_python_token: bool = True,
+    allow_error_recovery: bool = False,
 ) -> ast.Module:
     show_token(typhon_code, show_typhon_token, show_python_token)
-    parsed = parse_string(typhon_code, mode="exec", verbose=PARSER_VERBOSE)
-    assert isinstance(parsed, ast.Module)
+    parsed = parse_string(typhon_code, mode="exec", verbose=_parser_verbose)
+    assert parsed is not None, "Parsing failed."
     print(ast.dump(parsed))
+    assert isinstance(parsed, ast.Module)
     print(unparse_custom(parsed))
     assert unparse_custom(parsed).strip() == python_code.strip()
+    if not allow_error_recovery:
+        assert not get_syntax_error_in_module(parsed)
     return parsed
 
 
-def assert_transform_equals(typhon_ast: ast.Module, python_code: str):
+def assert_transform_ast(typhon_ast: ast.Module, python_code: str):
     assert isinstance(typhon_ast, ast.Module)
     transform(typhon_ast)
     print(f"Typhon AST:\n\n{unparse_custom(typhon_ast)}")
@@ -115,8 +138,8 @@ def assert_transform_equals(typhon_ast: ast.Module, python_code: str):
     assert unparse_custom(typhon_ast).strip() == python_code.strip()
 
 
-def assert_ast_transform(typhon_code: str, python_code: str):
-    parsed = parse_string(typhon_code, mode="exec", verbose=PARSER_VERBOSE)
+def assert_transform(typhon_code: str, python_code: str):
+    parsed = parse_string(typhon_code, mode="exec", verbose=_parser_verbose)
     assert isinstance(parsed, ast.Module)
     transform(parsed)
     print(f"Typhon code:\n{typhon_code}")
@@ -134,22 +157,23 @@ def _assert_exception(e: Exception, exception: type, error_message: str):
         )
 
 
-def assert_ast_error(
-    typhon_code: str, exception: type = Exception, error_message: str = ""
-):
-    try:
-        parse_string(typhon_code, mode="exec", verbose=PARSER_VERBOSE)
-        assert False, "Expected exception but none was raised"
-    except Exception as e:
-        _assert_exception(e, exception, error_message)
-
-
 @contextmanager
-def first_error_test():
+def first_error_test(first: bool):
     previous_setting = is_debug_first_error()
-    set_debug_first_error(True)
+    set_debug_first_error(first)
     yield
     set_debug_first_error(previous_setting)
+
+
+def assert_parse_error(
+    typhon_code: str, exception: type = Exception, error_message: str = ""
+):
+    with first_error_test(True):
+        try:
+            parse_string(typhon_code, mode="exec", verbose=_parser_verbose)
+            assert False, "Expected exception but none was raised"
+        except Exception as e:
+            _assert_exception(e, exception, error_message)
 
 
 def assert_transform_first_error(
@@ -157,7 +181,7 @@ def assert_transform_first_error(
 ):
     parsed = parse_string(typhon_ast, mode="exec")
     assert isinstance(parsed, ast.Module)
-    with first_error_test():
+    with first_error_test(True):
         try:
             transform(parsed)
             assert False, "Expected exception but none was raised"
@@ -168,17 +192,23 @@ def assert_transform_first_error(
 def assert_transform_errors(typhon_ast: str, exceptions: list[type]):
     parsed = parse_string(typhon_ast, mode="exec")
     assert isinstance(parsed, ast.Module)
-    try:
-        transform(parsed)
-        assert False, "Expected exception but none was raised"
-    except TyphonSyntaxErrorList as e:
-        assert len(e.errors) == len(exceptions), (
-            f"Expected {len(exceptions)} errors, got {len(e.errors)}"
-        )
-        for error, expected_exception in zip(e.errors, exceptions):
-            assert isinstance(error, expected_exception), (
-                f"Expected exception {expected_exception}, got {type(error)}"
+    with first_error_test(False):
+        try:
+            transform(parsed)
+            assert False, "Expected exception but none was raised"
+        except TyphonSyntaxErrorList as e:
+            assert len(e.errors) == len(exceptions), (
+                f"Expected {len(exceptions)} errors, got {len(e.errors)}"
             )
+            for error, expected_exception in zip(e.errors, exceptions):
+                assert isinstance(error, expected_exception), (
+                    f"Expected exception {expected_exception}, got {type(error)}"
+                )
+        except Exception as e:
+            # print traceback for debugging
+            print("Unexpected exception traceback:")
+            traceback.print_exc()
+            assert False, f"Expected TyphonSyntaxErrorList, got {type(e)}"
 
 
 def assert_ast_type[T](node: ast.AST, t: Type[T]) -> T:

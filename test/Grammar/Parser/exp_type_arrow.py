@@ -1,7 +1,7 @@
 from ..assertion_utils import (
-    assert_ast_equals,
+    assert_parse,
     show_token,
-    assert_transform_equals,
+    assert_transform_ast,
     assert_typh_code_match_unparse,
 )
 
@@ -23,8 +23,8 @@ x: _typh_ar_m0_0
 
 
 def test_type_arrow_annot():
-    parsed = assert_ast_equals(type_arrow_annot_code, type_arrow_annot_result)
-    assert_transform_equals(parsed, type_arrow_annot_transformed)
+    parsed = assert_parse(type_arrow_annot_code, type_arrow_annot_result)
+    assert_transform_ast(parsed, type_arrow_annot_transformed)
     assert_typh_code_match_unparse(type_arrow_annot_code)
 
 
@@ -46,10 +46,8 @@ a: _typh_ar_m0_0
 
 
 def test_type_arrow_param_annot():
-    parsed = assert_ast_equals(
-        type_arrow_param_annot_code, type_arrow_param_annot_result
-    )
-    assert_transform_equals(parsed, type_arrow_param_annot_transformed)
+    parsed = assert_parse(type_arrow_param_annot_code, type_arrow_param_annot_result)
+    assert_transform_ast(parsed, type_arrow_param_annot_transformed)
     assert_typh_code_match_unparse(type_arrow_param_annot_code)
 
 
@@ -76,8 +74,8 @@ def h(x: int, f: _typh_ar_f1_0) -> int:
 
 
 def test_type_arrow_def_param():
-    parsed = assert_ast_equals(type_arrow_def_param_code, type_arrow_def_param_result)
-    assert_transform_equals(parsed, type_arrow_def_param_transformed)
+    parsed = assert_parse(type_arrow_def_param_code, type_arrow_def_param_result)
+    assert_transform_ast(parsed, type_arrow_def_param_transformed)
 
 
 type_arrow_func_literal_code = """
@@ -103,10 +101,8 @@ f: _typh_ar_m0_1 = _typh_fn_m0_0
 
 
 def test_type_arrow_func_literal():
-    parsed = assert_ast_equals(
-        type_arrow_func_literal_code, type_arrow_func_literal_result
-    )
-    assert_transform_equals(parsed, type_arrow_func_literal_transformed)
+    parsed = assert_parse(type_arrow_func_literal_code, type_arrow_func_literal_result)
+    assert_transform_ast(parsed, type_arrow_func_literal_transformed)
     assert_typh_code_match_unparse(type_arrow_func_literal_code)
 
 
@@ -128,8 +124,8 @@ f: _typh_ar_m0_0
 
 
 def test_type_arrow_star_etc():
-    parsed = assert_ast_equals(type_arrow_star_etc_code, type_arrow_star_etc_result)
-    assert_transform_equals(parsed, type_arrow_star_etc_transformed)
+    parsed = assert_parse(type_arrow_star_etc_code, type_arrow_star_etc_result)
+    assert_transform_ast(parsed, type_arrow_star_etc_transformed)
     assert_typh_code_match_unparse(type_arrow_star_etc_code)
 
 
@@ -151,10 +147,10 @@ f: _typh_ar_m0_0
 
 
 def test_type_arrow_single_no_paren():
-    parsed = assert_ast_equals(
+    parsed = assert_parse(
         type_arrow_single_no_paren_code, type_arrow_single_no_paren_result
     )
-    assert_transform_equals(parsed, type_arrow_single_no_paren_transformed)
+    assert_transform_ast(parsed, type_arrow_single_no_paren_transformed)
     assert_typh_code_match_unparse(type_arrow_single_no_paren_code)
 
 
@@ -176,10 +172,8 @@ x: list[_typh_ar_m0_0]
 
 
 def test_type_arrow_in_subscript():
-    parsed = assert_ast_equals(
-        type_arrow_in_subscript_code, type_arrow_in_subscript_result
-    )
-    assert_transform_equals(parsed, type_arrow_in_subscript_transformed)
+    parsed = assert_parse(type_arrow_in_subscript_code, type_arrow_in_subscript_result)
+    assert_transform_ast(parsed, type_arrow_in_subscript_transformed)
     assert_typh_code_match_unparse(type_arrow_in_subscript_code)
 
 
@@ -206,10 +200,8 @@ x: list[_typh_ar_m0_0]
 
 
 def test_type_arrow_to_subscript():
-    parsed = assert_ast_equals(
-        type_arrow_to_subscript_code, type_arrow_in_subscript_result
-    )
-    assert_transform_equals(parsed, type_arrow_to_subscript_transformed)
+    parsed = assert_parse(type_arrow_to_subscript_code, type_arrow_in_subscript_result)
+    assert_transform_ast(parsed, type_arrow_to_subscript_transformed)
     assert_typh_code_match_unparse(type_arrow_to_subscript_code)
 
 
@@ -261,8 +253,8 @@ f: _typh_ar_m0_0
 
 
 def test_type_arrow_single_no_paren_chain():
-    parsed = assert_ast_equals(
+    parsed = assert_parse(
         type_arrow_single_no_paren_chain_code, type_arrow_single_no_paren_chain_result
     )
-    assert_transform_equals(parsed, type_arrow_single_no_paren_chain_transformed)
+    assert_transform_ast(parsed, type_arrow_single_no_paren_chain_transformed)
     assert_typh_code_match_unparse(type_arrow_single_no_paren_chain_code)

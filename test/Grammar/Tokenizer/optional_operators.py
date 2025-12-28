@@ -1,8 +1,8 @@
 from ..assertion_utils import (
     show_token,
-    assert_ast_equals,
+    assert_parse,
     TokenizerAsserter,
-    assert_ast_transform,
+    assert_transform,
     AllTokenAsserter,
 )
 from ....src.Typhon.Grammar.typhon_ast import (
@@ -55,7 +55,7 @@ def test_optional_chain():
     ta.next(OP, "}")
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
-    parsed = assert_ast_equals(optional_chain_code, optional_chain_result)
+    parsed = assert_parse(optional_chain_code, optional_chain_result)
     func = parsed.body[0]
     assert isinstance(func, ast.FunctionDef)
     arg_x = func.args.args[0].annotation
@@ -94,7 +94,7 @@ def test_optional_coalesce():
     ta.next(OP, "}")
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
-    parsed = assert_ast_equals(optional_coalesce_code, optional_coalesce_result)
+    parsed = assert_parse(optional_coalesce_code, optional_coalesce_result)
     func = parsed.body[0]
     assert isinstance(func, ast.FunctionDef)
     arg_x = func.args.args[0].annotation
@@ -147,7 +147,7 @@ def test_optional_call():
     ta.next(OP, "}")
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
-    parsed = assert_ast_equals(optional_call_code, optional_call_result)
+    parsed = assert_parse(optional_call_code, optional_call_result)
     func = parsed.body[0]
     assert isinstance(func, ast.FunctionDef)
     arg_x = func.args.args[0].annotation
@@ -196,7 +196,7 @@ def test_optional_subscript():
     ta.next(OP, "}")
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
-    parsed = assert_ast_equals(optional_subscript_code, optional_subscript_result)
+    parsed = assert_parse(optional_subscript_code, optional_subscript_result)
     func = parsed.body[0]
     assert isinstance(func, ast.FunctionDef)
     arg_x = func.args.args[0].annotation

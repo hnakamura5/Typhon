@@ -1,6 +1,6 @@
 from ..assertion_utils import (
     show_token,
-    assert_ast_equals,
+    assert_parse,
     RawTokenStreamAsserter,
     AllTokenAsserter,
 )
@@ -38,7 +38,7 @@ def test_block_comment():
     ta.next(COMMENT, "#(comment in line)#", (2, 11), (2, 30))
     ta.next(NEWLINE, "\n", (2, 30), (2, 31))  # The position after the comment
     ta.next(ENDMARKER, "")
-    assert_ast_equals(block_comment_code, block_comment_result)
+    assert_parse(block_comment_code, block_comment_result)
 
 
 block_comment_multiline_code = """
@@ -65,7 +65,7 @@ def test_block_comment_multiline():
     ta.next(NUMBER, "20", (5, 12), (5, 14))
     ta.next(NEWLINE, "\n", (5, 14), (5, 15))
     ta.next(ENDMARKER, "")
-    assert_ast_equals(block_comment_multiline_code, block_comment_multiline_result)
+    assert_parse(block_comment_multiline_code, block_comment_multiline_result)
 
 
 block_comment_consecutive_code = """
@@ -91,7 +91,7 @@ def test_block_comment_consecutive():
     ta.next(NUMBER, "20", (3, 19), (3, 21))
     ta.next(NEWLINE, "\n", (3, 21), (3, 22))
     ta.next(ENDMARKER, "")
-    assert_ast_equals(block_comment_consecutive_code, block_comment_consecutive_result)
+    assert_parse(block_comment_consecutive_code, block_comment_consecutive_result)
 
 
 block_comment_sandwich_code = """
@@ -129,7 +129,7 @@ def test_block_comment_sandwich():
     ta.next(NEWLINE, "\n", (7, 8), (7, 9))
     ta.next(DEDENT, "", (8, 0), (8, 0))
     ta.next(ENDMARKER, "")
-    assert_ast_equals(block_comment_sandwich_code, block_comment_sandwich_result)
+    assert_parse(block_comment_sandwich_code, block_comment_sandwich_result)
 
 
 block_comment_string_code = """
@@ -150,7 +150,7 @@ def test_block_comment_string():
     ta.next(COMMENT, "#(this is a comment)#", (2, 43), (2, 64))
     ta.next(NEWLINE, "\n", (2, 64), (2, 65))
     ta.next(ENDMARKER, "")
-    assert_ast_equals(block_comment_string_code, block_comment_string_result)
+    assert_parse(block_comment_string_code, block_comment_string_result)
 
 
 block_comment_f_string_code = """
@@ -201,7 +201,7 @@ def test_block_comment_f_string():
     ta.next(NEWLINE, "\n", (5, 1), (5, 2))
     ta.next(ENDMARKER, "")
 
-    assert_ast_equals(
+    assert_parse(
         block_comment_f_string_code,
         block_comment_f_string_result,
         # Python tokenizer fails to parse block comments because
@@ -230,7 +230,7 @@ def func():
 
 
 def test_block_comment_docstring():
-    assert_ast_equals(block_comment_docstring_code, block_comment_docstring_result)
+    assert_parse(block_comment_docstring_code, block_comment_docstring_result)
 
 
 block_comment_docstring_single_code = """
@@ -247,7 +247,7 @@ def func():
 
 
 def test_block_comment_docstring_single():
-    assert_ast_equals(
+    assert_parse(
         block_comment_docstring_single_code, block_comment_docstring_single_result
     )
 
@@ -268,7 +268,7 @@ def func():
 
 
 def test_block_comment_docstring_f_string():
-    assert_ast_equals(
+    assert_parse(
         block_comment_docstring_f_string_code,
         block_comment_docstring_f_string_result,
         show_python_token=False,
@@ -296,7 +296,7 @@ def test_string_inside_block_comment():
     ta.next(STRING, '" "', (2, 56), (2, 59))
     ta.next(NEWLINE, "\n", (2, 59), (2, 60))
     ta.next(ENDMARKER, "")
-    assert_ast_equals(
+    assert_parse(
         string_inside_block_comment_code,
         string_inside_block_comment_result,
         show_python_token=False,

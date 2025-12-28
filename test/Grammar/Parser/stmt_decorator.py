@@ -1,6 +1,6 @@
 from ..assertion_utils import (
-    assert_ast_equals,
-    assert_transform_equals,
+    assert_parse,
+    assert_transform_ast,
 )
 
 decorator_func_code = """
@@ -34,8 +34,8 @@ def f(x: int) -> int:
 
 
 def test_decorator_func():
-    parsed = assert_ast_equals(decorator_func_code, decorator_func_result)
-    assert_transform_equals(parsed, decorator_func_transformed)
+    parsed = assert_parse(decorator_func_code, decorator_func_result)
+    assert_transform_ast(parsed, decorator_func_transformed)
 
 
 decorator_class_code = """
@@ -68,5 +68,5 @@ class MyClass:
 
 
 def test_decorator_class():
-    parsed = assert_ast_equals(decorator_class_code, decorator_class_result)
-    assert_transform_equals(parsed, decorator_class_transformed)
+    parsed = assert_parse(decorator_class_code, decorator_class_result)
+    assert_transform_ast(parsed, decorator_class_transformed)

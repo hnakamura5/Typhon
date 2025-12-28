@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_equals
+from ..assertion_utils import assert_parse
 
 empty_if_code = """
 if (True) {
@@ -11,7 +11,7 @@ if True:
 
 
 def test_stmt_if_empty():
-    assert_ast_equals(empty_if_code, empty_if_result)
+    assert_parse(empty_if_code, empty_if_result)
 
 
 if_else_code = """
@@ -32,7 +32,7 @@ else:
 
 
 def test_stmt_if_else():
-    assert_ast_equals(if_else_code, if_else_result)
+    assert_parse(if_else_code, if_else_result)
 
 
 if_nested_code = """
@@ -60,4 +60,4 @@ else:
 
 
 def test_stmt_if_nested():
-    assert_ast_equals(if_nested_code, if_nested_result)
+    assert_parse(if_nested_code, if_nested_result)

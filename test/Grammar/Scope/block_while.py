@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform, assert_transform_first_error
+from ..assertion_utils import assert_transform, assert_transform_first_error
 
 
 block_while_code = """
@@ -22,4 +22,4 @@ while x > 0:
 
 
 def test_block_while():
-    assert_ast_transform(block_while_code, block_while_result)
+    assert_transform(block_while_code, block_while_result)

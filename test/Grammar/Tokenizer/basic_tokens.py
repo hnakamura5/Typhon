@@ -1,4 +1,4 @@
-from ..assertion_utils import show_token, assert_ast_equals, TokenizerAsserter
+from ..assertion_utils import show_token, assert_parse, TokenizerAsserter
 from tokenize import NAME, OP, NEWLINE, ENDMARKER
 
 
@@ -83,4 +83,4 @@ def test_code_multi_stmt_tokenized():
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
 
-    assert_ast_equals(code_multi_stmt, result_multi_stmt)
+    assert_parse(code_multi_stmt, result_multi_stmt)

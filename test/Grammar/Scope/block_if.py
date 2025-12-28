@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform
+from ..assertion_utils import assert_transform
 
 block_if_code = """
 var x = 10;
@@ -28,7 +28,7 @@ else:
 
 
 def test_block_if():
-    assert_ast_transform(block_if_code, block_if_result)
+    assert_transform(block_if_code, block_if_result)
 
 
 block_if_nested_code = """
@@ -58,7 +58,7 @@ if x >= 10:
 
 
 def test_block_if_nested():
-    assert_ast_transform(block_if_nested_code, block_if_nested_result)
+    assert_transform(block_if_nested_code, block_if_nested_result)
 
 
 block_if_top_level_rename_code = """
@@ -73,6 +73,4 @@ if True:
 
 
 def test_block_if_top_level_rename():
-    assert_ast_transform(
-        block_if_top_level_rename_code, block_if_top_level_rename_result
-    )
+    assert_transform(block_if_top_level_rename_code, block_if_top_level_rename_result)

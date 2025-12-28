@@ -1,6 +1,6 @@
 from ..assertion_utils import (
-    assert_ast_equals,
-    assert_transform_equals,
+    assert_parse,
+    assert_transform_ast,
     assert_typh_code_match_unparse,
 )
 
@@ -19,8 +19,8 @@ gen = (_typh_cn_m0_1_i * _typh_cn_m0_1_i for _typh_cn_m0_0_i in range(100000000)
 
 
 def test_comp_gen():
-    parsed = assert_ast_equals(comp_gen_code, comp_gen_result)
-    assert_transform_equals(parsed, comp_gen_transformed)
+    parsed = assert_parse(comp_gen_code, comp_gen_result)
+    assert_transform_ast(parsed, comp_gen_transformed)
     assert_typh_code_match_unparse(comp_gen_code)
 
 
@@ -36,8 +36,8 @@ odd_sq = [_typh_cn_m0_0_i * _typh_cn_m0_0_i for _typh_cn_m0_0_i in range(10) if 
 
 
 def test_comp_list():
-    parsed = assert_ast_equals(comp_list_code, comp_list_result)
-    assert_transform_equals(parsed, comp_list_transformed)
+    parsed = assert_parse(comp_list_code, comp_list_result)
+    assert_transform_ast(parsed, comp_list_transformed)
     assert_typh_code_match_unparse(comp_list_code)
 
 
@@ -54,8 +54,8 @@ odd_sq = [_typh_cn_m0_0_i * _typh_cn_m0_0_i for _typh_cn_m0_0_i in range(10) if 
 
 
 def test_comp_list_annotated():
-    parsed = assert_ast_equals(comp_list_annotated_code, comp_list_annotated_result)
-    assert_transform_equals(parsed, comp_list_annotated_transformed)
+    parsed = assert_parse(comp_list_annotated_code, comp_list_annotated_result)
+    assert_transform_ast(parsed, comp_list_annotated_transformed)
     assert_typh_code_match_unparse(comp_list_annotated_code)
 
 
@@ -75,8 +75,8 @@ mul_odd = {_typh_cn_m0_0_i * _typh_cn_m0_1_j for _typh_cn_m0_0_i in range(10) if
 
 
 def test_comp_set():
-    parsed = assert_ast_equals(comp_set_code, comp_set_result)
-    assert_transform_equals(parsed, comp_set_transformed)
+    parsed = assert_parse(comp_set_code, comp_set_result)
+    assert_transform_ast(parsed, comp_set_transformed)
     assert_typh_code_match_unparse(comp_set_code)
 
 
@@ -98,8 +98,8 @@ mul_odd = {_typh_cn_m0_0_i * _typh_cn_m0_1_j for _typh_cn_m0_0_i in range(10) if
 
 
 def test_comp_set_annotated():
-    parsed = assert_ast_equals(comp_set_annotated_code, comp_set_annotated_result)
-    assert_transform_equals(parsed, comp_set_annotated_transformed)
+    parsed = assert_parse(comp_set_annotated_code, comp_set_annotated_result)
+    assert_transform_ast(parsed, comp_set_annotated_transformed)
     assert_typh_code_match_unparse(comp_set_annotated_code)
 
 
@@ -118,8 +118,8 @@ square_dict = {_typh_cn_m0_0_i: _typh_cn_m0_0_i * _typh_cn_m0_0_i for _typh_cn_m
 
 
 def test_comp_dict():
-    parsed = assert_ast_equals(comp_dict_code, comp_dict_result)
-    assert_transform_equals(parsed, comp_dict_transformed)
+    parsed = assert_parse(comp_dict_code, comp_dict_result)
+    assert_transform_ast(parsed, comp_dict_transformed)
     assert_typh_code_match_unparse(comp_dict_code)
 
 
@@ -153,8 +153,8 @@ def comp_gen_noinline():
 
 
 def test_comp_gen_noinline():
-    parsed = assert_ast_equals(comp_gen_noinline_code, comp_gen_noinline_result)
-    assert_transform_equals(parsed, comp_gen_noinline_transformed)
+    parsed = assert_parse(comp_gen_noinline_code, comp_gen_noinline_result)
+    assert_transform_ast(parsed, comp_gen_noinline_transformed)
     assert_typh_code_match_unparse(comp_gen_noinline_code)
 
 
@@ -185,8 +185,8 @@ def comp_list_noinline():
 
 
 def test_comp_list_noinline():
-    parsed = assert_ast_equals(comp_list_noinline_code, comp_list_noinline_result)
-    assert_transform_equals(parsed, comp_list_noinline_transformed)
+    parsed = assert_parse(comp_list_noinline_code, comp_list_noinline_result)
+    assert_transform_ast(parsed, comp_list_noinline_transformed)
     assert_typh_code_match_unparse(comp_list_noinline_code)
 
 
@@ -212,6 +212,6 @@ square_dict = {_typh_cn_m0_1___dictcomp_temp_key: _typh_cn_m0_2___dictcomp_temp_
 
 
 def test_comp_dict_noinline():
-    parsed = assert_ast_equals(comp_dict_noinline_code, comp_dict_noinline_result)
-    assert_transform_equals(parsed, comp_dict_noinline_transformed)
+    parsed = assert_parse(comp_dict_noinline_code, comp_dict_noinline_result)
+    assert_transform_ast(parsed, comp_dict_noinline_transformed)
     assert_typh_code_match_unparse(comp_dict_noinline_code)

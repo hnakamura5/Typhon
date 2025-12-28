@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform
+from ..assertion_utils import assert_transform
 
 block_def_code = """
 let x = 10;
@@ -17,7 +17,7 @@ def f(x: int) -> int:
 
 
 def test_block_def():
-    assert_ast_transform(block_def_code, block_def_result)
+    assert_transform(block_def_code, block_def_result)
 
 
 block_def_nested_code = """
@@ -47,7 +47,7 @@ def f(x: int, y: int) -> int:
 
 
 def test_block_def_nested():
-    assert_ast_transform(block_def_nested_code, block_def_nested_result)
+    assert_transform(block_def_nested_code, block_def_nested_result)
 
 
 block_def_type_param_code = """
@@ -64,4 +64,4 @@ def f[T](x: T) -> T:
 
 
 def test_block_def_type_param():
-    assert_ast_transform(block_def_type_param_code, block_def_type_param_result)
+    assert_transform(block_def_type_param_code, block_def_type_param_result)

@@ -1,6 +1,6 @@
 from ..assertion_utils import (
-    assert_ast_equals,
-    assert_ast_transform,
+    assert_parse,
+    assert_transform,
     assert_typh_code_match_unparse,
 )
 from ....src.Typhon.Transform.name_generator import (
@@ -20,8 +20,8 @@ a: int | None = None
 
 
 def test_postfix_op():
-    assert_ast_equals(postfix_op_code, postfix_op_result)
-    assert_ast_transform(postfix_op_code, postfix_op_transformed)
+    assert_parse(postfix_op_code, postfix_op_result)
+    assert_transform(postfix_op_code, postfix_op_transformed)
     assert_typh_code_match_unparse(postfix_op_code)
 
 
@@ -49,8 +49,8 @@ def unwrap(x: int | None, y: int | None) -> int:
 
 
 def test_postfix_op_unwrap():
-    assert_ast_equals(postfix_op_unwrap_code, postfix_op_unwrap_result)
-    assert_ast_transform(postfix_op_unwrap_code, postfix_op_unwrap_transformed)
+    assert_parse(postfix_op_unwrap_code, postfix_op_unwrap_result)
+    assert_transform(postfix_op_unwrap_code, postfix_op_unwrap_transformed)
     assert_typh_code_match_unparse(postfix_op_unwrap_code)
 
 
@@ -70,8 +70,8 @@ def func(x: list[int] | None) -> int | None:
 
 
 def test_optional_chain():
-    assert_ast_equals(optional_chain_code, optional_chain_result)
-    assert_ast_transform(optional_chain_code, optional_chain_transformed)
+    assert_parse(optional_chain_code, optional_chain_result)
+    assert_transform(optional_chain_code, optional_chain_transformed)
     assert_typh_code_match_unparse(optional_chain_code)
 
 
@@ -91,8 +91,8 @@ def func(x: int | None) -> int:
 
 
 def test_optional_coalesce():
-    assert_ast_equals(optional_coalesce_code, optional_coalesce_result)
-    assert_ast_transform(optional_coalesce_code, optional_coalesce_transformed)
+    assert_parse(optional_coalesce_code, optional_coalesce_result)
+    assert_transform(optional_coalesce_code, optional_coalesce_transformed)
     assert_typh_code_match_unparse(optional_coalesce_code)
 
 
@@ -119,8 +119,8 @@ def func(f: _typh_ar_f1_1 | None) -> int | None:
 
 
 def test_optional_call():
-    assert_ast_equals(optional_call_code, optional_call_result)
-    assert_ast_transform(optional_call_code, optional_call_transformed)
+    assert_parse(optional_call_code, optional_call_result)
+    assert_transform(optional_call_code, optional_call_transformed)
     assert_typh_code_match_unparse(optional_call_code)
 
 
@@ -140,8 +140,8 @@ def func(a: list[int] | None) -> int | None:
 
 
 def test_optional_subscript():
-    assert_ast_equals(optional_subscript_code, optional_subscript_result)
-    assert_ast_transform(optional_subscript_code, optional_subscript_transformed)
+    assert_parse(optional_subscript_code, optional_subscript_result)
+    assert_transform(optional_subscript_code, optional_subscript_transformed)
     assert_typh_code_match_unparse(optional_subscript_code)
 
 
@@ -169,6 +169,6 @@ def func(f: _typh_ar_f1_3 | None, a: list[int | None] | None) -> int:
 
 
 def test_optional_nested():
-    assert_ast_equals(optional_nested_code, optional_nested_result)
-    assert_ast_transform(optional_nested_code, optional_nested_transformed)
+    assert_parse(optional_nested_code, optional_nested_result)
+    assert_transform(optional_nested_code, optional_nested_transformed)
     assert_typh_code_match_unparse(optional_nested_code)

@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform, assert_transform_first_error
+from ..assertion_utils import assert_transform, assert_transform_first_error
 from ....src.Typhon.Grammar.syntax_errors import ScopeError
 
 block_with_code = """
@@ -23,7 +23,7 @@ print(x)
 
 
 def test_block_with():
-    assert_ast_transform(block_with_code, block_with_result)
+    assert_transform(block_with_code, block_with_result)
 
 
 block_with_immutable_error_code = """
@@ -56,7 +56,7 @@ with open('file.txt') as _typh_cn_m0_0_x:
 
 
 def test_block_with_top_level_rename():
-    assert_ast_transform(
+    assert_transform(
         block_with_top_level_rename_code, block_with_top_level_rename_result
     )
 
@@ -74,7 +74,7 @@ with open('file.txt') as _typh_cn_m0_0_f:
 
 
 def test_block_with_annotation():
-    assert_ast_transform(block_with_annotation_code, block_with_annotation_result)
+    assert_transform(block_with_annotation_code, block_with_annotation_result)
 
 
 block_with_multi_annotation_code = """
@@ -93,7 +93,7 @@ with open('file.txt') as _typh_cn_m0_0_f1, open('file2.txt') as _typh_cn_m0_1_f2
 
 
 def test_block_with_multi_annotation():
-    assert_ast_transform(
+    assert_transform(
         block_with_multi_annotation_code, block_with_multi_annotation_result
     )
 
@@ -123,9 +123,7 @@ with f() as _typh_vr_m0_0_:
 
 
 def test_block_with_star_annotation():
-    assert_ast_transform(
-        block_with_star_annotation_code, block_with_star_annotation_result
-    )
+    assert_transform(block_with_star_annotation_code, block_with_star_annotation_result)
 
 
 inline_with_let_code = """
@@ -154,4 +152,4 @@ def g():
 
 
 def test_inline_with_let():
-    assert_ast_transform(inline_with_let_code, inline_with_let_result)
+    assert_transform(inline_with_let_code, inline_with_let_result)

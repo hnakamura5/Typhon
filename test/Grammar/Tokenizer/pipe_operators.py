@@ -1,14 +1,15 @@
 from ..assertion_utils import (
     show_token,
-    assert_ast_equals,
+    assert_parse,
     TokenizerAsserter,
-    assert_ast_transform,
+    assert_transform,
 )
 from ....src.Typhon.Grammar.typhon_ast import (
     OPTIONAL_QUESTION,
 )
 from tokenize import NAME, OP, NEWLINE, ENDMARKER, NUMBER
 import ast
+from ....src.Typhon.Driver.debugging import set_debug_verbose
 
 pipe_operator_code = """
 def func(x: int) -> int {
@@ -56,7 +57,7 @@ def test_pipe_operator():
     ta.next(OP, "}")
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
-    assert_ast_equals(pipe_operator_code, pipe_operator_result)
+    assert_parse(pipe_operator_code, pipe_operator_result)
 
 
 optional_pipe_operator_code = """
@@ -73,6 +74,7 @@ def func(x: (int,)) -> (int,):
 
 def test_optional_pipe_operator():
     show_token(optional_pipe_operator_code)
+    set_debug_verbose(True)
     ta = TokenizerAsserter(optional_pipe_operator_code)
     ta.next(NAME, "def")
     ta.next(NAME, "func")
@@ -107,4 +109,4 @@ def test_optional_pipe_operator():
     ta.next(OP, "}")
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
-    assert_ast_equals(optional_pipe_operator_code, optional_pipe_operator_result)
+    assert_parse(optional_pipe_operator_code, optional_pipe_operator_result)

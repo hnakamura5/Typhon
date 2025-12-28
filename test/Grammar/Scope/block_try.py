@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform, assert_transform_first_error
+from ..assertion_utils import assert_transform, assert_transform_first_error
 from ....src.Typhon.Grammar.syntax_errors import ScopeError
 
 block_try_code = """
@@ -33,7 +33,7 @@ print(x)
 
 
 def test_block_try():
-    assert_ast_transform(block_try_code, block_try_result)
+    assert_transform(block_try_code, block_try_result)
 
 
 block_try_full_code = """
@@ -80,7 +80,7 @@ print(x)
 
 
 def test_block_try_full():
-    assert_ast_transform(block_try_full_code, block_try_full_result)
+    assert_transform(block_try_full_code, block_try_full_result)
 
 
 block_try_except_immutable_error_code = """

@@ -4,8 +4,13 @@ for let i in range(1) {
 
 
 """stderr
-syntax error: $FILE:1:5
+syntax error: $FILE:1:4
   expected '('
     1 |  for let i in range(1) {
-             ^^^
+            ^
+
+syntax error: $FILE:1:22
+  expected ')'
+    1 |  for let i in range(1) {
+                              ^
 """

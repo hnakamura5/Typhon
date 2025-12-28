@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform, assert_transform_first_error
+from ..assertion_utils import assert_transform, assert_transform_first_error
 from ....src.Typhon.Grammar.syntax_errors import ScopeError
 
 access_builtin_code = """
@@ -10,7 +10,7 @@ print(__file__)
 
 
 def test_access_builtin():
-    assert_ast_transform(access_builtin_code, access_builtin_result)
+    assert_transform(access_builtin_code, access_builtin_result)
 
 
 access_builtin_error_code = """

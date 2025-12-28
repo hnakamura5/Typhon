@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_equals, assert_ast_error
+from ..assertion_utils import assert_parse, assert_parse_error
 
 
 tuple_code = """
@@ -10,7 +10,7 @@ x = (1, 2, 3)
 
 
 def test_exp_tuple():
-    assert_ast_equals(tuple_code, assign_result)
+    assert_parse(tuple_code, assign_result)
 
 
 # Parentheses are necessary in Typhon.
@@ -20,4 +20,4 @@ x = 1, 2, 3;
 
 
 def test_exp_tuple_error():
-    assert_ast_error(tuple_error_code)
+    assert_parse_error(tuple_error_code)

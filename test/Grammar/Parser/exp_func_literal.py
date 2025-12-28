@@ -1,7 +1,7 @@
 from ..assertion_utils import (
-    assert_ast_equals,
+    assert_parse,
     show_token,
-    assert_transform_equals,
+    assert_transform_ast,
     assert_typh_code_match_unparse,
 )
 
@@ -17,8 +17,8 @@ f = lambda x: x + 1
 
 
 def test_exp_func_literal_exp():
-    parsed = assert_ast_equals(func_literal_exp_code, func_literal_exp_result)
-    assert_transform_equals(parsed, func_literal_exp_transformed)
+    parsed = assert_parse(func_literal_exp_code, func_literal_exp_result)
+    assert_transform_ast(parsed, func_literal_exp_transformed)
     assert_typh_code_match_unparse(func_literal_exp_code)
 
 
@@ -36,10 +36,8 @@ f = _typh_fn_m0_0
 
 
 def test_exp_func_literal_exp_typed():
-    parsed = assert_ast_equals(
-        func_literal_exp_typed_code, func_literal_exp_typed_result
-    )
-    assert_transform_equals(parsed, func_literal_exp_typed_transformed)
+    parsed = assert_parse(func_literal_exp_typed_code, func_literal_exp_typed_result)
+    assert_transform_ast(parsed, func_literal_exp_typed_transformed)
     assert_typh_code_match_unparse(func_literal_exp_typed_code)
 
 
@@ -59,8 +57,8 @@ _typh_fn_m0_0
 
 
 def test_exp_func_literal_block_():
-    parsed = assert_ast_equals(func_literal_block_code, func_literal_block_result)
-    assert_transform_equals(parsed, func_literal_block_transformed)
+    parsed = assert_parse(func_literal_block_code, func_literal_block_result)
+    assert_transform_ast(parsed, func_literal_block_transformed)
     assert_typh_code_match_unparse(func_literal_block_code)
 
 
@@ -80,10 +78,10 @@ f = _typh_fn_m0_0
 
 
 def test_exp_func_literal_block_typed():
-    parsed = assert_ast_equals(
+    parsed = assert_parse(
         func_literal_block_typed_code, func_literal_block_typed_result
     )
-    assert_transform_equals(parsed, func_literal_block_typed_transformed)
+    assert_transform_ast(parsed, func_literal_block_typed_transformed)
     assert_typh_code_match_unparse(func_literal_block_typed_code)
 
 
@@ -140,6 +138,6 @@ def test_exp_func_literal_nested():
 
 
 def test_exp_func_literal_nested():
-    parsed = assert_ast_equals(func_literal_nested_code, func_literal_nested_result)
-    assert_transform_equals(parsed, func_literal_nested_transformed)
+    parsed = assert_parse(func_literal_nested_code, func_literal_nested_result)
+    assert_transform_ast(parsed, func_literal_nested_transformed)
     assert_typh_code_match_unparse(func_literal_nested_code)

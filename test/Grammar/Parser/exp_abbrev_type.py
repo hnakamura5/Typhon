@@ -1,6 +1,6 @@
 from ..assertion_utils import (
-    assert_ast_equals,
-    assert_transform_equals,
+    assert_parse,
+    assert_transform_ast,
     assert_transform_first_error,
     assert_typh_code_match_unparse,
 )
@@ -20,8 +20,8 @@ t: tuple[int, str] = (1, 'a')
 
 
 def test_exp_tuple_type():
-    parsed = assert_ast_equals(tuple_type_code, tuple_type_result)
-    assert_transform_equals(parsed, tuple_type_transformed)
+    parsed = assert_parse(tuple_type_code, tuple_type_result)
+    assert_transform_ast(parsed, tuple_type_transformed)
     assert_typh_code_match_unparse(tuple_type_code)
 
 
@@ -37,8 +37,8 @@ l: list[int] = [1, 2, 3]
 
 
 def test_exp_list_type():
-    parsed = assert_ast_equals(list_type_code, list_type_result)
-    assert_transform_equals(parsed, list_type_transformed)
+    parsed = assert_parse(list_type_code, list_type_result)
+    assert_transform_ast(parsed, list_type_transformed)
     assert_typh_code_match_unparse(list_type_code)
 
 
@@ -54,8 +54,8 @@ l: list[list[int]] = [[1, 2], [3, 4]]
 
 
 def test_exp_list_type_nested():
-    parsed = assert_ast_equals(list_type_nested_code, list_type_nested_result)
-    assert_transform_equals(parsed, list_type_nested_transformed)
+    parsed = assert_parse(list_type_nested_code, list_type_nested_result)
+    assert_transform_ast(parsed, list_type_nested_transformed)
     assert_typh_code_match_unparse(list_type_nested_code)
 
 
@@ -83,8 +83,6 @@ x: tuple[int, list[str], tuple[int, int]] = (1, ['a', 'b'], (2, 3))
 
 
 def test_exp_tuple_list_type_nested():
-    parsed = assert_ast_equals(
-        tuple_list_type_nested_code, tuple_list_type_nested_result
-    )
-    assert_transform_equals(parsed, tuple_list_type_nested_transformed)
+    parsed = assert_parse(tuple_list_type_nested_code, tuple_list_type_nested_result)
+    assert_transform_ast(parsed, tuple_list_type_nested_transformed)
     assert_typh_code_match_unparse(tuple_list_type_nested_code)

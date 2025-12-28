@@ -1,8 +1,9 @@
 from ..assertion_utils import (
-    assert_ast_equals,
-    assert_transform_equals,
-    assert_ast_error,
+    assert_parse,
+    assert_transform_ast,
+    assert_parse_error,
     assert_typh_code_match_unparse,
+    with_parser_verbose,
 )
 from ....src.Typhon.Driver.debugging import set_debug_mode
 
@@ -29,8 +30,8 @@ _typh_cl_m0_2_(x=1, y='2')
 
 
 def test_record_literal():
-    parsed = assert_ast_equals(record_literal_code, record_literal_result)
-    assert_transform_equals(parsed, record_literal_transformed)
+    parsed = assert_parse(record_literal_code, record_literal_result)
+    assert_transform_ast(parsed, record_literal_transformed)
     assert_typh_code_match_unparse(record_literal_code)
 
 
@@ -42,7 +43,7 @@ def f(x: int) {
 
 
 def test_record_literal_positional_error():
-    assert_ast_error(record_literal_positional_error_code, SyntaxError)
+    assert_parse_error(record_literal_positional_error_code, SyntaxError)
 
 
 record_literal_annotation_code = """
@@ -68,10 +69,10 @@ _typh_cl_m0_2_(x=1, y='2', z=3)
 
 
 def test_record_literal_annotation():
-    parsed = assert_ast_equals(
+    parsed = assert_parse(
         record_literal_annotation_code, record_literal_annotation_result
     )
-    assert_transform_equals(parsed, record_literal_annotation_transformed)
+    assert_transform_ast(parsed, record_literal_annotation_transformed)
     assert_typh_code_match_unparse(record_literal_annotation_code)
 
 
@@ -102,8 +103,9 @@ def func(r: _typh_cl_f1_2_[int, str]) -> None:
 
 
 def test_record_type():
-    parsed = assert_ast_equals(record_type_code, record_type_result)
-    assert_transform_equals(parsed, record_type_transformed)
+    with with_parser_verbose(True):
+        parsed = assert_parse(record_type_code, record_type_result)
+    assert_transform_ast(parsed, record_type_transformed)
     assert_typh_code_match_unparse(record_type_code)
 
 
@@ -115,7 +117,7 @@ def func(r: {|int, str|}) -> None {
 
 
 def test_record_type_positional_error():
-    assert_ast_error(record_type_positional_error_code, SyntaxError)
+    assert_parse_error(record_type_positional_error_code, SyntaxError)
 
 
 attribute_pattern_code = """
@@ -151,8 +153,8 @@ def f(r):
 
 
 def test_attribute_pattern():
-    parsed = assert_ast_equals(attribute_pattern_code, attribute_pattern_result)
-    assert_transform_equals(parsed, attribute_pattern_transformed)
+    parsed = assert_parse(attribute_pattern_code, attribute_pattern_result)
+    assert_transform_ast(parsed, attribute_pattern_transformed)
     assert_typh_code_match_unparse(attribute_pattern_code)
 
 
@@ -232,10 +234,10 @@ f(_typh_cl_m0_2_(x=1, y=(2, 'example')))
 
 
 def test_attribute_pattern_if_let():
-    parsed = assert_ast_equals(
+    parsed = assert_parse(
         attribute_pattern_if_let_code, attribute_pattern_if_let_result
     )
-    assert_transform_equals(parsed, attribute_pattern_if_let_transformed)
+    assert_transform_ast(parsed, attribute_pattern_if_let_transformed)
     assert_typh_code_match_unparse(attribute_pattern_if_let_code)
 
 
@@ -272,8 +274,8 @@ def f(r):
 
 
 def test_attribute_pattern_positional():
-    parsed = assert_ast_equals(
+    parsed = assert_parse(
         attribute_pattern_positional_code, attribute_pattern_positional_result
     )
-    assert_transform_equals(parsed, attribute_pattern_positional_transformed)
+    assert_transform_ast(parsed, attribute_pattern_positional_transformed)
     assert_typh_code_match_unparse(attribute_pattern_positional_code)

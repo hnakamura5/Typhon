@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_equals, show_token
+from ..assertion_utils import assert_parse, show_token
 
 
 and_code = """
@@ -11,7 +11,7 @@ a = True and False
 
 def test_and():
     show_token(and_code)
-    assert_ast_equals(and_code, and_result)
+    assert_parse(and_code, and_result)
 
 
 or_code = """
@@ -23,7 +23,7 @@ a = True or False
 
 
 def test_or():
-    assert_ast_equals(or_code, or_result)
+    assert_parse(or_code, or_result)
 
 
 not_code = """
@@ -35,7 +35,7 @@ a = not True
 
 
 def test_not():
-    assert_ast_equals(not_code, not_result)
+    assert_parse(not_code, not_result)
 
 
 is_code = """
@@ -47,7 +47,7 @@ a = x is y
 
 
 def test_is():
-    assert_ast_equals(is_code, is_result)
+    assert_parse(is_code, is_result)
 
 
 is_not_code = """
@@ -59,7 +59,7 @@ a = x is not y
 
 
 def test_is_not():
-    assert_ast_equals(is_not_code, is_not_result)
+    assert_parse(is_not_code, is_not_result)
 
 
 in_code = """
@@ -71,7 +71,7 @@ a = x in y
 
 
 def test_in():
-    assert_ast_equals(in_code, in_result)
+    assert_parse(in_code, in_result)
 
 
 not_in_code = """
@@ -83,4 +83,4 @@ a = x not in y
 
 
 def test_not_in():
-    assert_ast_equals(not_in_code, not_in_result)
+    assert_parse(not_in_code, not_in_result)

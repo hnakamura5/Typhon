@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_equals
+from ..assertion_utils import assert_parse, with_parser_verbose
 
 try_code = """
 try {
@@ -16,7 +16,7 @@ except:
 
 
 def test_stmt_try():
-    assert_ast_equals(try_code, try_result)
+    assert_parse(try_code, try_result)
 
 
 try_finally_code = """
@@ -39,7 +39,7 @@ finally:
 
 
 def test_stmt_try_finally():
-    assert_ast_equals(try_finally_code, try_finally_result)
+    assert_parse(try_finally_code, try_finally_result)
 
 
 try_except_else_code = """
@@ -62,7 +62,7 @@ else:
 
 
 def test_stmt_try_except_else():
-    assert_ast_equals(try_except_else_code, try_except_else_result)
+    assert_parse(try_except_else_code, try_except_else_result)
 
 
 try_except_error_code = """
@@ -81,7 +81,7 @@ except TypeError as e:
 
 
 def test_stmt_try_except_error():
-    assert_ast_equals(try_except_error_code, try_except_error_result)
+    assert_parse(try_except_error_code, try_except_error_result)
 
 
 try_except_star_code = """
@@ -100,4 +100,4 @@ except* TypeError as e:
 
 
 def test_stmt_try_except_star():
-    assert_ast_equals(try_except_star_code, try_except_star_result)
+    assert_parse(try_except_star_code, try_except_star_result)

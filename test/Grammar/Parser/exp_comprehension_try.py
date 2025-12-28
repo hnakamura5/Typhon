@@ -1,6 +1,6 @@
 from ..assertion_utils import (
-    assert_ast_equals,
-    assert_transform_equals,
+    assert_parse,
+    assert_transform_ast,
     assert_typh_code_match_unparse,
 )
 
@@ -23,9 +23,9 @@ val = _typh_cc_m0_0()
 
 
 def test_comp_try():
-    parsed = assert_ast_equals(comp_try_code, comp_try_result)
+    parsed = assert_parse(comp_try_code, comp_try_result)
     # No transformation is done for try comprehension
-    assert_transform_equals(parsed, comp_try_transformed)
+    assert_transform_ast(parsed, comp_try_transformed)
     assert_typh_code_match_unparse(comp_try_code)
 
 
@@ -51,8 +51,8 @@ def f(x, y):
 
 
 def test_comp_try_none():
-    parsed = assert_ast_equals(comp_try_none_code, comp_try_none_result)
-    assert_transform_equals(parsed, comp_try_none_transformed)
+    parsed = assert_parse(comp_try_none_code, comp_try_none_result)
+    assert_transform_ast(parsed, comp_try_none_transformed)
     assert_typh_code_match_unparse(comp_try_none_code)
 
 
@@ -88,6 +88,6 @@ def f(x, y):
 
 
 def test_comp_try_many():
-    parsed = assert_ast_equals(comp_try_many_code, comp_try_many_result)
-    assert_transform_equals(parsed, comp_try_many_transformed)
+    parsed = assert_parse(comp_try_many_code, comp_try_many_result)
+    assert_transform_ast(parsed, comp_try_many_transformed)
     assert_typh_code_match_unparse(comp_try_many_code)

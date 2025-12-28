@@ -9,7 +9,7 @@ from ..Driver.debugging import debug_print, is_debug_first_error
 _SYNTAX_ERROR_IN_MODULE = "_typh_syntax_error_in_module"
 
 
-class TyphonSyntaxError(Exception):
+class TyphonSyntaxError(SyntaxError):
     message: str
     pos: PosAttributes
 
@@ -22,20 +22,18 @@ class TyphonSyntaxError(Exception):
         return f"{self.message} at {self.pos}"
 
 
-def set_syntax_error_in_module(
-    module: ast.Module, error_details: list[TyphonSyntaxError]
-):
-    setattr(module, _SYNTAX_ERROR_IN_MODULE, error_details)
+def set_syntax_error(node: ast.AST, error_details: list[SyntaxError]):
+    setattr(node, _SYNTAX_ERROR_IN_MODULE, error_details)
 
 
-def add_syntax_error_in_module(module: ast.Module, error_detail: TyphonSyntaxError):
+def add_syntax_error_in_module(module: ast.Module, error_detail: SyntaxError):
     if not hasattr(module, _SYNTAX_ERROR_IN_MODULE):
         setattr(module, _SYNTAX_ERROR_IN_MODULE, [])
     error_list = getattr(module, _SYNTAX_ERROR_IN_MODULE)
     error_list.append(error_detail)
 
 
-def get_syntax_error_in_module(module: ast.Module) -> list[TyphonSyntaxError] | None:
+def get_syntax_error_in_module(module: ast.Module) -> list[SyntaxError] | None:
     return getattr(module, _SYNTAX_ERROR_IN_MODULE, None)
 
 

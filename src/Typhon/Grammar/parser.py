@@ -29,7 +29,7 @@ def parse_file(
             py_version=py_version,
             verbose=verbose,
         )
-        assert isinstance(parsed, ast.Module)
+        assert isinstance(parsed, ast.Module), f"Parsing failed: {parsed}"
         return parsed
 
 
@@ -44,10 +44,11 @@ def parse_tokenizer(
         tokenizer=tokenizer,
         mode="file",
         py_version=py_version,
-        verbose=verbose,
+        # verbose=verbose,
+        verbose=True,  # [HN]
     )
     # Must be successful parse
-    assert isinstance(parsed, ast.AST)
+    assert isinstance(parsed, ast.AST), f"Parsing failed: {parsed}"
     return parsed
 
 

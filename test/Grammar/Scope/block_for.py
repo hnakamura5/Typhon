@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform
+from ..assertion_utils import assert_transform
 
 block_for_code = """
 var x = range(5);
@@ -20,7 +20,7 @@ for _typh_cn_m0_0_x in x:
 
 
 def test_block_for():
-    assert_ast_transform(block_for_code, block_for_result)
+    assert_transform(block_for_code, block_for_result)
 
 
 for_unpack_typed_code = """
@@ -43,7 +43,7 @@ for _typh_vr_m0_1__typh_vr_m0_0_ in [(1, 1.0), (2, 2.0)]:
 
 
 def test_stmt_for_unpack_typed():
-    assert_ast_transform(for_unpack_typed_code, for_unpack_typed_result)
+    assert_transform(for_unpack_typed_code, for_unpack_typed_result)
 
 
 code_for_typed_arrow = """
@@ -84,4 +84,4 @@ def func(fs: list[_typh_ar_f1_0]) -> None:
 
 
 def test_stmt_for_typed_arrow():
-    assert_ast_transform(code_for_typed_arrow, result_for_typed_arrow)
+    assert_transform(code_for_typed_arrow, result_for_typed_arrow)

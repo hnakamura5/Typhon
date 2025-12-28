@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform, assert_transform_first_error
+from ..assertion_utils import assert_transform, assert_transform_first_error
 from ....src.Typhon.Grammar.syntax_errors import ScopeError
 
 block_match_code = """
@@ -56,4 +56,4 @@ print(x)
 
 
 def test_block_match():
-    assert_ast_transform(block_match_code, block_match_result)
+    assert_transform(block_match_code, block_match_result)

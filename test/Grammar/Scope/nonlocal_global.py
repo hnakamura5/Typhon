@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform, assert_transform_first_error
+from ..assertion_utils import assert_transform, assert_transform_first_error
 from ....src.Typhon.Grammar.syntax_errors import ScopeError
 
 
@@ -23,7 +23,7 @@ print(x)
 
 
 def test_global_var():
-    assert_ast_transform(global_var_code, global_var_result)
+    assert_transform(global_var_code, global_var_result)
 
 
 global_var_ref_code = """
@@ -43,7 +43,7 @@ f()
 
 
 def test_global_var_ref():
-    assert_ast_transform(global_var_ref_code, global_var_ref_result)
+    assert_transform(global_var_ref_code, global_var_ref_result)
 
 
 global_let_error_code = """
@@ -88,7 +88,7 @@ f()
 
 
 def test_nonlocal_var():
-    assert_ast_transform(nonlocal_var_code, nonlocal_var_result)
+    assert_transform(nonlocal_var_code, nonlocal_var_result)
 
 
 nonlocal_var_ref_code = """
@@ -113,7 +113,7 @@ f()
 
 
 def test_nonlocal_var_ref():
-    assert_ast_transform(nonlocal_var_ref_code, nonlocal_var_ref_result)
+    assert_transform(nonlocal_var_ref_code, nonlocal_var_ref_result)
 
 
 nonlocal_let_error_code = """

@@ -6,17 +6,12 @@ import sys
 import tokenize
 
 import enum
-import io
-import itertools
-import os
-import token
 from typing import (
     Any,
     Callable,
     Iterator,
     List,
     Literal,
-    NoReturn,
     Sequence,
     Tuple,
     TypeVar,
@@ -57,6 +52,8 @@ EXPR_NAME_MAPPING: dict[type, str] = {
     ast.NamedExpr: "named expression",
 }
 
+from ..Driver.debugging import is_debug_first_error
+
 # Singleton ast nodes, created once for efficiency
 Load = ast.Load()
 Store = ast.Store()
@@ -83,6 +80,7 @@ class PositionedNode(Protocol):
 class Parser(PegenParser):
     #: Name of the source file, used in error reports
     filename: str
+    errors: List[SyntaxError]
 
     def __init__(
         self,
@@ -97,8 +95,10 @@ class Parser(PegenParser):
         self.py_version = (
             min(py_version, sys.version_info) if py_version else sys.version_info
         )
+        self.call_invalid_rules = True
+        self.errors = []
 
-    def parse(self, rule: str, call_invalid_rules: bool = False) -> Optional[ast.AST]:
+    def parse(self, rule: str, call_invalid_rules: bool = True) -> Optional[ast.AST]:
         old = self.call_invalid_rules
         self.call_invalid_rules = call_invalid_rules
         res = getattr(self, rule)()
@@ -401,25 +401,14 @@ class Parser(PegenParser):
             kwarg=after_star[2],
         )
 
-    def _build_syntax_error(
+    def build_syntax_error(
         self,
         message: str,
-        start: Optional[Tuple[int, int]] = None,
-        end: Optional[Tuple[int, int]] = None,
+        start: Tuple[int, int],
+        end: Tuple[int, int],
     ) -> SyntaxError:
-        line_from_token = start is None and end is None
-        if start is None or end is None:
-            tok = self._tokenizer.diagnose()
-            start = start or tok.start
-            end = end or tok.end
-
-        if line_from_token:
-            line = tok.line
-        else:
-            # End is used only to get the proper text
-            line = "\\n".join(
-                self._tokenizer.get_lines(list(range(start[0], end[0] + 1)))
-            )
+        # End is used only to get the proper text
+        line = "\\n".join(self._tokenizer.get_lines(list(range(start[0], end[0] + 1))))
 
         # tokenize.py index column offset from 0 while Cpython index column
         # offset at 1 when reporting SyntaxError, so we need to increment
@@ -429,20 +418,16 @@ class Parser(PegenParser):
         if sys.version_info >= (3, 10):
             args += (end[0], end[1])
 
-        return SyntaxError(message, args)
+        result = SyntaxError(message, args)
+        self.errors.append(result)
+        if is_debug_first_error():
+            raise result
+        return result
 
     def raise_raw_syntax_error(
-        self,
-        message: str,
-        start: Optional[Tuple[int, int]] = None,
-        end: Optional[Tuple[int, int]] = None,
-    ) -> NoReturn:
-        raise self._build_syntax_error(message, start, end)
-
-    def make_syntax_error(
-        self, message: str, filename: str = "<unknown>"
+        self, message: str, start: Tuple[int, int], end: Tuple[int, int]
     ) -> SyntaxError:
-        return self._build_syntax_error(message)
+        return self.build_syntax_error(message, start, end)
 
     def expect_forced(self, res: Any, expectation: str) -> Optional[tokenize.TokenInfo]:
         if res is None:
@@ -457,10 +442,10 @@ class Parser(PegenParser):
             )
         return res
 
-    def raise_syntax_error(self, message: str) -> NoReturn:
+    def raise_syntax_error(self, message: str) -> SyntaxError:
         """Raise a syntax error."""
         tok = self._tokenizer.diagnose()
-        raise self._build_syntax_error(
+        return self.build_syntax_error(
             message,
             tok.start,
             tok.end if sys.version_info >= (3, 12) or tok.type != 4 else tok.start,
@@ -468,7 +453,7 @@ class Parser(PegenParser):
 
     def raise_syntax_error_known_location(
         self, message: str, node: PositionedNode | tokenize.TokenInfo
-    ) -> NoReturn:
+    ) -> SyntaxError:
         """Raise a syntax error that occured at a given AST node."""
         if isinstance(node, tokenize.TokenInfo):
             start = node.start
@@ -477,14 +462,14 @@ class Parser(PegenParser):
             start = node.lineno, node.col_offset
             end = node.end_lineno, node.end_col_offset
 
-        raise self._build_syntax_error(message, start, end)
+        return self.build_syntax_error(message, start, end)
 
     def raise_syntax_error_known_range(
         self,
         message: str,
         start_node: Union[PositionedNode, tokenize.TokenInfo],
         end_node: Union[PositionedNode, tokenize.TokenInfo],
-    ) -> NoReturn:
+    ) -> SyntaxError:
         if isinstance(start_node, tokenize.TokenInfo):
             start = start_node.start
         else:
@@ -495,11 +480,11 @@ class Parser(PegenParser):
         else:
             end = end_node.end_lineno, end_node.end_col_offset
 
-        raise self._build_syntax_error(message, start, end)
+        return self.build_syntax_error(message, start, end)
 
     def raise_syntax_error_starting_from(
         self, message: str, start_node: Union[PositionedNode, tokenize.TokenInfo]
-    ) -> NoReturn:
+    ) -> SyntaxError:
         if isinstance(start_node, tokenize.TokenInfo):
             start = start_node.start
         else:
@@ -507,7 +492,7 @@ class Parser(PegenParser):
 
         last_token = self._tokenizer.diagnose()
 
-        raise self._build_syntax_error(message, start, last_token.start)
+        return self.build_syntax_error(message, start, last_token.start)
 
     def raise_syntax_error_invalid_target(
         self, target: Target, node: Optional[ast.AST]
@@ -528,6 +513,6 @@ class Parser(PegenParser):
             msg, cast(PositionedNode, invalid_target)
         )
 
-    def raise_syntax_error_on_next_token(self, message: str) -> NoReturn:
+    def raise_syntax_error_on_next_token(self, message: str) -> SyntaxError:
         next_token = self._tokenizer.peek()
-        raise self._build_syntax_error(message, next_token.start, next_token.end)
+        return self.build_syntax_error(message, next_token.start, next_token.end)

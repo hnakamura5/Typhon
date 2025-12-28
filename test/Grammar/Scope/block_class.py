@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform
+from ..assertion_utils import assert_transform
 
 
 block_class_code = """
@@ -21,7 +21,7 @@ a = A()
 
 
 def test_block_class():
-    assert_ast_transform(block_class_code, block_class_result)
+    assert_transform(block_class_code, block_class_result)
 
 
 block_class_nested_code = """
@@ -60,7 +60,7 @@ a.g()
 
 
 def test_block_class_nested():
-    assert_ast_transform(block_class_nested_code, block_class_nested_result)
+    assert_transform(block_class_nested_code, block_class_nested_result)
 
 
 block_class_not_renamed_code = """
@@ -85,7 +85,7 @@ class A:
 
 
 def test_block_class_not_renamed():
-    assert_ast_transform(block_class_not_renamed_code, block_class_not_renamed_result)
+    assert_transform(block_class_not_renamed_code, block_class_not_renamed_result)
 
 
 block_class_const_to_property_code = """
@@ -109,7 +109,7 @@ class A:
 
 
 def test_block_class_const_to_property():
-    assert_ast_transform(
+    assert_transform(
         block_class_const_to_property_code, block_class_const_to_property_result
     )
 
@@ -146,4 +146,4 @@ class A:
 
 
 def test_block_class_const_nested():
-    assert_ast_transform(block_class_const_nested_code, block_class_const_nested_result)
+    assert_transform(block_class_const_nested_code, block_class_const_nested_result)

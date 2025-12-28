@@ -1,8 +1,9 @@
 from ..assertion_utils import (
     show_token,
-    assert_ast_equals,
+    assert_parse,
     TokenizerAsserter,
-    assert_ast_transform,
+    assert_transform,
+    set_parser_verbose,
 )
 from ....src.Typhon.Grammar.typhon_ast import OPTIONAL_QUESTION, FORCE_UNWRAP
 from tokenize import (
@@ -33,7 +34,7 @@ func(42)
 
 
 def test_f_string():
-    assert_ast_equals(f_string_code, f_string_result)
+    assert_parse(f_string_code, f_string_result)
 
 
 f_string_conversion_code = """
@@ -86,4 +87,5 @@ def test_f_string_conversion():
     ta.next(OP, ")")
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
-    assert_ast_equals(f_string_conversion_code, f_string_conversion_result)
+    set_parser_verbose(True)
+    assert_parse(f_string_conversion_code, f_string_conversion_result)

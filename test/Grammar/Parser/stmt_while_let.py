@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_equals, assert_ast_error, assert_ast_transform
+from ..assertion_utils import assert_parse, assert_parse_error, assert_transform
 
 while_let_none_check_code = """
 var y: int? = None
@@ -18,7 +18,7 @@ while True:
 
 
 def test_while_let_none_check():
-    assert_ast_equals(while_let_none_check_code, while_let_none_check_result)
+    assert_parse(while_let_none_check_code, while_let_none_check_result)
 
 
 while_let_multiple_code = """
@@ -94,5 +94,5 @@ def func(point1: Point, point2: Point) -> int | None:
 
 
 def test_stmt_while_let_multiple():
-    assert_ast_equals(while_let_multiple_code, while_let_multiple_result)
-    assert_ast_transform(while_let_multiple_code, while_let_multiple_transformed)
+    assert_parse(while_let_multiple_code, while_let_multiple_result)
+    assert_transform(while_let_multiple_code, while_let_multiple_transformed)

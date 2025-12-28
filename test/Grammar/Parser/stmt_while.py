@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_equals
+from ..assertion_utils import assert_parse
 
 code_while = """
 while (i < 10) {
@@ -12,4 +12,4 @@ while i < 10:
 
 
 def test_stmt_while():
-    assert_ast_equals(code_while, result_while)
+    assert_parse(code_while, result_while)

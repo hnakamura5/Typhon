@@ -1,6 +1,6 @@
 from ...assertion_utils import (
     assert_typh_code_match_unparse,
-    assert_ast_transform,
+    assert_transform,
     SourceMapAsserter,
 )
 from .....src.Typhon.SourceMap.datatype import Range, Pos
@@ -29,7 +29,7 @@ def left_func(x: int) -> int:
 
 
 def test_match_typhon_stmt_if():
-    assert_ast_transform(code_stmt_if, transformed_code_stmt_if)
+    assert_transform(code_stmt_if, transformed_code_stmt_if)
     assert_typh_code_match_unparse(code_stmt_if)
     sa = SourceMapAsserter(code_stmt_if)
     sa.assert_range_text(  # left_func (defined name of FunctionDef)
@@ -68,7 +68,7 @@ def left_func(x: int) -> int:
 
 def test_match_typhon_stmt_def():
     set_debug_verbose(True)
-    assert_ast_transform(code_def, transformed_code_def)
+    assert_transform(code_def, transformed_code_def)
     assert_typh_code_match_unparse(code_def)
 
     sa = SourceMapAsserter(code_def)

@@ -1,4 +1,4 @@
-from ..assertion_utils import show_token, assert_ast_equals, TokenizerAsserter
+from ..assertion_utils import show_token, assert_parse, TokenizerAsserter
 from tokenize import NAME, OP, NEWLINE, ENDMARKER, NUMBER
 
 code_comp_exp_line_brk = """
@@ -67,7 +67,7 @@ def test_comp_exp_line_brk():
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
 
-    assert_ast_equals(code_comp_exp_line_brk, result_comp_exp_line_brk)
+    assert_parse(code_comp_exp_line_brk, result_comp_exp_line_brk)
 
 
 code_comp_dict_line_brk = """
@@ -129,4 +129,4 @@ def test_comp_dict_line_brk():
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
 
-    assert_ast_equals(code_comp_dict_line_brk, result_comp_dict_line_brk)
+    assert_parse(code_comp_dict_line_brk, result_comp_dict_line_brk)

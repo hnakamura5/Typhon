@@ -1,6 +1,6 @@
 from ..assertion_utils import (
-    assert_ast_equals,
-    assert_ast_transform,
+    assert_parse,
+    assert_transform,
     assert_typh_code_match_unparse,
 )
 
@@ -22,8 +22,8 @@ def func(x: int) -> int:
 
 
 def test_pipe_operator():
-    assert_ast_equals(pipe_operator_code, pipe_operator_result)
-    assert_ast_transform(pipe_operator_code, pipe_operator_transform)
+    assert_parse(pipe_operator_code, pipe_operator_result)
+    assert_transform(pipe_operator_code, pipe_operator_transform)
     assert_typh_code_match_unparse(pipe_operator_code)
 
 
@@ -44,10 +44,8 @@ def func(x: int) -> int:
 
 
 def test_pipe_operator_pipeline():
-    assert_ast_equals(pipe_operator_pipeline_code, pipe_operator_pipeline_result)
-    assert_ast_transform(
-        pipe_operator_pipeline_code, pipe_operator_pipeline_transformed
-    )
+    assert_parse(pipe_operator_pipeline_code, pipe_operator_pipeline_result)
+    assert_transform(pipe_operator_pipeline_code, pipe_operator_pipeline_transformed)
     assert_typh_code_match_unparse(pipe_operator_pipeline_code)
 
 
@@ -70,10 +68,8 @@ def func(x: int | None) -> int | None:
 
 
 def test_optional_pipe_operator():
-    assert_ast_equals(optional_pipe_operator_code, optional_pipe_operator_result)
-    assert_ast_transform(
-        optional_pipe_operator_code, optional_pipe_operator_transformed
-    )
+    assert_parse(optional_pipe_operator_code, optional_pipe_operator_result)
+    assert_transform(optional_pipe_operator_code, optional_pipe_operator_transformed)
     assert_typh_code_match_unparse(optional_pipe_operator_code)
 
 
@@ -93,6 +89,6 @@ def func(x: list[int]) -> list[int]:
 
 
 def test_pipe_placeholder():
-    assert_ast_equals(pipe_placeholder_code, pipe_placeholder_result)
-    assert_ast_transform(pipe_placeholder_code, pipe_placeholder_transformed)
+    assert_parse(pipe_placeholder_code, pipe_placeholder_result)
+    assert_transform(pipe_placeholder_code, pipe_placeholder_transformed)
     assert_typh_code_match_unparse(pipe_placeholder_code)

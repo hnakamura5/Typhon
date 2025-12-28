@@ -1,5 +1,5 @@
 from ..assertion_utils import (
-    assert_ast_transform,
+    assert_transform,
     assert_transform_first_error,
     assert_transform_errors,
 )
@@ -18,7 +18,7 @@ print(x)
 
 
 def test_decl_var():
-    assert_ast_transform(decl_var_code, decl_var_result)
+    assert_transform(decl_var_code, decl_var_result)
 
 
 decl_immutable_error_code = """

@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_transform, assert_transform_first_error
+from ..assertion_utils import assert_transform, assert_transform_first_error
 from ....src.Typhon.Grammar.syntax_errors import ScopeError
 
 tdz_code = """
@@ -25,7 +25,7 @@ f()
 
 
 def test_tdz():
-    assert_ast_transform(tdz_code, tdz_result)
+    assert_transform(tdz_code, tdz_result)
 
 
 # Violation of TDZ in function call f() before declaration of g
@@ -80,7 +80,7 @@ a = A()
 
 
 def test_tdz_class():
-    assert_ast_transform(tdz_class_code, tdz_class_result)
+    assert_transform(tdz_class_code, tdz_class_result)
 
 
 tdz_violation_class_error_code = """
@@ -124,7 +124,7 @@ f()
 
 
 def test_tdz_mutation():
-    assert_ast_transform(tdz_mutation_code, tdz_mutation_result)
+    assert_transform(tdz_mutation_code, tdz_mutation_result)
 
 
 tdz_mutation_violation_error_code = """
@@ -165,7 +165,7 @@ f()
 
 
 def test_tdz_shadow():
-    assert_ast_transform(tdz_shadow_code, tdz_shadow_result)
+    assert_transform(tdz_shadow_code, tdz_shadow_result)
 
 
 tdz_shadow_violation_error_code = """
@@ -211,7 +211,7 @@ f()
 
 
 def test_tdz_mutual_recursion():
-    assert_ast_transform(tdz_mutual_recursion_code, tdz_mutual_recursion_result)
+    assert_transform(tdz_mutual_recursion_code, tdz_mutual_recursion_result)
 
 
 tdz_violation_mutual_recursion_error_code = """

@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_equals, show_token, assert_token
+from ..assertion_utils import assert_parse, show_token, assert_token
 
 code_def = """
 def func() {
@@ -12,7 +12,7 @@ def func():
 
 
 def test_stmt_def():
-    assert_ast_equals(code_def, result_def)
+    assert_parse(code_def, result_def)
 
 
 code_def_typed = """
@@ -28,7 +28,7 @@ def func(x: int) -> None:
 
 
 def test_stmt_def_typed():
-    assert_ast_equals(code_def_typed, result_def_typed)
+    assert_parse(code_def_typed, result_def_typed)
 
 
 code_def_async_typed = """
@@ -44,4 +44,4 @@ async def func(x: int) -> None:
 
 
 def test_stmt_def_async_typed():
-    assert_ast_equals(code_def_async_typed, result_def_async_typed)
+    assert_parse(code_def_async_typed, result_def_async_typed)

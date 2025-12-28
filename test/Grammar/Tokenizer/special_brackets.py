@@ -1,6 +1,6 @@
 from ..assertion_utils import (
     show_token,
-    assert_ast_equals,
+    assert_parse,
     TokenizerAsserter,
 )
 from ....src.Typhon.Grammar.typhon_ast import (
@@ -31,7 +31,7 @@ def test_record_literal():
     ta.next(OP, "|}")  # End of record literal.
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
-    parsed = assert_ast_equals(record_literal_code, record_literal_result)
+    parsed = assert_parse(record_literal_code, record_literal_result)
     expr_stmt = parsed.body[0]
     assert isinstance(expr_stmt, ast.Expr)
     name = expr_stmt.value

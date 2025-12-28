@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_equals, show_token, assert_transform_equals
+from ..assertion_utils import assert_parse, show_token, assert_transform_ast
 
 def_self_code = """
 class A {
@@ -25,8 +25,8 @@ a = A()
 
 
 def test_def_self():
-    parsed = assert_ast_equals(def_self_code, def_self_result)
-    assert_transform_equals(parsed, def_self_transformed)
+    parsed = assert_parse(def_self_code, def_self_result)
+    assert_transform_ast(parsed, def_self_transformed)
 
 
 async_def_self_code = """
@@ -54,8 +54,8 @@ a = A()
 
 
 def test_async_def_self():
-    parsed = assert_ast_equals(async_def_self_code, async_def_self_result)
-    assert_transform_equals(parsed, async_def_self_transformed)
+    parsed = assert_parse(async_def_self_code, async_def_self_result)
+    assert_transform_ast(parsed, async_def_self_transformed)
 
 
 static_def_no_self_code = """
@@ -80,8 +80,8 @@ class A:
 
 
 def test_static_def_no_self():
-    parsed = assert_ast_equals(static_def_no_self_code, static_def_no_self_result)
-    assert_transform_equals(parsed, static_def_no_self_transformed)
+    parsed = assert_parse(static_def_no_self_code, static_def_no_self_result)
+    assert_transform_ast(parsed, static_def_no_self_transformed)
 
 
 func_literal_no_self_code = """
@@ -100,8 +100,8 @@ class A:
 
 
 def test_func_literal_no_self():
-    parsed = assert_ast_equals(func_literal_no_self_code, func_literal_no_self_result)
-    assert_transform_equals(parsed, func_literal_no_self_transformed)
+    parsed = assert_parse(func_literal_no_self_code, func_literal_no_self_result)
+    assert_transform_ast(parsed, func_literal_no_self_transformed)
 
 
 def_nested_self_no_code = """
@@ -132,8 +132,8 @@ class A:
 
 
 def test_def_nested_self():
-    parsed = assert_ast_equals(def_nested_self_no_code, def_nested_self_result)
-    assert_transform_equals(parsed, def_nested_self_transformed)
+    parsed = assert_parse(def_nested_self_no_code, def_nested_self_result)
+    assert_transform_ast(parsed, def_nested_self_transformed)
 
 
 def_nested_class_self_code = """
@@ -170,5 +170,5 @@ class A:
 
 
 def test_def_nested_class_self():
-    parsed = assert_ast_equals(def_nested_class_self_code, def_nested_class_self_result)
-    assert_transform_equals(parsed, def_nested_class_self_transformed)
+    parsed = assert_parse(def_nested_class_self_code, def_nested_class_self_result)
+    assert_transform_ast(parsed, def_nested_class_self_transformed)

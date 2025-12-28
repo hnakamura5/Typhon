@@ -1,8 +1,8 @@
 from ..assertion_utils import (
-    assert_ast_equals,
+    assert_parse,
     show_token,
     assert_token,
-    assert_ast_transform,
+    assert_transform,
 )
 
 class_code = """
@@ -21,7 +21,7 @@ class MyClass:
 
 
 def test_stmt_class():
-    assert_ast_equals(class_code, class_result)
+    assert_parse(class_code, class_result)
 
 
 class_inherit_code = """
@@ -42,7 +42,7 @@ class MyClass(BaseClass):
 
 
 def test_stmt_class_inherit():
-    assert_ast_equals(class_inherit_code, class_inherit_result)
+    assert_parse(class_inherit_code, class_inherit_result)
 
 
 class_generic_code = """
@@ -61,7 +61,7 @@ class MyClass[T](T):
 
 
 def test_stmt_class_generic():
-    assert_ast_equals(class_generic_code, class_generic_result)
+    assert_parse(class_generic_code, class_generic_result)
 
 
 class_member_code = """
@@ -98,5 +98,5 @@ class MyClass:
 
 
 def test_stmt_class_member():
-    assert_ast_equals(class_member_code, class_member_result)
-    assert_ast_transform(class_member_code, class_member_transformed)
+    assert_parse(class_member_code, class_member_result)
+    assert_transform(class_member_code, class_member_transformed)

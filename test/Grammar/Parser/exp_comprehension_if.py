@@ -1,6 +1,6 @@
 from ..assertion_utils import (
-    assert_ast_equals,
-    assert_transform_equals,
+    assert_parse,
+    assert_transform_ast,
     assert_typh_code_match_unparse,
 )
 
@@ -14,7 +14,7 @@ val = 1 if True else 0
 
 
 def test_comp_if():
-    assert_ast_equals(comp_if_code, comp_if_result)
+    assert_parse(comp_if_code, comp_if_result)
     assert_typh_code_match_unparse(comp_if_code)
 
 
@@ -27,7 +27,7 @@ val = 1 if True else (2 if True else 3) if False else -1
 
 
 def test_comp_if_nested():
-    assert_ast_equals(comp_if_nested_code, comp_if_nested_result)
+    assert_parse(comp_if_nested_code, comp_if_nested_result)
     assert_typh_code_match_unparse(comp_if_nested_code)
 
 
@@ -40,7 +40,7 @@ val = 1 if True else None
 
 
 def test_comp_if_then_only():
-    assert_ast_equals(comp_if_then_only_code, comp_if_then_only_result)
+    assert_parse(comp_if_then_only_code, comp_if_then_only_result)
     assert_typh_code_match_unparse(comp_if_then_only_code)
 
 
@@ -68,8 +68,8 @@ def func(a: int | None) -> int | None:
 
 
 def test_comp_if_let():
-    parsed = assert_ast_equals(comp_if_let_code, comp_if_let_result)
-    assert_transform_equals(parsed, comp_if_let_transformed)
+    parsed = assert_parse(comp_if_let_code, comp_if_let_result)
+    assert_transform_ast(parsed, comp_if_let_transformed)
     assert_typh_code_match_unparse(comp_if_let_code)
 
 
@@ -140,6 +140,6 @@ def func(point1: Point, point2: Point) -> int | None:
 
 
 def test_comp_if_let_multiple():
-    parsed = assert_ast_equals(comp_if_let_multiple_code, comp_if_let_multiple_result)
-    assert_transform_equals(parsed, comp_if_let_multiple_transformed)
+    parsed = assert_parse(comp_if_let_multiple_code, comp_if_let_multiple_result)
+    assert_transform_ast(parsed, comp_if_let_multiple_transformed)
     assert_typh_code_match_unparse(comp_if_let_multiple_code)

@@ -15,6 +15,15 @@ class PosAttributes(TypedDict):
     end_col_offset: int | None
 
 
+def unpack_pos_default(pos: PosAttributes) -> Tuple[int, int, int, int]:
+    return (
+        pos["lineno"],
+        pos["col_offset"],
+        pos["end_lineno"] or pos["lineno"],
+        pos["end_col_offset"] or pos["col_offset"] + 1,
+    )
+
+
 class PosRange(TypedDict):
     lineno: int
     col_offset: int
@@ -46,13 +55,14 @@ type PosNode = (
     | ast.excepthandler
     | ast.pattern
     | ast.keyword
+    | ast.match_case
 )
 
 
 def get_pos_attributes(node: PosNode) -> PosAttributes:
     return PosAttributes(
-        lineno=node.lineno,
-        col_offset=node.col_offset,
+        lineno=getattr(node, "lineno", 1),
+        col_offset=getattr(node, "col_offset", 0),
         end_lineno=getattr(node, "end_lineno", None),
         end_col_offset=getattr(node, "end_col_offset", None),
     )
@@ -2183,3 +2193,15 @@ def is_case_irrefutable(case: ast.match_case) -> bool:
     if case.guard:
         return False
     return is_pattern_irrefutable(case.pattern)
+
+
+def make_match_case(
+    pattern: ast.pattern,
+    guard: ast.expr | None,
+    body: list[ast.stmt],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.match_case:
+    node = ast.match_case(pattern=pattern, guard=guard, body=body)
+    for key, value in kwargs.items():
+        setattr(node, key, value)
+    return node

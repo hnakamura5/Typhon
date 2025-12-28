@@ -1,7 +1,7 @@
 from ..assertion_utils import (
-    assert_ast_equals,
-    assert_ast_error,
-    assert_transform_equals,
+    assert_parse,
+    assert_parse_error,
+    assert_transform_ast,
 )
 
 match_code = """
@@ -23,7 +23,7 @@ match x:
 
 
 def test_stmt_match():
-    assert_ast_equals(match_code, match_result)
+    assert_parse(match_code, match_result)
 
 
 match_with_guard_code = """
@@ -46,7 +46,7 @@ match x:
 
 
 def test_stmt_match_with_guard():
-    assert_ast_equals(match_with_guard_code, match_with_guard_result)
+    assert_parse(match_with_guard_code, match_with_guard_result)
 
 
 match_sequence_code = """
@@ -70,7 +70,7 @@ match (x, y):
 
 
 def test_stmt_match_sequence():
-    assert_ast_equals(match_sequence_code, match_sequence_result)
+    assert_parse(match_sequence_code, match_sequence_result)
 
 
 match_star_code = """
@@ -88,7 +88,7 @@ match (x, y, z):
 
 
 def test_stmt_match_star():
-    assert_ast_equals(match_star_code, match_star_result)
+    assert_parse(match_star_code, match_star_result)
 
 
 match_star_error_code = """
@@ -102,7 +102,7 @@ match (x, y, z) {
 
 # TODO: Make this message better.
 def test_stmt_match_star_error():
-    assert_ast_error(match_star_error_code, SyntaxError)
+    assert_parse_error(match_star_error_code, SyntaxError)
 
 
 match_class_code = """
@@ -140,7 +140,7 @@ def func(point: Point) -> int | None:
 
 
 def test_stmt_match_class_code():
-    assert_ast_equals(match_class_code, match_class_result)
+    assert_parse(match_class_code, match_class_result)
 
 
 match_class_keyword_pattern_code = """
@@ -180,9 +180,7 @@ def func(point: Point) -> int | None:
 
 
 def test_stmt_match_class_keyword_pattern():
-    assert_ast_equals(
-        match_class_keyword_pattern_code, match_class_keyword_pattern_result
-    )
+    assert_parse(match_class_keyword_pattern_code, match_class_keyword_pattern_result)
 
 
 match_annot_code = """
@@ -222,8 +220,8 @@ def func(x: tuple[int, str]) -> int:
 
 
 def test_stmt_match_annot():
-    parsed = assert_ast_equals(match_annot_code, match_annot_result)
-    assert_transform_equals(parsed, match_annot_transformed)
+    parsed = assert_parse(match_annot_code, match_annot_result)
+    assert_transform_ast(parsed, match_annot_transformed)
 
 
 match_sequence_annot_code = """
@@ -266,5 +264,5 @@ def func(x: list[int]) -> int:
 
 
 def test_stmt_match_sequence_annot():
-    parsed = assert_ast_equals(match_sequence_annot_code, match_sequence_annot_result)
-    assert_transform_equals(parsed, match_sequence_annot_transformed)
+    parsed = assert_parse(match_sequence_annot_code, match_sequence_annot_result)
+    assert_transform_ast(parsed, match_sequence_annot_transformed)

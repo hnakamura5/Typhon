@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_ast_equals, assert_ast_type, assert_ast_transform
+from ..assertion_utils import assert_parse, assert_ast_type, assert_transform
 from ....src.Typhon.Grammar.typhon_ast import is_var, is_let
 import ast
 from ....src.Typhon.Driver.debugging import set_debug_verbose
@@ -15,7 +15,7 @@ for i in range(10):
 
 
 def test_stmt_for():
-    parsed = assert_ast_equals(code_for, result_for)
+    parsed = assert_parse(code_for, result_for)
     for_stmt = assert_ast_type(parsed.body[0], ast.For)
     assert is_let(for_stmt)
 
@@ -32,7 +32,7 @@ async for i in async_range(10):
 
 
 def test_stmt_async_for():
-    parsed = assert_ast_equals(code_async_for, result_async_for)
+    parsed = assert_parse(code_async_for, result_async_for)
     async_for_stmt = assert_ast_type(parsed.body[0], ast.AsyncFor)
     assert is_let(async_for_stmt)
 
@@ -50,7 +50,7 @@ for i in range(10):
 
 
 def test_stmt_for_typed():
-    parsed = assert_ast_equals(code_for_typed, result_for_typed)
+    parsed = assert_parse(code_for_typed, result_for_typed)
     for_stmt = assert_ast_type(parsed.body[0], ast.For)
     assert is_var(for_stmt)
 
@@ -74,7 +74,7 @@ for _typh_anonymous_0 in [(1, 1.0), (2, 2.0)]:
 
 
 def test_stmt_for_unpack():
-    parsed = assert_ast_equals(code_for_unpack, result_for_unpack)
+    parsed = assert_parse(code_for_unpack, result_for_unpack)
     for_stmt = assert_ast_type(parsed.body[0], ast.For)
     assert is_let(for_stmt)
 
@@ -99,4 +99,4 @@ for _typh_vr_m0_0_ in [(1, 1.0), (2, 2.0)]:
 
 
 def test_stmt_for_unpack_annot():
-    assert_ast_transform(code_for_unpack_annot, result_for_unpack_annot)
+    assert_transform(code_for_unpack_annot, result_for_unpack_annot)

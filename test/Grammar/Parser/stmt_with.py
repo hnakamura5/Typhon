@@ -1,7 +1,7 @@
 from ..assertion_utils import (
-    assert_ast_equals,
+    assert_parse,
     assert_ast_type,
-    assert_transform_equals,
+    assert_transform_ast,
     assert_typh_code_match_unparse,
 )
 import ast
@@ -20,7 +20,7 @@ with open(name) as f:
 
 
 def test_stmt_with():
-    parsed = assert_ast_equals(code_with, result_with)
+    parsed = assert_parse(code_with, result_with)
     with_stmt = assert_ast_type(parsed.body[0], ast.With)
     assert len(with_stmt.items) == 1
     item = with_stmt.items[0]
@@ -39,7 +39,7 @@ with open(name) as f:
 
 
 def test_stmt_with_var():
-    parsed = assert_ast_equals(code_with_var, result_with_var)
+    parsed = assert_parse(code_with_var, result_with_var)
     with_stmt = assert_ast_type(parsed.body[0], ast.With)
     assert len(with_stmt.items) == 1
     item = with_stmt.items[0]
@@ -60,7 +60,7 @@ with open(name) as f, open(name2) as g:
 
 
 def test_stmt_with_multi_let():
-    parsed = assert_ast_equals(code_with_multi_let, result_with_multi_let)
+    parsed = assert_parse(code_with_multi_let, result_with_multi_let)
     with_stmt = assert_ast_type(parsed.body[0], ast.With)
     assert len(with_stmt.items) == 2
     item1, item2 = with_stmt.items
@@ -84,7 +84,7 @@ async with open(name) as f, open(name2) as g:
 
 
 def test_stmt_async_with():
-    parsed = assert_ast_equals(code_async_with, result_async_with)
+    parsed = assert_parse(code_async_with, result_async_with)
     with_stmt = assert_ast_type(parsed.body[0], ast.AsyncWith)
     assert len(with_stmt.items) == 2
     item1, item2 = with_stmt.items
@@ -120,6 +120,6 @@ print('a')
 
 
 def test_stmt_inline_with():
-    parsed = assert_ast_equals(code_inline_with, result_inline_with)
-    assert_transform_equals(parsed, result_inline_with_transformed)
+    parsed = assert_parse(code_inline_with, result_inline_with)
+    assert_transform_ast(parsed, result_inline_with_transformed)
     assert_typh_code_match_unparse(code_inline_with)
