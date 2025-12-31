@@ -1,7 +1,7 @@
 from ..assertion_utils import (
     assert_parse,
     assert_transform_ast,
-    assert_parse_error,
+    assert_parse_first_error,
     assert_typh_code_match_unparse,
     with_parser_verbose,
 )
@@ -43,7 +43,7 @@ def f(x: int) {
 
 
 def test_record_literal_positional_error():
-    assert_parse_error(record_literal_positional_error_code, SyntaxError)
+    assert_parse_first_error(record_literal_positional_error_code, SyntaxError)
 
 
 record_literal_annotation_code = """
@@ -117,7 +117,7 @@ def func(r: {|int, str|}) -> None {
 
 
 def test_record_type_positional_error():
-    assert_parse_error(record_type_positional_error_code, SyntaxError)
+    assert_parse_first_error(record_type_positional_error_code, SyntaxError)
 
 
 attribute_pattern_code = """

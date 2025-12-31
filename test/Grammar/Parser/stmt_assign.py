@@ -2,7 +2,7 @@ from ..assertion_utils import (
     assert_parse,
     assert_transform,
     assert_transform_first_error,
-    assert_parse_error,
+    assert_parse_first_error,
 )
 from ....src.Typhon.Grammar.typhon_ast import (
     is_var_assign,
@@ -227,7 +227,7 @@ let (a, b, c): (int, int, str) = (1, 2, 'str');
 
 
 def test_decl_assign_unpack_tuple_annotation():
-    assert_parse_error(decl_assign_unpack_tuple_annotation_code, SyntaxError)
+    assert_parse_first_error(decl_assign_unpack_tuple_annotation_code, SyntaxError)
 
 
 decl_assign_unpack_annotation_each_code = """

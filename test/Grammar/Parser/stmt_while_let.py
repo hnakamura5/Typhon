@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_parse, assert_parse_error, assert_transform
+from ..assertion_utils import assert_parse, assert_parse_first_error, assert_transform
 
 while_let_none_check_code = """
 var y: int? = None

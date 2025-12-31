@@ -44,8 +44,7 @@ def parse_tokenizer(
         tokenizer=tokenizer,
         mode="file",
         py_version=py_version,
-        # verbose=verbose,
-        verbose=True,  # [HN]
+        verbose=verbose,
     )
     # Must be successful parse
     assert isinstance(parsed, ast.AST), f"Parsing failed: {parsed}"

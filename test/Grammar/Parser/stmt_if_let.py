@@ -1,6 +1,6 @@
 from ..assertion_utils import (
     assert_parse,
-    assert_parse_error,
+    assert_parse_first_error,
     assert_transform,
     assert_typh_code_match_unparse,
 )
@@ -261,7 +261,7 @@ def func(point: (int, int)) -> None {
 
 
 def test_stmt_if_let_comma_error():
-    assert_parse_error(if_let_comma_error_code, SyntaxError)
+    assert_parse_first_error(if_let_comma_error_code, SyntaxError)
 
 
 let_else_code = """

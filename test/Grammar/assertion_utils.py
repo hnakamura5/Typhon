@@ -8,12 +8,15 @@ from ...src.Typhon.Grammar.typhon_ast import get_pos_attributes_if_exists
 from ...src.Typhon.Grammar.parser import parse_string
 from ...src.Typhon.Transform.transform import transform
 from ...src.Typhon.Grammar.tokenizer_custom import TokenizerCustom
-from ...src.Typhon.Grammar.token_factory_custom import token_stream_factory
+from ...src.Typhon.Grammar.token_factory_custom import (
+    token_stream_factory,
+    generate_tokens_ignore_error,
+)
 from ...src.Typhon.Grammar.unparse_custom import unparse_custom
 from ...src.Typhon.SourceMap.ast_matching import match_ast, MatchResult
 from ...src.Typhon.SourceMap.ast_match_based_map import MatchBasedSourceMap
 from ...src.Typhon.SourceMap.defined_name_retrieve import defined_name_retrieve
-from ...src.Typhon.SourceMap.datatype import Range
+from ...src.Typhon.SourceMap.datatype import Range, Pos
 from ...src.Typhon.Driver.debugging import set_debug_first_error, is_debug_first_error
 from ...src.Typhon.Grammar.syntax_errors import (
     TyphonSyntaxErrorList,
@@ -165,7 +168,7 @@ def first_error_test(first: bool):
     set_debug_first_error(previous_setting)
 
 
-def assert_parse_error(
+def assert_parse_first_error(
     typhon_code: str, exception: type = Exception, error_message: str = ""
 ):
     with first_error_test(True):
@@ -174,6 +177,27 @@ def assert_parse_error(
             assert False, "Expected exception but none was raised"
         except Exception as e:
             _assert_exception(e, exception, error_message)
+
+
+def assert_parse_error_recovery(
+    typhon_code: str,
+    recovery_parsed_code: str,
+    expexcted_syntax_errors: list[tuple[str, Range]],
+):
+    assert expexcted_syntax_errors
+    with first_error_test(False):
+        parsed = assert_parse(
+            typhon_code, recovery_parsed_code, allow_error_recovery=True
+        )
+    parse_errors = get_syntax_error_in_module(parsed)
+    print(f"expected_syntax_errors:{expexcted_syntax_errors}\n  actural:{parse_errors}")
+    assert parse_errors
+    assert len(parse_errors) == len(expexcted_syntax_errors)
+    for error, (expected_mes, expected_range) in zip(
+        parse_errors, expexcted_syntax_errors
+    ):
+        assert expected_mes in error.msg
+        assert expected_range == Range.from_syntax_error(error)
 
 
 def assert_transform_first_error(
@@ -324,7 +348,7 @@ def show_token(
 ):
     if show_python_token:
         print("Tokens of Python tokenizer:")
-        for tok in tokenize.generate_tokens(io.StringIO(source).readline):
+        for tok in generate_tokens_ignore_error(io.StringIO(source).readline):
             print(f"    {tok}")
     if show_typhon_token:
         print("Tokens of Typhon Token Factory:")

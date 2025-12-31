@@ -1,6 +1,6 @@
 from ..assertion_utils import (
     assert_parse,
-    assert_parse_error,
+    assert_parse_first_error,
     assert_transform_ast,
 )
 
@@ -102,7 +102,7 @@ match (x, y, z) {
 
 # TODO: Make this message better.
 def test_stmt_match_star_error():
-    assert_parse_error(match_star_error_code, SyntaxError)
+    assert_parse_first_error(match_star_error_code, SyntaxError)
 
 
 match_class_code = """

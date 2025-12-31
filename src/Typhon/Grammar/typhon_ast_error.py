@@ -125,11 +125,12 @@ def maybe_invalid_stmt[T: PosNode](
     parser: Parser,
     open_paren: TokenInfo | None,
     close_paren: TokenInfo | None,
-    keyword: str,
     *,
     node: T,
+    open_anchor: PosNode | TokenInfo | None = None,
     close_anchor: PosNode | TokenInfo | None = None,
     message: str | None = None,
+    message_anchor: PosNode | TokenInfo | None = None,
 ) -> T:
     lineno, col_offset, end_lineno, end_col_offset = unpack_pos_default(
         get_pos_attributes(node)
@@ -142,8 +143,18 @@ def maybe_invalid_stmt[T: PosNode](
             (end_lineno, end_col_offset),
         )
     if open_paren is None:
-        start_loc: tuple[int, int] = (lineno, col_offset + len(keyword))
-        end_loc: tuple[int, int] = (lineno, col_offset + len(keyword) + 1)
+        start_loc: tuple[int, int] = (lineno, col_offset)
+        end_loc: tuple[int, int] = (lineno, col_offset)
+        if open_anchor:
+            if hasattr(open_anchor, "end"):  # TokenInfo
+                start_loc = open_anchor.end  # type: ignore
+                end_loc = (start_loc[0], start_loc[1] + 1)
+            else:  # PosNode
+                _, _, e_lineno, e_col = unpack_pos_default(
+                    get_pos_attributes(open_anchor)
+                )  # type: ignore
+                start_loc = (e_lineno, e_col)
+                end_loc = (e_lineno, e_col + 1)
         error = parser.build_syntax_error("expected '('", start_loc, end_loc)
     if close_paren is None:
         start_loc: tuple[int, int] = (end_lineno, end_col_offset - 1)
@@ -153,11 +164,11 @@ def maybe_invalid_stmt[T: PosNode](
                 start_loc = close_anchor.end  # type: ignore
                 end_loc = (start_loc[0], start_loc[1] + 1)
             else:  # PosNode
-                _, _, a_lineno, a_col = unpack_pos_default(
+                _, _, e_lineno, e_col = unpack_pos_default(
                     get_pos_attributes(close_anchor)
                 )  # type: ignore
-                start_loc = (a_lineno, a_col)
-                end_loc = (a_lineno, a_col + 1)
+                start_loc = (e_lineno, e_col)
+                end_loc = (e_lineno, e_col + 1)
         error2 = parser.build_syntax_error("expected ')'", start_loc, end_loc)
         if error is None:
             error = error2

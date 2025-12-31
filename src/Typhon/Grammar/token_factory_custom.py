@@ -1,3 +1,4 @@
+import token
 from typing import Callable, Iterator, Literal
 from tokenize import TokenInfo, generate_tokens
 import tokenize
@@ -5,6 +6,21 @@ import re
 from dataclasses import dataclass
 from ..Driver.debugging import debug_print, debug_verbose_print
 from enum import Enum, auto
+
+
+def generate_tokens_ignore_error(readline: Callable[[], str]) -> Iterator[TokenInfo]:
+    try:
+        for tok in generate_tokens(readline):
+            yield tok
+    except tokenize.TokenError as e:
+        # Ignore the error on EOF in multiline.
+        message: str
+        lineno: int
+        offset: int
+        message, (lineno, offset) = e.args
+        pos = (lineno, offset)
+        print(f"Tokenization error ignored at {pos}: {e}")
+        yield TokenInfo(token.ENDMARKER, "", pos, pos, "")
 
 
 def _regularize_token_type(token_type: int) -> int:
@@ -351,7 +367,7 @@ def generate_and_postprocess_tokens(
     line_offset_already_consumed = 0
     block_comment_already_output: set[_BlockComment] = set()
     # Adjust token positions from generated tokens, and mix in block comment tokens.
-    for tok in generate_tokens(readline):
+    for tok in generate_tokens_ignore_error(readline):
         debug_verbose_print(
             f"Generated token: {tok.string!r} type={tok.type} start={tok.start} end={tok.end}"
         )

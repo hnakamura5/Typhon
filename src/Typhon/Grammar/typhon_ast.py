@@ -59,7 +59,14 @@ type PosNode = (
 )
 
 
-def get_pos_attributes(node: PosNode) -> PosAttributes:
+def get_pos_attributes(node: PosNode | TokenInfo) -> PosAttributes:
+    if isinstance(node, TokenInfo):
+        return PosAttributes(
+            lineno=node.start[0],
+            col_offset=node.start[1],
+            end_lineno=node.end[0],
+            end_col_offset=node.end[1],
+        )
     return PosAttributes(
         lineno=getattr(node, "lineno", 1),
         col_offset=getattr(node, "col_offset", 0),

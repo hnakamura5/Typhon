@@ -1,4 +1,4 @@
-from ..assertion_utils import assert_parse, assert_parse_error
+from ..assertion_utils import assert_parse, assert_parse_first_error
 
 
 tuple_code = """
@@ -20,4 +20,4 @@ x = 1, 2, 3;
 
 
 def test_exp_tuple_error():
-    assert_parse_error(tuple_error_code)
+    assert_parse_first_error(tuple_error_code)
