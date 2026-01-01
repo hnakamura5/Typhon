@@ -46,7 +46,6 @@ def f() {
 
 
 def test_stmt_nonlocal_error():
-    set_debug_verbose(True)
     assert_transform_first_error(
         stmt_nonlocal_error_code,
         ForbiddenStatementError,

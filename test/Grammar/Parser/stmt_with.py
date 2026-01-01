@@ -3,9 +3,14 @@ from ..assertion_utils import (
     assert_ast_type,
     assert_transform_ast,
     assert_typh_code_match_unparse,
+    assert_parse_error_recovery,
+    Range,
+    Pos,
+    with_parser_verbose,
 )
 import ast
 from ....src.Typhon.Grammar.typhon_ast import is_var, is_let
+from ....src.Typhon.Driver.debugging import set_debug_verbose
 
 
 code_with = """
@@ -123,3 +128,65 @@ def test_stmt_inline_with():
     parsed = assert_parse(code_inline_with, result_inline_with)
     assert_transform_ast(parsed, result_inline_with_transformed)
     assert_typh_code_match_unparse(code_inline_with)
+
+
+with_parenless_code = """
+with let f = open(name) {
+    line = f.readline();
+}
+"""
+with_parenless_result = """
+with open(name) as f:
+    line = f.readline()
+"""
+
+
+def test_stmt_with_parenless():
+    assert_parse_error_recovery(
+        with_parenless_code,
+        with_parenless_result,
+        [
+            ("expected '('", Range(Pos(1, 4), Pos(1, 5))),
+            ("expected ')'", Range(Pos(1, 23), Pos(1, 24))),
+        ],
+    )
+
+
+with_braceless_code = """
+with (let f = open(name)) {
+    line = f.readline();
+"""
+with_braceless_result = """
+with open(name) as f:
+    line = f.readline()
+"""
+
+
+def test_stmt_with_braceless():
+    assert_parse_error_recovery(
+        with_braceless_code,
+        with_braceless_result,
+        [
+            ("expected '}'", Range(Pos(2, 23), Pos(2, 24))),
+        ],
+    )
+
+
+with_braceless_both_code = """
+with (let f = open(name)) line = f.readline();
+"""
+with_braceless_both_result = """
+with open(name) as f:
+    line = f.readline()
+"""
+
+
+def test_stmt_with_braceless_both():
+    assert_parse_error_recovery(
+        with_braceless_both_code,
+        with_braceless_both_result,
+        [
+            ("expected '{'", Range(Pos(1, 26), Pos(1, 27))),
+            ("expected '}'", Range(Pos(1, 45), Pos(1, 46))),
+        ],
+    )

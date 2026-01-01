@@ -67,7 +67,6 @@ def left_func(x: int) -> int:
 
 
 def test_match_typhon_stmt_def():
-    set_debug_verbose(True)
     assert_transform(code_def, transformed_code_def)
     assert_typh_code_match_unparse(code_def)
 

@@ -127,8 +127,8 @@ def maybe_invalid_stmt[T: PosNode](
     close_paren: TokenInfo | None,
     *,
     node: T,
-    open_anchor: PosNode | TokenInfo | None = None,
-    close_anchor: PosNode | TokenInfo | None = None,
+    open_anchor: PosNode | TokenInfo,
+    close_anchor: PosNode | TokenInfo,
     message: str | None = None,
     message_anchor: PosNode | TokenInfo | None = None,
 ) -> T:
@@ -145,33 +145,33 @@ def maybe_invalid_stmt[T: PosNode](
     if open_paren is None:
         start_loc: tuple[int, int] = (lineno, col_offset)
         end_loc: tuple[int, int] = (lineno, col_offset)
-        if open_anchor:
-            if hasattr(open_anchor, "end"):  # TokenInfo
-                start_loc = open_anchor.end  # type: ignore
-                end_loc = (start_loc[0], start_loc[1] + 1)
-            else:  # PosNode
-                _, _, e_lineno, e_col = unpack_pos_default(
-                    get_pos_attributes(open_anchor)
-                )  # type: ignore
-                start_loc = (e_lineno, e_col)
-                end_loc = (e_lineno, e_col + 1)
+        if isinstance(open_anchor, TokenInfo):
+            start_loc = open_anchor.end
+            end_loc = (start_loc[0], start_loc[1] + 1)
+        else:  # PosNode
+            _, _, e_lineno, e_col = unpack_pos_default(get_pos_attributes(open_anchor))
+            start_loc = (e_lineno, e_col)
+            end_loc = (e_lineno, e_col + 1)
+        print(
+            f"open paren missing: {start_loc} to {end_loc} open anchor: {open_anchor}"
+        )
         error = parser.build_syntax_error("expected '('", start_loc, end_loc)
     if close_paren is None:
         start_loc: tuple[int, int] = (end_lineno, end_col_offset - 1)
         end_loc: tuple[int, int] = (end_lineno, end_col_offset)
-        if close_anchor:
-            if hasattr(close_anchor, "end"):  # TokenInfo
-                start_loc = close_anchor.end  # type: ignore
-                end_loc = (start_loc[0], start_loc[1] + 1)
-            else:  # PosNode
-                _, _, e_lineno, e_col = unpack_pos_default(
-                    get_pos_attributes(close_anchor)
-                )  # type: ignore
-                start_loc = (e_lineno, e_col)
-                end_loc = (e_lineno, e_col + 1)
-        error2 = parser.build_syntax_error("expected ')'", start_loc, end_loc)
+        if isinstance(close_anchor, TokenInfo):
+            start_loc = close_anchor.end
+            end_loc = (start_loc[0], start_loc[1] + 1)
+        else:  # PosNode
+            _, _, e_lineno, e_col = unpack_pos_default(get_pos_attributes(close_anchor))
+            start_loc = (e_lineno, e_col)
+            end_loc = (e_lineno, e_col + 1)
+        print(
+            f"close paren missing: {start_loc} to {end_loc} close anchor: {close_anchor}"
+        )
+        close_error = parser.build_syntax_error("expected ')'", start_loc, end_loc)
         if error is None:
-            error = error2
+            error = close_error
     if error is not None:
         set_error_node(node, error)
     return node

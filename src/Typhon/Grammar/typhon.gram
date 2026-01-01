@@ -545,16 +545,15 @@ for_stmt[Union[ast.For, ast.AsyncFor]]:
 
 with_stmt[Union[ast.With, ast.AsyncWith]]:
     | block_with
-    | invalid_with_stmt
 
 block_with[Union[ast.With, ast.AsyncWith]]:
     | is_async=['async'] k='with' lp=['('] a=with_item rp=[')'] NEWLINE* b=maybe_block {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=(is_async or k), close_anchor=a,
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a[-1].context_expr,
             node=make_with_stmt(is_async=is_async is not None, items=a, body=b, is_inline=False, LOCATIONS)
         )
      }
     | is_async=['async'] k='with' lp=['('] a=with_pattern_item rp=[')'] NEWLINE* b=maybe_block {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=(is_async or k), close_anchor=a,
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a[1][-1][1],
             node=make_with_let_pattern(is_async=is_async is not None, decl_type=a[0], pattern_subjects=a[1], body=b, LOCATIONS)
         )
      }
@@ -568,14 +567,14 @@ inline_with_stmt[List[ast.stmt]]:
      }
 
 with_item[List[ast.withitem]]:
-    | a=declaration_assignment &(',' | ')' | DELIMITER) { list(map(declaration_as_withitem, a)) }
+    | a=declaration_assignment { list(map(declaration_as_withitem, a)) }
     | invalid_with_item
     | exprs=','.expression+ [','] {
         list(map(lambda e: ast.withitem(context_expr=e, optional_vars=None), exprs))
      }
 
 with_pattern_item[Tuple[str, List[Tuple[ast.pattern, ast.expr]]]]:
-    | d=decl_keyword pat_sub=','.pattern_assignment+ &(',' | ')' | DELIMITER) { (d.string, pat_sub) }
+    | d=decl_keyword pat_sub=','.pattern_assignment+ { (d.string, pat_sub) }
 
 # Try statement
 # -------------
@@ -2072,12 +2071,6 @@ invalid_import_from_targets[NoReturn]:
     | import_from_as_names ',' NEWLINE {
         self.raise_syntax_error("trailing comma not allowed without surrounding parentheses")
      }
-
-invalid_with_stmt[None]:
-    | ['async'] 'with' !('(' | decl_keyword) { self.raise_syntax_error("expected '('") }
-    | ['async'] 'with' '(' a=with_item ')' NEWLINE* !'{' {
-        self.raise_syntax_error("expected '{'")
-    }
 
 invalid_match_stmt[NoReturn]:
     | "match" !'(' { self.raise_syntax_error("expected '('") }

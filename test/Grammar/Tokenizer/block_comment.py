@@ -109,7 +109,6 @@ x = 10 + 20 - 30
 
 
 def test_block_comment_sandwich():
-    set_debug_verbose(True)
     show_token(
         block_comment_sandwich_code, show_python_token=False, show_typhon_token=False
     )
@@ -288,7 +287,6 @@ x = 10 + ' '
 
 
 def test_string_inside_block_comment():
-    set_debug_verbose(True)
     show_token(string_inside_block_comment_code)
     ta = RawTokenStreamAsserter(string_inside_block_comment_code)
     ta.next(NEWLINE, "\n")

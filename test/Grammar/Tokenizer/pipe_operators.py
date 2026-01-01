@@ -74,7 +74,6 @@ def func(x: (int,)) -> (int,):
 
 def test_optional_pipe_operator():
     show_token(optional_pipe_operator_code)
-    set_debug_verbose(True)
     ta = TokenizerAsserter(optional_pipe_operator_code)
     ta.next(NAME, "def")
     ta.next(NAME, "func")
