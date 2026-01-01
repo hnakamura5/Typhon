@@ -1,3 +1,4 @@
+import sys
 import token
 from typing import Callable, Iterator, Literal
 from tokenize import TokenInfo, generate_tokens
@@ -6,21 +7,109 @@ import re
 from dataclasses import dataclass
 from ..Driver.debugging import debug_print, debug_verbose_print
 from enum import Enum, auto
+from parso.python import tokenize as parso_tokenize
+from parso.utils import parse_version_string
+
+_parso_type_to_type: dict[parso_tokenize.PythonTokenTypes, int] = {
+    parso_tokenize.STRING: token.STRING,
+    parso_tokenize.NAME: token.NAME,
+    parso_tokenize.NUMBER: token.NUMBER,
+    parso_tokenize.OP: token.OP,
+    parso_tokenize.NEWLINE: token.NEWLINE,
+    parso_tokenize.INDENT: token.INDENT,
+    parso_tokenize.DEDENT: token.DEDENT,
+    parso_tokenize.ENDMARKER: token.ENDMARKER,
+    parso_tokenize.ERRORTOKEN: token.OP,
+    parso_tokenize.ERROR_DEDENT: token.DEDENT,
+    parso_tokenize.FSTRING_START: token.FSTRING_START,
+    parso_tokenize.FSTRING_STRING: token.FSTRING_MIDDLE,
+    parso_tokenize.FSTRING_END: token.FSTRING_END,
+}
+
+
+def is_blank(s: str):
+    return bool(re.fullmatch(r"[ \t]*", s))
+
+
+def _parso_parse_prefix(
+    prefix: str, start: tuple[int, int], lines: list[str]
+) -> list[TokenInfo]:
+    # Split the prefix into individual tokens.
+    tokens: list[TokenInfo] = []
+    prefix_lines = prefix.splitlines(keepends=True)
+    debug_verbose_print(f"Parsing prefix: {prefix_lines!r} starting at {start}")
+    for i, line in enumerate(prefix_lines):
+        lineno = start[0] - prefix.count("\n") + i
+        debug_verbose_print(
+            f"  prefix line {lineno}: {line!r}, lines[lineno-1]:{lines[lineno - 1]!r}"
+        )
+        if line.lstrip().startswith("#"):
+            col = line.find("#")
+            tokens.append(
+                TokenInfo(
+                    tokenize.COMMENT,
+                    line,
+                    (lineno, col),
+                    (lineno, len(line) - 1),
+                    lines[lineno - 1] if lineno - 1 < len(lines) else line,
+                )
+            )
+        if line.endswith("\n"):
+            tokens.append(
+                TokenInfo(
+                    tokenize.NEWLINE,
+                    "\n",
+                    (lineno, len(lines[lineno - 1]) - 1),
+                    (lineno, len(lines[lineno - 1])),
+                    line,
+                )
+            )
+    return tokens
+
+
+def _parso_token_to_python_tokens(
+    tok: parso_tokenize.Token, lines: list[str]
+) -> list[TokenInfo]:
+    start = tok.start_pos
+    line_content = lines[start[0] - 1] if start[0] - 1 < len(lines) else tok.string
+    converted_type = _parso_type_to_type[tok.type]
+    result: list[TokenInfo] = []
+    debug_verbose_print(
+        f"Converting parso token: {tok.string!r} type={tok.type} to type={converted_type}, prefix={tok.prefix!r}, prefix_target={not is_blank(tok.prefix)} pos={(start[0], start[1])}"
+    )
+    if not is_blank(tok.prefix):
+        # When prefix contains non-space character
+        result.extend(_parso_parse_prefix(tok.prefix, start, lines))
+    end_pos = tok.end_pos
+    if converted_type == tokenize.NEWLINE:
+        # Adjust the end position to be same as python's tokenizer
+        end_pos = (start[0], start[1] + 1)
+    result.append(
+        TokenInfo(
+            type=converted_type,
+            string=tok.string,
+            start=tok.start_pos,
+            end=end_pos,
+            line=line_content,
+        )
+    )
+    debug_verbose_print("  result: ", result)
+    return result
+
+
+def _generate_tokens_parso(readline: Callable[[], str]) -> Iterator[TokenInfo]:
+    lines = list(iter(readline, ""))
+    debug_verbose_print(f"Generating tokens from lines: {lines!r}")
+    code = "".join(lines)
+    for tok in parso_tokenize.tokenize(
+        code,
+        version_info=parse_version_string(),
+    ):
+        yield from _parso_token_to_python_tokens(tok, lines)
 
 
 def generate_tokens_ignore_error(readline: Callable[[], str]) -> Iterator[TokenInfo]:
-    try:
-        for tok in generate_tokens(readline):
-            yield tok
-    except tokenize.TokenError as e:
-        # Ignore the error on EOF in multiline.
-        message: str
-        lineno: int
-        offset: int
-        message, (lineno, offset) = e.args
-        pos = (lineno, offset)
-        print(f"Tokenization error ignored at {pos}: {e}")
-        yield TokenInfo(token.ENDMARKER, "", pos, pos, "")
+    yield from _generate_tokens_parso(readline)
 
 
 def _regularize_token_type(token_type: int) -> int:
@@ -359,8 +448,8 @@ class _LineParser:
         return result
 
 
-def generate_and_postprocess_tokens(
-    readline: Callable[[], str],
+def _generate_and_postprocess_tokens(
+    readline: Callable[[], str],  # After block comment is processed.
     unconsumed_block_comment: list[_BlockComment],
 ) -> Iterator[TokenInfo]:
     """Generate tokens from readline, handling block comments."""
@@ -496,6 +585,6 @@ def generate_and_postprocess_tokens(
 def token_stream_factory(readline: Callable[[], str]) -> Iterator[TokenInfo]:
     line_parser = _LineParser(readline)
 
-    yield from generate_and_postprocess_tokens(
+    yield from _generate_and_postprocess_tokens(
         line_parser.parse_next_line, line_parser.outermost_block_comments
     )

@@ -1,9 +1,9 @@
 import ast
 import tokenize
 import traceback
-import contextlib
-from typing import Type, Union, Any
 import io
+import contextlib
+from typing import Type, Union, Any, Callable
 from ...src.Typhon.Grammar.typhon_ast import get_pos_attributes_if_exists
 from ...src.Typhon.Grammar.parser import parse_string
 from ...src.Typhon.Transform.transform import transform
@@ -45,12 +45,16 @@ def with_parser_verbose(verbose: bool):
 def assert_token(
     token: tokenize.TokenInfo,
     type_: int,
-    string: str,
+    string: str | None,
     start: tuple[int, int] | None = None,
     end: tuple[int, int] | None = None,
 ):
+    print(
+        f"token: {token} expected type: {type_}({tokenize.tok_name[type_]}), string: {string}, start: {start}, end: {end}"
+    )
     assert token.type == type_, f"Expected {type_}, got {token.type}"
-    assert token.string == string, f"Expected '{string}', got '{token.string}'"
+    if string is not None:
+        assert token.string == string, f"Expected '{string}', got '{token.string}'"
     if start is not None:
         assert token.start == start, f"Expected start {start}, got {token.start}"
     if end is not None:
@@ -106,12 +110,22 @@ class RawTokenStreamAsserter:
     def next(
         self,
         type_: int,
-        string: str,
+        string: str | None = None,
         start: tuple[int, int] | None = None,
         end: tuple[int, int] | None = None,
     ):
         token = next(self.tokens)
         assert_token(token, type_, string, start, end)
+
+
+def assert_raw_tokenize_error(code: str, exception: type):
+    try:
+        for _ in tokenize.generate_tokens(io.StringIO(code).readline):
+            pass
+    except Exception as e:
+        assert isinstance(e, exception), f"Expected {exception}, got {type(e)}"
+    else:
+        assert False, "Expected exception was not raised"
 
 
 def assert_parse(
@@ -204,6 +218,7 @@ def assert_transform_first_error(
     typhon_ast: str, exception: type = Exception, error_message: str = ""
 ):
     parsed = parse_string(typhon_ast, mode="exec")
+    assert parsed is not None, "Parsing failed."
     assert isinstance(parsed, ast.Module)
     with first_error_test(True):
         try:

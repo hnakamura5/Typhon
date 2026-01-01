@@ -18,6 +18,7 @@ from tokenize import (
     FSTRING_MIDDLE,
     FSTRING_END,
 )
+from ....src.Typhon.Driver.debugging import set_debug_verbose
 
 block_comment_code = """
 let x = 10 #(comment in line)#
@@ -108,12 +109,15 @@ x = 10 + 20 - 30
 
 
 def test_block_comment_sandwich():
-    show_token(block_comment_sandwich_code)
+    set_debug_verbose(True)
+    show_token(
+        block_comment_sandwich_code, show_python_token=False, show_typhon_token=False
+    )
     ta = RawTokenStreamAsserter(block_comment_sandwich_code)
     ta.next(NEWLINE, "\n")
     ta.next(COMMENT, "#(first comment)#", (2, 0), (2, 17))
     ta.next(NEWLINE, "\n")
-    ta.next(NAME, "let")
+    ta.next(NAME, "let", (3, 0), (3, 3))
     ta.next(NAME, "x")
     ta.next(COMMENT, "#(second comment)#", (3, 6), (3, 24))
     ta.next(OP, "=")
@@ -123,11 +127,11 @@ def test_block_comment_sandwich():
     ta.next(NUMBER, "20", (4, 12), (4, 14))
     ta.next(COMMENT, "#(last\ncomment\n)#", (4, 16), (6, 2))
     ta.next(NEWLINE, "\n", (6, 2), (6, 3))
-    ta.next(INDENT, "    ", (7, 0), (7, 4))
+    ta.next(INDENT)
     ta.next(OP, "-", (7, 4), (7, 5))
     ta.next(NUMBER, "30", (7, 6), (7, 8))
     ta.next(NEWLINE, "\n", (7, 8), (7, 9))
-    ta.next(DEDENT, "", (8, 0), (8, 0))
+    ta.next(DEDENT)
     ta.next(ENDMARKER, "")
     assert_parse(block_comment_sandwich_code, block_comment_sandwich_result)
 
@@ -167,7 +171,7 @@ def func(i: int):
 
 
 def test_block_comment_f_string():
-    show_token(block_comment_f_string_code, show_python_token=False)
+    show_token(block_comment_f_string_code)
     ta = RawTokenStreamAsserter(block_comment_f_string_code)
     ta.next(NEWLINE, "\n")
     ta.next(NAME, "def")
@@ -284,6 +288,7 @@ x = 10 + ' '
 
 
 def test_string_inside_block_comment():
+    set_debug_verbose(True)
     show_token(string_inside_block_comment_code)
     ta = RawTokenStreamAsserter(string_inside_block_comment_code)
     ta.next(NEWLINE, "\n")

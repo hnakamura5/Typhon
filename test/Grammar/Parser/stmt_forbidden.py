@@ -1,5 +1,6 @@
 from ..assertion_utils import assert_transform_first_error, assert_transform_errors
 from ....src.Typhon.Grammar.syntax_errors import ForbiddenStatementError
+from ....src.Typhon.Driver.debugging import set_debug_verbose
 
 
 stmt_code_error_code = """
@@ -45,6 +46,7 @@ def f() {
 
 
 def test_stmt_nonlocal_error():
+    set_debug_verbose(True)
     assert_transform_first_error(
         stmt_nonlocal_error_code,
         ForbiddenStatementError,

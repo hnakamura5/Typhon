@@ -84,3 +84,32 @@ def test_code_multi_stmt_tokenized():
     ta.next(ENDMARKER, "")
 
     assert_parse(code_multi_stmt, result_multi_stmt)
+
+
+code_comment = """
+# This is a comment
+def func() {
+    pass  # Inline comment
+}
+"""
+result_comment = """
+def func():
+    pass
+"""
+
+
+def test_code_comment_tokenized():
+    show_token(code_comment)
+    ta = TokenizerAsserter(code_comment)
+
+    ta.next(NAME, "def")
+    ta.next(NAME, "func")
+    ta.next(OP, "(")
+    ta.next(OP, ")")
+    ta.next(OP, "{")
+    ta.next(NAME, "pass")
+    ta.next(OP, "}")
+    ta.next(NEWLINE, "\n")
+    ta.next(ENDMARKER, "")
+
+    assert_parse(code_comment, result_comment)
