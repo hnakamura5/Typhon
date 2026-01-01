@@ -1,10 +1,14 @@
 # Ast Extensions for Typhon
+from __future__ import annotations
+from typing import Union, Unpack, TypedDict, Tuple, cast, TYPE_CHECKING
 import ast
-from typing import Union, Unpack, TypedDict, Tuple, cast
 from dataclasses import dataclass
 from copy import copy
 from tokenize import TokenInfo
 from ..Driver.debugging import debug_print, debug_verbose_print
+
+if TYPE_CHECKING:
+    from .parser_helper import Parser
 
 
 # Same as ast module's position attributes
@@ -97,12 +101,15 @@ def get_empty_pos_attributes() -> PosAttributes:
 
 
 _ANONYMOUS_NAME = "_typh_anonymous"
-_anonymous_global_id = 0
 
 
 def set_anonymous_name_id(node: ast.Name, id: int) -> ast.Name:
     setattr(node, _ANONYMOUS_NAME, id)
     return node
+
+
+def get_anonymous_base_name() -> str:
+    return _ANONYMOUS_NAME
 
 
 def get_anonymous_name_id(node: ast.Name) -> int | None:
@@ -116,17 +123,6 @@ def clear_anonymous_name(node: ast.Name) -> None:
 
 def is_anonymous_name(node: ast.Name) -> bool:
     return hasattr(node, _ANONYMOUS_NAME)
-
-
-def make_anonymous_name(
-    ctx: ast.expr_context, **kwargs: Unpack[PosAttributes]
-) -> tuple[ast.Name, int]:
-    global _anonymous_global_id
-    anon_id = _anonymous_global_id
-    name = ast.Name(f"{_ANONYMOUS_NAME}_{anon_id}", ctx, **kwargs)
-    set_anonymous_name_id(name, anon_id)
-    _anonymous_global_id += 1
-    return name, anon_id
 
 
 def copy_anonymous_name(src: ast.Name, ctx: ast.expr_context) -> ast.Name:
@@ -494,6 +490,7 @@ def declaration_as_withitem(assign: Union[ast.Assign, ast.AnnAssign]) -> ast.wit
 
 
 def _make_with_let_pattern(
+    parser: Parser,
     is_async: bool,
     decl_type: str,
     pattern_subjects: list[tuple[ast.pattern, ast.expr]],
@@ -503,7 +500,9 @@ def _make_with_let_pattern(
     items: list[ast.withitem] = []
     pattern_vars: list[tuple[ast.pattern, ast.expr]] = []
     for pattern, subject in pattern_subjects:
-        var, var_id = make_anonymous_name(ast.Store(), **get_pos_attributes(pattern))
+        var, var_id = parser.make_anonymous_name(
+            ast.Store(), **get_pos_attributes(pattern)
+        )
         item = ast.withitem(context_expr=subject, optional_vars=var)
         _set_is_let_var(item, decl_type)
         items.append(item)
@@ -521,6 +520,7 @@ def _make_with_let_pattern(
 
 
 def make_with_let_pattern(
+    parser: Parser,
     is_async: bool,
     decl_type: str,
     pattern_subjects: list[tuple[ast.pattern, ast.expr]],
@@ -528,6 +528,7 @@ def make_with_let_pattern(
     **kwargs: Unpack[PosAttributes],
 ) -> ast.With | ast.AsyncWith:
     let_pattern_stmt, items = _make_with_let_pattern(
+        parser,
         is_async,
         decl_type,
         pattern_subjects,
@@ -544,6 +545,7 @@ def make_with_let_pattern(
 
 
 def make_inline_with_let_pattern(
+    parser: Parser,
     is_async: bool,
     decl_type: str,
     pattern_subjects: list[tuple[ast.pattern, ast.expr]],
@@ -569,6 +571,7 @@ def make_inline_with_let_pattern(
                 pass
     """
     let_pattern_stmt, items = _make_with_let_pattern(
+        parser,
         is_async,
         decl_type,
         pattern_subjects,
@@ -816,6 +819,7 @@ def make_for_stmt(
 
 
 def make_for_let_pattern(
+    parser: Parser,
     decl_type: str,
     pattern: ast.pattern,
     iter: ast.expr,
@@ -825,7 +829,9 @@ def make_for_let_pattern(
     is_async: bool,
     **kwargs: Unpack[PosAttributes],
 ):
-    temp_name, anon_id = make_anonymous_name(ast.Load(), **get_pos_attributes(pattern))
+    temp_name, anon_id = parser.make_anonymous_name(
+        ast.Load(), **get_pos_attributes(pattern)
+    )
     let_stmt = make_if_let(
         decl_type,
         pattern_subjects=[(pattern, temp_name)],

@@ -13,6 +13,7 @@ from typing import (
     List,
     Literal,
     Sequence,
+    Unpack,
     Tuple,
     TypeVar,
     Union,
@@ -23,6 +24,13 @@ from typing import (
 
 from pegen.tokenizer import Tokenizer
 from pegen.parser import P, memoize, memoize_left_rec, logger, Parser as PegenParser
+from ..Driver.debugging import is_debug_first_error
+from .typhon_ast import (
+    set_anonymous_name_id,
+    PosAttributes,
+    get_pos_attributes,
+    get_anonymous_base_name,
+)
 
 EXPR_NAME_MAPPING: dict[type, str] = {
     ast.Attribute: "attribute",
@@ -52,7 +60,6 @@ EXPR_NAME_MAPPING: dict[type, str] = {
     ast.NamedExpr: "named expression",
 }
 
-from ..Driver.debugging import is_debug_first_error
 
 # Singleton ast nodes, created once for efficiency
 Load = ast.Load()
@@ -81,6 +88,7 @@ class Parser(PegenParser):
     #: Name of the source file, used in error reports
     filename: str
     errors: List[SyntaxError]
+    _anonymous_id = 0
 
     def __init__(
         self,
@@ -134,6 +142,15 @@ class Parser(PegenParser):
             raise SyntaxError(
                 f"{error_msg} is only supported in Python {min_version} and above."
             )
+
+    def make_anonymous_name(
+        self, ctx: ast.expr_context, **kwargs: Unpack[PosAttributes]
+    ) -> tuple[ast.Name, int]:
+        anon_id = self._anonymous_id
+        self._anonymous_id += 1
+        name = ast.Name(f"{get_anonymous_base_name()}_{anon_id}", ctx, **kwargs)
+        set_anonymous_name_id(name, anon_id)
+        return name, anon_id
 
     def raise_indentation_error(self, msg: str) -> None:
         """Raise an indentation error."""
@@ -423,6 +440,11 @@ class Parser(PegenParser):
         if is_debug_first_error():
             raise result
         return result
+
+    def build_expected_error(
+        self, message: str, start: Tuple[int, int], end: Tuple[int, int]
+    ) -> SyntaxError:
+        return self.build_syntax_error(f"expected {message}", start, end)
 
     def raise_raw_syntax_error(
         self, message: str, start: Tuple[int, int], end: Tuple[int, int]

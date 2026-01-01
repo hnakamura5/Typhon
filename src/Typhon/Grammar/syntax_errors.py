@@ -47,9 +47,9 @@ def clear_syntax_error_in_module(module: ast.Module) -> None:
 
 
 class TyphonSyntaxErrorList(Exception):
-    errors: list[TyphonSyntaxError]
+    errors: list[SyntaxError]
 
-    def __init__(self, errors: list[TyphonSyntaxError]):
+    def __init__(self, errors: list[SyntaxError]):
         self.errors = errors
         super().__init__(self.errors)
 
@@ -60,7 +60,9 @@ class TyphonSyntaxErrorList(Exception):
 def raise_from_module_syntax_errors(module: ast.Module):
     errors = get_syntax_error_in_module(module)
     if errors is not None and len(errors) > 0:
-        raise TyphonSyntaxErrorList(errors)
+        raise TyphonSyntaxErrorList(
+            list(sorted(errors, key=lambda e: (e.lineno, e.offset)))
+        )
 
 
 def handle_syntax_error(module: ast.Module, syntax_error: TyphonSyntaxError) -> None:

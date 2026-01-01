@@ -28,7 +28,7 @@ from .typhon_ast import (
     make_alias, make_import_from,
 )
 from .typhon_ast_error import (
-    maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, invalid_try,
+    maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, invalid_try, invalid_for,
 )
 from .syntax_errors import set_syntax_error
 from .parser_helper import Parser, Load, Store, Del, Target
@@ -527,18 +527,24 @@ while_stmt[ast.While]:
 # -------------
 
 for_stmt[Union[ast.For, ast.AsyncFor]]:
-    # | invalid_for_stmt
     | is_async=['async'] k='for' lp=['('] d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ ex=star_expressions rp=[')'] tc=[TYPE_COMMENT] NEWLINE* b=maybe_block el=[else_block] {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=(is_async or k), close_anchor=ex,
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=ex,
             node=make_for_stmt(decl_type=d.string, target=t, type_annotation=a, iter=ex, body=b, orelse=el or [], type_comment=tc, is_async=is_async is not None, LOCATIONS)
         )
      }
     | is_async=['async'] k='for' lp=['('] d=decl_keyword pat=pattern 'in' ~ ex=star_expressions rp=[')'] tc=[TYPE_COMMENT] NEWLINE* b=maybe_block el=[else_block] {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=(is_async or k), close_anchor=ex,
-            node=make_for_let_pattern(decl_type=d.string, pattern=pat,iter=ex, body=b, orelse=el or [], type_comment=tc, is_async=is_async is not None, LOCATIONS)
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=ex,
+            node=make_for_let_pattern(self, decl_type=d.string, pattern=pat, iter=ex, body=b, orelse=el or [], type_comment=tc, is_async=is_async is not None, LOCATIONS)
+        )
+     }
+     # Invaid for recovery
+    | is_async=['async'] k='for' lp=['('] d=[decl_keyword] pat=[pattern] in_k=['in'] ex=[star_expressions] rp=[')'] tc=[TYPE_COMMENT] NEWLINE* &'{' b=maybe_block el=[else_block] {
+        invalid_for(self, lp, rp, is_async, d, pat, in_k, ex,
+            body=b, open_anchor=k, LOCATIONS
         )
      }
     | invalid_for_target
+
 
 # With statement
 # --------------
@@ -554,7 +560,7 @@ block_with[Union[ast.With, ast.AsyncWith]]:
      }
     | is_async=['async'] k='with' lp=['('] a=with_pattern_item rp=[')'] NEWLINE* b=maybe_block {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a[1][-1][1],
-            node=make_with_let_pattern(is_async=is_async is not None, decl_type=a[0], pattern_subjects=a[1], body=b, LOCATIONS)
+            node=make_with_let_pattern(self, is_async=is_async is not None, decl_type=a[0], pattern_subjects=a[1], body=b, LOCATIONS)
         )
      }
 
@@ -563,7 +569,7 @@ inline_with_stmt[List[ast.stmt]]:
         [make_with_stmt(is_async=is_async is not None, items=a, body=[], is_inline=True, LOCATIONS)]
      }
     | is_async=['async'] 'with' a=with_pattern_item DELIMITER {
-        make_inline_with_let_pattern(is_async=is_async is not None, decl_type=a[0], pattern_subjects=a[1], LOCATIONS)
+        make_inline_with_let_pattern(self, is_async=is_async is not None, decl_type=a[0], pattern_subjects=a[1], LOCATIONS)
      }
 
 with_item[List[ast.withitem]]:
@@ -2096,9 +2102,6 @@ invalid_class_pattern[NoReturn]:
 invalid_class_argument_pattern[List[ast.pattern]]:
     | [positional_patterns ','] keyword_patterns ',' a=positional_patterns { a }
 
-
-invalid_for_stmt[NoReturn]:
-    | ['async'] 'for' !'(' { self.raise_syntax_error("expected '('") }
 
 invalid_def_raw[NoReturn]:
     | ['async'] a='def' NAME  [type_params] '(' [params] ')' '->' expression NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }

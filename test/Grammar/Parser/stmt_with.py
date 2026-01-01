@@ -141,7 +141,7 @@ with open(name) as f:
 """
 
 
-def test_stmt_with_parenless():
+def test_stmt_with_parenless_recovery():
     assert_parse_error_recovery(
         with_parenless_code,
         with_parenless_result,
@@ -162,7 +162,7 @@ with open(name) as f:
 """
 
 
-def test_stmt_with_braceless():
+def test_stmt_with_braceless_recovery():
     assert_parse_error_recovery(
         with_braceless_code,
         with_braceless_result,

@@ -34,7 +34,7 @@ def set_parser_verbose(verbose: bool):
 
 
 @contextmanager
-def with_parser_verbose(verbose: bool):
+def with_parser_verbose(verbose: bool = True):
     global _parser_verbose
     previous_verbose = _parser_verbose
     _parser_verbose = verbose
@@ -204,8 +204,9 @@ def assert_parse_error_recovery(
             typhon_code, recovery_parsed_code, allow_error_recovery=True
         )
     parse_errors = get_syntax_error_in_module(parsed)
-    print(f"expected_syntax_errors:{expexcted_syntax_errors}\n  actural:{parse_errors}")
     assert parse_errors
+    parse_errors = sorted(parse_errors, key=lambda e: (e.lineno, e.offset))
+    print(f"expected_syntax_errors:{expexcted_syntax_errors}\n  actural:{parse_errors}")
     assert len(parse_errors) == len(expexcted_syntax_errors)
     for error, (expected_mes, expected_range) in zip(
         parse_errors, expexcted_syntax_errors

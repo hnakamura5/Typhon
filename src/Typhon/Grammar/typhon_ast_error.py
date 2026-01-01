@@ -1,6 +1,14 @@
 import ast
+from typing import Unpack
 from tokenize import TokenInfo
-from .typhon_ast import PosAttributes, unpack_pos_default, get_pos_attributes, PosNode
+from .typhon_ast import (
+    PosAttributes,
+    unpack_pos_default,
+    get_pos_attributes,
+    PosNode,
+    make_for_let_pattern,
+)
+from ..Driver.debugging import debug_print
 from .parser_helper import Parser
 
 _PARSE_ERRORS = "_typh_parse_errors"
@@ -121,6 +129,22 @@ def maybe_invalid_braces[T: PosNode](
     return node
 
 
+def _pos_of_anchor(
+    anchor: PosNode | TokenInfo,
+) -> tuple[tuple[int, int], tuple[int, int]]:
+    if isinstance(anchor, TokenInfo):
+        return anchor.end, _next_col(anchor.end)
+    else:  # PosNode
+        _, _, e_lineno, e_col = unpack_pos_default(get_pos_attributes(anchor))
+        start_loc = (e_lineno, e_col)
+        end_loc = _next_col(start_loc)
+        return start_loc, end_loc
+
+
+def _next_col(pos: tuple[int, int]) -> tuple[int, int]:
+    return pos[0], pos[1] + 1
+
+
 def maybe_invalid_stmt[T: PosNode](
     parser: Parser,
     open_paren: TokenInfo | None,
@@ -143,30 +167,14 @@ def maybe_invalid_stmt[T: PosNode](
             (end_lineno, end_col_offset),
         )
     if open_paren is None:
-        start_loc: tuple[int, int] = (lineno, col_offset)
-        end_loc: tuple[int, int] = (lineno, col_offset)
-        if isinstance(open_anchor, TokenInfo):
-            start_loc = open_anchor.end
-            end_loc = (start_loc[0], start_loc[1] + 1)
-        else:  # PosNode
-            _, _, e_lineno, e_col = unpack_pos_default(get_pos_attributes(open_anchor))
-            start_loc = (e_lineno, e_col)
-            end_loc = (e_lineno, e_col + 1)
-        print(
+        start_loc, end_loc = _pos_of_anchor(open_anchor)
+        debug_print(
             f"open paren missing: {start_loc} to {end_loc} open anchor: {open_anchor}"
         )
         error = parser.build_syntax_error("expected '('", start_loc, end_loc)
     if close_paren is None:
-        start_loc: tuple[int, int] = (end_lineno, end_col_offset - 1)
-        end_loc: tuple[int, int] = (end_lineno, end_col_offset)
-        if isinstance(close_anchor, TokenInfo):
-            start_loc = close_anchor.end
-            end_loc = (start_loc[0], start_loc[1] + 1)
-        else:  # PosNode
-            _, _, e_lineno, e_col = unpack_pos_default(get_pos_attributes(close_anchor))
-            start_loc = (e_lineno, e_col)
-            end_loc = (e_lineno, e_col + 1)
-        print(
+        start_loc, end_loc = _pos_of_anchor(close_anchor)
+        debug_print(
             f"close paren missing: {start_loc} to {end_loc} close anchor: {close_anchor}"
         )
         close_error = parser.build_syntax_error("expected ')'", start_loc, end_loc)
@@ -191,3 +199,82 @@ def invalid_try(
         (end_lineno, end_col_offset),
     )
     return set_error_node(node, error)
+
+
+def invalid_for(
+    parser: Parser,
+    open_paren: TokenInfo | None,
+    close_paren: TokenInfo | None,
+    is_async: bool,
+    decl_keyword: TokenInfo | None,
+    pattern: ast.pattern | None,
+    in_keyword: TokenInfo | None,
+    expression: ast.expr | None,
+    body: list[ast.stmt],
+    *,
+    open_anchor: PosNode | TokenInfo,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.For | ast.AsyncFor:
+    current_anchor: tuple[int, int] = _pos_of_anchor(open_anchor)[0]
+    error: SyntaxError | None = None
+
+    def error_expect(mes: str):
+        nonlocal error
+        nonlocal current_anchor
+        current_error = parser.build_expected_error(
+            mes,
+            current_anchor,
+            _next_col(current_anchor),
+        )
+        if error is None:
+            error = current_error
+        current_anchor = _next_col(current_anchor)
+
+    if not open_paren:
+        error_expect("'('")
+    else:
+        current_anchor = open_paren.end
+    if not decl_keyword:
+        error_expect("'let/var'")
+        decl = "let"
+    else:
+        current_anchor = decl_keyword.end
+        decl = decl_keyword.string
+    if not pattern:
+        error_expect("pattern")
+        pattern = ast.MatchAs(name=None)
+    else:
+        current_anchor = (pattern.end_lineno, pattern.end_col_offset)
+    if not in_keyword:
+        error_expect("'in'")
+    else:
+        current_anchor = _pos_of_anchor(in_keyword)[1]
+    if not expression:
+        error_expect("expression")
+        expression = ast.Constant(
+            value=Ellipsis,
+            lineno=current_anchor[0],
+            col_offset=current_anchor[1],
+            end_lineno=current_anchor[0],
+            end_col_offset=current_anchor[1] + 1,
+        )
+    else:
+        current_anchor = _pos_of_anchor(expression)[1]
+    if not close_paren:
+        error_expect("')'")
+    else:
+        current_anchor = close_paren.end
+    for_node = make_for_let_pattern(
+        parser,
+        decl_type=decl,
+        pattern=pattern,
+        iter=expression,
+        body=body,
+        orelse=[],
+        type_comment=None,
+        is_async=is_async,
+        **kwargs,
+    )
+    if error is not None:
+        set_error_node(for_node, error)
+    return for_node

@@ -1,4 +1,12 @@
-from ..assertion_utils import assert_parse, assert_ast_type, assert_transform
+from ..assertion_utils import (
+    assert_parse,
+    assert_ast_type,
+    assert_transform,
+    assert_parse_error_recovery,
+    Range,
+    Pos,
+    with_parser_verbose,
+)
 from ....src.Typhon.Grammar.typhon_ast import is_var, is_let
 import ast
 from ....src.Typhon.Driver.debugging import set_debug_verbose
@@ -100,3 +108,63 @@ for _typh_vr_m0_0_ in [(1, 1.0), (2, 2.0)]:
 
 def test_stmt_for_unpack_annot():
     assert_transform(code_for_unpack_annot, result_for_unpack_annot)
+
+
+code_for_parenless = """
+for let (a, b) in [(1, 1.0), (2, 2.0)] {
+    print(a);
+    print(b);
+}
+"""
+result_for_parenless = """
+for _typh_anonymous_0 in [(1, 1.0), (2, 2.0)]:
+    if True:
+        match _typh_anonymous_0:
+            case [a, b]:
+                print(a)
+                print(b)
+            case _:# type: ignore[all]
+                raise TypeError
+"""
+
+
+def test_stmt_for_parenless_recovery():
+    assert_parse_error_recovery(
+        code_for_parenless,
+        result_for_parenless,
+        [
+            ("expected '('", Range(Pos(1, 3), Pos(1, 4))),
+            ("expected ')'", Range(Pos(1, 38), Pos(1, 39))),
+        ],
+    )
+
+
+code_for_lack = """
+for range(10) {
+    print(i);
+}
+"""
+result_for_lack = """
+for _typh_anonymous_0 in ...:
+    if True:
+        match _typh_anonymous_0:
+            case range(10):
+                print(i)
+            case _:# type: ignore[all]
+                raise TypeError
+"""
+
+
+def test_stmt_for_lack():
+    with with_parser_verbose(True):
+        assert_parse_error_recovery(
+            code_for_lack,
+            result_for_lack,
+            [
+                ("expected '('", Range(Pos(1, 3), Pos(1, 4))),
+                ("expected 'let/var'", Range(Pos(1, 4), Pos(1, 5))),
+                ("expected 'in'", Range(Pos(1, 13), Pos(1, 14))),
+                ("expected expression", Range(Pos(1, 14), Pos(1, 15))),
+                ("expected ')'", Range(Pos(1, 15), Pos(1, 16))),
+            ],
+        )
