@@ -283,7 +283,7 @@ def recover_invalid_for(
     return for_node
 
 
-def recover_invalid_function_def_raw(
+def recover_maybe_invalid_function_def_raw(
     parser: Parser,
     is_async: bool,
     is_static: bool,
@@ -325,3 +325,50 @@ def recover_invalid_function_def_raw(
     if error:
         set_error_node(result, error)
     return result
+
+
+def recover_maybe_invalid_class_def_raw(
+    parser: Parser,
+    name: TokenInfo | str | None,
+    bases_parens: tuple[
+        TokenInfo, tuple[list[ast.expr], list[ast.keyword]], TokenInfo | None
+    ]
+    | None,
+    body: list[ast.stmt],
+    decorator_list: list[ast.expr],
+    type_params: list[ast.type_param],
+    *,
+    open_anchor: PosNode | TokenInfo,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.ClassDef:
+    start_pos, end_pos = _pos_of_anchor(open_anchor)
+    open_paren, (bases, keywords), close_paren = bases_parens or (None, ([], []), None)
+    close_anchor = (
+        bases[-1]
+        if bases
+        else (type_params[-1] if type_params else (name or open_anchor))
+    )
+    error: SyntaxError | None = None
+    if not name:
+        error = parser.build_expected_error("class name", start_pos, end_pos)
+    class_def = make_class_def(
+        name=name or get_invalid_name(),
+        bases=bases,
+        keywords=keywords,
+        body=body,
+        decorator_list=decorator_list,
+        type_params=type_params,
+        **kwargs,
+    )
+    if bases:
+        maybe_invalid_stmt(
+            parser,
+            open_paren,
+            close_paren,
+            node=class_def,
+            open_anchor=open_anchor,
+            close_anchor=close_anchor,
+        )
+    if error:
+        set_error_node(class_def, error)
+    return class_def

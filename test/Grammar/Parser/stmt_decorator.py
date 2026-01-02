@@ -1,6 +1,7 @@
 from ..assertion_utils import (
     assert_parse,
     assert_transform_ast,
+    with_parser_verbose,
 )
 
 decorator_func_code = """

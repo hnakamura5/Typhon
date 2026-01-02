@@ -3,6 +3,10 @@ from ..assertion_utils import (
     show_token,
     assert_token,
     assert_transform,
+    assert_parse_error_recovery,
+    Range,
+    Pos,
+    with_parser_verbose,
 )
 
 class_code = """
@@ -100,3 +104,68 @@ class MyClass:
 def test_stmt_class_member():
     assert_parse(class_member_code, class_member_result)
     assert_transform(class_member_code, class_member_transformed)
+
+
+class_nameless_code = """
+class {
+    def method(self) {
+        return;
+    }
+}
+"""
+class_nameless_recover = """
+class _typh_invalid_name:
+
+    def method(self):
+        return
+"""
+
+
+def test_stmt_class_nameless():
+    assert_parse_error_recovery(
+        class_nameless_code,
+        class_nameless_recover,
+        [("expected class name", Range(Pos(1, 5), Pos(1, 6)))],
+    )
+
+
+class_base_parenless_code = """
+class C (Base {
+}
+"""
+class_base_parenless_recover = """
+class C(Base):
+    pass
+"""
+
+
+def test_stmt_class_base_parenless():
+    assert_parse_error_recovery(
+        class_base_parenless_code,
+        class_base_parenless_recover,
+        [
+            ("expected ')'", Range(Pos(1, 13), Pos(1, 14))),
+        ],
+    )
+
+
+class_braceless_code = """
+class MyClass {
+    def method(self) {
+        return;
+    }
+"""
+class_braceless_recover = """
+class MyClass:
+
+    def method(self):
+        return
+"""
+
+
+def test_stmt_class_braceless():
+    assert_parse_error_recovery(
+        class_braceless_code,
+        class_braceless_recover,
+        [("expected '}'", Range(Pos(4, 5), Pos(4, 6)))],
+    )

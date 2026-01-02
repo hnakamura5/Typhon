@@ -143,7 +143,8 @@ def assert_parse(
     print(unparse_custom(parsed))
     assert unparse_custom(parsed).strip() == python_code.strip()
     if not allow_error_recovery:
-        assert not get_syntax_error_in_module(parsed)
+        errors = get_syntax_error_in_module(parsed)
+        assert not errors, f"Expected no syntax errors, got: {errors}"
     return parsed
 
 

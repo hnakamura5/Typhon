@@ -27,7 +27,8 @@ from .typhon_ast import (
     make_match_case, make_alias, make_import_from, make_arguments,
 )
 from .typhon_ast_error import (
-    maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, recover_invalid_for, recover_invalid_try, recover_invalid_function_def_raw,
+    maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, recover_invalid_for, recover_invalid_try, recover_maybe_invalid_function_def_raw,
+    recover_maybe_invalid_class_def_raw,
 )
 from .syntax_errors import set_syntax_error
 from .parser_helper import Parser, Load, Store, Del, Target
@@ -320,16 +321,16 @@ class_def[ast.ClassDef]:
     | class_def_raw
 
 class_def_raw[ast.ClassDef]:
-    | invalid_class_def_raw
-    | 'class' a=NAME t=[type_params] b=['(' z=[arguments] ')' { z }] NEWLINE* c=maybe_block {
+    | k='class' n=[NAME] t=[type_params] bases=[lp='(' b=[arguments] rp=[')'] { (lp, b, rp) }] NEWLINE* c=maybe_block {
         (
-            make_class_def(
-                name=a,
-                bases=b[0] if b else [],
-                keywords=b[1] if b else [],
+            recover_maybe_invalid_class_def_raw(
+                self,
+                name=n,
+                bases_parens=bases,
                 body=c,
                 decorator_list=[],
                 type_params=t or [],
+                open_anchor=n or k,
                 LOCATIONS,
             )
         )
@@ -344,7 +345,7 @@ function_def[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
 
 function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
     | st=['static'] asc=['async'] k='def' n=[NAME] t=[type_params] lp=['('] params=[params] rp=[')'] a=[typing_arrow_return_type] tc=[func_type_comment] NEWLINE*  b=maybe_block {
-        recover_invalid_function_def_raw(
+        recover_maybe_invalid_function_def_raw(
             self,
             is_async=(asc is not None),
             is_static=(st is not None),
@@ -1688,7 +1689,7 @@ question_comprehension_paren:
 # =======================
 
 arguments[Tuple[List[ast.expr], List[ast.keyword]]](memo):
-    | a=args [','] &')' { a }
+    | a=args [','] !'=' { a }
     | invalid_arguments
 
 args[Tuple[List[ast.expr], List[ast.keyword]]]:
@@ -2105,9 +2106,6 @@ invalid_class_pattern[NoReturn]:
      }
 invalid_class_argument_pattern[List[ast.pattern]]:
     | [positional_patterns ','] keyword_patterns ',' a=positional_patterns { a }
-
-invalid_class_def_raw[NoReturn]:
-    | 'class' NAME [type_params] ['(' [arguments] ')'] NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
 
 invalid_double_starred_kvpairs[None]:
     | ','.double_starred_kvpair+ ',' invalid_kvpair

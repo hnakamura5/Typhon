@@ -1200,17 +1200,18 @@ def set_defined_name(
 
 def set_defined_name_token(
     node: DefinesName,
-    name: TokenInfo,
+    name: TokenInfo | ast.Name,
 ):
-    name_node = ast.Name(
-        id=name.string,
-        lineno=name.start[0],
-        col_offset=name.start[1],
-        end_lineno=name.end[0],
-        end_col_offset=name.end[1],
-        ctx=ast.Store(),
-    )
-    setattr(node, _DEFINED_NAME, name_node)
+    if isinstance(name, TokenInfo):
+        name = ast.Name(
+            id=name.string,
+            lineno=name.start[0],
+            col_offset=name.start[1],
+            end_lineno=name.end[0],
+            end_col_offset=name.end[1],
+            ctx=ast.Store(),
+        )
+    setattr(node, _DEFINED_NAME, name)
 
 
 def clear_defined_name(node: DefinesName):
@@ -1256,7 +1257,7 @@ def make_function_def(
 
 
 def make_class_def(
-    name: TokenInfo,
+    name: TokenInfo | str,
     bases: list[ast.expr],
     keywords: list[ast.keyword],
     body: list[ast.stmt],
@@ -1264,8 +1265,9 @@ def make_class_def(
     type_params: list[ast.type_param],
     **kwargs: Unpack[PosAttributes],
 ) -> ast.ClassDef:
+    name_str = name.string if isinstance(name, TokenInfo) else name
     result = ast.ClassDef(
-        name=name.string,
+        name=name_str,
         bases=bases,
         keywords=keywords,
         body=body,
@@ -1273,7 +1275,12 @@ def make_class_def(
         type_params=type_params,
         **kwargs,
     )
-    set_defined_name_token(result, name)
+    set_defined_name_token(
+        result,
+        name
+        if isinstance(name, TokenInfo)
+        else ast.Name(id=name, ctx=ast.Store(), **kwargs),
+    )
     return result
 
 
