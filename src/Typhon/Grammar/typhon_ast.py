@@ -1,6 +1,16 @@
 # Ast Extensions for Typhon
 from __future__ import annotations
-from typing import Union, Unpack, TypedDict, Tuple, cast, TYPE_CHECKING
+from typing import (
+    Union,
+    Unpack,
+    TypedDict,
+    Tuple,
+    cast,
+    TYPE_CHECKING,
+    Optional,
+    List,
+    Any,
+)
 import ast
 from dataclasses import dataclass
 from copy import copy
@@ -131,6 +141,13 @@ def copy_anonymous_name(src: ast.Name, ctx: ast.expr_context) -> ast.Name:
     if anon_id is not None:
         set_anonymous_name_id(result, anon_id)
     return result
+
+
+_TYPE_INVALID_NAME = "_typh_invalid_name"
+
+
+def get_invalid_name() -> str:
+    return _TYPE_INVALID_NAME
 
 
 _TYPE_IGNORE_NODES = "_typh_type_ignore"
@@ -946,19 +963,18 @@ def _make_if_let_single_case(
         # Variable capture pattern, e.g. `let x = ...` without condition.
         # In this case, the condition is None check.
         return set_is_let_else(
-            ast.match_case(
+            make_match_case(
                 pattern=pattern,
                 guard=_make_none_check(pattern.name, get_pos_attributes(pattern)),
                 body=body,
+                **get_pos_attributes(pattern),
             ),
             is_let_else,
         )
     else:
         return set_is_let_else(
-            ast.match_case(
-                pattern=pattern,
-                guard=cond,
-                body=body,
+            make_match_case(
+                pattern=pattern, guard=cond, body=body, **get_pos_attributes(pattern)
             ),
             is_let_else,
         )
@@ -1681,7 +1697,7 @@ def make_match_comp(
             ast.Match(
                 subject=subject,
                 cases=[
-                    ast.match_case(
+                    make_match_case(
                         pattern=get_case_comp_case(case)[0],
                         guard=get_case_comp_case(case)[1],
                         body=[
@@ -1690,6 +1706,7 @@ def make_match_comp(
                                 **get_pos_attributes(case),
                             )
                         ],
+                        **get_pos_attributes(case),
                     )
                     for case in cases
                 ],
@@ -2215,6 +2232,52 @@ def make_match_case(
     **kwargs: Unpack[PosAttributes],
 ) -> ast.match_case:
     node = ast.match_case(pattern=pattern, guard=guard, body=body)
+    # Append position attributes
+    for key, value in kwargs.items():
+        setattr(node, key, value)
+    return node
+
+
+def make_arguments(
+    pos_only: Optional[List[Tuple[ast.arg, None]]],
+    pos_only_with_default: List[Tuple[ast.arg, Any]],
+    param_no_default: Optional[List[ast.arg]],
+    param_default: Optional[List[Tuple[ast.arg, Any]]],
+    after_star: Optional[
+        Tuple[Optional[ast.arg], List[Tuple[ast.arg, Any]], Optional[ast.arg]]
+    ],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.arguments:
+    """Build a function definition arguments."""
+    defaults = (
+        [d for _, d in pos_only_with_default if d is not None]
+        if pos_only_with_default
+        else []
+    )
+    defaults += [d for _, d in param_default if d is not None] if param_default else []
+
+    pos_only = pos_only or pos_only_with_default
+
+    # Because we need to combine pos only with and without default even
+    # the version with no default is a tuple
+    pos_only_args = [p for p, _ in pos_only]
+    params = (param_no_default or []) + (
+        [p for p, _ in param_default] if param_default else []
+    )
+
+    # If after_star is None, make a default tuple
+    after_star = after_star or (None, [], None)
+
+    node = ast.arguments(
+        posonlyargs=pos_only_args,
+        args=params,
+        defaults=defaults,
+        vararg=after_star[0],
+        kwonlyargs=[p for p, _ in after_star[1]],
+        kw_defaults=[d for _, d in after_star[1]],
+        kwarg=after_star[2],
+    )
+    # Append position attributes
     for key, value in kwargs.items():
         setattr(node, key, value)
     return node

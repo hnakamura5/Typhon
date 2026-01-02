@@ -7,6 +7,9 @@ from .typhon_ast import (
     get_pos_attributes,
     PosNode,
     make_for_let_pattern,
+    make_function_def,
+    make_class_def,
+    get_invalid_name,
 )
 from ..Driver.debugging import debug_print
 from .parser_helper import Parser
@@ -185,7 +188,7 @@ def maybe_invalid_stmt[T: PosNode](
     return node
 
 
-def invalid_try(
+def recover_invalid_try(
     parser: Parser,
     message: str,
     node: ast.Try,
@@ -201,7 +204,7 @@ def invalid_try(
     return set_error_node(node, error)
 
 
-def invalid_for(
+def recover_invalid_for(
     parser: Parser,
     open_paren: TokenInfo | None,
     close_paren: TokenInfo | None,
@@ -278,3 +281,47 @@ def invalid_for(
     if error is not None:
         set_error_node(for_node, error)
     return for_node
+
+
+def recover_invalid_function_def_raw(
+    parser: Parser,
+    is_async: bool,
+    is_static: bool,
+    name: TokenInfo | str | None,
+    open_paren: TokenInfo | None,
+    args: ast.arguments,
+    close_paren: TokenInfo | None,
+    returns: ast.expr | None,
+    body: list[ast.stmt],
+    type_comment: str | None,
+    type_params: list[ast.type_param],
+    *,
+    open_anchor: PosNode | TokenInfo,
+    close_anchor: PosNode | TokenInfo,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.FunctionDef | ast.AsyncFunctionDef:
+    start_pos, end_pos = _pos_of_anchor(open_anchor)
+    error: SyntaxError | None = None
+    if not name:
+        error = parser.build_expected_error("function name", start_pos, end_pos)
+    result = maybe_invalid_stmt(
+        parser,
+        open_paren,
+        close_paren,
+        node=make_function_def(
+            is_async=is_async,
+            is_static=is_static,
+            name=name or get_invalid_name(),
+            args=args,
+            returns=returns,
+            body=body,
+            type_comment=type_comment,
+            type_params=type_params,
+            **kwargs,
+        ),
+        open_anchor=open_anchor,
+        close_anchor=close_anchor,
+    )
+    if error:
+        set_error_node(result, error)
+    return result

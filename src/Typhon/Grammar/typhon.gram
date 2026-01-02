@@ -24,11 +24,10 @@ from .typhon_ast import (
     make_match_comp_case, make_while_comp, make_if_let_comp,
     make_while_let_comp, make_let_comp,
     make_record_literal, make_record_type, make_attributes_pattern, make_tuple_pattern, make_for_let_pattern, make_with_let_pattern, make_inline_with_let_pattern, make_class_def,
-    make_match_case,
-    make_alias, make_import_from,
+    make_match_case, make_alias, make_import_from, make_arguments,
 )
 from .typhon_ast_error import (
-    maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, invalid_try, invalid_for,
+    maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, recover_invalid_for, recover_invalid_try, recover_invalid_function_def_raw,
 )
 from .syntax_errors import set_syntax_error
 from .parser_helper import Parser, Load, Store, Del, Target
@@ -344,51 +343,58 @@ function_def[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
     | f=function_def_raw {self.set_decorators(f, [])}
 
 function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
-    | invalid_def_raw
-    | st=['static'] asc=['async'] 'def' n=NAME t=[type_params] lp=['('] params=[params] rp=[')'] a=[typing_arrow_return_type] tc=[func_type_comment] NEWLINE* &'{' b=maybe_block {
-            maybe_invalid_stmt(self, lp, rp, open_anchor=n, close_anchor=(params or n),
-                node=make_function_def(
-                    is_async=(asc is not None),
-                    is_static=(st is not None),
-                    name=n,
-                    args=params or self.make_arguments(None, [], None, [], None),
-                    returns=a,
-                    body=b,
-                    type_comment=tc,
-                    type_params=t or [],
-                    LOCATIONS,
-                )
-            )
-     }
+    | st=['static'] asc=['async'] k='def' n=[NAME] t=[type_params] lp=['('] params=[params] rp=[')'] a=[typing_arrow_return_type] tc=[func_type_comment] NEWLINE*  b=maybe_block {
+        recover_invalid_function_def_raw(
+            self,
+            is_async=(asc is not None),
+            is_static=(st is not None),
+            name=n,
+            open_paren=lp,
+            args=params or make_arguments(None, [], None, [], None, LOCATIONS),
+            close_paren=rp,
+            returns=a,
+            body=b,
+            type_comment=tc,
+            type_params=t or [],
+            open_anchor=(n or k),
+            close_anchor=(params or n),
+            LOCATIONS,
+        )
+    }
 
+invalid_def_raw[NoReturn]:
+    | ['async'] a='def' NAME  [type_params] '(' [params] ')' '->' expression NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
+    # TODO: Make this rule in typing_arrow_return_type
+    | ['async'] a='def' NAME  [type_params] '(' [params] ')' ':' { self.raise_syntax_error("use '->' for function return type") }
+    | ['async'] a='def' NAME  [type_params] '(' [params] ')' !('{' | '->') { self.raise_syntax_error("expected '{'") }
 
 # Function parameters
 # -------------------
 
-params:
+params[ast.arguments]:
     | invalid_parameters
     | parameters
 
 parameters[ast.arguments]:
     | a=slash_no_default b=param_no_default* c=param_with_default* d=[star_etc] {
         self.check_version(
-            (3, 8), "Positional only arguments are", self.make_arguments(a, [], b, c, d)
+            (3, 8), "Positional only arguments are", make_arguments(a, [], b, c, d, LOCATIONS)
         )
      }
     | a=slash_with_default b=param_with_default* c=[star_etc] {
         self.check_version(
             (3, 8),
             "Positional only arguments are",
-            self.make_arguments(None, a, None, b, c),
+            make_arguments(None, a, None, b, c, LOCATIONS),
         )
      }
     | a=param_no_default+ b=param_with_default* c=[star_etc] {
-        self.make_arguments(None, [], a, b, c)
+        make_arguments(None, [], a, b, c, LOCATIONS)
      }
     | a=param_with_default+ b=[star_etc] {
-        self.make_arguments(None, [], None, a, b)
+        make_arguments(None, [], None, a, b, LOCATIONS)
      }
-    | a=star_etc { self.make_arguments(None, [], None, None, a) }
+    | a=star_etc { make_arguments(None, [], None, None, a, LOCATIONS) }
 
 # Some duplication here because we can't write (',' | &')'),
 # which is because we don't support empty alternatives (yet).
@@ -427,16 +433,16 @@ kwds[ast.arg]:
 
 param_no_default[ast.arg]:
     | a=param ',' tc=TYPE_COMMENT? { self.set_arg_type_comment(a, tc) }
-    | a=param tc=TYPE_COMMENT? &')' { self.set_arg_type_comment(a, tc) }
+    | a=param tc=TYPE_COMMENT? !'=' { self.set_arg_type_comment(a, tc) }
 param_no_default_star_annotation[ast.arg]:
     | a=param_star_annotation ',' tc=TYPE_COMMENT? { self.set_arg_type_comment(a, tc) }
-    | a=param_star_annotation tc=TYPE_COMMENT? &')' { self.set_arg_type_comment(a, tc) }
+    | a=param_star_annotation tc=TYPE_COMMENT? !'=' { self.set_arg_type_comment(a, tc) }
 param_with_default[Tuple[ast.arg, Any]]:
     | a=param c=default ',' tc=TYPE_COMMENT? { (self.set_arg_type_comment(a, tc), c) }
-    | a=param c=default tc=TYPE_COMMENT? &')' { (self.set_arg_type_comment(a, tc), c) }
+    | a=param c=default tc=TYPE_COMMENT? { (self.set_arg_type_comment(a, tc), c) }
 param_maybe_default[Tuple[ast.arg, Any]]:
     | a=param c=default? ',' tc=TYPE_COMMENT? { (self.set_arg_type_comment(a, tc), c) }
-    | a=param c=default? tc=TYPE_COMMENT? &')' { (self.set_arg_type_comment(a, tc), c) }
+    | a=param c=default? tc=TYPE_COMMENT? !'=' { (self.set_arg_type_comment(a, tc), c) }
 param: a=NAME b=annotation? { ast.arg(arg=a.string, annotation=b, LOCATIONS) }
 param_star_annotation: a=NAME b=star_annotation {
     ast.arg(arg=a.string, annotations=b, LOCATIONS)
@@ -539,12 +545,10 @@ for_stmt[Union[ast.For, ast.AsyncFor]]:
      }
      # Invaid for recovery
     | is_async=['async'] k='for' lp=['('] d=[decl_keyword] pat=[pattern] in_k=['in'] ex=[star_expressions] rp=[')'] tc=[TYPE_COMMENT] NEWLINE* &'{' b=maybe_block el=[else_block] {
-        invalid_for(self, lp, rp, is_async, d, pat, in_k, ex,
+        recover_invalid_for(self, lp, rp, is_async, d, pat, in_k, ex,
             body=b, open_anchor=k, LOCATIONS
         )
      }
-    | invalid_for_target
-
 
 # With statement
 # --------------
@@ -586,7 +590,7 @@ with_pattern_item[Tuple[str, List[Tuple[ast.pattern, ast.expr]]]]:
 # -------------
 
 try_stmt[ast.Try]:
-    | invalid_try_stmt
+    | try_stmt_with_error
     | 'try' b=maybe_block f=finally_block {
         ast.Try(body=b, handlers=[], orelse=[], finalbody=f, LOCATIONS)
      }
@@ -605,21 +609,21 @@ try_stmt[ast.Try]:
         ast.Try(body=b, handlers=ex, orelse=el or [], finalbody=f or [], LOCATIONS)
      }
 
-invalid_try_stmt[ast.Try]:
+try_stmt_with_error[ast.Try]:
     | 'try' b=block !('except' | 'finally') {
-        invalid_try(self,
+        recover_invalid_try(self,
             message="expected 'except' or 'finally' block",
             node=ast.Try(body=b, handlers=[], orlese=[], finalbody=[], LOCATIONS)
         )
      }
     | 'try' b=maybe_block ex=except_block+ ex_s=except_star_block+ el=[else_block] f=[finally_block] {
-        invalid_try(self,
+        recover_invalid_try(self,
             message="cannot have both 'except' and 'except*' on the same 'try'",
             node=ast.Try(body=b, handlers=(ex + ex_s), orlese=el or [], finalbody=f or [], LOCATIONS)
         )
      }
     | 'try' b=maybe_block  ex_s=except_star_block+ ex=except_block+ el=[else_block] f=[finally_block] {
-        invalid_try(self,
+        recover_invalid_try(self,
             message="cannot have both 'except' and 'except*' on the same 'try'",
             node=ast.Try(body=b, handlers=(ex_s + ex), orlese=el or [], finalbody=f or [], LOCATIONS)
         )
@@ -630,7 +634,7 @@ invalid_try_stmt[ast.Try]:
 # ----------------
 
 except_star_block[ast.ExceptHandler]:
-    | invalid_except_star
+    | except_star_with_error
     | k='except' '*' lp=['('] e=expression t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* &'{' b=maybe_block {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or e),
             node=ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS)
@@ -638,7 +642,7 @@ except_star_block[ast.ExceptHandler]:
      }
 
 except_block[ast.ExceptHandler]:
-    | invalid_except
+    | except_with_error
     | k='except' !'*' lp=['('] e=expression t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* b=maybe_block {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or e),
             node=ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS)
@@ -649,7 +653,7 @@ except_block[ast.ExceptHandler]:
 finally_block[List[ast.stmt]]:
     | 'finally' a=maybe_block { a }
 
-invalid_except_star[ast.ExceptHandler]:
+except_star_with_error[ast.ExceptHandler]:
     | 'except' k='*' lp=['('] a=expression ',' es=expressions t=['as' z=NAME { z.string }] rp=[')'] b=maybe_block {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or es.elts[-1]),
             message="multiple exception types must be parenthesized",
@@ -663,7 +667,7 @@ invalid_except_star[ast.ExceptHandler]:
         )
      }
 
-invalid_except[ast.ExceptHandler]:
+except_with_error[ast.ExceptHandler]:
     | k='except' lp=['('] a=expression ',' es=expressions t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* b=maybe_block {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or es.elts[-1]),
             message="multiple exception types must be parenthesized",
@@ -2101,12 +2105,6 @@ invalid_class_pattern[NoReturn]:
      }
 invalid_class_argument_pattern[List[ast.pattern]]:
     | [positional_patterns ','] keyword_patterns ',' a=positional_patterns { a }
-
-
-invalid_def_raw[NoReturn]:
-    | ['async'] a='def' NAME  [type_params] '(' [params] ')' '->' expression NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
-    | ['async'] a='def' NAME  [type_params] '(' [params] ')' ':' { self.raise_syntax_error("use '->' for function return type") }
-    | ['async'] a='def' NAME  [type_params] '(' [params] ')' !('{' | '->') { self.raise_syntax_error("expected '{'") }
 
 invalid_class_def_raw[NoReturn]:
     | 'class' NAME [type_params] ['(' [arguments] ')'] NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }

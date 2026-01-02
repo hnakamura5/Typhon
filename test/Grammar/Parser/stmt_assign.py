@@ -3,6 +3,7 @@ from ..assertion_utils import (
     assert_transform,
     assert_transform_first_error,
     assert_parse_first_error,
+    with_parser_verbose,
 )
 from ....src.Typhon.Grammar.typhon_ast import (
     is_var_assign,
@@ -202,7 +203,8 @@ def func(x: int=1):
 
 
 def test_stmt_assign_in_func():
-    assert_parse(code_stmt_assign_in_func, result_stmt_assign_in_func)
+    with with_parser_verbose():
+        assert_parse(code_stmt_assign_in_func, result_stmt_assign_in_func)
 
 
 decl_assign_unpack_tuple_code = """

@@ -103,6 +103,7 @@ class Parser(PegenParser):
         self.py_version = (
             min(py_version, sys.version_info) if py_version else sys.version_info
         )
+        # Note "invalid_*" rules returns None. Cannot use for error recovery.
         self.call_invalid_rules = True
         self.errors = []
 
@@ -375,48 +376,6 @@ class Parser(PegenParser):
         if type_comment or sys.version_info < (3, 9):
             arg.type_comment = type_comment
         return arg
-
-    def make_arguments(
-        self,
-        pos_only: Optional[List[Tuple[ast.arg, None]]],
-        pos_only_with_default: List[Tuple[ast.arg, Any]],
-        param_no_default: Optional[List[ast.arg]],
-        param_default: Optional[List[Tuple[ast.arg, Any]]],
-        after_star: Optional[
-            Tuple[Optional[ast.arg], List[Tuple[ast.arg, Any]], Optional[ast.arg]]
-        ],
-    ) -> ast.arguments:
-        """Build a function definition arguments."""
-        defaults = (
-            [d for _, d in pos_only_with_default if d is not None]
-            if pos_only_with_default
-            else []
-        )
-        defaults += (
-            [d for _, d in param_default if d is not None] if param_default else []
-        )
-
-        pos_only = pos_only or pos_only_with_default
-
-        # Because we need to combine pos only with and without default even
-        # the version with no default is a tuple
-        pos_only_args = [p for p, _ in pos_only]
-        params = (param_no_default or []) + (
-            [p for p, _ in param_default] if param_default else []
-        )
-
-        # If after_star is None, make a default tuple
-        after_star = after_star or (None, [], None)
-
-        return ast.arguments(
-            posonlyargs=pos_only_args,
-            args=params,
-            defaults=defaults,
-            vararg=after_star[0],
-            kwonlyargs=[p for p, _ in after_star[1]],
-            kw_defaults=[d for _, d in after_star[1]],
-            kwarg=after_star[2],
-        )
 
     def build_syntax_error(
         self,
