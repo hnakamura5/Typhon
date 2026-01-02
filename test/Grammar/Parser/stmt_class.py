@@ -150,7 +150,7 @@ def test_stmt_class_base_parenless():
 
 
 class_braceless_code = """
-class MyClass {
+class MyClass
     def method(self) {
         return;
     }
@@ -167,5 +167,32 @@ def test_stmt_class_braceless():
     assert_parse_error_recovery(
         class_braceless_code,
         class_braceless_recover,
-        [("expected '}'", Range(Pos(4, 5), Pos(4, 6)))],
+        [
+            ("expected '{'", Range(Pos(2, 4), Pos(2, 5))),
+            ("expected '}'", Range(Pos(4, 5), Pos(4, 6))),
+        ],
+    )
+
+
+class_braceless_close_code = """
+class MyClass {
+    def method(self) {
+        return;
+    }
+"""
+class_braceless_close_recover = """
+class MyClass:
+
+    def method(self):
+        return
+"""
+
+
+def test_stmt_class_braceless_close():
+    assert_parse_error_recovery(
+        class_braceless_close_code,
+        class_braceless_close_recover,
+        [
+            ("expected '}'", Range(Pos(4, 5), Pos(4, 6))),
+        ],
     )

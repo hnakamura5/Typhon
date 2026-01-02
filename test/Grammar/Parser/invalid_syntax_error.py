@@ -119,36 +119,6 @@ def test_invalid_finally_brace():
     assert_parse_first_error(invalid_finally_brace_code, SyntaxError, "expected '{'")
 
 
-invalid_match_paren_code = """
-match x { case(1) {print("No cases")} }
-"""
-invalid_match_brace_code = """
-match (x) case (1) {print("No cases")}
-"""
-
-
-def test_invalid_match_paren():
-    assert_parse_first_error(invalid_match_paren_code, SyntaxError, "expected '('")
-    assert_parse_first_error(invalid_match_brace_code, SyntaxError, "expected '{'")
-
-
-invalid_case_paren_code = """
-match (x) {
-    case 1 print("No braces")
-}
-"""
-invalid_case_brace_code = """
-match (x) {
-    case (1) print("No braces")
-}
-"""
-
-
-def test_invalid_case_paren():
-    assert_parse_first_error(invalid_case_paren_code, SyntaxError, "expected '('")
-    assert_parse_first_error(invalid_case_brace_code, SyntaxError, "expected '{'")
-
-
 invalid_as_pattern_code = """
 match (x) {
     case (y as) {print(y)}

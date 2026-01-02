@@ -683,7 +683,7 @@ except_with_error[ast.ExceptHandler]:
 # production which will have failed since the ast module does not have the right nodes.
 match_stmt["ast.Match"]:
     | k="match" lp=['('] subject=subject_expr rp=[')'] NEWLINE* lb=['{'] cases=case_block+ rb=['}'] {
-        maybe_invalid_braces(self, lb, rb,
+        maybe_invalid_braces(self, lb, rb, open_anchor=(rp or subject),
             node=maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=subject,
                 node=ast.Match(subject=subject, cases=cases, LOCATIONS)
             )
@@ -703,7 +703,6 @@ subject_expr:
     | e=named_expression { self.check_version((3, 10), "Pattern matching is", e)}
 
 case_block["ast.match_case"]:
-    | invalid_case_block
     | k="case" lp=['('] pattern=patterns rp=[')'] NEWLINE* guard=guard? NEWLINE* body=maybe_block {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=pattern,
             node=make_match_case(pattern=pattern, guard=guard, body=body, LOCATIONS)
@@ -2088,9 +2087,7 @@ invalid_match_stmt[NoReturn]:
     | "match" '(' subject=subject_expr ')' NEWLINE* !'{' {
         self.raise_syntax_error("expected '{'")
      }
-invalid_case_block[NoReturn]:
-    | "case" !'(' { self.raise_syntax_error("expected '('") }
-    | "case" '(' pattern=patterns ')' NEWLINE* guard=guard? NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
+
 invalid_as_pattern[NoReturn]:
     | or_pattern 'as' a="_" {
         self.raise_syntax_error_known_location("cannot use '_' as a target of as pattern", a)

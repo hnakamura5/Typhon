@@ -106,10 +106,14 @@ def maybe_invalid_braces[T: PosNode](
     open_brace: TokenInfo | None,
     close_brace: TokenInfo | None,
     node: T,
+    *,
+    open_anchor: PosNode | TokenInfo | None = None,
 ) -> T:
     lineno, col_offset, end_lineno, end_col_offset = unpack_pos_default(
         get_pos_attributes(node)
     )
+    if open_anchor:
+        _, _, lineno, col_offset = unpack_pos_default(get_pos_attributes(open_anchor))
     error: SyntaxError | None = None
     if open_brace is None:
         error = parser.build_syntax_error(
@@ -117,16 +121,14 @@ def maybe_invalid_braces[T: PosNode](
             (lineno, col_offset),
             (lineno, col_offset + 1),
         )
-
     if close_brace is None:
-        error2 = parser.build_syntax_error(
+        error_close = parser.build_syntax_error(
             "expected '}'",
-            (end_lineno, end_col_offset - 1),
             (end_lineno, end_col_offset),
+            (end_lineno, end_col_offset + 1),
         )
         if error is None:
-            error = error2
-
+            error = error_close
     if error is not None:
         return set_error_node(node, error)
     return node
@@ -346,7 +348,11 @@ def recover_maybe_invalid_class_def_raw(
     close_anchor = (
         bases[-1]
         if bases
-        else (type_params[-1] if type_params else (name or open_anchor))
+        else (
+            type_params[-1]
+            if type_params
+            else (name if isinstance(name, TokenInfo) else open_anchor)
+        )
     )
     error: SyntaxError | None = None
     if not name:

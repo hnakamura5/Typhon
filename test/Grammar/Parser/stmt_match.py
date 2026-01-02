@@ -2,6 +2,9 @@ from ..assertion_utils import (
     assert_parse,
     assert_parse_first_error,
     assert_transform_ast,
+    assert_parse_error_recovery,
+    Range,
+    Pos,
 )
 
 match_code = """
@@ -266,3 +269,93 @@ def func(x: list[int]) -> int:
 def test_stmt_match_sequence_annot():
     parsed = assert_parse(match_sequence_annot_code, match_sequence_annot_result)
     assert_transform_ast(parsed, match_sequence_annot_transformed)
+
+
+match_parenless_code = """
+match x { case(1) {print('No cases')} }
+"""
+match_parenless_recover = """
+match x:
+    case 1:
+        print('No cases')
+"""
+
+
+def test_match_parenless_recovery():
+    assert_parse_error_recovery(
+        match_parenless_code,
+        match_parenless_recover,
+        [
+            ("expected '('", Range(Pos(1, 5), Pos(1, 6))),
+            ("expected ')'", Range(Pos(1, 7), Pos(1, 8))),
+        ],
+    )
+
+
+match_braceless_code = """
+match (x) case (1) {print('No cases')}
+"""
+match_braceless_recover = """
+match x:
+    case 1:
+        print('No cases')
+"""
+
+
+def test_match_braceless_recovery():
+    assert_parse_error_recovery(
+        match_braceless_code,
+        match_braceless_recover,
+        [
+            ("expected '{'", Range(Pos(1, 9), Pos(1, 10))),
+            ("expected '}'", Range(Pos(1, 38), Pos(1, 39))),
+        ],
+    )
+
+
+case_parenless_code = """
+match (x) {
+    case 1 print('No braces')
+}
+"""
+case_parenless_recover = """
+match x:
+    case 1:
+        print('No braces')
+"""
+
+
+def test_case_parenless_recovery():
+    assert_parse_error_recovery(
+        case_parenless_code,
+        case_parenless_recover,
+        [
+            ("expected '('", Range(Pos(2, 8), Pos(2, 9))),
+            ("expected ')'", Range(Pos(2, 10), Pos(2, 11))),
+            ("expected '{'", Range(Pos(2, 11), Pos(2, 12))),
+            ("expected '}'", Range(Pos(3, 1), Pos(3, 2))),
+        ],
+    )
+
+
+case_braceless_code = """
+match (x) {
+    case (1) print('No braces')
+}
+"""
+case_braceless_recover = """
+match x:
+    case 1:
+        print('No braces')
+"""
+
+
+def test_case_braceless_recovery():
+    assert_parse_error_recovery(
+        case_braceless_code,
+        case_braceless_recover,
+        [
+            ("expected '{'", Range(Pos(2, 13), Pos(2, 14))),
+            ("expected '}'", Range(Pos(3, 1), Pos(3, 2))),
+        ],
+    )
