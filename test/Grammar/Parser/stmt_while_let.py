@@ -1,4 +1,12 @@
-from ..assertion_utils import assert_parse, assert_parse_first_error, assert_transform
+from ..assertion_utils import (
+    assert_parse,
+    assert_parse_first_error,
+    assert_transform,
+    assert_parse_error_recovery,
+    Range,
+    Pos,
+    with_parser_verbose,
+)
 
 while_let_none_check_code = """
 var y: int? = None
@@ -96,3 +104,60 @@ def func(point1: Point, point2: Point) -> int | None:
 def test_stmt_while_let_multiple():
     assert_parse(while_let_multiple_code, while_let_multiple_result)
     assert_transform(while_let_multiple_code, while_let_multiple_transformed)
+
+
+while_let_parenless_code = """
+var y: int? = None
+while let x = y {
+    print(x)
+}
+"""
+while_let_parenless_result = """
+y: (int,) = None
+while True:
+    match y:
+        case x if x is not None:
+            print(x)
+        case _:
+            pass
+"""
+
+
+def test_while_let_parenless():
+    assert_parse_error_recovery(
+        while_let_parenless_code,
+        while_let_parenless_result,
+        [
+            ("expected '('", Range(Pos(2, 5), Pos(2, 6))),
+            ("expected ')'", Range(Pos(2, 15), Pos(2, 16))),
+        ],
+    )
+
+
+while_let_braceless_code = """
+var y: int? = None
+while let x = y
+    print(x)
+"""
+while_let_braceless_result = """
+y: (int,) = None
+while True:
+    match y:
+        case x if x is not None:
+            print(x)
+        case _:
+            pass
+"""
+
+
+def test_while_let_braceless():
+    assert_parse_error_recovery(
+        while_let_braceless_code,
+        while_let_braceless_result,
+        [
+            ("expected '('", Range(Pos(2, 5), Pos(2, 6))),
+            ("expected ')'", Range(Pos(2, 15), Pos(2, 16))),
+            ("expected '{'", Range(Pos(3, 4), Pos(3, 5))),
+            ("expected '}'", Range(Pos(3, 12), Pos(3, 13))),
+        ],
+    )

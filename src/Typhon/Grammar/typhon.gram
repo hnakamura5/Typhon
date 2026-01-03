@@ -199,7 +199,7 @@ declaration_assignment[List[ast.stmt]]:
 # let-else / var-else
 declaration_else:
     | d=decl_keyword pat_sub=','.pattern_assignment+ e=['else' b=block {b}] {
-        make_if_let(decl_type=d.string, pattern_subjects=pat_sub, cond=None, body=[], orelse=e, is_let_else=True, LOCATIONS)
+        make_if_let(self, decl_type=d, pattern_subjects=pat_sub, cond=None, body=[], orelse=e, is_let_else=True, LOCATIONS)
      }
 
 declaration_single_assignment[Tuple[ast.expr, Optional[ast.expr], Optional[ast.expr]]]:
@@ -467,17 +467,17 @@ if_stmt[ast.stmt]:
         )
      }
     # if-let statement as pattern matching
-    | k='if' lp=['('] 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=elif_stmt {
+    | k='if' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=elif_stmt {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k,
             close_anchor=(cond or pat_sub[-1][1]),
-            node=make_if_let(decl_type="let", pattern_subjects=pat_sub, cond=cond,
+            node=make_if_let(self, decl_type=d, pattern_subjects=pat_sub, cond=cond,
                              body=b, orelse=c, is_let_else=False, LOCATIONS)
         )
      }
-    | k='if' lp=['('] 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
+    | k='if' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k,
             close_anchor=(cond or pat_sub[-1][1]),
-            node=make_if_let(decl_type="let", pattern_subjects=pat_sub, cond=cond,
+            node=make_if_let(self, decl_type=d, pattern_subjects=pat_sub, cond=cond,
                              body=b, orelse=c, is_let_else=False, LOCATIONS)
         )
      }
@@ -494,17 +494,17 @@ elif_stmt[List[ast.stmt]]:
         )]
      }
     # elif-let statement as pattern matching
-    | k='elif' lp=['('] 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=elif_stmt {
+    | k='elif' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=elif_stmt {
         [maybe_invalid_stmt(self, lp, rp, open_anchor=k,
             close_anchor=(cond or pat_sub[-1][1]),
-            node=make_if_let(decl_type="let", pattern_subjects=pat_sub, cond=cond,
+            node=make_if_let(self, decl_type=d, pattern_subjects=pat_sub, cond=cond,
                              body=b, orelse=c or [], is_let_else=False, LOCATIONS)
         )]
      }
-    | k='elif' lp=['('] 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
+    | k='elif' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
         [maybe_invalid_stmt(self, lp, rp, open_anchor=k,
             close_anchor=(cond or pat_sub[-1][1]),
-            node=make_if_let(decl_type="let", pattern_subjects=pat_sub, cond=cond,
+            node=make_if_let(self, decl_type=d, pattern_subjects=pat_sub, cond=cond,
                              body=b, orelse=c or [], is_let_else=False, LOCATIONS)
         )]
      }
@@ -523,10 +523,10 @@ while_stmt[ast.While]:
         )
      }
     # while-let statement as pattern matching
-    | k='while' lp=['('] 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
+    | k='while' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k,
             close_anchor=(cond or pat_sub[-1][1]),
-            node=make_while_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, LOCATIONS)
+            node=make_while_let(self, decl_type=d, pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, LOCATIONS)
         )
      }
 
@@ -1566,10 +1566,10 @@ if_comp_internal[ast.expr]:
         if_comp_exp(body=a, test=b, orelse=c, LOCATIONS)
      }
     | 'if' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=if_comp_elif {
-        make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
+        make_if_let_comp(self, pat_sub, cond, b, c, LOCATIONS)
      }
     | 'if' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=[if_comp_else] {
-        make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
+        make_if_let_comp(self, pat_sub, cond, b, c, LOCATIONS)
      }
 
 if_comp_elif[ast.expr]:
@@ -1580,10 +1580,10 @@ if_comp_elif[ast.expr]:
         if_comp_exp(body=a, test=b, orelse=c, LOCATIONS)
      }
     | 'elif' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=if_comp_elif {
-        make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
+        make_if_let_comp(self, pat_sub, cond, b, c, LOCATIONS)
      }
     | 'elif' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=[if_comp_else] {
-        make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
+        make_if_let_comp(self, pat_sub, cond, b, c, LOCATIONS)
      }
 
 if_comp_else[ast.expr]:
@@ -1644,8 +1644,8 @@ while_comp_internal[ast.expr]:
     | 'while' '(' a=named_expression ')' NEWLINE* 'yield' b=expression {
         make_while_comp(a, b, LOCATIONS)
      }
-    | 'while' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* 'yield' b=expression {
-        make_while_let_comp(pat_sub, cond, b, LOCATIONS)
+    | 'while' '(' d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* 'yield' b=expression {
+        make_while_let_comp(self, decl_type=d, pattern_subjects=pat_sub, cond=cond, body=b, LOCATIONS)
      }
 
 while_comp[ast.expr]:

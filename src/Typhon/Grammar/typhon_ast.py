@@ -38,6 +38,16 @@ def unpack_pos_default(pos: PosAttributes) -> Tuple[int, int, int, int]:
     )
 
 
+def unpack_pos_tuple(pos: PosAttributes) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+    return (
+        (pos["lineno"], pos["col_offset"]),
+        (
+            pos["end_lineno"] or pos["lineno"],
+            pos["end_col_offset"] or pos["col_offset"] + 1,
+        ),
+    )
+
+
 class PosRange(TypedDict):
     lineno: int
     col_offset: int
@@ -525,6 +535,7 @@ def _make_with_let_pattern(
         items.append(item)
         pattern_vars.append((pattern, copy_anonymous_name(var, ast.Load())))
     let_pattern_stmt = make_if_let(
+        parser,
         decl_type,
         pattern_subjects=pattern_vars,
         cond=None,
@@ -850,6 +861,7 @@ def make_for_let_pattern(
         ast.Load(), **get_pos_attributes(pattern)
     )
     let_stmt = make_if_let(
+        parser,
         decl_type,
         pattern_subjects=[(pattern, temp_name)],
         cond=None,
@@ -924,8 +936,36 @@ def clear_is_let_else(node: LetElseAnnotatedNode) -> None:
         delattr(node, _IS_LET_ELSE)
 
 
+def _let_pattern_check(
+    parser: Parser,
+    decl_type_str: str,
+    pattern_subjects: list[tuple[ast.pattern, ast.expr]],
+    start_pos: tuple[int, int],
+    end_pos: tuple[int, int],
+) -> bool:
+    if decl_type_str != "let":
+        parser.build_syntax_error(
+            "declaration pattern must be 'let' declaration", start_pos, end_pos
+        )
+    if len(pattern_subjects) == 0:
+        parser.build_syntax_error(
+            "declaration pattern must have at least one pattern", start_pos, end_pos
+        )
+    return True
+
+
+def _token_position_default(
+    tok: TokenInfo | str, **kwargs: Unpack[PosAttributes]
+) -> tuple[tuple[int, int], tuple[int, int]]:
+    if isinstance(tok, TokenInfo):
+        return (tok.start, tok.end)
+    else:
+        return unpack_pos_tuple(kwargs)
+
+
 def make_if_let(
-    decl_type: str,
+    parser: Parser,
+    decl_type: TokenInfo | str,
     pattern_subjects: list[tuple[ast.pattern, ast.expr]],
     cond: ast.expr | None,
     body: list[ast.stmt],
@@ -933,15 +973,15 @@ def make_if_let(
     is_let_else: bool,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.stmt:
-    if len(pattern_subjects) == 0:
-        raise SyntaxError("if let must have at least one pattern")
-    else:
-        return set_is_let_else(
-            _make_if_let_multiple(
-                decl_type, pattern_subjects, cond, body, orelse, is_let_else, **kwargs
-            ),
-            is_let_else,
-        )
+    start_pos, end_pos = _token_position_default(decl_type, **kwargs)
+    decl_type_str = decl_type.string if isinstance(decl_type, TokenInfo) else decl_type
+    _let_pattern_check(parser, decl_type_str, pattern_subjects, start_pos, end_pos)
+    return set_is_let_else(
+        _make_if_let_multiple(
+            decl_type_str, pattern_subjects, cond, body, orelse, is_let_else, **kwargs
+        ),
+        is_let_else,
+    )
 
 
 def _make_if_let_single_case(
@@ -1107,16 +1147,18 @@ def _make_if_let_multiple(
 
 
 def make_while_let(
+    parser: Parser,
+    decl_type: TokenInfo | str,
     pattern_subjects: list[tuple[ast.pattern, ast.expr]],
     cond: ast.expr | None,
     body: list[ast.stmt],
     orelse: list[ast.stmt] | None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.While:
-    if len(pattern_subjects) == 0:
-        raise SyntaxError("if let must have at least one pattern")
-    else:
-        return _make_while_let(pattern_subjects, cond, body, orelse, **kwargs)
+    start_pos, end_pos = _token_position_default(decl_type, **kwargs)
+    decl_type_str = decl_type.string if isinstance(decl_type, TokenInfo) else decl_type
+    _let_pattern_check(parser, decl_type_str, pattern_subjects, start_pos, end_pos)
+    return _make_while_let(pattern_subjects, cond, body, orelse, **kwargs)
 
 
 def _make_while_let(
@@ -1766,6 +1808,7 @@ def make_while_comp(
 
 
 def make_if_let_comp(
+    parser: Parser,
     pattern_subjects: list[tuple[ast.pattern, ast.expr]],
     cond: ast.expr | None,
     body: ast.expr,
@@ -1780,6 +1823,7 @@ def make_if_let_comp(
         args=_empty_args(),
         body=[
             make_if_let(
+                parser,
                 "let",
                 pattern_subjects,
                 cond,
@@ -1802,6 +1846,8 @@ def make_if_let_comp(
 
 
 def make_while_let_comp(
+    parser: Parser,
+    decl_type: TokenInfo | str,
     pattern_subjects: list[tuple[ast.pattern, ast.expr]],
     cond: ast.expr | None,
     body: ast.expr,
@@ -1815,6 +1861,8 @@ def make_while_let_comp(
         args=_empty_args(),
         body=[
             make_while_let(
+                parser,
+                decl_type,
                 pattern_subjects,
                 cond,
                 [ast.Expr(ast.Yield(value=body, **get_pos_attributes(body)))],

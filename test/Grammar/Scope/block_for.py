@@ -24,19 +24,19 @@ def test_block_for():
 
 
 for_unpack_typed_code = """
-for (var (a: int, b: float) in [(1, 1.0), (2, 2.0)]) {
+for (let (a: int, b: float) in [(1, 1.0), (2, 2.0)]) {
     print(a);
     print(b);
 }
 """
 for_unpack_typed_result = """
-for _typh_vr_m0_1__typh_vr_m0_0_ in [(1, 1.0), (2, 2.0)]:
-    _typh_cn_m0_2_a: int
-    _typh_cn_m0_3_b: float
-    match _typh_vr_m0_1__typh_vr_m0_0_:
-        case tuple([_typh_cn_m0_2_a, _typh_cn_m0_3_b]):
-            print(_typh_cn_m0_2_a)
-            print(_typh_cn_m0_3_b)
+for _typh_vr_m0_0_ in [(1, 1.0), (2, 2.0)]:
+    _typh_cn_m0_1_a: int
+    _typh_cn_m0_2_b: float
+    match _typh_vr_m0_0_:
+        case tuple([_typh_cn_m0_1_a, _typh_cn_m0_2_b]):
+            print(_typh_cn_m0_1_a)
+            print(_typh_cn_m0_2_b)
         case _:# type: ignore[all]
             raise TypeError
 """

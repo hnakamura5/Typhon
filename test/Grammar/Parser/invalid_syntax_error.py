@@ -1,26 +1,5 @@
 from ..assertion_utils import assert_parse_first_error, with_parser_verbose
 
-invalid_if_let_code = """
-if (let x = 10) print(x);
-"""
-
-
-def test_invalid_if_let():
-    assert_parse_first_error(invalid_if_let_code, SyntaxError, "expected '{'")
-
-
-invalid_while_paren_code = """
-while True {print("Hello")}
-"""
-invalid_while_brace_code = """
-while (True) print("Hello")
-"""
-
-
-def test_invalid_while():
-    assert_parse_first_error(invalid_while_paren_code, SyntaxError, "expected '('")
-    assert_parse_first_error(invalid_while_brace_code, SyntaxError, "expected '{'")
-
 
 invalid_while_let_code = """
 while (let x = 10) print(x)

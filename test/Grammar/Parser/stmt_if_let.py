@@ -3,6 +3,9 @@ from ..assertion_utils import (
     assert_parse_first_error,
     assert_transform,
     assert_typh_code_match_unparse,
+    assert_parse_error_recovery,
+    Range,
+    Pos,
 )
 from ....src.Typhon.Driver.debugging import set_debug_mode, set_debug_verbose
 
@@ -383,3 +386,87 @@ def test_stmt_let_else_annotation():
     assert_parse(let_else_annotation_code, let_else_annotation_result)
     assert_transform(let_else_annotation_code, let_else_annotation_transformed)
     assert_typh_code_match_unparse(let_else_annotation_code)
+
+
+if_let_parenless_code = """
+def func(point: (int, int)) -> None {
+    if let (a, b) = point {
+        print(a + b)
+    }
+}
+"""
+if_let_parenless_recover = """
+def func(point: (int, int)) -> None:
+    if True:
+        match point:
+            case [a, b]:
+                print(a + b)
+            case _:
+                pass
+"""
+
+
+def test_stmt_if_let_parenless():
+    assert_parse_error_recovery(
+        if_let_parenless_code,
+        if_let_parenless_recover,
+        [
+            ("expected '('", Range(Pos(2, 6), Pos(2, 7))),
+            ("expected ')'", Range(Pos(2, 25), Pos(2, 26))),
+        ],
+    )
+
+
+if_let_var_code = """
+def func(point: (int, int)) -> None {
+    if (var (a, b) = point) {
+        print(a + b)
+    }
+}
+"""
+if_let_var_recover = """
+def func(point: (int, int)) -> None:
+    if True:
+        match point:
+            case [a, b]:
+                print(a + b)
+            case _:
+                pass
+"""
+
+
+def test_stmt_if_let_var():
+    assert_parse_error_recovery(
+        if_let_var_code,
+        if_let_var_recover,
+        [
+            ("'let'", Range(Pos(2, 8), Pos(2, 11))),
+        ],
+    )
+
+
+if_let_braceless_code = """
+    if let (a, b) = point
+        print(a + b)
+"""
+if_let_braceless_recover = """
+if True:
+    match point:
+        case [a, b]:
+            print(a + b)
+        case _:
+            pass
+"""
+
+
+def test_stmt_if_let_braceless():
+    assert_parse_error_recovery(
+        if_let_braceless_code,
+        if_let_braceless_recover,
+        [
+            ("expected '('", Range(Pos(1, 6), Pos(1, 7))),
+            ("expected ')'", Range(Pos(1, 25), Pos(1, 26))),
+            ("expected '{'", Range(Pos(2, 8), Pos(2, 9))),
+            ("expected '}'", Range(Pos(2, 20), Pos(2, 21))),
+        ],
+    )
