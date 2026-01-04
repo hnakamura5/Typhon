@@ -132,15 +132,14 @@ except e:
 
 
 def test_stmt_try_braceless_recovery():
-    with with_parser_verbose():
-        assert_parse_error_recovery(
-            try_braceless_code,
-            try_braceless_recovery,
-            [
-                ("expected '{'", Range(Pos(1, 4), Pos(1, 5))),
-                ("expected '}'", Range(Pos(1, 18), Pos(1, 19))),
-            ],
-        )
+    assert_parse_error_recovery(
+        try_braceless_code,
+        try_braceless_recovery,
+        [
+            ("expected '{'", Range(Pos(1, 4), Pos(1, 5))),
+            ("expected '}'", Range(Pos(1, 18), Pos(1, 19))),
+        ],
+    )
 
 
 except_parenless_code = """

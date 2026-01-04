@@ -29,7 +29,7 @@ from .typhon_ast import (
 from .typhon_ast_error import (
     maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, recover_invalid_for, recover_invalid_try, recover_maybe_invalid_function_def_raw,
     recover_maybe_invalid_class_def_raw,
-    statement_panic_skip,
+    statement_panic_skip, let_pattern_check,
 )
 from .syntax_errors import set_syntax_error
 from .parser_helper import Parser, Load, Store, Del, Target
@@ -78,6 +78,7 @@ SYNC_STMT_CLOSER:
 SYNC_STMT_OPENER:
     | 'def' | 'class' | 'let' | 'var'
     | 'if' | 'for' | 'while' | "match" | 'try' | 'with'
+    | 'elif' | 'else' | 'except' | 'finally'
     | 'return' | 'raise' | 'yield'
 
 ANY_TOKEN:
@@ -109,15 +110,17 @@ statement_panic_recovery[List[ast.stmt]]:
     | skip=(!SYNC_STMT ANY_TOKEN)+ sync=statement_panic_synchronize {
         statement_panic_skip(self, skip, sync, LOCATIONS)
      }
+
+# Note when the rule returns Falsy value, it is regarded as fail. We return dummy string here.
 statement_panic_synchronize:
-    | &SYNC_STMT_OPENER { None }
+    | &SYNC_STMT_OPENER { "opener" }
     | SYNC_STMT_CLOSER
-    | &ENDMARKER { None }
+    | &ENDMARKER { "end" }
 
 # Entry point of a normal statement
 statement[List[ast.stmt]]:
     | a=expansive_stmt NEWLINE* { a }
-    | a=compound_stmt NEWLINE* [DELIMITER] { [a] }
+    | a=compound_stmt [DELIMITER] NEWLINE* { [a] }
     | a=simple_stmts NEWLINE* { a }
 
 # For Interactive mode
@@ -245,7 +248,9 @@ declaration_assignment[List[ast.stmt]]:
 # let-else / var-else
 declaration_else:
     | d=decl_keyword pat_sub=','.pattern_assignment+ e=['else' b=block {b}] {
-        make_if_let(self, decl_type=d, pattern_subjects=pat_sub, cond=None, body=[], orelse=e, is_let_else=True, LOCATIONS)
+        let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+            node=make_if_let(decl_type=d, pattern_subjects=pat_sub, cond=None, body=[], orelse=e, is_let_else=True, LOCATIONS)
+        )
      }
 
 declaration_single_assignment[Tuple[ast.expr, Optional[ast.expr], Optional[ast.expr]]]:
@@ -404,7 +409,7 @@ function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
             type_comment=tc,
             type_params=t or [],
             open_anchor=(n or k),
-            close_anchor=(params or n),
+            close_anchor=(params or n or k),
             LOCATIONS,
         )
     }
@@ -516,15 +521,19 @@ if_stmt[ast.stmt]:
     | k='if' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=elif_stmt {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k,
             close_anchor=(cond or pat_sub[-1][1]),
-            node=make_if_let(self, decl_type=d, pattern_subjects=pat_sub, cond=cond,
-                             body=b, orelse=c, is_let_else=False, LOCATIONS)
+            node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+                    node=make_if_let(decl_type=d, pattern_subjects=pat_sub, cond=cond,
+                                    body=b, orelse=c, is_let_else=False, LOCATIONS)
+            )
         )
      }
     | k='if' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k,
             close_anchor=(cond or pat_sub[-1][1]),
-            node=make_if_let(self, decl_type=d, pattern_subjects=pat_sub, cond=cond,
-                             body=b, orelse=c, is_let_else=False, LOCATIONS)
+            node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+                    node=make_if_let(decl_type=d, pattern_subjects=pat_sub, cond=cond,
+                                    body=b, orelse=c, is_let_else=False, LOCATIONS)
+            )
         )
      }
 
@@ -543,15 +552,19 @@ elif_stmt[List[ast.stmt]]:
     | k='elif' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=elif_stmt {
         [maybe_invalid_stmt(self, lp, rp, open_anchor=k,
             close_anchor=(cond or pat_sub[-1][1]),
-            node=make_if_let(self, decl_type=d, pattern_subjects=pat_sub, cond=cond,
-                             body=b, orelse=c or [], is_let_else=False, LOCATIONS)
+            node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+                    node=make_if_let(decl_type=d, pattern_subjects=pat_sub, cond=cond,
+                                    body=b, orelse=c or [], is_let_else=False, LOCATIONS)
+            )
         )]
      }
     | k='elif' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
         [maybe_invalid_stmt(self, lp, rp, open_anchor=k,
             close_anchor=(cond or pat_sub[-1][1]),
-            node=make_if_let(self, decl_type=d, pattern_subjects=pat_sub, cond=cond,
-                             body=b, orelse=c or [], is_let_else=False, LOCATIONS)
+            node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+                    node=make_if_let(decl_type=d, pattern_subjects=pat_sub, cond=cond,
+                                    body=b, orelse=c or [], is_let_else=False, LOCATIONS)
+            )
         )]
      }
 
@@ -572,7 +585,9 @@ while_stmt[ast.While]:
     | k='while' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k,
             close_anchor=(cond or pat_sub[-1][1]),
-            node=make_while_let(self, decl_type=d, pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, LOCATIONS)
+            node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+                node=make_while_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, LOCATIONS)
+            )
         )
      }
 
@@ -681,26 +696,6 @@ try_stmt_with_error[ast.Try]:
 # ----------------
 
 except_star_block[ast.ExceptHandler]:
-    | except_star_with_error
-    | k='except' '*' lp=['('] e=expression t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* &'{' b=maybe_block {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or e),
-            node=ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS)
-        )
-     }
-
-except_block[ast.ExceptHandler]:
-    | except_with_error
-    | k='except' !'*' lp=['('] e=expression t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* b=maybe_block {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or e),
-            node=ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS)
-        )
-     }
-    | 'except' !'*' b=maybe_block { ast.ExceptHandler(type=None, name=None, body=b, LOCATIONS) }
-
-finally_block[List[ast.stmt]]:
-    | 'finally' a=maybe_block { a }
-
-except_star_with_error[ast.ExceptHandler]:
     | 'except' k='*' lp=['('] a=expression ',' es=expressions t=['as' z=NAME { z.string }] rp=[')'] b=maybe_block {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or es.elts[-1]),
             message="multiple exception types must be parenthesized",
@@ -713,14 +708,29 @@ except_star_with_error[ast.ExceptHandler]:
             node=ast.ExceptHandler(type=None, name=None, body=b, LOCATIONS)
         )
      }
+    | k='except' '*' lp=['('] e=expression t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* &'{' b=maybe_block {
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or e),
+            node=ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS)
+        )
+     }
 
-except_with_error[ast.ExceptHandler]:
-    | k='except' lp=['('] a=expression ',' es=expressions t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* b=maybe_block {
+except_block[ast.ExceptHandler]:
+    | k='except' !'*' lp=['('] a=expression ',' es=expressions t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* b=maybe_block {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or es.elts[-1]),
             message="multiple exception types must be parenthesized",
             node=ast.ExceptHandler(type=a, name=t, body=b, LOCATIONS)
         )
      }
+    | k='except' !'*' lp=['('] e=expression t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* b=maybe_block {
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or e),
+            node=ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS)
+        )
+     }
+    | 'except' !'*' b=maybe_block { ast.ExceptHandler(type=None, name=None, body=b, LOCATIONS) }
+
+finally_block[List[ast.stmt]]:
+    | 'finally' a=maybe_block { a }
+
 
 # Match statement
 # ---------------
@@ -1611,11 +1621,15 @@ if_comp_internal[ast.expr]:
     | 'if' '(' b=pipe_operator ')' NEWLINE* a=expression c=[if_comp_else] {
         if_comp_exp(body=a, test=b, orelse=c, LOCATIONS)
      }
-    | 'if' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=if_comp_elif {
-        make_if_let_comp(self, pat_sub, cond, b, c, LOCATIONS)
+    | 'if' '(' d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=if_comp_elif {
+        let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+            node=make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
+        )
      }
-    | 'if' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=[if_comp_else] {
-        make_if_let_comp(self, pat_sub, cond, b, c, LOCATIONS)
+    | 'if' '(' d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=[if_comp_else] {
+        let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+            node=make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
+        )
      }
 
 if_comp_elif[ast.expr]:
@@ -1625,11 +1639,15 @@ if_comp_elif[ast.expr]:
     | 'elif' '(' b=pipe_operator ')' NEWLINE* a=expression c=[if_comp_else] {
         if_comp_exp(body=a, test=b, orelse=c, LOCATIONS)
      }
-    | 'elif' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=if_comp_elif {
-        make_if_let_comp(self, pat_sub, cond, b, c, LOCATIONS)
+    | 'elif' '(' d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=if_comp_elif {
+        let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+            node=make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
+        )
      }
-    | 'elif' '(' 'let' pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=[if_comp_else] {
-        make_if_let_comp(self, pat_sub, cond, b, c, LOCATIONS)
+    | 'elif' '(' d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* b=expression c=[if_comp_else] {
+        let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+            node=make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
+        )
      }
 
 if_comp_else[ast.expr]:
@@ -1691,7 +1709,9 @@ while_comp_internal[ast.expr]:
         make_while_comp(a, b, LOCATIONS)
      }
     | 'while' '(' d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] ')' NEWLINE* 'yield' b=expression {
-        make_while_let_comp(self, decl_type=d, pattern_subjects=pat_sub, cond=cond, body=b, LOCATIONS)
+        let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+            node=make_while_let_comp(pattern_subjects=pat_sub, cond=cond, body=b, LOCATIONS)
+        )
      }
 
 while_comp[ast.expr]:

@@ -276,6 +276,31 @@ class _ErrorHandlingMixin:
         )
 
 
+class TyphonASTRawVisitor(
+    ast.NodeVisitor,
+    _TyphonExtendedNodeTransformerMixin,
+):
+    def visit_PossiblyAnnotatedNode(self, node: ast.AST):
+        self._visit_Possibly_Annotated_Node(node, self, False)
+
+    @override
+    def visit(self, node: ast.AST):
+        return self._visit(node, self, super().visit)
+
+    @override
+    def generic_visit(self, node: ast.AST):
+        # visit() calls _visit() but generic_visit() does not. So we need to dispatch here too.
+        if isinstance(node, ast.Name):
+            if is_function_literal(node):
+                return self._visit_FunctionLiteral(node, self, False)
+            elif is_function_type(node):
+                return self._visit_FunctionType(node, self, False)
+            elif is_control_comprehension(node):
+                return self._visit_ControlComprehension(node, self, False)
+        self.visit_PossiblyAnnotatedNode(node)
+        return super().generic_visit(node)
+
+
 class TyphonASTVisitor(
     ast.NodeVisitor,
     _ScopeManagerMixin,

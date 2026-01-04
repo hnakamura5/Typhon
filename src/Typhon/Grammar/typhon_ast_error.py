@@ -15,6 +15,7 @@ from .typhon_ast import (
 from ..Driver.debugging import debug_print
 from .parser_helper import Parser
 from .syntax_errors import set_syntax_error
+from ..Transform.visitor import TyphonASTRawVisitor
 
 
 _ERROR_NODE = "_typh_error_node"
@@ -25,35 +26,19 @@ def set_error_node[T: ast.AST](node: T, errors: list[SyntaxError]) -> T:
     return node
 
 
-def set_error_list[T: ast.AST](nodes: list[T], errors: list[SyntaxError]) -> list[T]:
-    setattr(nodes, _ERROR_NODE, errors)
-    return nodes
-
-
 def add_error_node[T: ast.AST](node: T, errors: list[SyntaxError]) -> T:
-    return set_error_node(node, get_error_node(node) + errors)
-
-
-def add_error_list[T: ast.AST](nodes: list[T], errors: list[SyntaxError]) -> list[T]:
-    return set_error_list(nodes, get_error_list(nodes) + errors)
+    new_errors = get_error_node(node) + errors
+    print(f"Adding errors to node {type(node).__name__}: {new_errors}")
+    return set_error_node(node, new_errors)
 
 
 def get_error_node(node: ast.AST) -> list[SyntaxError]:
     return getattr(node, _ERROR_NODE, [])
 
 
-def get_error_list[T: ast.AST](nodes: list[T]) -> list[SyntaxError]:
-    return getattr(nodes, _ERROR_NODE, [])
-
-
 def clear_error_node(node: ast.AST) -> None:
     if hasattr(node, _ERROR_NODE):
         delattr(node, _ERROR_NODE)
-
-
-def clear_error_list(nodes: list[ast.AST]) -> None:
-    if hasattr(nodes, _ERROR_NODE):
-        delattr(nodes, _ERROR_NODE)
 
 
 class ErrorPositionHolder(PosAttributes):
@@ -70,22 +55,22 @@ def maybe_invalid_block(
         if body:
             stmt = body[0]
             lineno, col_offset, _, _ = unpack_pos_default(get_pos_attributes(stmt))
-            error_open = parser.build_syntax_error(
-                "expected '{'",
+            error_open = parser.build_expected_error(
+                "'{'",
                 (lineno, col_offset),
                 (lineno, col_offset + 1),
             )
-            add_error_list(body, [error_open])
+            add_error_node(stmt, [error_open])
     if close_brace is None:
         if body:
             stmt = body[-1]
             _, _, lineno, col_offset = unpack_pos_default(get_pos_attributes(stmt))
-            error_close = parser.build_syntax_error(
-                "expected '}'",
+            error_close = parser.build_expected_error(
+                "'}'",
                 (lineno, col_offset),
                 (lineno, col_offset + 1),
             )
-            add_error_list(body, [error_close])
+            add_error_node(stmt, [error_close])
     return body
 
 
@@ -103,16 +88,16 @@ def maybe_invalid_braces[T: PosNode](
     if open_anchor:
         _, _, lineno, col_offset = unpack_pos_default(get_pos_attributes(open_anchor))
     if open_brace is None:
-        error_open = parser.build_syntax_error(
-            "expected '{'",
+        error_open = parser.build_expected_error(
+            "'{'",
             (lineno, col_offset),
             (lineno, col_offset + 1),
         )
         add_error_node(node, [error_open])
 
     if close_brace is None:
-        error_close = parser.build_syntax_error(
-            "expected '}'",
+        error_close = parser.build_expected_error(
+            "'}'",
             (end_lineno, end_col_offset),
             (end_lineno, end_col_offset + 1),
         )
@@ -162,14 +147,14 @@ def maybe_invalid_stmt[T: PosNode](
         debug_print(
             f"open paren missing: {start_loc} to {end_loc} open anchor: {open_anchor}"
         )
-        error = parser.build_syntax_error("expected '('", start_loc, end_loc)
+        error = parser.build_expected_error("'('", start_loc, end_loc)
         add_error_node(node, [error])
     if close_paren is None:
         start_loc, end_loc = _pos_of_anchor(close_anchor)
         debug_print(
             f"close paren missing: {start_loc} to {end_loc} close anchor: {close_anchor}"
         )
-        error = parser.build_syntax_error("expected ')'", start_loc, end_loc)
+        error = parser.build_expected_error("')'", start_loc, end_loc)
         add_error_node(node, [error])
     return node
 
@@ -362,18 +347,49 @@ def recover_maybe_invalid_class_def_raw(
     return class_def
 
 
+def _token_position_default(
+    tok: TokenInfo | str, **kwargs: Unpack[PosAttributes]
+) -> tuple[tuple[int, int], tuple[int, int]]:
+    if isinstance(tok, TokenInfo):
+        return (tok.start, tok.end)
+    else:
+        return unpack_pos_tuple(kwargs)
+
+
+def let_pattern_check[T: ast.AST](
+    parser: Parser,
+    decl_type: TokenInfo | str,
+    pattern_subjects: list[tuple[ast.pattern, ast.expr]],
+    node: T,
+    **kwargs: Unpack[PosAttributes],
+) -> T:
+    start_pos, end_pos = _token_position_default(decl_type, **kwargs)
+    decl_type_str = decl_type.string if isinstance(decl_type, TokenInfo) else decl_type
+    if decl_type_str != "let":
+        error = parser.build_syntax_error(
+            "declaration pattern must be 'let' declaration", start_pos, end_pos
+        )
+        add_error_node(node, [error])
+    if len(pattern_subjects) == 0:
+        error = parser.build_syntax_error(
+            "declaration pattern must have at least one pattern", start_pos, end_pos
+        )
+        add_error_node(node, [error])
+    return node
+
+
 def statement_panic_skip(
     parser: Parser,
     skip: list[TokenInfo],
-    sync: TokenInfo | None,
+    sync: TokenInfo | str,
     **kwargs: Unpack[PosAttributes],
 ) -> list[ast.stmt]:
-    if sync:
+    if isinstance(sync, TokenInfo):
         skip.append(sync)
     start_loc, end_loc = unpack_pos_tuple(kwargs)
     if skip:
-        start_loc, _ = _pos_of_anchor(skip[0])
-        _, end_loc = _pos_of_anchor(skip[-1])
+        start_loc = skip[0].start
+        end_loc = skip[-1].end
     # Record the skipped tokens for error recovery
     error = parser.build_skip_tokens_error(skip, start_loc, end_loc)
     result = ast.Pass(**kwargs)  # Error holder
@@ -381,7 +397,7 @@ def statement_panic_skip(
     return [result]
 
 
-class _ErrorGather(ast.NodeVisitor):
+class _ErrorGather(TyphonASTRawVisitor):
     errors: list[SyntaxError]
 
     def __init__(self):
@@ -390,11 +406,8 @@ class _ErrorGather(ast.NodeVisitor):
 
     def visit(self, node: ast.AST):
         if errors := get_error_node(node):
+            print(f"Gathered errors from node {type(node).__name__}: {errors}")
             self.errors.extend(errors)
-        for field, value in ast.iter_fields(node):
-            if isinstance(value, list):
-                if errors := get_error_list(cast(list[ast.AST], value)):
-                    self.errors.extend(errors)
         self.generic_visit(node)
 
 

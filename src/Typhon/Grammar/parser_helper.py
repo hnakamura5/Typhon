@@ -415,9 +415,7 @@ class Parser(PegenParser):
         start: Tuple[int, int],
         end: Tuple[int, int],
     ) -> SyntaxError:
-        error = self.build_syntax_error(
-            "skipped unknown tokens", start, end, SkipTokensError
-        )
+        error = self.build_syntax_error("unknown tokens", start, end, SkipTokensError)
         error.tokens = tokens
         return error
 
