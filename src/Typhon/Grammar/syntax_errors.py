@@ -1,5 +1,6 @@
 import ast
 from pathlib import Path
+from tokenize import TokenInfo
 from .typhon_ast import PosAttributes
 from typing import Unpack, Callable
 from ..Driver.diagnostic import diag_error_file_position, positioned_source_code
@@ -9,7 +10,16 @@ from ..Driver.debugging import debug_print, is_debug_first_error
 _SYNTAX_ERROR_IN_MODULE = "_typh_syntax_error_in_module"
 
 
-class TyphonSyntaxError(SyntaxError):
+# Error recovery skips unrecognized tokens
+class SkipTokensError(SyntaxError):
+    tokens: list[TokenInfo]
+
+
+class ExpectedTokenError(SyntaxError):
+    expected: str
+
+
+class TyphonTransformSyntaxError(SyntaxError):
     message: str
     pos: PosAttributes
 
@@ -60,12 +70,12 @@ class TyphonSyntaxErrorList(Exception):
 def raise_from_module_syntax_errors(module: ast.Module):
     errors = get_syntax_error_in_module(module)
     if errors is not None and len(errors) > 0:
-        raise TyphonSyntaxErrorList(
-            list(sorted(errors, key=lambda e: (e.lineno, e.offset)))
-        )
+        raise TyphonSyntaxErrorList(errors)
 
 
-def handle_syntax_error(module: ast.Module, syntax_error: TyphonSyntaxError) -> None:
+def handle_syntax_error(
+    module: ast.Module, syntax_error: TyphonTransformSyntaxError
+) -> None:
     if is_debug_first_error():
         debug_print(f"Raising syntax error: {syntax_error}")
         raise syntax_error
@@ -78,12 +88,12 @@ def try_handle_syntax_error_or[T](
 ) -> T:
     try:
         return maybe_syntax_error()
-    except TyphonSyntaxError as syntax_error:
+    except TyphonTransformSyntaxError as syntax_error:
         handle_syntax_error(module, syntax_error)
     return orelse
 
 
-class ScopeError(TyphonSyntaxError):
+class ScopeError(TyphonTransformSyntaxError):
     pass
 
 
@@ -94,7 +104,7 @@ def raise_scope_error(
     raise ScopeError(message, **pos)
 
 
-class ForbiddenStatementError(TyphonSyntaxError):
+class ForbiddenStatementError(TyphonTransformSyntaxError):
     pass
 
 
@@ -105,7 +115,7 @@ def raise_forbidden_statement_error(
     raise ForbiddenStatementError(message, **pos)
 
 
-class TypeAnnotationError(TyphonSyntaxError):
+class TypeAnnotationError(TyphonTransformSyntaxError):
     pass
 
 
@@ -116,7 +126,7 @@ def raise_type_annotation_error(
     raise TypeAnnotationError(message, **pos)
 
 
-class LetMissingElseError(TyphonSyntaxError):
+class LetMissingElseError(TyphonTransformSyntaxError):
     pass
 
 
@@ -128,18 +138,18 @@ def raise_let_missing_else_error(
 
 
 def _get_range_of_error(
-    syntax_error: SyntaxError | TyphonSyntaxError,
+    syntax_error: SyntaxError | TyphonTransformSyntaxError,
 ) -> Range:
-    if isinstance(syntax_error, TyphonSyntaxError):
+    if isinstance(syntax_error, TyphonTransformSyntaxError):
         return Range.from_pos_attr_may_not_end(syntax_error.pos)
     else:
         return Range.from_syntax_error(syntax_error)
 
 
 def _get_message_of_error(
-    syntax_error: SyntaxError | TyphonSyntaxError,
+    syntax_error: SyntaxError | TyphonTransformSyntaxError,
 ) -> str:
-    if isinstance(syntax_error, TyphonSyntaxError):
+    if isinstance(syntax_error, TyphonTransformSyntaxError):
         return syntax_error.message
     else:
         return syntax_error.msg
@@ -152,7 +162,7 @@ def raise_must_have_resolved(msg: str):
 
 
 def diag_error(
-    syntax_error: SyntaxError | TyphonSyntaxError,
+    syntax_error: SyntaxError | TyphonTransformSyntaxError,
     source: Path,
     source_code: str,
 ) -> str:
@@ -173,7 +183,7 @@ def diag_error(
 
 
 def diag_errors(
-    syntax_error: SyntaxError | TyphonSyntaxError | TyphonSyntaxErrorList,
+    syntax_error: SyntaxError | TyphonTransformSyntaxError | TyphonSyntaxErrorList,
     source: Path,
     source_code: str,
 ) -> str:

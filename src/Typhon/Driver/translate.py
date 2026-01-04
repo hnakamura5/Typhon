@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from ..Grammar.parser import parse_file
 from ..Grammar.syntax_errors import (
     diag_errors,
-    TyphonSyntaxError,
+    TyphonTransformSyntaxError,
     TyphonSyntaxErrorList,
 )
 from ..Grammar.unparse_custom import unparse_custom
@@ -28,7 +28,9 @@ class TranslateResult:
     source_path_canonical: str
     output_path_canonical: str
     source_map: SourceMap | None
-    syntax_error: SyntaxError | TyphonSyntaxError | TyphonSyntaxErrorList | None
+    syntax_error: (
+        SyntaxError | TyphonTransformSyntaxError | TyphonSyntaxErrorList | None
+    )
 
 
 def translate_file(source: Path, output: Path) -> TranslateResult:
@@ -36,7 +38,7 @@ def translate_file(source: Path, output: Path) -> TranslateResult:
     try:
         ast_tree = parse_file(source.as_posix(), verbose=is_debug_verbose())
         transform(ast_tree)
-    except (SyntaxError, TyphonSyntaxError, TyphonSyntaxErrorList) as e:
+    except (SyntaxError, TyphonTransformSyntaxError, TyphonSyntaxErrorList) as e:
         debug_print(f"Error parsing file {source}: {e}")
         return TranslateResult(
             source_path_canonical=canonicalize_path(source),

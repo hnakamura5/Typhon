@@ -206,8 +206,11 @@ def assert_parse_error_recovery(
         )
     parse_errors = get_syntax_error_in_module(parsed)
     assert parse_errors
-    parse_errors = sorted(parse_errors, key=lambda e: (e.lineno, e.offset))
-    print(f"expected_syntax_errors:{expexcted_syntax_errors}\n  actural:{parse_errors}")
+    print(f"expected_syntax_errors:{expexcted_syntax_errors}")
+    print("  actual:")
+    for e in parse_errors:
+        print(f'    ("{e.msg}", {Range.from_syntax_error(e).deconstruct_str()}),')
+
     assert len(parse_errors) == len(expexcted_syntax_errors)
     for error, (expected_mes, expected_range) in zip(
         parse_errors, expexcted_syntax_errors

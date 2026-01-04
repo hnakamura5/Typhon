@@ -13,6 +13,7 @@ from typing import (
 from .tokenizer_custom import TokenizerCustom
 from .token_factory_custom import token_stream_factory
 from ._typhon_parser import parse
+from .typhon_ast_error import gather_errors
 
 
 def parse_file(
@@ -30,6 +31,7 @@ def parse_file(
             verbose=verbose,
         )
         assert isinstance(parsed, ast.Module), f"Parsing failed: {parsed}"
+        gather_errors(parsed)
         return parsed
 
 
@@ -48,6 +50,7 @@ def parse_tokenizer(
     )
     # Must be successful parse
     assert isinstance(parsed, ast.AST), f"Parsing failed: {parsed}"
+    gather_errors(parsed)
     return parsed
 
 
@@ -60,10 +63,13 @@ def parse_string(
     """Parse a string."""
     tok_stream = token_stream_factory(io.StringIO(source).readline)
     tokenizer = TokenizerCustom(tok_stream, verbose=verbose)
-    return parse(
+    parsed = parse(
         filename="<string>",
         tokenizer=tokenizer,
         mode=mode if mode == "eval" else "file",
         py_version=py_version,
         verbose=verbose,
     )
+    if parsed:
+        gather_errors(parsed)
+    return parsed

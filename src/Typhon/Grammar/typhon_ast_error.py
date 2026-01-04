@@ -1,5 +1,5 @@
 import ast
-from typing import Unpack
+from typing import Unpack, cast
 from tokenize import TokenInfo
 from .typhon_ast import (
     PosAttributes,
@@ -10,46 +10,40 @@ from .typhon_ast import (
     make_function_def,
     make_class_def,
     get_invalid_name,
+    unpack_pos_tuple,
 )
 from ..Driver.debugging import debug_print
 from .parser_helper import Parser
-
-_PARSE_ERRORS = "_typh_parse_errors"
-
-
-def set_parse_errors(module: ast.AST, errors: list[SyntaxError]) -> None:
-    setattr(module, _PARSE_ERRORS, errors)
-
-
-def get_parse_errors(module: ast.AST) -> list[SyntaxError] | None:
-    return getattr(module, _PARSE_ERRORS, None)
-
-
-def clear_parse_errors(module: ast.AST) -> None:
-    if hasattr(module, _PARSE_ERRORS):
-        delattr(module, _PARSE_ERRORS)
+from .syntax_errors import set_syntax_error
 
 
 _ERROR_NODE = "_typh_error_node"
 
 
-def set_error_node[T: ast.AST](node: T, error: SyntaxError) -> T:
-    setattr(node, _ERROR_NODE, error)
+def set_error_node[T: ast.AST](node: T, errors: list[SyntaxError]) -> T:
+    setattr(node, _ERROR_NODE, errors)
     return node
 
 
-def set_error_list(nodes: list[ast.AST], error: SyntaxError) -> list[ast.AST]:
-    for node in nodes:
-        setattr(node, _ERROR_NODE, error)
+def set_error_list[T: ast.AST](nodes: list[T], errors: list[SyntaxError]) -> list[T]:
+    setattr(nodes, _ERROR_NODE, errors)
     return nodes
 
 
-def get_error_node(node: ast.AST) -> SyntaxError | None:
-    return getattr(node, _ERROR_NODE, None)
+def add_error_node[T: ast.AST](node: T, errors: list[SyntaxError]) -> T:
+    return set_error_node(node, get_error_node(node) + errors)
 
 
-def get_error_list(nodes: list[ast.AST]) -> SyntaxError | None:
-    return getattr(nodes, _ERROR_NODE, None)
+def add_error_list[T: ast.AST](nodes: list[T], errors: list[SyntaxError]) -> list[T]:
+    return set_error_list(nodes, get_error_list(nodes) + errors)
+
+
+def get_error_node(node: ast.AST) -> list[SyntaxError]:
+    return getattr(node, _ERROR_NODE, [])
+
+
+def get_error_list[T: ast.AST](nodes: list[T]) -> list[SyntaxError]:
+    return getattr(nodes, _ERROR_NODE, [])
 
 
 def clear_error_node(node: ast.AST) -> None:
@@ -72,32 +66,26 @@ def maybe_invalid_block(
     close_brace: TokenInfo | None,
     body: list[ast.stmt],
 ) -> list[ast.stmt]:
-    error: SyntaxError | None = None
-
     if open_brace is None:
         if body:
             stmt = body[0]
             lineno, col_offset, _, _ = unpack_pos_default(get_pos_attributes(stmt))
-            error = parser.build_syntax_error(
+            error_open = parser.build_syntax_error(
                 "expected '{'",
                 (lineno, col_offset),
                 (lineno, col_offset + 1),
             )
-
+            add_error_list(body, [error_open])
     if close_brace is None:
         if body:
             stmt = body[-1]
             _, _, lineno, col_offset = unpack_pos_default(get_pos_attributes(stmt))
-            error2 = parser.build_syntax_error(
+            error_close = parser.build_syntax_error(
                 "expected '}'",
                 (lineno, col_offset),
                 (lineno, col_offset + 1),
             )
-            if error is None:
-                error = error2
-
-    if error:
-        return set_error_list(body, error)  # type: ignore
+            add_error_list(body, [error_close])
     return body
 
 
@@ -114,23 +102,21 @@ def maybe_invalid_braces[T: PosNode](
     )
     if open_anchor:
         _, _, lineno, col_offset = unpack_pos_default(get_pos_attributes(open_anchor))
-    error: SyntaxError | None = None
     if open_brace is None:
-        error = parser.build_syntax_error(
+        error_open = parser.build_syntax_error(
             "expected '{'",
             (lineno, col_offset),
             (lineno, col_offset + 1),
         )
+        add_error_node(node, [error_open])
+
     if close_brace is None:
         error_close = parser.build_syntax_error(
             "expected '}'",
             (end_lineno, end_col_offset),
             (end_lineno, end_col_offset + 1),
         )
-        if error is None:
-            error = error_close
-    if error is not None:
-        return set_error_node(node, error)
+        add_error_node(node, [error_close])
     return node
 
 
@@ -164,29 +150,27 @@ def maybe_invalid_stmt[T: PosNode](
     lineno, col_offset, end_lineno, end_col_offset = unpack_pos_default(
         get_pos_attributes(node)
     )
-    error: SyntaxError | None = None
     if message is not None:
         error = parser.build_syntax_error(
             message,
             (lineno, col_offset),
             (end_lineno, end_col_offset),
         )
+        add_error_node(node, [error])
     if open_paren is None:
         start_loc, end_loc = _pos_of_anchor(open_anchor)
         debug_print(
             f"open paren missing: {start_loc} to {end_loc} open anchor: {open_anchor}"
         )
         error = parser.build_syntax_error("expected '('", start_loc, end_loc)
+        add_error_node(node, [error])
     if close_paren is None:
         start_loc, end_loc = _pos_of_anchor(close_anchor)
         debug_print(
             f"close paren missing: {start_loc} to {end_loc} close anchor: {close_anchor}"
         )
-        close_error = parser.build_syntax_error("expected ')'", start_loc, end_loc)
-        if error is None:
-            error = close_error
-    if error is not None:
-        set_error_node(node, error)
+        error = parser.build_syntax_error("expected ')'", start_loc, end_loc)
+        add_error_node(node, [error])
     return node
 
 
@@ -203,7 +187,7 @@ def recover_invalid_try(
         (lineno, col_offset),
         (end_lineno, end_col_offset),
     )
-    return set_error_node(node, error)
+    return add_error_node(node, [error])
 
 
 def recover_invalid_for(
@@ -221,18 +205,17 @@ def recover_invalid_for(
     **kwargs: Unpack[PosAttributes],
 ) -> ast.For | ast.AsyncFor:
     current_anchor: tuple[int, int] = _pos_of_anchor(open_anchor)[0]
-    error: SyntaxError | None = None
+    errors: list[SyntaxError] = []
 
     def error_expect(mes: str):
-        nonlocal error
+        nonlocal errors
         nonlocal current_anchor
-        current_error = parser.build_expected_error(
+        error = parser.build_expected_error(
             mes,
             current_anchor,
             _next_col(current_anchor),
         )
-        if error is None:
-            error = current_error
+        errors.append(error)
         current_anchor = _next_col(current_anchor)
 
     if not open_paren:
@@ -280,8 +263,7 @@ def recover_invalid_for(
         is_async=is_async,
         **kwargs,
     )
-    if error is not None:
-        set_error_node(for_node, error)
+    add_error_node(for_node, errors)
     return for_node
 
 
@@ -325,7 +307,7 @@ def recover_maybe_invalid_function_def_raw(
         close_anchor=close_anchor,
     )
     if error:
-        set_error_node(result, error)
+        add_error_node(result, [error])
     return result
 
 
@@ -376,5 +358,48 @@ def recover_maybe_invalid_class_def_raw(
             close_anchor=close_anchor,
         )
     if error:
-        set_error_node(class_def, error)
+        add_error_node(class_def, [error])
     return class_def
+
+
+def statement_panic_skip(
+    parser: Parser,
+    skip: list[TokenInfo],
+    sync: TokenInfo | None,
+    **kwargs: Unpack[PosAttributes],
+) -> list[ast.stmt]:
+    if sync:
+        skip.append(sync)
+    start_loc, end_loc = unpack_pos_tuple(kwargs)
+    if skip:
+        start_loc, _ = _pos_of_anchor(skip[0])
+        _, end_loc = _pos_of_anchor(skip[-1])
+    # Record the skipped tokens for error recovery
+    error = parser.build_skip_tokens_error(skip, start_loc, end_loc)
+    result = ast.Pass(**kwargs)  # Error holder
+    add_error_node(result, [error])
+    return [result]
+
+
+class _ErrorGather(ast.NodeVisitor):
+    errors: list[SyntaxError]
+
+    def __init__(self):
+        self.errors = []
+        super().__init__()
+
+    def visit(self, node: ast.AST):
+        if errors := get_error_node(node):
+            self.errors.extend(errors)
+        for field, value in ast.iter_fields(node):
+            if isinstance(value, list):
+                if errors := get_error_list(cast(list[ast.AST], value)):
+                    self.errors.extend(errors)
+        self.generic_visit(node)
+
+
+def gather_errors(node: ast.AST):
+    gather = _ErrorGather()
+    gather.visit(node)
+    parse_errors = sorted(gather.errors, key=lambda e: (e.lineno, e.offset))
+    set_syntax_error(node, parse_errors)

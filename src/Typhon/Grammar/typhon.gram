@@ -29,6 +29,7 @@ from .typhon_ast import (
 from .typhon_ast_error import (
     maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, recover_invalid_for, recover_invalid_try, recover_maybe_invalid_function_def_raw,
     recover_maybe_invalid_class_def_raw,
+    statement_panic_skip,
 )
 from .syntax_errors import set_syntax_error
 from .parser_helper import Parser, Load, Store, Del, Target
@@ -44,8 +45,6 @@ def parse(
 ) -> ast.AST | None:
     parser = TyphonParser(tokenizer, verbose=verbose, py_version=py_version)
     result = parser.parse(mode)
-    if result and parser.errors:
-        set_syntax_error(result, parser.errors)
     return result
 '''
 
@@ -66,13 +65,62 @@ fstring[ast.Expr]: star_expressions
 
 DELIMITER: ';' | NEWLINE
 
+
+# ERROR RECOVERY
+# ==============
+
+# Syncronization point in panic mode.
+SYNC_STMT: SYNC_STMT_CLOSER | SYNC_STMT_OPENER
+
+SYNC_STMT_CLOSER:
+    | DELIMITER | '}'
+
+SYNC_STMT_OPENER:
+    | 'def' | 'class' | 'let' | 'var'
+    | 'if' | 'for' | 'while' | "match" | 'try' | 'with'
+    | 'return' | 'raise' | 'yield'
+
+ANY_TOKEN:
+    | KEYWORD | NAME | NUMBER | STRING | OP | TYPE_COMMENT | NEWLINE
+    | FSTRING_START | FSTRING_MIDDLE | FSTRING_END
+    | INDENT | DEDENT
+
+KEYWORD:
+    | 'def' | 'class' | 'return' | 'if' | 'else' | 'elif' | 'while' | 'for'
+    | 'in' | 'is' | 'not' | 'and' | 'or' | 'import' | 'from' | 'as'
+    | 'try' | 'except' | 'finally' | 'with' | 'async' | 'await'
+    | 'pass' | 'break' | 'continue' | 'del' | 'global' | 'nonlocal'
+    | 'lambda' | 'yield' | 'raise' | 'assert'
+    | 'True' | 'False' | 'None'
+    | 'let' | 'var' | "match" | 'case' | 'type'
+    | '_typh_op_optional_question' | '_typh_op_force_unwrap'
+
 # GENERAL STATEMENTS
 # ==================
 
-statements[List[ast.stmt]]: NEWLINE* a=statement* { sum(a, []) }
+statements[List[ast.stmt]]: NEWLINE* a=statement_or_recovery* { sum(a, []) }
 
-statement[List[ast.stmt]]: a=expansive_stmt NEWLINE* { a } | a=compound_stmt NEWLINE* [DELIMITER] { [a] } | a=simple_stmts NEWLINE* { a }
+statement_or_recovery[List[ast.stmt]]:
+    | statement
+    | !statement statement_panic_recovery
 
+# Skip to synchronization point
+statement_panic_recovery[List[ast.stmt]]:
+    | skip=(!SYNC_STMT ANY_TOKEN)+ sync=statement_panic_synchronize {
+        statement_panic_skip(self, skip, sync, LOCATIONS)
+     }
+statement_panic_synchronize:
+    | &SYNC_STMT_OPENER { None }
+    | SYNC_STMT_CLOSER
+    | &ENDMARKER { None }
+
+# Entry point of a normal statement
+statement[List[ast.stmt]]:
+    | a=expansive_stmt NEWLINE* { a }
+    | a=compound_stmt NEWLINE* [DELIMITER] { [a] }
+    | a=simple_stmts NEWLINE* { a }
+
+# For Interactive mode
 statement_newline[List[ast.stmt]]:
     | a=compound_stmt NEWLINE { [a] }
     | simple_stmts
@@ -80,7 +128,6 @@ statement_newline[List[ast.stmt]]:
     | ENDMARKER { None }
 
 simple_stmts[List[ast.stmt]]:
-    # | a=simple_stmt !';' NEWLINE { [a] } # Not needed, there for speedup
     | a=DELIMITER.simple_stmt+ [DELIMITER] { a }
 
 # NOTE: assignment MUST precede expression, else parsing a simple assignment
@@ -111,7 +158,6 @@ compound_stmt:
     | &'try' try_stmt
     | &'while' while_stmt
     | match_stmt
-
 
 decl_keyword: 'var' | 'let'
 
@@ -611,12 +657,6 @@ try_stmt[ast.Try]:
      }
 
 try_stmt_with_error[ast.Try]:
-    | 'try' b=block !('except' | 'finally') {
-        recover_invalid_try(self,
-            message="expected 'except' or 'finally' block",
-            node=ast.Try(body=b, handlers=[], orlese=[], finalbody=[], LOCATIONS)
-        )
-     }
     | 'try' b=maybe_block ex=except_block+ ex_s=except_star_block+ el=[else_block] f=[finally_block] {
         recover_invalid_try(self,
             message="cannot have both 'except' and 'except*' on the same 'try'",
@@ -627,6 +667,12 @@ try_stmt_with_error[ast.Try]:
         recover_invalid_try(self,
             message="cannot have both 'except' and 'except*' on the same 'try'",
             node=ast.Try(body=b, handlers=(ex_s + ex), orlese=el or [], finalbody=f or [], LOCATIONS)
+        )
+     }
+    | 'try' b=maybe_block !('except' | 'finally') {
+        recover_invalid_try(self,
+            message="expected 'except' or 'finally' block",
+            node=ast.Try(body=b, handlers=[], orlese=[], finalbody=[], LOCATIONS)
         )
      }
 

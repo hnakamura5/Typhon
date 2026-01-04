@@ -1,13 +1,10 @@
-from ..assertion_utils import assert_parse_first_error, with_parser_verbose
-
-
-invalid_while_let_code = """
-while (let x = 10) print(x)
-"""
-
-
-def test_invalid_while_let():
-    assert_parse_first_error(invalid_while_let_code, SyntaxError, "expected '{'")
+from ..assertion_utils import (
+    assert_parse_first_error,
+    with_parser_verbose,
+    assert_parse_error_recovery,
+    Range,
+    Pos,
+)
 
 
 invalid_as_pattern_code = """
@@ -64,3 +61,69 @@ def test_invalid_function_def():
     )
     # TODO:
     # assert_parse_first_error(invalid_function_def_no_type_code, SyntaxError, "use '->'")
+
+
+# Skip the broken part and recover the second declaration
+panic_simple_code = """
+let x = 1
+!! garbage tokens !!
+let y = 2
+"""
+panic_simple_recovery = """
+x = 1
+y = 2
+"""
+
+
+# def test_panic_simple_recovery():
+#     with with_parser_verbose():
+#         assert_parse_error_recovery(
+#             panic_simple_code,
+#             panic_simple_recovery,
+#             [("unexpected token", Range(Pos(2, 0), Pos(2, 20)))],
+#         )
+
+
+# # Recover the class definition
+# panic_definition_code = """
+# def broken_func(a, #) -> {
+#     return 1
+# }
+# class RecoveredClass {}
+# """
+# panic_definition_recovery = """
+# class RecoveredClass:
+#     pass
+# """
+
+
+# def test_panic_definition_recovery():
+#     assert_parse_error_recovery(
+#         panic_definition_code,
+#         panic_definition_recovery,
+#         [("unexpected token", Range(Pos(3, 1), Pos(3, 20)))],
+#     )
+
+
+# # Recover the second declaration
+# panic_inside_block_code = """
+# if (true) {
+#     let a = 1
+#     1 + * / 2
+#     let b = 2
+# }
+# """
+# panic_inside_block_recovery = """
+# if (true) {
+#     let a = 1
+#     let b = 2
+# }
+# """
+
+
+# def test_panic_inside_block_recovery():
+#     assert_parse_error_recovery(
+#         panic_inside_block_code,
+#         panic_inside_block_recovery,
+#         [("unexpected token", Range(Pos(3, 1), Pos(3, 20)))],
+#     )

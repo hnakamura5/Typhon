@@ -13,7 +13,7 @@ from ..Grammar.typhon_ast import (
 from ..Grammar.syntax_errors import (
     raise_type_annotation_error,
     handle_syntax_error,
-    TyphonSyntaxError,
+    TyphonTransformSyntaxError,
 )
 from .visitor import TyphonASTTransformer, TyphonASTVisitor, flat_append
 from ..Driver.debugging import debug_print, debug_verbose_print
@@ -50,7 +50,7 @@ def _expand_target_annotation(
             result.append(new_assign)
             copy_is_let_var(orig_node, new_assign)
         return result
-    except TyphonSyntaxError as e:
+    except TyphonTransformSyntaxError as e:
         handle_syntax_error(module, e)
         return []
 

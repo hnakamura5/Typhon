@@ -192,6 +192,9 @@ class Range:
             result_lines.append(get_in_line(lines[end_line], 0, end_column))
             return "\n".join(result_lines)
 
+    def deconstruct_str(self):
+        return f"Range(Pos({self.start.line}, {self.start.column}), Pos({self.end.line}, {self.end.column}))"
+
 
 type RangeInterval[T] = tuple[Range, T]
 

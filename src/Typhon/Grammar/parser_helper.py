@@ -20,6 +20,7 @@ from typing import (
     Optional,
     Protocol,
     cast,
+    Type,
 )
 
 from pegen.tokenizer import Tokenizer
@@ -31,6 +32,7 @@ from .typhon_ast import (
     get_pos_attributes,
     get_anonymous_base_name,
 )
+from .syntax_errors import SkipTokensError, ExpectedTokenError
 
 EXPR_NAME_MAPPING: dict[type, str] = {
     ast.Attribute: "attribute",
@@ -87,7 +89,6 @@ class PositionedNode(Protocol):
 class Parser(PegenParser):
     #: Name of the source file, used in error reports
     filename: str
-    errors: List[SyntaxError]
     _anonymous_id = 0
 
     def __init__(
@@ -105,7 +106,6 @@ class Parser(PegenParser):
         )
         # Note "invalid_*" rules returns None. Cannot use for error recovery.
         self.call_invalid_rules = True
-        self.errors = []
 
     def parse(self, rule: str, call_invalid_rules: bool = True) -> Optional[ast.AST]:
         old = self.call_invalid_rules
@@ -377,12 +377,13 @@ class Parser(PegenParser):
             arg.type_comment = type_comment
         return arg
 
-    def build_syntax_error(
+    def build_syntax_error[T: SyntaxError](
         self,
         message: str,
         start: Tuple[int, int],
         end: Tuple[int, int],
-    ) -> SyntaxError:
+        error_type: Type[T] = SyntaxError,
+    ) -> T:
         # End is used only to get the proper text
         line = "\\n".join(self._tokenizer.get_lines(list(range(start[0], end[0] + 1))))
 
@@ -394,8 +395,7 @@ class Parser(PegenParser):
         if sys.version_info >= (3, 10):
             args += (end[0], end[1])
 
-        result = SyntaxError(message, args)
-        self.errors.append(result)
+        result = error_type(message, args)
         if is_debug_first_error():
             raise result
         return result
@@ -403,7 +403,23 @@ class Parser(PegenParser):
     def build_expected_error(
         self, message: str, start: Tuple[int, int], end: Tuple[int, int]
     ) -> SyntaxError:
-        return self.build_syntax_error(f"expected {message}", start, end)
+        error = self.build_syntax_error(
+            f"expected {message}", start, end, ExpectedTokenError
+        )
+        error.expected = message
+        return error
+
+    def build_skip_tokens_error(
+        self,
+        tokens: list[tokenize.TokenInfo],
+        start: Tuple[int, int],
+        end: Tuple[int, int],
+    ) -> SyntaxError:
+        error = self.build_syntax_error(
+            "skipped unknown tokens", start, end, SkipTokensError
+        )
+        error.tokens = tokens
+        return error
 
     def raise_raw_syntax_error(
         self, message: str, start: Tuple[int, int], end: Tuple[int, int]
