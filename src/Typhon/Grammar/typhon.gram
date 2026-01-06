@@ -33,7 +33,7 @@ from .typhon_ast_error import (
 )
 from .syntax_errors import set_syntax_error
 from .parser_helper import Parser, Load, Store, Del, Target
-from .tokenizer_custom import TokenizerCustom
+from .tokenizer_custom import TokenizerCustom, TokenInfo
 from .token_factory_custom import token_stream_factory
 
 def parse(
@@ -81,8 +81,11 @@ SYNC_STMT_OPENER:
     | 'elif' | 'else' | 'except' | 'finally'
     | 'return' | 'raise' | 'yield'
 
+# TOKEN DEFINITIONS
+# =================
+
 ANY_TOKEN:
-    | KEYWORD | NAME | NUMBER | STRING | OP | TYPE_COMMENT | NEWLINE
+    | KEYWORD | SOFT_KEYWORD | NAME | NUMBER | STRING | OP | TYPE_COMMENT | NEWLINE
     | FSTRING_START | FSTRING_MIDDLE | FSTRING_END
     | INDENT | DEDENT
 
@@ -91,10 +94,17 @@ KEYWORD:
     | 'in' | 'is' | 'not' | 'and' | 'or' | 'import' | 'from' | 'as'
     | 'try' | 'except' | 'finally' | 'with' | 'async' | 'await'
     | 'pass' | 'break' | 'continue' | 'del' | 'global' | 'nonlocal'
-    | 'lambda' | 'yield' | 'raise' | 'assert'
+    | 'lambda' | 'yield' | 'raise' | 'assert' | 'static'
     | 'True' | 'False' | 'None'
-    | 'let' | 'var' | "match" | 'case' | 'type'
+    | 'let' | 'var' | "match" | "case"
     | '_typh_op_optional_question' | '_typh_op_force_unwrap'
+
+UNUSABLE_NAME:
+    | !("match" | "case") KEYWORD
+
+NAME_OR_UNUSABLE[Tuple[TokenInfo, bool]]:
+    | u=UNUSABLE_NAME { (u, False) }
+    | n=NAME { (n, True) }
 
 # GENERAL STATEMENTS
 # ==================
@@ -372,16 +382,16 @@ class_def[ast.ClassDef]:
     | class_def_raw
 
 class_def_raw[ast.ClassDef]:
-    | k='class' n=[NAME] t=[type_params] bases=[lp='(' b=[arguments] rp=[')'] { (lp, b, rp) }] NEWLINE* c=maybe_block {
+    | k='class' n=[NAME_OR_UNUSABLE] t=[type_params] bases=[lp='(' b=[arguments] rp=[')'] { (lp, b, rp) }] NEWLINE* c=maybe_block {
         (
             recover_maybe_invalid_class_def_raw(
                 self,
-                name=n,
+                maybe_name=n,
                 bases_parens=bases,
                 body=c,
                 decorator_list=[],
                 type_params=t or [],
-                open_anchor=n or k,
+                open_anchor=(n[0] if n else k),
                 LOCATIONS,
             )
         )
@@ -395,12 +405,12 @@ function_def[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
     | f=function_def_raw {self.set_decorators(f, [])}
 
 function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
-    | st=['static'] asc=['async'] k='def' n=[NAME] t=[type_params] lp=['('] params=[params] rp=[')'] a=[typing_arrow_return_type] tc=[func_type_comment] NEWLINE*  b=maybe_block {
+    | st=['static'] asc=['async'] k='def' n=[NAME_OR_UNUSABLE] t=[type_params] lp=['('] params=[params] rp=[')'] a=[typing_arrow_return_type] tc=[func_type_comment] NEWLINE*  b=maybe_block {
         recover_maybe_invalid_function_def_raw(
             self,
             is_async=(asc is not None),
             is_static=(st is not None),
-            name=n,
+            maybe_name=n,
             open_paren=lp,
             args=params or make_arguments(None, [], None, [], None, LOCATIONS),
             close_paren=rp,
@@ -408,17 +418,17 @@ function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
             body=b,
             type_comment=tc,
             type_params=t or [],
-            open_anchor=(n or k),
-            close_anchor=(params or n or k),
+            open_anchor=(n[0] if n else k),
+            close_anchor=(params or (n[0] if n else k)),
             LOCATIONS,
         )
     }
 
-invalid_def_raw[NoReturn]:
-    | ['async'] a='def' NAME  [type_params] '(' [params] ')' '->' expression NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
-    # TODO: Make this rule in typing_arrow_return_type
-    | ['async'] a='def' NAME  [type_params] '(' [params] ')' ':' { self.raise_syntax_error("use '->' for function return type") }
-    | ['async'] a='def' NAME  [type_params] '(' [params] ')' !('{' | '->') { self.raise_syntax_error("expected '{'") }
+# invalid_def_raw[NoReturn]:
+#     | ['async'] a='def' NAME  [type_params] '(' [params] ')' '->' expression NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
+#     # TODO: Make this rule in typing_arrow_return_type
+#     | ['async'] a='def' NAME  [type_params] '(' [params] ')' ':' { self.raise_syntax_error("use '->' for function return type") }
+#     | ['async'] a='def' NAME  [type_params] '(' [params] ')' !('{' | '->') { self.raise_syntax_error("expected '{'") }
 
 # Function parameters
 # -------------------

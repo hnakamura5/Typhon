@@ -256,7 +256,7 @@ def recover_maybe_invalid_function_def_raw(
     parser: Parser,
     is_async: bool,
     is_static: bool,
-    name: TokenInfo | str | None,
+    maybe_name: tuple[TokenInfo, bool] | None,
     open_paren: TokenInfo | None,
     args: ast.arguments,
     close_paren: TokenInfo | None,
@@ -269,10 +269,20 @@ def recover_maybe_invalid_function_def_raw(
     close_anchor: PosNode | TokenInfo,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.FunctionDef | ast.AsyncFunctionDef:
-    start_pos, end_pos = _pos_of_anchor(open_anchor)
     error: SyntaxError | None = None
-    if not name:
+    if not maybe_name:
+        start_pos, end_pos = _pos_of_anchor(open_anchor)
         error = parser.build_expected_error("function name", start_pos, end_pos)
+        name = get_invalid_name()
+    else:
+        name, is_usable = maybe_name
+        if not is_usable:
+            error = parser.build_syntax_error(
+                f"keyword '{name.string}' cannot be used as function name",
+                name.start,
+                name.end,
+            )
+            name = get_invalid_name()
     result = maybe_invalid_stmt(
         parser,
         open_paren,
@@ -280,7 +290,7 @@ def recover_maybe_invalid_function_def_raw(
         node=make_function_def(
             is_async=is_async,
             is_static=is_static,
-            name=name or get_invalid_name(),
+            name=name,
             args=args,
             returns=returns,
             body=body,
@@ -298,7 +308,7 @@ def recover_maybe_invalid_function_def_raw(
 
 def recover_maybe_invalid_class_def_raw(
     parser: Parser,
-    name: TokenInfo | str | None,
+    maybe_name: tuple[TokenInfo, bool] | None,
     bases_parens: tuple[
         TokenInfo, tuple[list[ast.expr], list[ast.keyword]], TokenInfo | None
     ]
@@ -310,7 +320,6 @@ def recover_maybe_invalid_class_def_raw(
     open_anchor: PosNode | TokenInfo,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.ClassDef:
-    start_pos, end_pos = _pos_of_anchor(open_anchor)
     open_paren, (bases, keywords), close_paren = bases_parens or (None, ([], []), None)
     close_anchor = (
         bases[-1]
@@ -318,14 +327,25 @@ def recover_maybe_invalid_class_def_raw(
         else (
             type_params[-1]
             if type_params
-            else (name if isinstance(name, TokenInfo) else open_anchor)
+            else (maybe_name if isinstance(maybe_name, TokenInfo) else open_anchor)
         )
     )
     error: SyntaxError | None = None
-    if not name:
+    if not maybe_name:
+        start_pos, end_pos = _pos_of_anchor(open_anchor)
         error = parser.build_expected_error("class name", start_pos, end_pos)
+        name = get_invalid_name()
+    else:
+        name, is_usable = maybe_name
+        if not is_usable:
+            error = parser.build_syntax_error(
+                f"keyword '{name.string}' cannot be used as class name",
+                name.start,
+                name.end,
+            )
+            name = get_invalid_name()
     class_def = make_class_def(
-        name=name or get_invalid_name(),
+        name=name,
         bases=bases,
         keywords=keywords,
         body=body,

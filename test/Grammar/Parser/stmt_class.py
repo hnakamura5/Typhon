@@ -196,3 +196,26 @@ def test_stmt_class_braceless_close():
             ("expected '}'", Range(Pos(4, 5), Pos(4, 6))),
         ],
     )
+
+
+class_name_unusable_code = """
+class for {
+}
+"""
+class_name_unusable_recover = """
+class _typh_invalid_name:
+    pass
+"""
+
+
+def test_stmt_class_name_unusable():
+    assert_parse_error_recovery(
+        class_name_unusable_code,
+        class_name_unusable_recover,
+        [
+            (
+                "keyword 'for' cannot be used as class name",
+                Range(Pos(1, 6), Pos(1, 9)),
+            ),
+        ],
+    )

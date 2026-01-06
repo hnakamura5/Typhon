@@ -113,3 +113,27 @@ def test_stmt_def_nameless_recovery():
         recover_def_nameless,
         [("expected function name", Range(Pos(1, 3), Pos(1, 4)))],
     )
+
+
+code_def_keyword_name = """
+def return(x: int) {
+    return None;
+}
+"""
+recover_def_keyword_name = """
+def _typh_invalid_name(x: int):
+    return None
+"""
+
+
+def test_stmt_def_keyword_name_recovery():
+    assert_parse_error_recovery(
+        code_def_keyword_name,
+        recover_def_keyword_name,
+        [
+            (
+                "keyword 'return' cannot be used as function name",
+                Range(Pos(1, 4), Pos(1, 10)),
+            )
+        ],
+    )
