@@ -34,7 +34,7 @@ def build_grammar():
     )
 
 
-def type_check(source_file: str) -> bool:
+def _type_check(source_file: str) -> bool:
     output = subprocess.run(
         [
             sys.executable,

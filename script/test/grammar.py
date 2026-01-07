@@ -1,8 +1,8 @@
 import subprocess
 import sys
 from pathlib import Path
-from .util import get_project_root, gather_directory
-from .build import build_grammar, type_check
+from ..util import get_project_root, gather_directory
+from ..build import build_grammar, _type_check
 
 
 def gather_test_in_grammar_test_dir(dir_name: str) -> list[str]:

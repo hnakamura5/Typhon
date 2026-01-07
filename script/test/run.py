@@ -1,8 +1,8 @@
 import subprocess
 import sys
 from pathlib import Path
-from .util import get_project_root
-from .build import build_grammar, type_check
+from ..util import get_project_root
+from ..build import build_grammar, _type_check
 
 
 def run_all_tests() -> int:
