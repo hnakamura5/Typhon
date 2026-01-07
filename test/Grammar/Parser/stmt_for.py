@@ -7,9 +7,9 @@ from ..assertion_utils import (
     Pos,
     with_parser_verbose,
 )
-from ....src.Typhon.Grammar.typhon_ast import is_var, is_let
+from src.Typhon.Grammar.typhon_ast import is_var, is_let
 import ast
-from ....src.Typhon.Driver.debugging import set_debug_verbose
+from src.Typhon.Driver.debugging import set_debug_verbose
 
 code_for = """
 for (let i in range(10)) {

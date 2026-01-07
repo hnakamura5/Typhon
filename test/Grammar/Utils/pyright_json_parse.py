@@ -1,4 +1,4 @@
-from ....src.Typhon.Typing.pyright import parse_json_output
+from src.Typhon.Typing.pyright import parse_json_output
 
 code_with_error = """
 {

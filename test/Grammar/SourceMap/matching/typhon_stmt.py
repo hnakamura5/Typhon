@@ -3,8 +3,8 @@ from ...assertion_utils import (
     assert_transform,
     SourceMapAsserter,
 )
-from .....src.Typhon.SourceMap.datatype import Range, Pos
-from .....src.Typhon.Driver.debugging import set_debug_verbose
+from src.Typhon.SourceMap.datatype import Range, Pos
+from src.Typhon.Driver.debugging import set_debug_verbose
 
 
 code_stmt_if = """

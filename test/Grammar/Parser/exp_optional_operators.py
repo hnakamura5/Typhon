@@ -3,7 +3,7 @@ from ..assertion_utils import (
     assert_transform,
     assert_typh_code_match_unparse,
 )
-from ....src.Typhon.Transform.name_generator import (
+from src.Typhon.Transform.name_generator import (
     get_unwrap_name,
     get_unwrap_error_name,
 )

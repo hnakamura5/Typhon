@@ -4,12 +4,12 @@ from ..assertion_utils import (
     TokenizerAsserter,
     assert_transform,
 )
-from ....src.Typhon.Grammar.typhon_ast import (
+from src.Typhon.Grammar.typhon_ast import (
     OPTIONAL_QUESTION,
 )
 from tokenize import NAME, OP, NEWLINE, ENDMARKER, NUMBER
 import ast
-from ....src.Typhon.Driver.debugging import set_debug_verbose
+from src.Typhon.Driver.debugging import set_debug_verbose
 
 pipe_operator_code = """
 def func(x: int) -> int {

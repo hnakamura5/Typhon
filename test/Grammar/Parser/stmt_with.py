@@ -9,8 +9,8 @@ from ..assertion_utils import (
     with_parser_verbose,
 )
 import ast
-from ....src.Typhon.Grammar.typhon_ast import is_var, is_let
-from ....src.Typhon.Driver.debugging import set_debug_verbose
+from src.Typhon.Grammar.typhon_ast import is_var, is_let
+from src.Typhon.Driver.debugging import set_debug_verbose
 
 
 code_with = """

@@ -7,7 +7,7 @@ from ..assertion_utils import (
     Range,
     Pos,
 )
-from ....src.Typhon.Driver.debugging import set_debug_mode, set_debug_verbose
+from src.Typhon.Driver.debugging import set_debug_mode, set_debug_verbose
 
 
 if_let_none_check_code = """

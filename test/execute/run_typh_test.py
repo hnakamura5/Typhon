@@ -1,13 +1,13 @@
 from pathlib import Path
-from ...src.Typhon.Driver.run import run_file, run_directory
-from ...src.Typhon.Driver.translate import (
+from src.Typhon.Driver.run import run_file, run_directory
+from src.Typhon.Driver.translate import (
     translate_file,
     translate_and_run_type_check_file,
 )
-from ...src.Typhon.Driver.utils import prepare_default_output_file
-from ...src.Typhon.Driver.debugging import debug_print, set_debug_mode
+from src.Typhon.Driver.utils import prepare_default_output_file
+from src.Typhon.Driver.debugging import debug_print, set_debug_mode
 from .file_check_util import assert_file_stdout, assert_file_stderr
-from ...src.Typhon.Grammar.syntax_errors import diag_errors
+from src.Typhon.Grammar.syntax_errors import diag_errors
 
 
 # Test to run .typh files in test/RunFileTest directory.

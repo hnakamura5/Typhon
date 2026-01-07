@@ -5,7 +5,7 @@ from ..assertion_utils import (
     assert_transform,
     set_parser_verbose,
 )
-from ....src.Typhon.Grammar.typhon_ast import OPTIONAL_QUESTION, FORCE_UNWRAP
+from src.Typhon.Grammar.typhon_ast import OPTIONAL_QUESTION, FORCE_UNWRAP
 from tokenize import (
     NAME,
     OP,

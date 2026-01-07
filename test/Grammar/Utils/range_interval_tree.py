@@ -1,4 +1,4 @@
-from ....src.Typhon.SourceMap.datatype import (
+from src.Typhon.SourceMap.datatype import (
     Range,
     Pos,
     RangeIntervalTree,

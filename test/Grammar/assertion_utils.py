@@ -4,21 +4,21 @@ import traceback
 import io
 import contextlib
 from typing import Type, Union, Any, Callable
-from ...src.Typhon.Grammar.typhon_ast import get_pos_attributes_if_exists
-from ...src.Typhon.Grammar.parser import parse_string
-from ...src.Typhon.Transform.transform import transform
-from ...src.Typhon.Grammar.tokenizer_custom import TokenizerCustom
-from ...src.Typhon.Grammar.token_factory_custom import (
+from src.Typhon.Grammar.typhon_ast import get_pos_attributes_if_exists
+from src.Typhon.Grammar.parser import parse_string
+from src.Typhon.Transform.transform import transform
+from src.Typhon.Grammar.tokenizer_custom import TokenizerCustom
+from src.Typhon.Grammar.token_factory_custom import (
     token_stream_factory,
     generate_tokens_ignore_error,
 )
-from ...src.Typhon.Grammar.unparse_custom import unparse_custom
-from ...src.Typhon.SourceMap.ast_matching import match_ast, MatchResult
-from ...src.Typhon.SourceMap.ast_match_based_map import MatchBasedSourceMap
-from ...src.Typhon.SourceMap.defined_name_retrieve import defined_name_retrieve
-from ...src.Typhon.SourceMap.datatype import Range, Pos
-from ...src.Typhon.Driver.debugging import set_debug_first_error, is_debug_first_error
-from ...src.Typhon.Grammar.syntax_errors import (
+from src.Typhon.Grammar.unparse_custom import unparse_custom
+from src.Typhon.SourceMap.ast_matching import match_ast, MatchResult
+from src.Typhon.SourceMap.ast_match_based_map import MatchBasedSourceMap
+from src.Typhon.SourceMap.defined_name_retrieve import defined_name_retrieve
+from src.Typhon.SourceMap.datatype import Range, Pos
+from src.Typhon.Driver.debugging import set_debug_first_error, is_debug_first_error
+from src.Typhon.Grammar.syntax_errors import (
     TyphonSyntaxErrorList,
     get_syntax_error_in_module,
 )

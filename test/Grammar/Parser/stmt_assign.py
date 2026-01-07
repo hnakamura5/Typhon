@@ -5,17 +5,17 @@ from ..assertion_utils import (
     assert_parse_first_error,
     with_parser_verbose,
 )
-from ....src.Typhon.Grammar.typhon_ast import (
+from src.Typhon.Grammar.typhon_ast import (
     is_var_assign,
     is_let_assign,
     is_decl_assign,
 )
-from ....src.Typhon.Grammar.syntax_errors import (
+from src.Typhon.Grammar.syntax_errors import (
     TypeAnnotationError,
     LetMissingElseError,
 )
 import ast
-from ....src.Typhon.Driver.debugging import (
+from src.Typhon.Driver.debugging import (
     set_debug_first_error,
     set_debug_mode,
     set_debug_verbose,
