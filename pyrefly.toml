@@ -1,4 +1,4 @@
-project-includes = ["src"]
+# project-includes = ["src"]
 python-version = "3.13"
 
-[errors]
+# [errors]

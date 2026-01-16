@@ -1,21 +1,49 @@
-from typing import Any, override
+import copy
+from typing import Any, override, Protocol, Final
 import ast
 import traceback
-from ..Grammar.tokenizer_custom import TokenInfo, TokenizerCustom, tokenizer_for_string
-from ..Grammar.parser import parse_tokenizer
+from pathlib import Path
+import asyncio
+
 from pygls.lsp.server import LanguageServer as PyglsLanguageServer
+from pygls.lsp.client import LanguageClient
 from pygls.workspace import TextDocument
+from pygls import uris
 from lsprotocol import types
 
-from ..Driver.debugging import debug_file_write, debug_file_write_verbose
-
+from ..Grammar.tokenizer_custom import TokenInfo, tokenizer_for_string
+from ..Grammar.parser import parse_tokenizer
+from ..Grammar.unparse_custom import unparse_custom
+from ..Transform.transform import transform
+from ..Driver.debugging import (
+    debug_file_write,
+    debug_file_write_verbose,
+    is_debug_mode,
+)
+from ..Driver.utils import (
+    output_dir_for_server_workspace,
+    default_server_output_dir,
+    mkdir_and_setup_init_py,
+)
+from ..SourceMap.ast_match_based_map import map_from_translated
+from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
+from .client import create_language_client, start_language_client
 from .semantic_tokens import (
-    TokenTypes,
-    TokenModifier,
     SemanticToken,
     ast_tokens_to_semantic_tokens,
+    encode_semantic_tokens,
     semantic_legend,
+    map_semantic_tokens,
+    semantic_legends_of_initialized_response,
 )
+
+
+class URIContainer(Protocol):
+    uri: str
+
+
+class URIMappableParams(Protocol):
+    text_document: Final[URIContainer]
 
 
 class LanguageServer(PyglsLanguageServer):
@@ -26,23 +54,47 @@ class LanguageServer(PyglsLanguageServer):
         self.token_infos: dict[str, list[TokenInfo]] = {}
         self.semantic_tokens: dict[str, list[SemanticToken]] = {}
         self.semantic_tokens_encoded: dict[str, list[int]] = {}
+        self.backend_client: LanguageClient = create_language_client()
+        self.mapping: dict[str, MatchBasedSourceMap] = {}
+        self.client_semantic_legend: dict[int, str] = {}
 
-    def reload(self, doc: TextDocument, uri: str) -> None:
+    def reload(self, uri: str) -> str | None:
+        doc: TextDocument = self.workspace.get_text_document(uri)
         try:
             source = doc.source
+            debug_file_write(f"Reloading document {uri} source: {source[:100]}...")
             tokenizer = tokenizer_for_string(source)
             self.token_infos[uri] = tokenizer.read_all_tokens()
             ast_node = parse_tokenizer(tokenizer)
             if not isinstance(ast_node, ast.Module):
                 ast_node = None
+            debug_file_write(
+                f"Parsed AST for {uri}: {ast.dump(ast_node) if ast_node else 'None'}"
+            )
+            if ast_node:
+                transform(ast_node)
             self.ast_modules[uri] = ast_node
             semantic_tokens, encoded = ast_tokens_to_semantic_tokens(
-                ast_node,
-                self.token_infos[uri],
-                doc,
+                ast_node, self.token_infos[uri], doc
             )
             self.semantic_tokens[uri] = semantic_tokens
             self.semantic_tokens_encoded[uri] = encoded
+            if ast_node:
+                # Write translated file to server temporal directory
+                translate_file_path, root = self.get_translated_file_path_and_root(
+                    Path(doc.path)
+                )
+                unparsed = unparse_custom(ast_node)
+                mapping = map_from_translated(ast_node, source, doc.path, unparsed)
+                if mapping:
+                    self.mapping[uri] = mapping
+                self.setup_container_directories(translate_file_path, root)
+                with open(translate_file_path, "w", encoding="utf-8") as f:
+                    debug_file_write(
+                        f"Writing translated file to {translate_file_path}, length={len(unparsed)}"
+                    )
+                    f.write(unparsed)
+                return unparsed
         except Exception as e:
             self.ast_modules[uri] = None
             self.token_infos[uri] = []
@@ -53,27 +105,362 @@ class LanguageServer(PyglsLanguageServer):
             traceback_str = traceback.format_exc()
             debug_file_write_verbose(f"Traceback:\n{traceback_str}")
 
+    def on_initialize_backend(self, init_result: types.InitializeResult) -> None:
+        if semantic_token_provider := init_result.capabilities.semantic_tokens_provider:
+            legend = semantic_token_provider.legend
+            self.client_semantic_legend = semantic_legends_of_initialized_response(
+                legend
+            )
+            debug_file_write(
+                f"Client semantic token legend: {self.client_semantic_legend}"
+            )
+
+    def server_workspace_root(self) -> Path | None:
+        if self.workspace.root_path:
+            return output_dir_for_server_workspace(Path(self.workspace.root_path))
+        else:
+            return None
+
+    def get_translated_file_path_and_root(self, src: Path) -> tuple[Path, Path | None]:
+        """
+        Translated path is obtained by replacing workspace root with server temporal directory.
+        """
+        for uri, folder in self.workspace.folders.items():
+            folder_path = uri_to_path(folder.uri)
+            try:
+                relative_path = src.relative_to(folder_path)
+                py_name = relative_path.parent / (relative_path.stem + ".py")
+                server_dir = output_dir_for_server_workspace(folder_path)
+                return server_dir / py_name, folder_path
+            except ValueError:
+                continue
+        # No workspace, use default path for single file mode
+        server_dir = default_server_output_dir(src.as_posix())
+        return server_dir / src.name, None
+
+    def get_translated_file_uri(self, src_uri: str) -> str:
+        src_path = uri_to_path(src_uri)
+        translated_path, _ = self.get_translated_file_path_and_root(src_path)
+        uri = path_to_uri(translated_path)
+        return uri
+
+    def setup_container_directories(self, file: Path, root: Path | None) -> None:
+        """
+        Create directory and __init__.py for all parent folders until workspace root.
+        """
+        if not root:
+            return
+        workspace_root = Path(root)
+        parent = file.parent
+        while parent != workspace_root and not parent.exists():
+            mkdir_and_setup_init_py(parent)
+
+    def clone_params_map_uri[T: URIMappableParams](self, param: T) -> T:
+        cloned_param = copy.deepcopy(param)
+        cloned_param.text_document.uri = self.get_translated_file_uri(
+            cloned_param.text_document.uri
+        )
+        return cloned_param
+
+
+def uri_to_path(uri: str) -> Path:
+    fs_path = uris.to_fs_path(uri)
+    if fs_path is None:
+        raise ValueError(f"Could not convert URI to path: {uri}")
+    return Path(fs_path)
+
+
+def path_to_uri(path: Path) -> str:
+    # Use pathlib's implementation to get canonical Windows file URIs like:
+    #   file:///c:/Users/...  (not file:///c%3A/Users/...)
+    # Some LSP backends treat these as different URIs and may ignore requests.
+    try:
+        return path.resolve().as_uri()
+    except Exception as e:
+        raise ValueError(f"Could not convert path to URI: {path}") from e
+
+    uri = uris.from_fs_path(str(path))
+    if uri is None:
+        raise ValueError(f"Could not convert path to URI: {path}")
+    return uri
+
 
 server = LanguageServer("typhon-language-server", "v0.1.3")
+client = server.backend_client
+
+
+@server.feature(types.INITIALIZE)
+async def lsp_initialize(ls: LanguageServer, params: types.InitializeParams):
+    try:
+        # await start_pyright_client(ls.backend_client)
+        await start_language_client(ls.backend_client)
+        # Clone the params and modify workspace root to server workspace root.
+        cloned_params = copy.deepcopy(params)
+        # Modify workspace folders to server workspace folders.
+        if params.workspace_folders:
+            debug_file_write(f"Workspace folders: {params.workspace_folders}")
+            cloned_params.workspace_folders = [
+                types.WorkspaceFolder(
+                    uri=path_to_uri(
+                        output_dir_for_server_workspace(uri_to_path(f.uri))
+                    ),
+                    name=f.name,
+                )
+                for f in params.workspace_folders
+            ]
+        # Setup the deprecated root_uri and root_path as well.
+        if params.root_uri:
+            cloned_params.root_uri = path_to_uri(
+                output_dir_for_server_workspace(uri_to_path(params.root_uri))
+            )
+        if params.root_path:
+            # `rootPath` is deprecated but some servers still consult it.
+            # Keep it as a native filesystem path on Windows.
+            cloned_params.root_path = str(
+                output_dir_for_server_workspace(Path(params.root_path))
+            )
+        # Debug trace handling
+        if is_debug_mode():
+            cloned_params.trace = types.TraceValue.Verbose
+        debug_file_write(f"Initialized with params: {cloned_params}")
+        initialize_result = await ls.backend_client.initialize_async(cloned_params)
+        debug_file_write(f"Backend initialize result: {initialize_result}")
+        ls.on_initialize_backend(initialize_result)
+        # Helpful for diagnosing why semanticTokens requests hang.
+        try:
+            caps = getattr(initialize_result, "capabilities", None)
+            stp = getattr(caps, "semantic_tokens_provider", None) if caps else None
+            debug_file_write(f"Backend semanticTokensProvider: {stp}")
+        except Exception as e:
+            debug_file_write(f"Failed to inspect backend capabilities: {e}")
+    except Exception as e:
+        debug_file_write(f"Error during initialization: {e}")
+
+
+@server.feature(types.INITIALIZED)
+def lsp_initialized(ls: LanguageServer, params: types.InitializedParams):
+    try:
+        debug_file_write(f"Sending initialized notification to backend {params}")
+        ls.backend_client.initialized(params)
+    except Exception as e:
+        debug_file_write(f"Error during initialized notification: {e}")
+
+
+@client.feature(types.WORKSPACE_CONFIGURATION)  # type: ignore
+async def on_workspace_configuration(
+    ls_client: LanguageClient, params: types.ConfigurationParams
+):
+    debug_file_write(f"Backend requested configuration: {params}")
+    try:
+        result = await server.workspace_configuration_async(params)
+        return result
+    except Exception as e:
+        debug_file_write(f"Error fetching configuration: {e}")
+        # Backends like Pyright expect a list with the same length as params.items.
+        return [{}] * len(params.items)
+
+
+@server.feature(types.TEXT_DOCUMENT_DIAGNOSTIC)
+async def on_text_document_diagnostic(
+    ls: LanguageServer, params: types.DocumentDiagnosticParams
+):
+    debug_file_write(f"Server requested diagnostics: {params}")
+    # Typhon currently focuses on semantic tokens and does not surface backend diagnostics.
+    # Forwarding diagnostics can be expensive and may delay semantic token responses.
+    return None
+
+
+@client.feature(types.CLIENT_REGISTER_CAPABILITY)  # type: ignore
+async def on_register_capability(
+    ls_client: LanguageClient, params: types.RegistrationParams
+):
+    debug_file_write(f"Backend requested registerCapability: {params}")
+    # Basedpyright may dynamically register pull diagnostics.
+    # VS Code then immediately starts issuing `textDocument/diagnostic` requests,
+    # which can be expensive and can starve other requests (like semanticTokens).
+    # Typhon currently doesn't surface these diagnostics anyway, so drop them.
+    filtered = tuple(
+        r for r in params.registrations if r.method != "textDocument/diagnostic"
+    )
+    if len(filtered) != len(params.registrations):
+        debug_file_write("Dropping dynamic registration(s) for textDocument/diagnostic")
+    if not filtered:
+        return None
+    return await server.client_register_capability_async(
+        types.RegistrationParams(registrations=filtered)
+    )
+
+
+@client.feature(types.CLIENT_UNREGISTER_CAPABILITY)  # type: ignore
+async def on_unregister_capability(
+    ls_client: LanguageClient, params: types.UnregistrationParams
+):
+    debug_file_write(f"Backend requested unregisterCapability: {params}")
+    filtered = tuple(
+        u for u in params.unregisterations if u.method != "textDocument/diagnostic"
+    )
+    if len(filtered) != len(params.unregisterations):
+        debug_file_write(
+            "Dropping dynamic unregistration(s) for textDocument/diagnostic"
+        )
+    if not filtered:
+        return None
+    return await server.client_unregister_capability_async(
+        types.UnregistrationParams(unregisterations=filtered)
+    )
+
+
+@client.feature(types.WORKSPACE_WORKSPACE_FOLDERS)  # type: ignore
+async def on_workspace_folders(ls_client: LanguageClient, params: None):
+    debug_file_write("Backend requested workspace folders")
+    return await server.workspace_workspace_folders_async(None)
+
+
+@client.feature(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)  # type: ignore
+async def on_publish_diagnostics(
+    ls_client: LanguageClient, params: types.PublishDiagnosticsParams
+):
+    debug_file_write(f"Backend published diagnostics: {params}")
+    server.text_document_publish_diagnostics(params)
+
+
+# Define handlers for debug logging from backend
+@client.feature(types.WINDOW_LOG_MESSAGE)  # type: ignore
+async def on_backend_log(ls_client: LanguageClient, log_params: types.LogMessageParams):
+    debug_file_write(f"[Backend Log] {log_params.message}")
+
+
+@server.feature(types.WORKSPACE_DID_CHANGE_WATCHED_FILES)
+def did_change_watched_files(
+    ls: LanguageServer, params: types.DidChangeWatchedFilesParams
+):
+    debug_file_write(f"Relaying didChangeWatchedFiles to backend: {params}")
+    uri_changed_params = types.DidChangeWatchedFilesParams(
+        changes=[
+            types.FileEvent(
+                uri=change.uri,
+                # uri=ls.get_translated_file_uri(change.uri),
+                type=change.type,
+            )
+            for change in params.changes
+        ]
+    )
+    ls.backend_client.workspace_did_change_watched_files(uri_changed_params)
 
 
 @server.feature(types.TEXT_DOCUMENT_DID_OPEN)
 def did_open(ls: LanguageServer, params: types.DidOpenTextDocumentParams):
-    """Parse each document when it is opened"""
-    uri = params.text_document.uri
-    doc = ls.workspace.get_text_document(uri)
-    ls.reload(doc, uri)
+    try:
+        uri = params.text_document.uri
+        unparsed = ls.reload(uri)
+        cloned_params = ls.clone_params_map_uri(params)
+        cloned_params.text_document.language_id = "python"
+        cloned_params.text_document.text = unparsed if unparsed is not None else ""
+        debug_file_write(
+            f"Did open called for {uri}, translated to {cloned_params.text_document.uri}"
+        )
+        ls.backend_client.text_document_did_open(cloned_params)
+    except Exception as e:
+        debug_file_write(f"Error during document open: {e}")
 
 
 @server.feature(types.TEXT_DOCUMENT_DID_CHANGE)
-def did_change(ls: LanguageServer, params: types.DidOpenTextDocumentParams):
+def did_change(ls: LanguageServer, params: types.DidChangeTextDocumentParams):
     """Parse each document when it is changed"""
-    uri = params.text_document.uri
-    doc = ls.workspace.get_text_document(uri)
-    ls.reload(doc, uri)
+    try:
+        uri = params.text_document.uri
+        ls.reload(uri)
+        cloned_params = ls.clone_params_map_uri(params)
+        debug_file_write(f"Did change called for {uri}, translated to {cloned_params}")
+        ls.backend_client.text_document_did_change(cloned_params)
+    except Exception as e:
+        debug_file_write(f"Error during document change: {e}")
 
 
 @server.feature(types.TEXT_DOCUMENT_SEMANTIC_TOKENS_FULL, semantic_legend())
-def semantic_tokens_full(ls: LanguageServer, params: types.SemanticTokensParams):
-    uri = params.text_document.uri
-    return types.SemanticTokens(data=ls.semantic_tokens_encoded.get(uri, []))
+async def semantic_tokens_full(ls: LanguageServer, params: types.SemanticTokensParams):
+    try:
+        debug_file_write(f"Semantic tokens requested {params}")
+        cloned_params = ls.clone_params_map_uri(params)
+        debug_file_write(f"Translated URI for semantic tokens: {cloned_params}")
+        # Pyright can take longer than a few seconds, especially right after startup.
+        semantic_tokens: types.SemanticTokens | None
+        async_method = getattr(
+            ls.backend_client, "text_document_semantic_tokens_full_async", None
+        )
+
+        async def _await_backend() -> types.SemanticTokens | None:
+            if async_method is not None:
+                return await async_method(cloned_params)
+            future = ls.backend_client.text_document_semantic_tokens_full(cloned_params)
+            wrapped = asyncio.wrap_future(future)
+            debug_file_write(
+                f"Awaiting semantic tokens future... done:{wrapped.done()}"
+            )
+            return await wrapped
+
+        backend_task = asyncio.create_task(_await_backend())
+        try:
+            # IMPORTANT: `wait_for` cancels the awaited task on timeout by default.
+            # We want to keep the backend request running so we can observe
+            # whether a response eventually arrives.
+            semantic_tokens = await asyncio.wait_for(
+                asyncio.shield(backend_task), timeout=30
+            )
+        except TimeoutError:
+            debug_file_write(
+                "Backend semanticTokens/full timed out after 30s; "
+                "will log if it completes later"
+            )
+
+            async def _log_late_completion() -> None:
+                debug_file_write("Late-completion watcher started")
+                try:
+                    late = await asyncio.wait_for(
+                        asyncio.shield(backend_task), timeout=120
+                    )
+                    debug_file_write(
+                        f"Backend semanticTokens/full completed late: {late is not None}"
+                    )
+                except TimeoutError:
+                    debug_file_write(
+                        "Backend semanticTokens/full still not complete after +120s; cancelling"
+                    )
+                    backend_task.cancel()
+                except BaseException as late_e:
+                    debug_file_write(
+                        f"Backend semanticTokens/full failed late: {type(late_e).__name__}: {late_e}"
+                    )
+
+            asyncio.create_task(
+                _log_late_completion(), name="typhon-semanticTokens-late"
+            )
+            raise
+        debug_file_write(
+            f"Received semantic tokens for {params.text_document.uri}: {semantic_tokens}"
+        )
+        if not semantic_tokens:
+            return None
+        if (mapping := ls.mapping.get(params.text_document.uri)) is None:
+            return None
+        mapped = map_semantic_tokens(
+            semantic_tokens, mapping, ls.client_semantic_legend
+        )
+        debug_file_write(f"Mapped semantic tokens: {mapped}")
+        return mapped
+    except Exception as e:
+        debug_file_write(
+            f"Error during semantic tokens retrieval: {type(e).__name__}: {e}"
+        )
+        # Fall back to precomputed rough semantic tokens (encoded).
+        if (mapping := ls.mapping.get(params.text_document.uri)) is not None:
+            try:
+                fallback = encode_semantic_tokens(
+                    ls.semantic_tokens.get(params.text_document.uri, [])
+                )
+                return map_semantic_tokens(fallback, mapping, ls.client_semantic_legend)
+            except Exception as mapping_error:
+                debug_file_write(f"Fallback mapping failed: {mapping_error}")
+        return encode_semantic_tokens(
+            ls.semantic_tokens.get(params.text_document.uri, [])
+        )

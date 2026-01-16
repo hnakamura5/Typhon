@@ -1,6 +1,7 @@
 from .utils import copy_type
 from typing import BinaryIO, override
 from pathlib import Path
+import logging
 
 
 _debug = False
@@ -26,14 +27,17 @@ def set_debug_first_error(first_error: bool):
     _debug_first_error = first_error
 
 
-def set_debug_log_file(log_file: str | None, verbose: bool = False):
+def set_debug_log_file(
+    log_file: str | None, verbose: bool = False, append: bool = False
+):
     global _debug_log_file
     _debug_log_file = Path(log_file) if log_file else None
     if _debug_log_file is not None:
         if verbose:
             set_debug_verbose(True)
         set_debug_mode(True)
-        with _debug_log_file.open("w") as f:
+        mode = "a" if append else "w"
+        with _debug_log_file.open(mode) as f:
             f.write("=== Typhon Debug Log ===\n")
 
 
@@ -138,3 +142,29 @@ class BinaryIOLogger(BinaryIO):
                 log_file.write(f"Read line {line}\n")
                 log_file.flush()
         return line
+
+
+def get_project_root() -> Path:
+    current = Path(__file__).resolve()
+    for _ in range(10):
+        if (current / "pyproject.toml").exists():
+            return current
+        current = current.parent
+    raise FileNotFoundError("Could not find project root with pyproject.toml")
+
+
+def debug_setup_logging(verbose: bool = True, append: bool = True) -> None:
+    set_debug_log_file(
+        str(get_project_root() / "private" / "server.log"),
+        verbose=verbose,
+        append=append,
+    )
+    set_debug_mode(True)
+    set_debug_verbose(verbose)
+    if (log_file := get_debug_log_file()) is not None:
+        logging.basicConfig(
+            filename=log_file,
+            level=logging.DEBUG,
+            filemode="w",
+            format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        )

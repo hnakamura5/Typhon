@@ -5,6 +5,8 @@ from intervaltree import IntervalTree, Interval
 from typing import Iterable
 import ast
 
+from basedpyright.langserver import main
+
 
 @dataclass(frozen=True, unsafe_hash=True, order=True)
 class Pos:

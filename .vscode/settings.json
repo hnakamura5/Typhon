@@ -8,7 +8,8 @@
       "source.fixAll": "always"
     },
   },
-  "python.languageServer": "Default", // None to use basedpyright over pylance
+  //"python.languageServer": "Default", // None to use basedpyright over pylance
+  "python.languageServer": "None", // None to use basedpyright over pylance
   "python.analysis.typeCheckingMode": "off",
   "python.autoComplete.extraPaths": [
     "${workspaceFolder}/src",
@@ -20,5 +21,8 @@
   ],
   "python.analysis.indexing": true,
   "basedpyright.analysis.diagnosticMode": "workspace",
+  "basedpyright.disableLanguageServices": false,
+  "basedpyright.trace.server": "verbose",
+  "basedpyright.analysis.logLevel": "Trace",
   "python.pyrefly.displayTypeErrors": "force-on"
 }

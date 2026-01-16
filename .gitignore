@@ -208,6 +208,7 @@ __marimo__/
 
 # Typhon
 .typhon
+.typhon-server
 
 # Local files
 temp

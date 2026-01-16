@@ -5,6 +5,8 @@ from ..Driver.debugging import (
     set_debug_log_file,
     debug_print,
     get_debug_log_file,
+    set_debug_verbose,
+    debug_setup_logging,
 )
 import sys
 import logging
@@ -14,14 +16,7 @@ def language_server():
     """
     Start the Typhon Language Server.
     """
-    if (log_file := get_debug_log_file()) is not None:
-        logging.basicConfig(
-            filename=log_file,
-            level=logging.DEBUG,
-            filemode="a",
-            format="%(asctime)s %(levelname)s %(name)s %(message)s",
-        )
-
+    debug_setup_logging(verbose=True)
     server.start_io(
         stdin=BinaryIOLogger(sys.stdin.buffer),
         stdout=BinaryIOLogger(sys.stdout.buffer),

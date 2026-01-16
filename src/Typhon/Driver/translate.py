@@ -15,12 +15,13 @@ from .utils import (
     copy_type,
     default_output_dir,
     canonicalize_path,
+    mkdir_and_setup_init_py,
 )
 from ..Transform.transform import transform
 from .debugging import is_debug_mode, debug_print, is_debug_verbose
 from ..Driver.type_check import run_type_check, TypeCheckResult
 from ..SourceMap import SourceMap
-from ..SourceMap.ast_match_based_map import map_from_transformed_ast
+from ..SourceMap.ast_match_based_map import map_from_translated_ast
 
 
 @dataclass
@@ -48,7 +49,7 @@ def translate_file(source: Path, output: Path) -> TranslateResult:
         )
     translated_code = unparse_custom(ast_tree)
     source_code = source.read_text(encoding="utf-8")
-    mapping = map_from_transformed_ast(
+    mapping = map_from_translated_ast(
         ast_tree,
         ast.parse(translated_code),
         source_code,
@@ -102,10 +103,7 @@ def translate_directory(
         output_path = module_output_dir / (source.stem + ".py")
         file_result = translate_file(source, output_path)
         result[source] = file_result
-    if not (module_output_dir / "__init__.py").exists():
-        (module_output_dir / "__init__.py").write_text(
-            "# Init file for Typhon module\n", "utf-8"
-        )
+    mkdir_and_setup_init_py(module_output_dir)
     for subdir in source_dir.iterdir():
         if subdir.is_dir():
             sub_output_dir = module_output_dir / subdir.name

@@ -139,11 +139,11 @@ class MatchBasedSourceMap:
         return self.origin_range_to_unparsed(range_origin_part)
 
 
-def map_from_transformed_ast(
+def map_from_translated_ast(
     origin_ast: ast.AST,
     unparsed_ast: ast.AST,
     source_code: str,
-    source_file: str,
+    source_file_path: str,
     unparsed_code: str,
 ) -> MatchBasedSourceMap | None:
     defined_name_retrieve(unparsed_ast, unparsed_code)
@@ -154,5 +154,20 @@ def map_from_transformed_ast(
         mapping.left_to_right,
         mapping.right_to_left,
         source_code,
-        source_file,
+        source_file_path,
+    )
+
+
+def map_from_translated(
+    origin_ast: ast.AST,
+    source_code: str,
+    source_file_path: str,
+    translated_code: str,
+) -> MatchBasedSourceMap | None:
+    return map_from_translated_ast(
+        origin_ast,
+        ast.parse(translated_code),
+        source_code,
+        source_file_path,
+        translated_code,
     )

@@ -310,6 +310,7 @@ class TokenizerCustom(PegenTokenizer):
             if tok.type == token.ENDMARKER:
                 break
         debug_verbose_print("Finished reading all tokens.")
+        self.reset(0)
         return sorted(self._all_tokens, key=lambda t: t.start)
 
 
