@@ -1,4 +1,5 @@
 import copy
+from lsprotocol.types import SemanticTokens
 from typing import Any, override, Protocol, Final
 import ast
 import traceback
@@ -8,7 +9,6 @@ import asyncio
 from pygls.lsp.server import LanguageServer as PyglsLanguageServer
 from pygls.lsp.client import LanguageClient
 from pygls.workspace import TextDocument
-from pygls import uris
 from lsprotocol import types
 
 from ..Grammar.tokenizer_custom import TokenInfo, tokenizer_for_string
@@ -35,6 +35,12 @@ from .semantic_tokens import (
     semantic_legend,
     map_semantic_tokens,
     semantic_legends_of_initialized_response,
+    semantic_token_capabilities,
+)
+from .utils import (
+    uri_to_path,
+    path_to_uri,
+    clone_and_map_initialize_param,
 )
 
 
@@ -79,22 +85,23 @@ class LanguageServer(PyglsLanguageServer):
             )
             self.semantic_tokens[uri] = semantic_tokens
             self.semantic_tokens_encoded[uri] = encoded
-            if ast_node:
-                # Write translated file to server temporal directory
-                translate_file_path, root = self.get_translated_file_path_and_root(
-                    Path(doc.path)
+            if not ast_node:
+                return None
+            # Write translated file to server temporal directory
+            translate_file_path, root = self.get_translated_file_path_and_root(
+                Path(doc.path)
+            )
+            unparsed = unparse_custom(ast_node)
+            mapping = map_from_translated(ast_node, source, doc.path, unparsed)
+            if mapping:
+                self.mapping[uri] = mapping
+            self.setup_container_directories(translate_file_path, root)
+            with open(translate_file_path, "w", encoding="utf-8") as f:
+                debug_file_write(
+                    f"Writing translated file to {translate_file_path}, length={len(unparsed)}"
                 )
-                unparsed = unparse_custom(ast_node)
-                mapping = map_from_translated(ast_node, source, doc.path, unparsed)
-                if mapping:
-                    self.mapping[uri] = mapping
-                self.setup_container_directories(translate_file_path, root)
-                with open(translate_file_path, "w", encoding="utf-8") as f:
-                    debug_file_write(
-                        f"Writing translated file to {translate_file_path}, length={len(unparsed)}"
-                    )
-                    f.write(unparsed)
-                return unparsed
+                f.write(unparsed)
+            return unparsed
         except Exception as e:
             self.ast_modules[uri] = None
             self.token_infos[uri] = []
@@ -163,68 +170,21 @@ class LanguageServer(PyglsLanguageServer):
         return cloned_param
 
 
-def uri_to_path(uri: str) -> Path:
-    fs_path = uris.to_fs_path(uri)
-    if fs_path is None:
-        raise ValueError(f"Could not convert URI to path: {uri}")
-    return Path(fs_path)
-
-
-def path_to_uri(path: Path) -> str:
-    # Use pathlib's implementation to get canonical Windows file URIs like:
-    #   file:///c:/Users/...  (not file:///c%3A/Users/...)
-    # Some LSP backends treat these as different URIs and may ignore requests.
-    try:
-        return path.resolve().as_uri()
-    except Exception as e:
-        raise ValueError(f"Could not convert path to URI: {path}") from e
-
-    uri = uris.from_fs_path(str(path))
-    if uri is None:
-        raise ValueError(f"Could not convert path to URI: {path}")
-    return uri
-
-
 server = LanguageServer("typhon-language-server", "v0.1.3")
 client = server.backend_client
 
 
 @server.feature(types.INITIALIZE)
-async def lsp_initialize(ls: LanguageServer, params: types.InitializeParams):
+async def lsp_server_initialize(ls: LanguageServer, params: types.InitializeParams):
     try:
+        debug_file_write(f"Initializing with params: {params}\n")
         # await start_pyright_client(ls.backend_client)
         await start_language_client(ls.backend_client)
         # Clone the params and modify workspace root to server workspace root.
-        cloned_params = copy.deepcopy(params)
-        # Modify workspace folders to server workspace folders.
-        if params.workspace_folders:
-            debug_file_write(f"Workspace folders: {params.workspace_folders}")
-            cloned_params.workspace_folders = [
-                types.WorkspaceFolder(
-                    uri=path_to_uri(
-                        output_dir_for_server_workspace(uri_to_path(f.uri))
-                    ),
-                    name=f.name,
-                )
-                for f in params.workspace_folders
-            ]
-        # Setup the deprecated root_uri and root_path as well.
-        if params.root_uri:
-            cloned_params.root_uri = path_to_uri(
-                output_dir_for_server_workspace(uri_to_path(params.root_uri))
-            )
-        if params.root_path:
-            # `rootPath` is deprecated but some servers still consult it.
-            # Keep it as a native filesystem path on Windows.
-            cloned_params.root_path = str(
-                output_dir_for_server_workspace(Path(params.root_path))
-            )
-        # Debug trace handling
-        if is_debug_mode():
-            cloned_params.trace = types.TraceValue.Verbose
-        debug_file_write(f"Initialized with params: {cloned_params}")
+        cloned_params = clone_and_map_initialize_param(params)
+        debug_file_write(f"Initializing backend with cloned params: {cloned_params}\n")
         initialize_result = await ls.backend_client.initialize_async(cloned_params)
-        debug_file_write(f"Backend initialize result: {initialize_result}")
+        debug_file_write(f"Backend initialize result: {initialize_result}\n")
         ls.on_initialize_backend(initialize_result)
         # Helpful for diagnosing why semanticTokens requests hang.
         try:
@@ -238,7 +198,7 @@ async def lsp_initialize(ls: LanguageServer, params: types.InitializeParams):
 
 
 @server.feature(types.INITIALIZED)
-def lsp_initialized(ls: LanguageServer, params: types.InitializedParams):
+def lsp_client_initialized(ls: LanguageServer, params: types.InitializedParams):
     try:
         debug_file_write(f"Sending initialized notification to backend {params}")
         ls.backend_client.initialized(params)
@@ -356,9 +316,7 @@ def did_open(ls: LanguageServer, params: types.DidOpenTextDocumentParams):
         cloned_params = ls.clone_params_map_uri(params)
         cloned_params.text_document.language_id = "python"
         cloned_params.text_document.text = unparsed if unparsed is not None else ""
-        debug_file_write(
-            f"Did open called for {uri}, translated to {cloned_params.text_document.uri}"
-        )
+        debug_file_write(f"Did open called for {uri}, translated to {cloned_params}")
         ls.backend_client.text_document_did_open(cloned_params)
     except Exception as e:
         debug_file_write(f"Error during document open: {e}")
@@ -383,62 +341,12 @@ async def semantic_tokens_full(ls: LanguageServer, params: types.SemanticTokensP
         debug_file_write(f"Semantic tokens requested {params}")
         cloned_params = ls.clone_params_map_uri(params)
         debug_file_write(f"Translated URI for semantic tokens: {cloned_params}")
-        # Pyright can take longer than a few seconds, especially right after startup.
-        semantic_tokens: types.SemanticTokens | None
-        async_method = getattr(
-            ls.backend_client, "text_document_semantic_tokens_full_async", None
+        semantic_tokens: (
+            SemanticTokens | None
+        ) = await ls.backend_client.text_document_semantic_tokens_full_async(
+            cloned_params,
         )
-
-        async def _await_backend() -> types.SemanticTokens | None:
-            if async_method is not None:
-                return await async_method(cloned_params)
-            future = ls.backend_client.text_document_semantic_tokens_full(cloned_params)
-            wrapped = asyncio.wrap_future(future)
-            debug_file_write(
-                f"Awaiting semantic tokens future... done:{wrapped.done()}"
-            )
-            return await wrapped
-
-        backend_task = asyncio.create_task(_await_backend())
-        try:
-            # IMPORTANT: `wait_for` cancels the awaited task on timeout by default.
-            # We want to keep the backend request running so we can observe
-            # whether a response eventually arrives.
-            semantic_tokens = await asyncio.wait_for(
-                asyncio.shield(backend_task), timeout=30
-            )
-        except TimeoutError:
-            debug_file_write(
-                "Backend semanticTokens/full timed out after 30s; "
-                "will log if it completes later"
-            )
-
-            async def _log_late_completion() -> None:
-                debug_file_write("Late-completion watcher started")
-                try:
-                    late = await asyncio.wait_for(
-                        asyncio.shield(backend_task), timeout=120
-                    )
-                    debug_file_write(
-                        f"Backend semanticTokens/full completed late: {late is not None}"
-                    )
-                except TimeoutError:
-                    debug_file_write(
-                        "Backend semanticTokens/full still not complete after +120s; cancelling"
-                    )
-                    backend_task.cancel()
-                except BaseException as late_e:
-                    debug_file_write(
-                        f"Backend semanticTokens/full failed late: {type(late_e).__name__}: {late_e}"
-                    )
-
-            asyncio.create_task(
-                _log_late_completion(), name="typhon-semanticTokens-late"
-            )
-            raise
-        debug_file_write(
-            f"Received semantic tokens for {params.text_document.uri}: {semantic_tokens}"
-        )
+        debug_file_write(f"Received semantic tokens: {semantic_tokens}")
         if not semantic_tokens:
             return None
         if (mapping := ls.mapping.get(params.text_document.uri)) is None:

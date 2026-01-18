@@ -6,7 +6,7 @@ import json
 import logging
 import traceback
 from typing import Any, Optional, Union
-from lsprotocol import types as lsp_types
+from lsprotocol import types
 from cattrs.gen import make_dict_structure_fn
 from pygls.lsp.client import LanguageClient
 from pygls.protocol import default_converter
@@ -37,9 +37,9 @@ def client_converter_bugfix(client: LanguageClient) -> None:
     NotebookDocumentFilterOptional = Optional[
         Union[
             str,
-            lsp_types.NotebookDocumentFilterNotebookType,
-            lsp_types.NotebookDocumentFilterScheme,
-            lsp_types.NotebookDocumentFilterPattern,
+            types.NotebookDocumentFilterNotebookType,
+            types.NotebookDocumentFilterScheme,
+            types.NotebookDocumentFilterPattern,
         ]
     ]
 
@@ -51,19 +51,13 @@ def client_converter_bugfix(client: LanguageClient) -> None:
         if isinstance(object_, dict):
             if "notebookType" in object_:
                 return converter.structure(
-                    object_, lsp_types.NotebookDocumentFilterNotebookType
+                    object_, types.NotebookDocumentFilterNotebookType
                 )
             if "scheme" in object_:
-                return converter.structure(
-                    object_, lsp_types.NotebookDocumentFilterScheme
-                )
+                return converter.structure(object_, types.NotebookDocumentFilterScheme)
             if "pattern" in object_:
-                return converter.structure(
-                    object_, lsp_types.NotebookDocumentFilterPattern
-                )
-        return converter.structure(
-            object_, lsp_types.NotebookDocumentFilterNotebookType
-        )
+                return converter.structure(object_, types.NotebookDocumentFilterPattern)
+        return converter.structure(object_, types.NotebookDocumentFilterNotebookType)
 
     converter.register_structure_hook(
         NotebookDocumentFilterOptional, _notebook_document_filter_hook
@@ -83,38 +77,39 @@ async def start_pyrefly_client(client: LanguageClient):
 
         def leaf_structure_message(data: Any):
             logger = logging.getLogger("pygls.client.pyrefly")
-            print(
-                f"DEBUG: Raw data: {json.dumps(data, indent=2)} verbose: {is_debug_verbose()}\n"
-            )
             try:
                 logger.debug(f"DEBUG: Raw data: {json.dumps(data, indent=2)}")
                 result = original_structure(data)
-                print(f"DEBUG: Deserialized data: {result}\n")
                 return result
             except Exception as e:
-                print(f"DEBUG: Failed to deserialize: {data}\n    error={e}\n")
                 logger.error(f"DEBUG: Failed to deserialize: {data}")
                 logger.error(traceback.format_exc())
                 raise e
 
         client.protocol.structure_message = leaf_structure_message
 
-    # Also capture outgoing JSON. `structure_message` only sees inbound data.
-    logger = logging.getLogger("pygls.client.pyrefly")
-    original_send_data = client.protocol._send_data  # type: ignore[attr-defined]
+        # Also capture outgoing JSON. `structure_message` only sees inbound data.
+        logger = logging.getLogger("pygls.client.pyrefly")
+        original_send_data = client.protocol._send_data  # type: ignore[attr-defined]
 
-    def leaf_send_data(data: Any):
-        try:
-            print(f"DEBUG: Outgoing data: {data} verbose: {is_debug_verbose()}\n")
-            if is_debug_verbose():
-                logger.debug(f"DEBUG: Outgoing data: {data}")
-        except Exception:
-            logger.error("DEBUG: Failed to serialize outgoing data")
-            logger.error(traceback.format_exc())
-        return original_send_data(data)
+        def leaf_send_data(data: Any):
+            try:
+                if is_debug_verbose():
+                    logger.debug(f"DEBUG: Outgoing data: {data}")
+            except Exception:
+                logger.error("DEBUG: Failed to serialize outgoing data")
+                logger.error(traceback.format_exc())
+            return original_send_data(data)
 
-    client.protocol._send_data = leaf_send_data  # type: ignore[attr-defined]
+        client.protocol._send_data = leaf_send_data  # type: ignore[attr-defined]
 
     await client.start_io(  # type: ignore
         sys.executable, "-m", "pyrefly", "lsp", "--verbose"
     )
+
+
+def configure_pyrefly_client_option(
+    param: types.InitializeParams,
+) -> types.InitializeParams:
+    # No special configuration needed for Pyrefly
+    return param

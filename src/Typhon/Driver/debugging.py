@@ -153,7 +153,7 @@ def get_project_root() -> Path:
     raise FileNotFoundError("Could not find project root with pyproject.toml")
 
 
-def debug_setup_logging(verbose: bool = True, append: bool = True) -> None:
+def debug_setup_logging(verbose: bool = True, append: bool = False) -> None:
     set_debug_log_file(
         str(get_project_root() / "private" / "server.log"),
         verbose=verbose,
@@ -164,7 +164,9 @@ def debug_setup_logging(verbose: bool = True, append: bool = True) -> None:
     if (log_file := get_debug_log_file()) is not None:
         logging.basicConfig(
             filename=log_file,
-            level=logging.DEBUG,
-            filemode="w",
+            level=logging.INFO if verbose else logging.DEBUG,
+            filemode="a",
             format="%(asctime)s %(levelname)s %(name)s %(message)s",
+            force=True,
         )
+    debug_file_write("=== Typhon Debug Logging set ===\n")

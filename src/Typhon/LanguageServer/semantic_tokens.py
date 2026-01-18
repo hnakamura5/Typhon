@@ -308,7 +308,8 @@ def semantic_token_capabilities() -> types.ClientCapabilities:
             semantic_tokens=types.SemanticTokensClientCapabilities(
                 requests=types.ClientSemanticTokensRequestOptions(
                     range=True,
-                    full=True,
+                    # full=True,
+                    full=types.ClientSemanticTokensRequestFullDelta(delta=True),
                 ),
                 token_types=TOKEN_TYPES,
                 token_modifiers=[
@@ -316,8 +317,12 @@ def semantic_token_capabilities() -> types.ClientCapabilities:
                     for m in TokenModifier
                     if m.name is not None
                 ],
-                formats=[types.TokenFormat.Relative],
+                formats=(types.TokenFormat.Relative,),
                 dynamic_registration=True,
+                overlapping_token_support=False,
+                multiline_token_support=False,
+                server_cancel_support=True,
+                augments_syntax_tokens=True,
             )
         )
     )

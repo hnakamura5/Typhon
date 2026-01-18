@@ -7,7 +7,13 @@ from pathlib import Path
 from lsprotocol import types
 from pygls.lsp.client import LanguageClient
 
-sample_dir = Path(__file__).parent / "sample"
+# sample_dir = Path(__file__).parent / "sample"
+# sample_file = sample_dir / "sample1.py"
+sample_dir = Path(
+    "C:/Users/hnakamura5/Projects/Typhon/test/execute/RunFileTest/.typhon-server/"
+)
+sample_file = sample_dir / "while_let_record.py"
+
 sample_dir_uri = sample_dir.resolve().as_uri()
 
 
@@ -32,6 +38,7 @@ async def assert_initialize_process(
             ],
             capabilities=capabilities,
         )
+        print(f"Initializing with params: {params}\n")
         # Wait for the initialize response with a timeout
         async with asyncio.timeout(10):
             response: InitializeResult = await client.initialize_async(params)

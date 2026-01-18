@@ -3,7 +3,7 @@ import asyncio
 from lsprotocol import types
 from pygls.lsp.client import LanguageClient
 
-from .utils import sample_dir, assert_initialize_process, ensure_exit
+from .utils import sample_dir, assert_initialize_process, ensure_exit, sample_file
 from src.Typhon.LanguageServer.client.pyright import (
     create_pyright_client,
     start_pyright_client,
@@ -17,7 +17,6 @@ from src.Typhon.LanguageServer.client.pyrefly import (
 async def assert_open_change_close_process(
     client: LanguageClient,
 ) -> None:
-    sample_file = sample_dir / "sample1.py"
     uri = sample_file.resolve().as_uri()
     async with asyncio.timeout(10):
         # Open

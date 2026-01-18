@@ -3,7 +3,7 @@ import asyncio
 from lsprotocol import types
 from pygls.lsp.client import LanguageClient
 
-from .utils import sample_dir, assert_initialize_process, ensure_exit
+from .utils import sample_dir, assert_initialize_process, ensure_exit, sample_file
 from src.Typhon.Driver.debugging import (
     debug_setup_logging,
 )
@@ -53,33 +53,31 @@ def assert_semantic_token(
 async def assert_semantic_tokens(
     client: LanguageClient, legend: types.SemanticTokensLegend | None = None
 ) -> tuple[types.SemanticTokens, list[SemanticToken], list[str]]:
-    sample_file = sample_dir / "sample1.py"
     uri = sample_file.resolve().as_uri()
     async with asyncio.timeout(10):
         # Open
-        client.text_document_did_open(
-            types.DidOpenTextDocumentParams(
-                text_document=types.TextDocumentItem(
-                    uri=uri,
-                    language_id="python",
-                    version=1,
-                    text=sample_file.read_text(),
-                )
+        open_params = types.DidOpenTextDocumentParams(
+            types.TextDocumentItem(
+                uri=uri,
+                language_id="python",
+                version=1,
+                text=sample_file.read_text(),
             )
         )
+        client.text_document_did_open(open_params)
+        print(f"Opened document: {open_params}\n")
         # Request semantic tokens
-        response = await client.text_document_semantic_tokens_full_async(
-            types.SemanticTokensParams(
-                text_document=types.TextDocumentIdentifier(uri=uri),
-            )
+        params = types.SemanticTokensParams(
+            text_document=types.TextDocumentIdentifier(uri=uri),
         )
+        response = await client.text_document_semantic_tokens_full_async(params)
         assert response is not None
         assert isinstance(response, types.SemanticTokens)
         tokens = decode_semantic_tokens(
             response, semantic_legends_of_initialized_response(legend) if legend else {}
         )
         print(
-            f"text:\n{sample_file.read_text()}\nresponse:\n{response}\nsemantic tokens:\n{tokens}\ntexts:\n{[get_semantic_token_text(token, sample_file.read_text().splitlines()) for token in tokens]}\n"
+            f"params:{params}\ntext:\n{sample_file.read_text()}\nresponse:\n{response}\nsemantic tokens:\n{tokens}\ntexts:\n{[get_semantic_token_text(token, sample_file.read_text().splitlines()) for token in tokens]}\n"
         )
         lines = sample_file.read_text().splitlines()
         return response, tokens, lines
@@ -107,7 +105,6 @@ def test_semantic_tokens_pyright():
             assert_semantic_token(lines, tokens[2], "class", "int", 1, 20)
             assert_semantic_token(lines, tokens[3], "variable", "__name__", 4, 3)
             assert_semantic_token(lines, tokens[4], "function", "main", 5, 4)
-
             await client.shutdown_async(None)
         finally:
             await ensure_exit(client)
@@ -127,12 +124,15 @@ def test_semantic_tokens_pyrefly():
             )
             semantic_token_provider = initialized_result.semantic_tokens_provider
             # assert semantic_token_provider, "Semantic tokens provider is None"
-            assert semantic_token_provider is None, (
-                "Pyrefly currently does not support semantic tokens in capabilities"
+            # assert semantic_token_provider is None, (
+            #     "Pyrefly currently does not support semantic tokens in capabilities"
+            # )
+            legend: types.SemanticTokensLegend = (
+                semantic_token_provider.legend
+                if semantic_token_provider and semantic_token_provider.legend
+                else pyrefly_semantic_legend()
             )
-            response, tokens, lines = await assert_semantic_tokens(
-                client, pyrefly_semantic_legend()
-            )
+            response, tokens, lines = await assert_semantic_tokens(client, legend)
             # Verify expected tokens
             assert len(response.data) == 4 * 5
             assert_semantic_token(lines, tokens[0], "function", "main", 0, 4)
