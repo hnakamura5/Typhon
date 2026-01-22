@@ -234,3 +234,28 @@ def test_tdz_violation_mutual_recursion_error():
         ScopeError,
         "'f' is accessed in its temporal dead zone",
     )
+
+
+# Recursion and TDZ resolution made infinite loop in the past.
+tdz_recursion_code = """
+def rec(n: int) -> int {
+    if (n == x) {
+        return 0;
+    } else {
+        return rec(n - 1);
+    }
+}
+let x = 0
+"""
+tdz_recursion_result = """
+def rec(n: int) -> int:
+    if n == x:
+        return 0
+    else:
+        return rec(n - 1)
+x = 0
+"""
+
+
+def test_tdz_recursion():
+    assert_transform(tdz_recursion_code, tdz_recursion_result)

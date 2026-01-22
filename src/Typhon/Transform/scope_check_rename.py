@@ -45,9 +45,19 @@ class DeclarationContext:
 @dataclass
 class SuspendedResolveAccess:
     name: ast.Name
-    top_level_dead: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+    temporally_dead_accessor: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
     is_mutation: bool
     accessor_python_scope: PythonScope
+
+    def __hash__(self) -> int:
+        return hash(
+            (
+                self.name.id,
+                id(self.temporally_dead_accessor),
+                self.is_mutation,
+                id(self.accessor_python_scope),
+            )
+        )
 
 
 def get_builtins() -> set[str]:
@@ -70,7 +80,9 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         self.non_declaration_assign_context = False
         self.suspended_symbols: set[str] = set()
         # suspended_resolves[dead_accessor_name][undeclared_name]
-        self.suspended_resolves: dict[str, dict[str, list[SuspendedResolveAccess]]] = {}
+        # dead_accessor_name: Name of function/class which is in its TDZ.
+        # undeclared_name: Name which is undeclared used in dead_accessor.
+        self.suspended_resolves: dict[str, dict[str, set[SuspendedResolveAccess]]] = {}
         self.require_global: dict[str, set[PythonScope]] = {}
         self.require_nonlocal: dict[str, set[PythonScope]] = {}
         self.builtins_symbols = get_builtins()
@@ -623,19 +635,26 @@ class SymbolScopeVisitor(TyphonASTVisitor):
     type SuspendableScope = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
 
     def add_suspended_resolve(
-        self, name: ast.Name, top_level_dead: SuspendableScope, is_mutable: bool
+        self,
+        name: ast.Name,
+        temporally_dead_accessor: SuspendableScope,
+        is_mutable: bool,
     ) -> SuspendedResolveAccess:
-        tdz = SuspendedResolveAccess(
+        suspended = SuspendedResolveAccess(
             name=name,
-            top_level_dead=top_level_dead,
+            temporally_dead_accessor=temporally_dead_accessor,
             is_mutation=is_mutable,
             accessor_python_scope=self.get_parent_python_scope(),
         )
+        debug_verbose_print(
+            f" Adding suspended access to temporal dead variable '{name.id}' in top-level scope '{temporally_dead_accessor.name}'"
+        )
         self.suspended_symbols.add(name.id)
-        self.suspended_resolves.setdefault(top_level_dead.name, {}).setdefault(
-            name.id, []
-        ).append(tdz)
-        return tdz
+        self.suspended_resolves.setdefault(
+            temporally_dead_accessor.name, {}
+        ).setdefault(name.id, set()).add(suspended)
+        debug_verbose_print(f"  Current suspended_resolves: {self.suspended_resolves}")
+        return suspended
 
     def suspendable_scope(
         self,
@@ -660,19 +679,23 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         return self.add_suspended_resolve(name, belong_top_level_scope, is_mutation)
 
     # Access to maybe temporally dead variable. return False if access is not valid.
-    # Copy the dependency of suspended access as current scope's dependency.
-    def access_temporal_dead(self, name: ast.Name) -> bool:
-        tdz_depends = self.suspended_resolves.get(name.id, None)
-        if tdz_depends is None:
+    # When temporally dead, copy transitively the dependency of suspended access
+    # (if exists) as current scope's dependency.
+    def access_maybe_temporal_dead(self, name: ast.Name) -> bool:
+        name_depends_but_unresolved = self.suspended_resolves.get(name.id, None)
+        if name_depends_but_unresolved is None:
             return True  # Not dead
         belong_top_level_scope = self.suspendable_scope()
         if belong_top_level_scope is None:
             return False  # Invalid access
-        # Copy the dependency to current scope
-        for _, suspends in tdz_depends.items():
-            for tdz in suspends:
+        # Copy the dependencies (not resolved yet) of name to current scope
+        for _, suspended_accesses in name_depends_but_unresolved.items():
+            debug_verbose_print(
+                f" Copying suspended accesses for '{name.id}': suspends={suspended_accesses}"
+            )
+            for suspended in suspended_accesses:
                 self.add_suspended_resolve(
-                    tdz.name, belong_top_level_scope, tdz.is_mutation
+                    suspended.name, belong_top_level_scope, suspended.is_mutation
                 )
         return True
 
@@ -796,12 +819,15 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             if self.is_temporal_dead(node.id):
                 # Accessing to a temporally dead variable
                 debug_verbose_print(f"Temporal dead access to '{node.id}'")
-                if not self.access_temporal_dead(node):
+                if not self.access_maybe_temporal_dead(node):
+                    debug_verbose_print(f"TDZ violation to '{node.id}'")
                     return self.error_tdz_violation(node)
+            debug_verbose_print(f"Accessing variable '{node.id}'")
             self.access_to_symbol_non_decl(
                 sym, is_mutation=self.non_declaration_assign_context
             )
         with self.type_annotation_maybe_in_declaration(node):
+            debug_verbose_print(f"Maybe type annotated Name: {ast.dump(node)}")
             return self.generic_visit(node)
 
     def visit_Starred(self, node: ast.Starred):
