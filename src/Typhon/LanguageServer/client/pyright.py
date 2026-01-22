@@ -106,68 +106,68 @@ def configure_pyright_client_option(
     cloned_params = copy.deepcopy(param)
     # text_document = result.capabilities.text_document
     text_document = cloned_params.capabilities.text_document
-    assert text_document is not None
-    # Whitelist
-    cloned_params.capabilities.text_document = types.TextDocumentClientCapabilities(
-        # semantic_tokens=semantic_token_capabilities().text_document.semantic_tokens,
-        synchronization=text_document.synchronization,
-        filters=text_document.filters,
-        completion=text_document.completion,
-        hover=text_document.hover,
-        signature_help=text_document.signature_help,
-        declaration=text_document.declaration,
-        definition=text_document.definition,
-        type_definition=text_document.type_definition,
-        implementation=text_document.implementation,
-        references=text_document.references,
-        document_highlight=text_document.document_highlight,
-        document_symbol=text_document.document_symbol,
-        code_action=text_document.code_action,
-        code_lens=text_document.code_lens,
-        document_link=text_document.document_link,
-        color_provider=text_document.color_provider,
-        formatting=text_document.formatting,
-        range_formatting=text_document.range_formatting,
-        on_type_formatting=text_document.on_type_formatting,
-        rename=text_document.rename,
-        folding_range=text_document.folding_range,
-        selection_range=text_document.selection_range,
-        publish_diagnostics=text_document.publish_diagnostics,
-        call_hierarchy=text_document.call_hierarchy,
-        semantic_tokens=text_document.semantic_tokens,
-        linked_editing_range=text_document.linked_editing_range,
-        moniker=text_document.moniker,
-        type_hierarchy=text_document.type_hierarchy,
-        inline_value=text_document.inline_value,
-        inlay_hint=text_document.inlay_hint,
-        # diagnostic=text_document.diagnostic,  # TODO: This make crashing pyright?. Why?
-        inline_completion=text_document.inline_completion,
-    )
+    if text_document:
+        # Whitelist
+        cloned_params.capabilities.text_document = types.TextDocumentClientCapabilities(
+            # semantic_tokens=semantic_token_capabilities().text_document.semantic_tokens,
+            synchronization=text_document.synchronization,
+            filters=text_document.filters,
+            completion=text_document.completion,
+            hover=text_document.hover,
+            signature_help=text_document.signature_help,
+            declaration=text_document.declaration,
+            definition=text_document.definition,
+            type_definition=text_document.type_definition,
+            implementation=text_document.implementation,
+            references=text_document.references,
+            document_highlight=text_document.document_highlight,
+            document_symbol=text_document.document_symbol,
+            code_action=text_document.code_action,
+            code_lens=text_document.code_lens,
+            document_link=text_document.document_link,
+            color_provider=text_document.color_provider,
+            formatting=text_document.formatting,
+            range_formatting=text_document.range_formatting,
+            on_type_formatting=text_document.on_type_formatting,
+            rename=text_document.rename,
+            folding_range=text_document.folding_range,
+            selection_range=text_document.selection_range,
+            publish_diagnostics=text_document.publish_diagnostics,
+            call_hierarchy=text_document.call_hierarchy,
+            semantic_tokens=text_document.semantic_tokens,
+            linked_editing_range=text_document.linked_editing_range,
+            moniker=text_document.moniker,
+            type_hierarchy=text_document.type_hierarchy,
+            inline_value=text_document.inline_value,
+            inlay_hint=text_document.inlay_hint,
+            # diagnostic=text_document.diagnostic,  # TODO: This make crashing pyright?. Why?
+            inline_completion=text_document.inline_completion,
+        )
     workspace = cloned_params.capabilities.workspace
-    assert workspace is not None
-    cloned_params.capabilities.workspace = types.WorkspaceClientCapabilities(
-        apply_edit=workspace.apply_edit,
-        workspace_edit=workspace.workspace_edit,
-        did_change_configuration=workspace.did_change_configuration,
-        did_change_watched_files=workspace.did_change_watched_files,
-        symbol=workspace.symbol,
-        execute_command=workspace.execute_command,
-        # workspace_folders=workspace.workspace_folders,  # TODO: This make hanging pyright
-        # workspace_folders=(
-        #     types.WorkspaceFoldersServerCapabilities(  # type: ignore
-        #         supported=True, change_notifications=True
-        #     )
-        #     if workspace.workspace_folders
-        #     else None
-        # ),  # TODO: type mismatch??? This make initialization fail
-        configuration=workspace.configuration,
-        semantic_tokens=workspace.semantic_tokens,
-        code_lens=workspace.code_lens,
-        file_operations=workspace.file_operations,
-        inline_value=workspace.inline_value,
-        inlay_hint=workspace.inlay_hint,
-        diagnostics=workspace.diagnostics,
-        folding_range=workspace.folding_range,
-        text_document_content=workspace.text_document_content,
-    )
+    if workspace:
+        cloned_params.capabilities.workspace = types.WorkspaceClientCapabilities(
+            apply_edit=workspace.apply_edit,
+            workspace_edit=workspace.workspace_edit,
+            did_change_configuration=workspace.did_change_configuration,
+            did_change_watched_files=workspace.did_change_watched_files,
+            symbol=workspace.symbol,
+            execute_command=workspace.execute_command,
+            # workspace_folders=workspace.workspace_folders,  # TODO: This make hanging pyright
+            # workspace_folders=(
+            #     types.WorkspaceFoldersServerCapabilities(  # type: ignore
+            #         supported=True, change_notifications=True
+            #     )
+            #     if workspace.workspace_folders
+            #     else None
+            # ),  # TODO: type mismatch??? This make initialization fail
+            configuration=workspace.configuration,
+            semantic_tokens=workspace.semantic_tokens,
+            code_lens=workspace.code_lens,
+            file_operations=workspace.file_operations,
+            inline_value=workspace.inline_value,
+            inlay_hint=workspace.inlay_hint,
+            diagnostics=workspace.diagnostics,
+            folding_range=workspace.folding_range,
+            text_document_content=workspace.text_document_content,
+        )
     return cloned_params

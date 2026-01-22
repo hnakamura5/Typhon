@@ -12,7 +12,6 @@ from ..Driver.debugging import (
 from ..Driver.utils import output_dir_for_server_workspace
 from .semantic_tokens import semantic_token_capabilities
 from .client import configure_language_client_option
-from Typhon.LanguageServer import semantic_tokens
 
 
 def uri_to_path(uri: str) -> Path:
@@ -30,13 +29,6 @@ def path_to_uri(path: Path) -> str:
         return path.resolve().as_uri()
     except Exception as e:
         raise ValueError(f"Could not convert path to URI: {path}") from e
-
-
-def initialize_param_test_version(
-    cloned_params: types.InitializeParams,
-) -> types.InitializeParams:
-    # Test all capabilities
-    return cloned_params
 
 
 def clone_and_map_initialize_param(

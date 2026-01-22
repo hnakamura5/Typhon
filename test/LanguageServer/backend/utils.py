@@ -1,18 +1,12 @@
 from lsprotocol.types import InitializeResult
-
-
 import asyncio
 from pathlib import Path
 
 from lsprotocol import types
 from pygls.lsp.client import LanguageClient
 
-# sample_dir = Path(__file__).parent / "sample"
-# sample_file = sample_dir / "sample1.py"
-sample_dir = Path(
-    "C:/Users/hnakamura5/Projects/Typhon/test/execute/RunFileTest/.typhon-server/"
-)
-sample_file = sample_dir / "while_let_record.py"
+sample_dir = Path(__file__).parent / "sample"
+sample_file = sample_dir / "sample1.py"
 
 sample_dir_uri = sample_dir.resolve().as_uri()
 

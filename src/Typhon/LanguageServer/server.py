@@ -180,6 +180,7 @@ async def lsp_server_initialize(ls: LanguageServer, params: types.InitializePara
         debug_file_write(f"Initializing with params: {params}\n")
         # await start_pyright_client(ls.backend_client)
         await start_language_client(ls.backend_client)
+        debug_file_write("Backend client started.\n")
         # Clone the params and modify workspace root to server workspace root.
         cloned_params = clone_and_map_initialize_param(params)
         debug_file_write(f"Initializing backend with cloned params: {cloned_params}\n")
@@ -298,14 +299,14 @@ def did_change_watched_files(
     uri_changed_params = types.DidChangeWatchedFilesParams(
         changes=[
             types.FileEvent(
-                uri=change.uri,
+                uri=ls.get_translated_file_uri(change.uri),
                 # uri=ls.get_translated_file_uri(change.uri),
                 type=change.type,
             )
             for change in params.changes
         ]
     )
-    ls.backend_client.workspace_did_change_watched_files(uri_changed_params)
+    # ls.backend_client.workspace_did_change_watched_files(uri_changed_params)
 
 
 @server.feature(types.TEXT_DOCUMENT_DID_OPEN)

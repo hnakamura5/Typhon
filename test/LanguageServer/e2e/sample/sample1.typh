@@ -1,0 +1,19 @@
+from pathlib import Path
+import re
+
+class C {
+    let x: int;
+    def __init__() {
+        self.x = 10
+    }
+}
+
+def fun(file: Path) {
+    #(Note this is executed in .typhon directory)#
+    with (let f = open(file, "r")) {
+        let m = re.find(r'import (?P<name>\w+)\n', content)
+        print(f"match: {m.group("name")}")
+    }
+}
+var my_dir: Path = Path(__file__).parent.parent # sample
+fun(my_dir / "sample1.typh")

@@ -1,4 +1,4 @@
-from .utils import copy_type
+from .utils import copy_type, get_project_root
 from typing import BinaryIO, override
 from pathlib import Path
 import logging
@@ -58,9 +58,30 @@ def get_debug_log_file() -> Path | None:
     return _debug_log_file
 
 
+_debug_printed: int = 0
+_debug_printed_size: int = 0
+_limit_reached_printed: bool = False
+
+
+def _debug_limit_check(*arg) -> bool:
+    global _debug_printed
+    global _debug_printed_size
+    global _limit_reached_printed
+    if _debug_printed > 100000 or _debug_printed_size > 10000000:
+        if not _limit_reached_printed:
+            print("Debug print limit reached, stopping further debug prints.")
+            _limit_reached_printed = True
+        return True
+    _debug_printed += 1
+    _debug_printed_size += sum(len(str(a)) for a in arg)
+    return False
+
+
 @copy_type(print)
 def debug_print(*arg, **kwargs) -> None:  # type: ignore
     if _debug:
+        if _debug_limit_check(*arg):
+            return
         if _debug_log_file is not None:
             with _debug_log_file.open("a") as log_file:
                 print(*arg, file=log_file, **kwargs)  # type: ignore
@@ -71,6 +92,8 @@ def debug_print(*arg, **kwargs) -> None:  # type: ignore
 @copy_type(print)
 def debug_verbose_print(*arg, **kwargs) -> None:  # type: ignore
     if _debug_verbose:
+        if _debug_limit_check(*arg):
+            return
         if _debug_log_file is not None:
             with _debug_log_file.open("a") as log_file:
                 print(*arg, file=log_file, **kwargs)  # type: ignore
@@ -82,6 +105,8 @@ def debug_verbose_print(*arg, **kwargs) -> None:  # type: ignore
 def debug_file_write(*arg, **kwargs) -> None:  # type: ignore
     if _debug:
         if _debug_log_file is not None:
+            if _debug_limit_check(*arg):
+                return
             with _debug_log_file.open("a") as log_file:
                 print(*arg, file=log_file, **kwargs)  # type: ignore
 
@@ -90,6 +115,8 @@ def debug_file_write(*arg, **kwargs) -> None:  # type: ignore
 def debug_file_write_verbose(*arg, **kwargs) -> None:  # type: ignore
     if _debug_verbose:
         if _debug_log_file is not None:
+            if _debug_limit_check(*arg):
+                return
             with _debug_log_file.open("a") as log_file:
                 print(*arg, file=log_file, **kwargs)  # type: ignore
 
@@ -142,15 +169,6 @@ class BinaryIOLogger(BinaryIO):
                 log_file.write(f"Read line {line}\n")
                 log_file.flush()
         return line
-
-
-def get_project_root() -> Path:
-    current = Path(__file__).resolve()
-    for _ in range(10):
-        if (current / "pyproject.toml").exists():
-            return current
-        current = current.parent
-    raise FileNotFoundError("Could not find project root with pyproject.toml")
 
 
 def debug_setup_logging(verbose: bool = True, append: bool = False) -> None:

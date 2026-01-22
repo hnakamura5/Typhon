@@ -81,3 +81,12 @@ def copy_type[**P, T](
 # For windows, convert all to lower case and resolve.
 def canonicalize_path(path: Path) -> str:
     return Path(os.path.normcase(str(path))).resolve().as_posix()
+
+
+def get_project_root() -> Path:
+    current = Path(__file__).resolve()
+    for _ in range(10):
+        if (current / "pyproject.toml").exists():
+            return current
+        current = current.parent
+    raise FileNotFoundError("Could not find project root with pyproject.toml")
