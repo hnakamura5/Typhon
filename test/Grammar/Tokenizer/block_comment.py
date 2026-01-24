@@ -11,8 +11,6 @@ from tokenize import (
     ENDMARKER,
     NUMBER,
     COMMENT,
-    INDENT,
-    DEDENT,
     STRING,
     FSTRING_START,
     FSTRING_MIDDLE,
@@ -126,11 +124,9 @@ def test_block_comment_sandwich():
     ta.next(NUMBER, "20", (4, 12), (4, 14))
     ta.next(COMMENT, "#(last\ncomment\n)#", (4, 16), (6, 2))
     ta.next(NEWLINE, "\n", (6, 2), (6, 3))
-    ta.next(INDENT)
     ta.next(OP, "-", (7, 4), (7, 5))
     ta.next(NUMBER, "30", (7, 6), (7, 8))
     ta.next(NEWLINE, "\n", (7, 8), (7, 9))
-    ta.next(DEDENT)
     ta.next(ENDMARKER, "")
     assert_parse(block_comment_sandwich_code, block_comment_sandwich_result)
 

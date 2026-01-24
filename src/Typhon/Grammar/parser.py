@@ -1,4 +1,5 @@
 import ast
+from pathlib import Path
 import sys
 import tokenize
 import os
@@ -10,7 +11,9 @@ from typing import (
     Optional,
 )
 
-from .tokenizer_custom import TokenizerCustom
+from ..Driver.debugging import is_debug_verbose
+
+from .tokenizer_custom import TokenizerCustom, show_token
 from .token_factory_custom import token_stream_factory
 from ._typhon_parser import parse
 from .typhon_ast_error import gather_errors
@@ -23,6 +26,8 @@ def parse_file(
 ) -> ast.Module:
     """Parse a file."""
     with open(file_path) as f:
+        if is_debug_verbose():
+            show_token(Path(file_path).read_text())
         tok_stream = token_stream_factory(f.readline)
         tokenizer = TokenizerCustom(tok_stream, verbose=verbose, path=file_path)
         parsed = parse_tokenizer(

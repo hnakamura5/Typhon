@@ -13,7 +13,6 @@ from tokenize import (
     ENDMARKER,
     NUMBER,
     COMMENT,
-    INDENT,
     DEDENT,
     STRING,
     FSTRING_START,
@@ -89,7 +88,6 @@ def test_indent_error():
     ta.next(NEWLINE, "\n")
     ta.next(OP, "}")
     ta.next(NEWLINE, "\n")
-    ta.next(INDENT)
     ta.next(NAME, "if")
     ta.next(OP, "(")
     ta.next(NAME, "False")
@@ -100,6 +98,5 @@ def test_indent_error():
     ta.next(OP, "(")
     ta.next(NAME, "False")
     ta.next(OP, ")")
-    ta.next(DEDENT)
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")

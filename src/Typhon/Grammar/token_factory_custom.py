@@ -7,109 +7,22 @@ import re
 from dataclasses import dataclass
 from ..Driver.debugging import debug_print, debug_verbose_print
 from enum import Enum, auto
-from parso.python import tokenize as parso_tokenize
-from parso.utils import parse_version_string
-
-_parso_type_to_type: dict[parso_tokenize.PythonTokenTypes, int] = {
-    parso_tokenize.STRING: token.STRING,
-    parso_tokenize.NAME: token.NAME,
-    parso_tokenize.NUMBER: token.NUMBER,
-    parso_tokenize.OP: token.OP,
-    parso_tokenize.NEWLINE: token.NEWLINE,
-    parso_tokenize.INDENT: token.INDENT,
-    parso_tokenize.DEDENT: token.DEDENT,
-    parso_tokenize.ENDMARKER: token.ENDMARKER,
-    parso_tokenize.ERRORTOKEN: token.OP,
-    parso_tokenize.ERROR_DEDENT: token.DEDENT,
-    parso_tokenize.FSTRING_START: token.FSTRING_START,
-    parso_tokenize.FSTRING_STRING: token.FSTRING_MIDDLE,
-    parso_tokenize.FSTRING_END: token.FSTRING_END,
-}
-
-
-def is_blank(s: str):
-    return bool(re.fullmatch(r"[ \t]*", s))
-
-
-def _parso_parse_prefix(
-    prefix: str, start: tuple[int, int], lines: list[str]
-) -> list[TokenInfo]:
-    # Split the prefix into individual tokens.
-    tokens: list[TokenInfo] = []
-    prefix_lines = prefix.splitlines(keepends=True)
-    debug_verbose_print(f"Parsing prefix: {prefix_lines!r} starting at {start}")
-    for i, line in enumerate(prefix_lines):
-        lineno = start[0] - prefix.count("\n") + i
-        debug_verbose_print(
-            f"  prefix line {lineno}: {line!r}, lines[lineno-1]:{lines[lineno - 1]!r}"
-        )
-        if line.lstrip().startswith("#"):
-            col = line.find("#")
-            tokens.append(
-                TokenInfo(
-                    tokenize.COMMENT,
-                    line,
-                    (lineno, col),
-                    (lineno, len(line) - 1),
-                    lines[lineno - 1] if lineno - 1 < len(lines) else line,
-                )
-            )
-        if line.endswith("\n"):
-            tokens.append(
-                TokenInfo(
-                    tokenize.NEWLINE,
-                    "\n",
-                    (lineno, len(lines[lineno - 1]) - 1),
-                    (lineno, len(lines[lineno - 1])),
-                    line,
-                )
-            )
-    return tokens
-
-
-def _parso_token_to_python_tokens(
-    tok: parso_tokenize.Token, lines: list[str]
-) -> list[TokenInfo]:
-    start = tok.start_pos
-    line_content = lines[start[0] - 1] if start[0] - 1 < len(lines) else tok.string
-    converted_type = _parso_type_to_type[tok.type]
-    result: list[TokenInfo] = []
-    debug_verbose_print(
-        f"Converting parso token: {tok.string!r} type={tok.type} to type={converted_type}, prefix={tok.prefix!r}, prefix_target={not is_blank(tok.prefix)} pos={(start[0], start[1])}"
-    )
-    if not is_blank(tok.prefix):
-        # When prefix contains non-space character
-        result.extend(_parso_parse_prefix(tok.prefix, start, lines))
-    end_pos = tok.end_pos
-    if converted_type == tokenize.NEWLINE:
-        # Adjust the end position to be same as python's tokenizer
-        end_pos = (start[0], start[1] + 1)
-    result.append(
-        TokenInfo(
-            type=converted_type,
-            string=tok.string,
-            start=tok.start_pos,
-            end=end_pos,
-            line=line_content,
-        )
-    )
-    debug_verbose_print("  result: ", result)
-    return result
-
-
-def _generate_tokens_parso(readline: Callable[[], str]) -> Iterator[TokenInfo]:
-    lines = list(iter(readline, ""))
-    debug_verbose_print(f"Generating tokens from lines: {lines!r}")
-    code = "".join(lines)
-    for tok in parso_tokenize.tokenize(
-        code,
-        version_info=parse_version_string(),
-    ):
-        yield from _parso_token_to_python_tokens(tok, lines)
 
 
 def generate_tokens_ignore_error(readline: Callable[[], str]) -> Iterator[TokenInfo]:
-    yield from _generate_tokens_parso(readline)
+    # yield from _generate_tokens_parso(readline)
+    try:
+        for tok in generate_tokens(readline):
+            yield tok
+    except tokenize.TokenError as e:
+        # Ignore the error on EOF in multiline.
+        message: str
+        lineno: int
+        offset: int
+        message, (lineno, offset) = e.args
+        pos = (lineno, offset)
+        print(f"Tokenization error ignored at {pos}: {e}")
+        yield TokenInfo(token.ENDMARKER, "", pos, pos, "")
 
 
 def _regularize_token_type(token_type: int) -> int:
@@ -179,11 +92,15 @@ class _LineParser:
         self.in_string = False
         self.in_comment = False
 
+        # For f-string interpolation handling.
         self.interpolation_stack: list[Literal["{"]] = []
+        # String context stack for nested strings (only in f-string expressions).
         self.str_context: list[_Str] = []
+        # To count the brackets in f-string interpolation.
         self.bracket_stack_in_interpolation: list[str] = []
         self.block_comment_begin_stack: list[_BlockComment] = []
         self.outermost_block_comments: list[_BlockComment] = []
+        self.line_head_spaces: list[str] = []
 
     def _next_char(self) -> str | None:
         if self._column >= len(self.line):
@@ -248,6 +165,10 @@ class _LineParser:
                         self.bracket_stack_in_interpolation[:pop_idx]
                     )
         elif self.str_context and self.str_context[-1].is_fstring() and ch == "{":
+            # Start of f-string interpolation
+            debug_verbose_print(
+                f"Starting f-string interpolation at column={self._get_char_column()}"
+            )
             self.interpolation_stack.append("{")
             self.bracket_stack_in_interpolation.append("{")
             self.in_string = False
@@ -264,6 +185,9 @@ class _LineParser:
                 continue
             else:
                 break
+        debug_verbose_print(
+            f"Determined string prefix {list(reversed(self._passed()[:-1]))[0:2]} is_raw={is_raw} is_fstring={is_fstring} at column={self._get_char_column()}"
+        )
         return _StrPrefix(is_raw=is_raw, is_fstring=is_fstring)
 
     def _handle_string_delim(self, ch: str) -> None:
@@ -306,7 +230,7 @@ class _LineParser:
             prefix = self._get_str_prefix()
             next_ch = self._peek_char()
             debug_verbose_print(
-                f"Handling string start delim: {ch!r} next_ch={next_ch!r} prefix={prefix} passed={self._passed()}"
+                f"Handling string start delim: {ch!r} next_ch={next_ch!r} prefix={prefix} passed={self._passed()} column={self._get_char_column()}"
             )
             self.in_string = True
             if next_ch == ch:
@@ -393,6 +317,17 @@ class _LineParser:
             # Pop the block comment begin
             self.block_comment_begin_stack.pop()
 
+    def _cut_line_head_spaces(
+        self, line: str, line_head_in_string_or_comment: bool
+    ) -> str:
+        if not line_head_in_string_or_comment:
+            match = re.match(r"[ \t]*", line)
+            if match:
+                self.line_head_spaces.append(match.group(0))
+                return line[match.end() :]
+        self.line_head_spaces.append("")
+        return line
+
     def _next_line(self) -> None:
         self.line = self.readline()
         self._column = 0
@@ -404,6 +339,7 @@ class _LineParser:
     def parse_next_line(self) -> str:
         self._next_line()
         ch = ""
+        line_head_in_string_or_comment = self.in_string or self.in_comment
         while True:
             ch = self._next_char()
             if ch is None:
@@ -442,7 +378,9 @@ class _LineParser:
                         self._handle_string_delim(ch)
                     elif ch in {"{", "}", "(", ")", "[", "]"}:
                         self._handle_bracket(ch)
-        result = self.result_line
+        result = self._cut_line_head_spaces(
+            self.result_line, line_head_in_string_or_comment
+        )
         self.result_line = ""
         debug_verbose_print(f"Parsed line {self.line_num} result: {result!r}")
         return result
@@ -451,8 +389,9 @@ class _LineParser:
 def _generate_and_postprocess_tokens(
     readline: Callable[[], str],  # After block comment is processed.
     unconsumed_block_comment: list[_BlockComment],
+    head_space_lines: list[str],
 ) -> Iterator[TokenInfo]:
-    """Generate tokens from readline, handling block comments."""
+    """Generate tokens from readline, handling head space and  block comments."""
     line_offset_already_consumed = 0
     block_comment_already_output: set[_BlockComment] = set()
     # Adjust token positions from generated tokens, and mix in block comment tokens.
@@ -460,7 +399,17 @@ def _generate_and_postprocess_tokens(
         debug_verbose_print(
             f"Generated token: {tok.string!r} type={tok.type} start={tok.start} end={tok.end}"
         )
-        tok_start_line, tok_start_col = tok.start
+        # Retrieve the line head spaces for this line.
+        start = (
+            tok.start[0],
+            tok.start[1] + len(head_space_lines[tok.start[0] - 1]),
+        )
+        end = (
+            tok.end[0],
+            tok.end[1] + len(head_space_lines[tok.end[0] - 1]),
+        )
+        # Gather unconsumed block comments before this token.
+        tok_start_line, tok_start_col = start
         while (
             unconsumed_block_comment
             and (block_comment := unconsumed_block_comment[0])
@@ -482,8 +431,8 @@ def _generate_and_postprocess_tokens(
             )
             unconsumed_block_comment.pop(0)
         # Adjust the token position if there are block comments before this token.
-        adjusted_start_line, adjusted_start_col = tok.start
-        adjusted_end_line, adjusted_end_col = tok.end
+        adjusted_start_line, adjusted_start_col = start
+        adjusted_end_line, adjusted_end_col = end
         adjusted_start_line += line_offset_already_consumed
         adjusted_end_line += line_offset_already_consumed
         for block_comment in unconsumed_block_comment:
@@ -586,5 +535,7 @@ def token_stream_factory(readline: Callable[[], str]) -> Iterator[TokenInfo]:
     line_parser = _LineParser(readline)
 
     yield from _generate_and_postprocess_tokens(
-        line_parser.parse_next_line, line_parser.outermost_block_comments
+        line_parser.parse_next_line,
+        line_parser.outermost_block_comments,
+        line_parser.line_head_spaces,
     )

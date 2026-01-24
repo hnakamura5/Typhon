@@ -7,11 +7,8 @@ from typing import Type, Union, Any, Callable
 from src.Typhon.Grammar.typhon_ast import get_pos_attributes_if_exists
 from src.Typhon.Grammar.parser import parse_string
 from src.Typhon.Transform.transform import transform
-from src.Typhon.Grammar.tokenizer_custom import TokenizerCustom
-from src.Typhon.Grammar.token_factory_custom import (
-    token_stream_factory,
-    generate_tokens_ignore_error,
-)
+from src.Typhon.Grammar.tokenizer_custom import TokenizerCustom, show_token
+from src.Typhon.Grammar.token_factory_custom import token_stream_factory
 from src.Typhon.Grammar.unparse_custom import unparse_custom
 from src.Typhon.SourceMap.ast_matching import match_ast, MatchResult
 from src.Typhon.SourceMap.ast_match_based_map import MatchBasedSourceMap
@@ -361,27 +358,6 @@ class SourceMapAsserter:
         assert unparsed_mapped_text == unparsed_text, (
             f"Expected unparsed text '{unparsed_text}', got '{unparsed_mapped_text}'"
         )
-
-
-def show_token(
-    source: str, show_typhon_token: bool = True, show_python_token: bool = True
-):
-    if show_python_token:
-        print("Tokens of Python tokenizer:")
-        for tok in generate_tokens_ignore_error(io.StringIO(source).readline):
-            print(f"    {tok}")
-    if show_typhon_token:
-        print("Tokens of Typhon Token Factory:")
-        tok_stream = token_stream_factory(io.StringIO(source).readline)
-        for tok in tok_stream:
-            print(f"    {tok}")
-    print("Tokens of Typhon Custom tokenizer:")
-    tok_stream = token_stream_factory(io.StringIO(source).readline)
-    tokenizer = TokenizerCustom(tok_stream, verbose=True)
-    tok = tokenizer.getnext()
-    while tok.type != tokenize.ENDMARKER:
-        print(f"    {tok}")
-        tok = tokenizer.getnext()
 
 
 def get_code_source_ast(code: Any) -> ast.AST:

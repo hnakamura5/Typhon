@@ -8,7 +8,7 @@ from typing import override
 from .line_break import line_breakable_after, line_breakable_before
 from .typhon_ast import get_postfix_operator_temp_name
 from ..Driver.debugging import debug_verbose_print
-from .token_factory_custom import token_stream_factory
+from .token_factory_custom import token_stream_factory, generate_tokens_ignore_error
 
 
 # Combine sequencial 2 tokens (optionally without space between) into 1
@@ -326,3 +326,23 @@ def tokenizer_for_string(source: str) -> TokenizerCustom:
     tok_stream = token_stream_factory(io.StringIO(source).readline)
     tokenizer = TokenizerCustom(tok_stream)
     return tokenizer
+
+
+def show_token(
+    source: str, show_typhon_token: bool = True, show_python_token: bool = True
+):
+    if show_python_token:
+        print("Tokens of Python tokenizer:")
+        for tok in generate_tokens_ignore_error(io.StringIO(source).readline):
+            print(f"    {tok}")
+    if show_typhon_token:
+        print("Tokens of Typhon Token Factory:")
+        tok_stream = token_stream_factory(io.StringIO(source).readline)
+        for tok in tok_stream:
+            print(f"    {tok}")
+    print("Tokens of Typhon Custom tokenizer:")
+    tok_stream = token_stream_factory(io.StringIO(source).readline)
+    tokenizer = TokenizerCustom(tok_stream, verbose=True)
+    tokens = tokenizer.read_all_tokens()
+    for tok in tokens:
+        print(f"    {tok}")
