@@ -1,15 +1,14 @@
 # uv run -m script.test.all *> .\private\test.log
 # at project root
 
-from ..build import build_grammar, install_editable_package
+from ..build import setup
 from .grammar import run_all_tests as run_grammar_tests
 from .run import run_all_tests as run_run_tests
 from .lsp import run_all_tests as run_lsp_tests
 
 
 def test_all():
-    build_grammar()
-    install_editable_package()
+    setup()
     exit(run_grammar_tests() + run_run_tests() + run_lsp_tests())
 
 

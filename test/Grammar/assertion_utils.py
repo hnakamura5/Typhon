@@ -305,6 +305,7 @@ def assert_source_map_ident(code: Any):
         mapping.right_to_left,
         unparse_custom(code_ast),
         "<string>",
+        unparse_custom(code_ast),
     )
     for left_node, right_node in mapping.left_to_right.items():
         print(f"Asserting node range for {ast.dump(left_node)}")
@@ -322,6 +323,7 @@ class SourceMapAsserter:
             mapping.right_to_left,
             typhon_code,
             "<string>",
+            unparsed_code,
         )
         self.origin_code = typhon_code
         self.unparsed_code = unparsed_code

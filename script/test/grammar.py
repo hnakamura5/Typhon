@@ -2,7 +2,7 @@ import subprocess
 import sys
 from pathlib import Path
 from ..util import get_project_root, gather_directory
-from ..build import build_grammar, _type_check
+from ..build import setup
 
 
 def gather_test_in_grammar_test_dir(dir_name: str) -> list[str]:
@@ -34,8 +34,6 @@ def gather_sourcemap_tests() -> list[str]:
 
 
 def run_all_tests() -> int:
-    build_grammar()
-
     # First of all run tokenizer tests.
     if (
         subprocess.run(
@@ -63,7 +61,6 @@ def run_all_tests() -> int:
 
 
 def run_single_grammar_test(test_dir_name: str) -> int:
-    build_grammar()
     result = subprocess.run(
         [sys.executable, "-m", "pytest"]
         + gather_test_in_grammar_test_dir(test_dir_name),
@@ -72,6 +69,7 @@ def run_single_grammar_test(test_dir_name: str) -> int:
 
 
 if __name__ == "__main__":
+    setup()
     if len(sys.argv) > 1:
         test_dir_name = sys.argv[1]
         exit(run_single_grammar_test(test_dir_name))

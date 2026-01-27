@@ -1,9 +1,5 @@
-def main() -> None {
-    print("Hello Typhon!")
-}
-
 if (__name__ == "__main__") {
-    main()
+    print("Hello Typhon!")
 }
 
 """stdout

@@ -15,6 +15,8 @@ from tokenize import (
 )
 from lsprotocol import types
 from pygls.workspace import TextDocument
+
+from ..Grammar.typhon_ast import get_pos_attributes
 from ..Grammar.tokenizer_custom import TokenInfo
 from ..Driver.debugging import debug_file_write_verbose
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
@@ -132,6 +134,9 @@ def decode_semantic_tokens(
             offset += delta_offset
         else:
             offset = delta_offset
+        debug_file_write_verbose(
+            f"Decoding semantic token: delta_line={delta_line}, delta_offset={delta_offset}, length={length}, tok_type_index={tok_type_index}, tok_modifiers_bitmask={tok_modifiers_bitmask}, line={line}, offset={offset}"
+        )
         tok_type = client_legend.get(tok_type_index, TOKEN_TYPES[tok_type_index])
         tok_modifiers: list[TokenModifier] = []
         for mod in TokenModifier:
@@ -160,29 +165,54 @@ def map_semantic_tokens(
 ) -> types.SemanticTokens:
     # First decode the tokens into SemanticTokens
     decoded_tokens = decode_semantic_tokens(tokens, client_legend)
+    debug_file_write_verbose(f"Decoded tokens for mapping: {decoded_tokens}")
     # Map each token position
     mapped_tokens: list[SemanticToken] = []
-    current_line = 0
-    current_offset = 0
-    for token in decoded_tokens:
-        if token.line == current_line:
-            current_offset += token.offset
+
+    def column_offset_in_line(line: int, column: int) -> int:
+        if mapped_tokens and mapped_tokens[-1].line == line:
+            # Calculate offset from the previous token in the same line.
+            return column - mapped_tokens[-1].end_col
         else:
-            current_line = token.line
-            current_offset = 0
+            # First token on this line.
+            return column
+
+    for token in decoded_tokens:
         token_range = Range(
-            start=Pos(line=current_line, column=current_offset),
-            end=Pos(line=current_line, column=current_offset + token.length),
+            start=Pos(line=token.line, column=token.start_col),
+            end=Pos(line=token.line, column=token.end_col),
         )
-        mapped_range = mapping.unparsed_range_to_origin(token_range)
-        if mapped_range is not None:
+        # For debugging to see text.
+        token.text = Range.of_string(token_range, mapping.unparsed_code)
+        if mapped_node := mapping.unparsed_range_to_origin_node(token_range):
+            if isinstance(mapped_node, ast.Name):
+                if mapped_range := Range.from_ast_node(mapped_node):
+                    line = mapped_range.start.line
+                    offset = column_offset_in_line(line, mapped_range.start.column)
+                    # TODO Wrong now.
+                    debug_file_write_verbose(
+                        f"Mapping token to node: {token}\n --> {ast.dump(mapped_node)}@{mapped_range}"
+                    )
+                    mapped_tokens.append(
+                        SemanticToken(
+                            line=line,
+                            offset=offset,
+                            length=token.length,
+                            start_col=mapped_range.start.column,
+                            end_col=mapped_range.end.column,
+                            text=Range.of_string(mapped_range, mapping.source_code),
+                            tok_type=token.tok_type,  # TODO: map this
+                            tok_modifiers=token.tok_modifiers,
+                        )
+                    )
+                    continue
+        if mapped_range := mapping.unparsed_range_to_origin(token_range):
             line = mapped_range.start.line
-            if mapped_tokens and line == mapped_tokens[-1].line:
-                # Calculate offset from the previous token in the same line.
-                offset = mapped_range.start.column - mapped_tokens[-1].end_col
-            else:
-                # First token overall, or first token on this line.
-                offset = mapped_range.start.column
+            offset = column_offset_in_line(line, mapped_range.start.column)
+            debug_file_write_verbose(
+                f"Mapping token: {token} to line: {line}, offset: {offset}"
+            )
+            # TODO: Change token to original typhon source's tokens.
             mapped_tokens.append(
                 SemanticToken(
                     line=line,

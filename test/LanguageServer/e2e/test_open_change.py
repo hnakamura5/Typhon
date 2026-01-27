@@ -1,19 +1,15 @@
 import asyncio
 from lsprotocol import types
 from .utils import start_typhon_connection_client, sample_dir, sample_file
+from ..initialize_params_example import initialize_params_example
 
 
 async def run_test():
     client = await start_typhon_connection_client()
-    result = await client.initialize_async(
-        types.InitializeParams(
-            process_id=None,
-            root_uri=None,
-            capabilities=types.ClientCapabilities(),
-        )
-    )
+    result = await client.initialize_async(initialize_params_example(sample_dir))
     assert result is not None
     assert result.capabilities is not None
+    client.initialized(types.InitializedParams())
     # Open
     client.text_document_did_open(
         types.DidOpenTextDocumentParams(

@@ -13,6 +13,7 @@ class MatchBasedSourceMap:
         unparsed_to_origin: dict[ast.AST, ast.AST],
         source_code: str,
         source_file: str,
+        unparsed_code: str,
     ):
         self.origin_to_unparsed = origin_to_unparsed
         self.unparsed_to_origin = unparsed_to_origin
@@ -20,6 +21,7 @@ class MatchBasedSourceMap:
         self.unparsed_interval_tree = RangeIntervalTree[ast.AST]()
         self.source_code = source_code
         self.source_file = source_file
+        self.unparsed_code: str = unparsed_code
         self._setup_interval_trees()
 
     def _setup_interval_trees(self):
@@ -117,6 +119,20 @@ class MatchBasedSourceMap:
             return None
         return range_in_origin.of_string(self.source_code)
 
+    def unparsed_range_to_origin_node(
+        self,
+        range_unparsed: Range,
+    ) -> ast.AST | None:
+        nodes = self.unparsed_interval_tree.minimal_containers(range_unparsed)
+        debug_verbose_print(
+            f"Mapping unparsed range to origin node: {range_unparsed} nodes: {nodes}"
+        )
+        if nodes and len(nodes) == 1:
+            _, node = nodes[0]
+            return self.unparsed_to_origin.get(node, None)
+        debug_verbose_print("No nodes found for the given unparsed range.")
+        return None
+
     def origin_range_to_unparsed(
         self,
         range_origin: Range,
@@ -155,6 +171,7 @@ def map_from_translated_ast(
         mapping.right_to_left,
         source_code,
         source_file_path,
+        unparsed_code,
     )
 
 

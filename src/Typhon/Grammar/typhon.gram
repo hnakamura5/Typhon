@@ -1699,7 +1699,7 @@ question_try_comp[ast.expr]:
     | '?(' b=try_comp_internal ')' { b }
 
 match_comp_internal[ast.expr]:
-    | 'match' '(' subject=subject_expr ')' NEWLINE* cases=match_comp_case+ {
+    | "match" '(' subject=subject_expr ')' NEWLINE* cases=match_comp_case+ {
         make_match_comp(subject, cases, LOCATIONS)
     }
 
@@ -1710,7 +1710,7 @@ question_match_comp[ast.expr]:
     | '?(' b=match_comp_internal ')' { b }
 
 match_comp_case[ast.Name]:
-    | 'case' '(' pattern=patterns ')' NEWLINE* guard=guard? NEWLINE* body=expression {
+    | "case" '(' pattern=patterns ')' NEWLINE* guard=guard? NEWLINE* body=expression {
         make_match_comp_case(pattern, guard, body, LOCATIONS)
     }
 

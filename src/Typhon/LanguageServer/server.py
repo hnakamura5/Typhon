@@ -367,6 +367,7 @@ async def semantic_tokens_full(ls: LanguageServer, params: types.SemanticTokensP
                 fallback = encode_semantic_tokens(
                     ls.semantic_tokens.get(params.text_document.uri, [])
                 )
+                debug_file_write(f"Fallback: {fallback}")
                 return map_semantic_tokens(fallback, mapping, ls.client_semantic_legend)
             except Exception as mapping_error:
                 debug_file_write(f"Fallback mapping failed: {mapping_error}")

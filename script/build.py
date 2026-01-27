@@ -89,6 +89,11 @@ def package_build():
     print(output.stderr.decode())
 
 
+def setup() -> None:
+    build_grammar()
+    install_editable_package()
+
+
 if __name__ == "__main__":
     build_grammar()
     package_build()

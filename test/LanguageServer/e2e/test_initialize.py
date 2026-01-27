@@ -25,6 +25,7 @@ def test_initialize():
         )
         assert result is not None
         assert result.capabilities is not None
+        client.initialized(types.InitializedParams())
         # Exit immediately
         client.exit(None)
         await client.stop()

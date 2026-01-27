@@ -6,9 +6,13 @@ from pathlib import Path
 from src.Typhon.LanguageServer.utils import path_to_uri
 from src.Typhon.Driver.utils import get_project_root
 
-sample_dir = Path(__file__).parent / "sample"
-sample_file = sample_dir / "sample1.typh"
+from ..initialize_params_example import initialize_params_example
+
+sample_dir = get_project_root() / "test" / "execute" / "RunFileTest"
+sample_file = sample_dir / "semantic_token_showcase.typh"
+small_sample_file = sample_dir / "hello.typh"
 sample_file_uri = sample_file.resolve().as_uri()
+small_sample_file_uri = small_sample_file.resolve().as_uri()
 
 
 def assert_capabilities_equal(
@@ -32,28 +36,17 @@ async def start_typhon_connection_client() -> LanguageClient:
 
 
 async def start_initialize_open_typhon_connection_client(
-    capabilities: types.ClientCapabilities = types.ClientCapabilities(),
-    workspace_folders: list[types.WorkspaceFolder] | None = None,
+    root_dir: Path = sample_dir,
     open_file: Path = sample_file,
-) -> LanguageClient:
+) -> tuple[LanguageClient, types.InitializeResult]:
     client = await start_typhon_connection_client()
     open_file_uri = path_to_uri(open_file)
-    if workspace_folders is None:
-        workspace_folders = [
-            types.WorkspaceFolder(
-                uri=path_to_uri(sample_dir),
-                name="test",
-            )
-        ]
+
     async with asyncio.timeout(10):
         initialize_result = await client.initialize_async(
-            types.InitializeParams(
-                process_id=None,
-                capabilities=capabilities,
-                root_uri=path_to_uri(sample_dir),
-                workspace_folders=workspace_folders,
-            )
+            initialize_params_example(root_dir)
         )
+        client.initialized(types.InitializedParams())
         client.text_document_did_open(
             types.DidOpenTextDocumentParams(
                 text_document=types.TextDocumentItem(
@@ -65,7 +58,7 @@ async def start_initialize_open_typhon_connection_client(
             )
         )
     # assert_capabilities_equal(capabilities, initialize_result.capabilities)
-    return client
+    return client, initialize_result
 
 
 async def ensure_exit(client: LanguageClient) -> None:

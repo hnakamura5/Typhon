@@ -2,6 +2,7 @@ import subprocess
 import sys
 from pathlib import Path
 from ..util import get_project_root, gather_directory
+from ..build import setup
 
 
 def gather_lsp_tests() -> list[str]:
@@ -25,4 +26,5 @@ def run_all_tests():
 
 
 if __name__ == "__main__":
+    setup()
     exit(run_all_tests())

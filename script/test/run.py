@@ -2,12 +2,10 @@ import subprocess
 import sys
 from pathlib import Path
 from ..util import get_project_root
-from ..build import build_grammar, _type_check
+from ..build import setup
 
 
 def run_all_tests() -> int:
-    build_grammar()
-
     test_dir = Path(get_project_root()) / "test" / "execute"
     # First of all run tokenizer tests.
     return subprocess.run(
@@ -16,4 +14,5 @@ def run_all_tests() -> int:
 
 
 if __name__ == "__main__":
+    setup()
     exit(run_all_tests())
