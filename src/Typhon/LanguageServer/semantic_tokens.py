@@ -17,7 +17,7 @@ from tokenize import (
 from lsprotocol import types
 from pygls.workspace import TextDocument
 
-from ..Grammar.typhon_ast import get_pos_attributes, is_typhon_reserved_name
+from ..Grammar.typhon_ast import get_pos_attributes, is_typhon_internal_name
 from ..Grammar.tokenizer_custom import TokenInfo
 from ..Driver.debugging import debug_file_write_verbose
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
@@ -192,7 +192,7 @@ def map_semantic_tokens(
             f"Mapping token from decoded: {token} at range: {token_range}"
         )
         if mapped_node := mapping.unparsed_range_to_origin_node(token_range, ast.Name):
-            if isinstance(mapped_node, ast.Name) and not is_typhon_reserved_name(
+            if isinstance(mapped_node, ast.Name) and not is_typhon_internal_name(
                 mapped_node.id
             ):
                 if mapped_range := Range.from_ast_node(mapped_node):

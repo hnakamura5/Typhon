@@ -17,7 +17,10 @@ def fun(file: Path) {
     }
 }
 var my_dir: Path = Path(__file__).parent.parent # RunFileTest
-fun(my_dir / "semantic_token_showcase.typh")
+if (my_dir.exists()) {
+    let typh_path = my_dir / "semantic_token_showcase.typh"
+    fun(typh_path)
+}
 
 """stdout
 match: re

@@ -1,4 +1,6 @@
 import ast
+
+from ..Driver.debugging import debug_verbose_print
 from ..Grammar.typhon_ast import (
     set_defined_name,
     get_pos_attributes,
@@ -19,8 +21,8 @@ class _DefinedNameRetriever(ast.NodeVisitor):
         pos = get_pos_attributes(node)
         start_line = pos["lineno"]  # decorator is not included in the original position
         start_col = pos["col_offset"] + column_offset
-        print(
-            f"Retrieving defined name for node: {ast.dump(node)} at line {start_line}, col {start_col}"
+        debug_verbose_print(
+            f'Retrieving defined name "{node.name}" for node: {ast.dump(node)} at line {start_line}, col {start_col}'
         )
         name = ast.Name(
             id=node.name,
@@ -82,6 +84,28 @@ class _DefinedNameRetriever(ast.NodeVisitor):
             )
             set_defined_name(node, name)
 
+    def visit_Attribute(self, node: ast.Attribute):
+        pos = get_pos_attributes(node)
+        start_line = pos["lineno"]
+        end_col = pos["end_col_offset"]
+        # The defined name is the attribute name.
+        attr_index = (
+            end_col - len(node.attr) - 1 if end_col is not None else pos["col_offset"]
+        )
+        debug_verbose_print(
+            f'Retrieving defined name for attribute "{node.attr}" of {ast.dump(node.value)} at line {start_line}, col {attr_index}'
+        )
+        name = ast.Name(
+            id=node.attr,
+            ctx=node.ctx,
+            lineno=start_line,
+            col_offset=attr_index,
+            end_lineno=start_line,
+            end_col_offset=end_col,
+        )
+        set_defined_name(node, name)
+        self.generic_visit(node)
+
     def visit_ImportFrom(self, node: ast.ImportFrom):
         for alias in node.names:
             self.visit(alias)
@@ -100,6 +124,20 @@ class _DefinedNameRetriever(ast.NodeVisitor):
                 module_names.append(name)
             column += len(mod) + len(".")
         set_import_from_names(node, module_names)
+
+    def visit_arg(self, node: ast.arg):
+        pos = get_pos_attributes(node)
+        start_col = pos["col_offset"]
+        name = ast.Name(
+            id=node.arg,
+            ctx=ast.Store(),
+            lineno=pos["lineno"],
+            col_offset=start_col,
+            end_lineno=pos["end_lineno"],
+            end_col_offset=start_col + len(node.arg),
+        )
+        set_defined_name(node, name)
+        self.generic_visit(node)
 
 
 def defined_name_retrieve(node: ast.AST, unparsed_source_code: str) -> None:

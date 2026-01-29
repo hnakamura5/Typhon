@@ -24,7 +24,8 @@ from .typhon_ast import (
     make_match_comp_case, make_while_comp, make_if_let_comp,
     make_while_let_comp, make_let_comp,
     make_record_literal, make_record_type, make_attributes_pattern, make_tuple_pattern, make_for_let_pattern, make_with_let_pattern, make_inline_with_let_pattern, make_class_def,
-    make_match_case, make_alias, make_import_from, make_arguments,
+    make_match_case, make_alias, make_import_from, make_arguments, make_attribute,
+    make_arg,
 )
 from .typhon_ast_error import (
     maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, recover_invalid_for, recover_invalid_try, recover_maybe_invalid_function_def_raw,
@@ -369,7 +370,7 @@ dec_maybe_call:
 dec_primary:
     | a=dec_primary ('.'|'?.') b=NAME {
         maybe_optional(
-            ast.Attribute(value=a, attr=b.string, ctx=Load, LOCATIONS),
+            make_attribute(value=a, attr=b, ctx=Load, LOCATIONS),
             o.string)
      }
     | a=NAME { ast.Name(id=a.string, ctx=Load, LOCATIONS) }
@@ -505,9 +506,9 @@ param_with_default[Tuple[ast.arg, Any]]:
 param_maybe_default[Tuple[ast.arg, Any]]:
     | a=param c=default? ',' tc=TYPE_COMMENT? { (self.set_arg_type_comment(a, tc), c) }
     | a=param c=default? tc=TYPE_COMMENT? !'=' { (self.set_arg_type_comment(a, tc), c) }
-param: a=NAME b=annotation? { ast.arg(arg=a.string, annotation=b, LOCATIONS) }
+param: a=NAME b=annotation? { make_arg(arg=a, annotation=b, LOCATIONS) }
 param_star_annotation: a=NAME b=star_annotation {
-    ast.arg(arg=a.string, annotations=b, LOCATIONS)
+    make_arg(arg=a, annotations=b, LOCATIONS)
  }
 annotation: ':' a=typing_expression { a }
 star_annotation: ':' a=typing_star_expression { a }
@@ -887,7 +888,7 @@ value_pattern["ast.MatchValue"]:
 attr[ast.Attribute]:
     | value=name_or_attr ('.'|'?.') attr=NAME {
         maybe_optional(
-            ast.Attribute(value=value, attr=attr.string, ctx=Load, LOCATIONS),
+            make_attribute(value=value, attr=attr, ctx=Load, LOCATIONS),
             o.string)
     }
 
@@ -948,7 +949,7 @@ items_pattern:
 # In pattern '?.' is not allowed
 attr_pattern[ast.Attribute]:
     | value=name_or_attr '.' attr=NAME {
-        ast.Attribute(value=value, attr=attr.string, ctx=Load, LOCATIONS)
+        make_attribute(value=value, attr=attr, ctx=Load, LOCATIONS)
     }
 
 name_or_attr_pattern:
@@ -1178,8 +1179,8 @@ typing_compare_op_bitwise_or_pair[Tuple[ast.cmpop, ast.expr]]:
 
 # Does not include default arguments.
 typing_arrow_param_annot_or_type[ast.arg]:
-    | a=NAME b=annotation { ast.arg(arg=a.string, annotation=b, LOCATIONS) }
-    | b=typing_expression { ast.arg(arg="", annotation=b, LOCATIONS) }
+    | a=NAME b=annotation { make_arg(arg=a, annotation=b, LOCATIONS) }
+    | b=typing_expression { make_arg(arg=None, annotation=b, LOCATIONS) }
 
 typing_arrow_param[ast.arg]:
     | a=typing_arrow_param_annot_or_type ',' { a }
@@ -1404,7 +1405,7 @@ await_primary (memo):
 primary:
     | a=primary o=('.' | '?.') b=NAME {
         maybe_optional(
-            ast.Attribute(value=a, attr=b.string, ctx=Load, LOCATIONS),
+            make_attribute(value=a, attr=b, ctx=Load, LOCATIONS),
             o.string)
      }
     | a=primary b=comprehension_paren { ast.Call(func=a, args=[b], keywords=[], LOCATIONS) }
@@ -1828,7 +1829,7 @@ star_target_may_annot[ast.Name | ast.Tuple | ast.List | ast.Attribute | ast.Subs
     | a=star_target b=annotation? { set_type_annotation(a, b) }
 
 target_with_star_atom[ast.Name | ast.Tuple | ast.List | ast.Attribute | ast.Subscript](memo):
-    | a=t_primary '.' b=NAME !t_lookahead { ast.Attribute(value=a, attr=b.string, ctx=Store, LOCATIONS) }
+    | a=t_primary '.' b=NAME !t_lookahead { make_attribute(value=a, attr=b, ctx=Store, LOCATIONS) }
     | a=t_primary '[' b=slices ']' !t_lookahead { ast.Subscript(value=a, slice=b, ctx=Store, LOCATIONS) }
     | star_atom
 
@@ -1844,12 +1845,12 @@ single_target:
     | '(' a=single_target ')' { a }
 
 single_subscript_attribute_target:
-    | a=t_primary '.' b=NAME !t_lookahead { ast.Attribute(value=a, attr=b.string, ctx=Store, LOCATIONS) }
+    | a=t_primary '.' b=NAME !t_lookahead { make_attribute(value=a, attr=b, ctx=Store, LOCATIONS) }
     | a=t_primary '[' b=slices ']' !t_lookahead { ast.Subscript(value=a, slice=b, ctx=Store, LOCATIONS) }
 
 # Assignment target primary.
 t_primary:
-    | a=t_primary '.' b=NAME &t_lookahead { ast.Attribute(value=a, attr=b.string, ctx=Load, LOCATIONS) }
+    | a=t_primary '.' b=NAME &t_lookahead { make_attribute(value=a, attr=b, ctx=Load, LOCATIONS) }
     | a=t_primary '[' b=slices ']' &t_lookahead { ast.Subscript(value=a, slice=b, ctx=Load, LOCATIONS) }
     | a=t_primary b=genexp &t_lookahead { ast.Call(func=a, args=[b], keywords=[], LOCATIONS) }
     | a=t_primary '(' b=[arguments] ')' &t_lookahead {
@@ -1870,7 +1871,7 @@ t_lookahead: '(' | '[' | '.'
 del_targets: a=','.del_target+ [','] { a }
 
 del_target (memo):
-    | a=t_primary '.' b=NAME !t_lookahead { ast.Attribute(value=a, attr=b.string, ctx=Del, LOCATIONS) }
+    | a=t_primary '.' b=NAME !t_lookahead { make_attribute(value=a, attr=b, ctx=Del, LOCATIONS) }
     | a=t_primary '[' b=slices ']' !t_lookahead { ast.Subscript(value=a, slice=b, ctx=Del, LOCATIONS) }
     | del_t_atom
 

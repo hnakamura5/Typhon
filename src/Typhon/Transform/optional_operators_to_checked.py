@@ -10,8 +10,10 @@ from ..Grammar.typhon_ast import (
     is_optional,
     is_optional_pipe,
     clear_is_optional,
+    get_defined_name,
+    maybe_copy_defined_name,
 )
-
+from ..Driver.debugging import debug_verbose_print
 from .visitor import TyphonASTTransformer
 from .name_generator import get_unwrap_name, get_unwrap_error_name
 
@@ -178,13 +180,19 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
         if not is_optional(node):
             return self.generic_visit(node)
         pos = get_pos_attributes(node)
+        debug_verbose_print(
+            f"Transforming optional attribute access at line {pos['lineno']}, col {pos['col_offset']} for attribute '{node.attr}' defined name: '{get_defined_name(node)}'"
+        )
         result = self._optional_check_if_exp(
             node.value,
-            lambda tmp_name: ast.Attribute(
-                value=ast.Name(id=tmp_name, ctx=ast.Load()),
-                attr=node.attr,
-                ctx=node.ctx,
-                **pos,
+            lambda tmp_name: maybe_copy_defined_name(
+                node,
+                ast.Attribute(
+                    value=ast.Name(id=tmp_name, ctx=ast.Load()),
+                    attr=node.attr,
+                    ctx=node.ctx,
+                    **pos,
+                ),
             ),
             ast.Constant(value=None, **pos),
             pos,

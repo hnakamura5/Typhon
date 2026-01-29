@@ -123,7 +123,7 @@ def test_semantic_tokens():
         print(
             f"  texts:\n  {[get_semantic_token_text(token, lines) for token in tokens]}"
         )
-        assert len(response.data) == 5 * 27
+        assert len(response.data) == 5 * 38
         assert_tokens(lines, tokens)
         debug_file_write("Semantic token test completed successfully.\n")
         await client.shutdown_async(None)
@@ -135,31 +135,55 @@ def assert_tokens(
     lines: list[str],
     tokens: list[SemanticToken],
 ) -> None:
-    # [SemanticToken(line=0, offset=7, length=2, start_col=7, end_col=9, text='re', tok_type='namespace', tok_modifiers=[]), SemanticToken(line=1, offset=5, length=7, start_col=5, end_col=12, text='pathlib', tok_type='namespace', tok_modifiers=[]), SemanticToken(line=1, offset=8, length=4, start_col=20, end_col=24, text='Path', tok_type='class', tok_modifiers=[]), SemanticToken(line=3, offset=6, length=1, start_col=6, end_col=7, text='C', tok_type='class', tok_modifiers=[<TokenModifier.declaration: 1>]), SemanticToken(line=4, offset=8, length=1, start_col=8, end_col=9, text='x', tok_type='property', tok_modifiers=[<TokenModifier.readonly: 4>, <TokenModifier.static: 8>, <TokenModifier.modification: 128>]), SemanticToken(line=4, offset=2, length=3, start_col=11, end_col=14, text='int', tok_type='class', tok_modifiers=[<TokenModifier.abstract: 32>, <TokenModifier.async_: 64>]), SemanticToken(line=5, offset=8, length=8, start_col=8, end_col=16, text='__init__', tok_type='method', tok_modifiers=[<TokenModifier.declaration: 1>, <TokenModifier.modification: 128>]), SemanticToken(line=6, offset=8, length=4, start_col=8, end_col=12, text='self', tok_type='selfParameter', tok_modifiers=[<TokenModifier.documentation: 256>]), SemanticToken(line=10, offset=4, length=3, start_col=4, end_col=7, text='fun', tok_type='function', tok_modifiers=[<TokenModifier.declaration: 1>]), SemanticToken(line=10, offset=7, length=4, start_col=14, end_col=18, text='Path', tok_type='class', tok_modifiers=[]), SemanticToken(line=12, offset=18, length=4, start_col=18, end_col=22, text='open', tok_type='function', tok_modifiers=[<TokenModifier.abstract: 32>, <TokenModifier.async_: 64>]), SemanticToken(line=12, offset=1, length=3, start_col=23, end_col=26, text='str', tok_type='class', tok_modifiers=[<TokenModifier.abstract: 32>, <TokenModifier.async_: 64>]), SemanticToken(line=12, offset=1, length=4, start_col=27, end_col=31, text='file', tok_type='parameter', tok_modifiers=[<TokenModifier.documentation: 256>]), SemanticToken(line=12, offset=-17, length=1, start_col=14, end_col=15, text='f', tok_type='variable', tok_modifiers=[]), SemanticToken(line=13, offset=12, length=7, start_col=12, end_col=19, text='content', tok_type='variable', tok_modifiers=[]), SemanticToken(line=13, offset=3, length=1, start_col=22, end_col=23, text='f', tok_type='variable', tok_modifiers=[]), SemanticToken(line=14, offset=12, length=1, start_col=12, end_col=13, text='m', tok_type='variable', tok_modifiers=[]), SemanticToken(line=14, offset=3, length=2, start_col=16, end_col=18, text='re', tok_type='namespace', tok_modifiers=[]), SemanticToken(line=14, offset=35, length=7, start_col=53, end_col=60, text='content', tok_type='variable', tok_modifiers=[]), SemanticToken(line=15, offset=8, length=5, start_col=8, end_col=13, text='print', tok_type='function', tok_modifiers=[<TokenModifier.abstract: 32>, <TokenModifier.async_: 64>]), SemanticToken(line=15, offset=11, length=1, start_col=24, end_col=25, text='m', tok_type='variable', tok_modifiers=[]), SemanticToken(line=18, offset=4, length=6, start_col=4, end_col=10, text='my_dir', tok_type='variable', tok_modifiers=[]), SemanticToken(line=18, offset=2, length=4, start_col=12, end_col=16, text='Path', tok_type='class', tok_modifiers=[]), SemanticToken(line=18, offset=3, length=4, start_col=19, end_col=23, text='Path', tok_type='class', tok_modifiers=[]), SemanticToken(line=18, offset=1, length=8, start_col=24, end_col=32, text='__file__', tok_type='variable', tok_modifiers=[]), SemanticToken(line=19, offset=0, length=3, start_col=0, end_col=3, text='fun', tok_type='function', tok_modifiers=[]), SemanticToken(line=19, offset=1, length=6, start_col=4, end_col=10, text='my_dir', tok_type='variable', tok_modifiers=[])]
-    assert_semantic_token(lines, tokens[0], "namespace", "re", 0, 7)
-    assert_semantic_token(lines, tokens[1], "namespace", "pathlib", 1, 5)
-    assert_semantic_token(lines, tokens[2], "class", "Path", 1, 20)
-    assert_semantic_token(lines, tokens[3], "class", "C", 3, 6)
-    assert_semantic_token(lines, tokens[4], "property", "x", 4, 8)
-    assert_semantic_token(lines, tokens[5], "class", "int", 4, 11)
-    assert_semantic_token(lines, tokens[6], "method", "__init__", 5, 8)
-    assert_semantic_token(lines, tokens[7], "selfParameter", "self", 6, 8)
-    assert_semantic_token(lines, tokens[8], "function", "fun", 10, 4)
-    assert_semantic_token(lines, tokens[9], "class", "Path", 10, 14)
-    assert_semantic_token(lines, tokens[10], "variable", "f", 12, 14)
-    assert_semantic_token(lines, tokens[11], "function", "open", 12, 18)
-    assert_semantic_token(lines, tokens[12], "class", "str", 12, 23)
-    assert_semantic_token(lines, tokens[13], "parameter", "file", 12, 27)
-    assert_semantic_token(lines, tokens[14], "variable", "content", 13, 12)
-    assert_semantic_token(lines, tokens[15], "variable", "f", 13, 22)
-    assert_semantic_token(lines, tokens[16], "variable", "m", 14, 12)
-    assert_semantic_token(lines, tokens[17], "namespace", "re", 14, 16)
-    assert_semantic_token(lines, tokens[18], "variable", "content", 14, 53)
-    assert_semantic_token(lines, tokens[19], "function", "print", 15, 8)
-    assert_semantic_token(lines, tokens[20], "variable", "m", 15, 24)
-    assert_semantic_token(lines, tokens[21], "variable", "my_dir", 18, 4)
-    assert_semantic_token(lines, tokens[22], "class", "Path", 18, 12)
-    assert_semantic_token(lines, tokens[23], "class", "Path", 18, 19)
-    assert_semantic_token(lines, tokens[24], "variable", "__file__", 18, 24)
-    assert_semantic_token(lines, tokens[25], "function", "fun", 19, 0)
-    assert_semantic_token(lines, tokens[26], "variable", "my_dir", 19, 4)
+    i = 0
+
+    def next_token() -> SemanticToken:
+        nonlocal i
+        token = tokens[i]
+        i += 1
+        return token
+
+    debug_verbose_print(f"Total tokens: {len(tokens)}")
+    for t in tokens:
+        debug_verbose_print(
+            f'"{t.tok_type}", "{get_semantic_token_text(t, lines)}", {t.line}, {t.start_col}'
+        )
+
+    assert_semantic_token(lines, next_token(), "namespace", "re", 0, 7)
+    assert_semantic_token(lines, next_token(), "namespace", "pathlib", 1, 5)
+    assert_semantic_token(lines, next_token(), "class", "Path", 1, 20)
+    assert_semantic_token(lines, next_token(), "class", "C", 3, 6)
+    assert_semantic_token(lines, next_token(), "property", "x", 4, 8)
+    assert_semantic_token(lines, next_token(), "class", "int", 4, 11)
+    assert_semantic_token(lines, next_token(), "method", "__init__", 5, 8)
+    assert_semantic_token(lines, next_token(), "selfParameter", "self", 6, 8)
+    assert_semantic_token(lines, next_token(), "property", "x", 6, 13)
+    assert_semantic_token(lines, next_token(), "function", "fun", 10, 4)
+    assert_semantic_token(lines, next_token(), "parameter", "file", 10, 8)
+    assert_semantic_token(lines, next_token(), "class", "Path", 10, 14)
+    assert_semantic_token(lines, next_token(), "variable", "f", 12, 14)
+    assert_semantic_token(lines, next_token(), "function", "open", 12, 18)
+    assert_semantic_token(lines, next_token(), "class", "str", 12, 23)
+    assert_semantic_token(lines, next_token(), "parameter", "file", 12, 27)
+    assert_semantic_token(lines, next_token(), "variable", "content", 13, 12)
+    assert_semantic_token(lines, next_token(), "variable", "f", 13, 22)
+    assert_semantic_token(lines, next_token(), "method", "read", 13, 24)
+    assert_semantic_token(lines, next_token(), "variable", "m", 14, 12)
+    assert_semantic_token(lines, next_token(), "namespace", "re", 14, 16)
+    assert_semantic_token(lines, next_token(), "function", "match", 14, 19)
+    assert_semantic_token(lines, next_token(), "variable", "content", 14, 53)
+    assert_semantic_token(lines, next_token(), "function", "print", 15, 8)
+    assert_semantic_token(lines, next_token(), "variable", "m", 15, 24)
+    assert_semantic_token(lines, next_token(), "method", "group", 15, 27)
+    assert_semantic_token(lines, next_token(), "variable", "my_dir", 18, 4)
+    assert_semantic_token(lines, next_token(), "class", "Path", 18, 12)
+    assert_semantic_token(lines, next_token(), "class", "Path", 18, 19)
+    assert_semantic_token(lines, next_token(), "variable", "__file__", 18, 24)
+    assert_semantic_token(lines, next_token(), "property", "parent", 18, 34)
+    assert_semantic_token(lines, next_token(), "property", "parent", 18, 41)
+    assert_semantic_token(lines, next_token(), "variable", "my_dir", 19, 4)
+    assert_semantic_token(lines, next_token(), "method", "exists", 19, 11)
+    assert_semantic_token(lines, next_token(), "variable", "typh_path", 20, 8)
+    assert_semantic_token(lines, next_token(), "variable", "my_dir", 20, 20)
+    assert_semantic_token(lines, next_token(), "function", "fun", 21, 4)
+    assert_semantic_token(lines, next_token(), "variable", "typh_path", 21, 8)

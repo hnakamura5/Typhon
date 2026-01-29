@@ -1,5 +1,6 @@
 # Ast Extensions for Typhon
 from __future__ import annotations
+from re import A
 from typing import (
     Union,
     Unpack,
@@ -1207,7 +1208,14 @@ def is_static(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
 
 
 _DEFINED_NAME = "_typh_defined_name"
-DefinesName = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.alias
+DefinesName = (
+    ast.FunctionDef
+    | ast.AsyncFunctionDef
+    | ast.ClassDef
+    | ast.alias
+    | ast.Attribute
+    | ast.arg
+)
 
 
 def get_defined_name(node: DefinesName) -> ast.Name | None:
@@ -1221,9 +1229,20 @@ def set_defined_name(
     setattr(node, _DEFINED_NAME, name)
 
 
+def maybe_copy_defined_name[T: ast.AST](
+    from_node: T,
+    to_node: T,
+) -> T:
+    if not isinstance(from_node, DefinesName) or not isinstance(to_node, DefinesName):
+        return to_node
+    name = get_defined_name(from_node)
+    if name is not None:
+        set_defined_name(to_node, name)
+    return to_node
+
+
 def set_defined_name_token(
-    node: DefinesName,
-    name: TokenInfo | ast.Name,
+    node: DefinesName, name: TokenInfo | ast.Name, ctx: ast.expr_context = ast.Store()
 ):
     if isinstance(name, TokenInfo):
         name = ast.Name(
@@ -1232,9 +1251,10 @@ def set_defined_name_token(
             col_offset=name.start[1],
             end_lineno=name.end[0],
             end_col_offset=name.end[1],
-            ctx=ast.Store(),
+            ctx=ctx,
         )
     setattr(node, _DEFINED_NAME, name)
+    return node
 
 
 def clear_defined_name(node: DefinesName):
@@ -1322,6 +1342,24 @@ def make_alias(
     else:
         set_defined_name_token(result, name[-1])
     return result
+
+
+def make_attribute(
+    value: ast.expr,
+    attr: TokenInfo,
+    ctx: ast.expr_context,
+    **kwargs: Unpack[PosAttributes],
+):
+    return set_defined_name_token(
+        ast.Attribute(
+            value=value,
+            attr=attr.string,
+            ctx=ctx,
+            **kwargs,
+        ),
+        attr,
+        ctx,
+    )
 
 
 _IMPORT_FROM_NAMES = "_typh_import_from_names"
@@ -2300,6 +2338,22 @@ def make_match_case(
     return node
 
 
+def make_arg(
+    arg: TokenInfo | None,
+    annotation: ast.expr | None,
+    **kwargs: Unpack[PosAttributes],
+):
+    """Build a function definition argument."""
+    node = ast.arg(
+        arg=arg.string if arg else "",
+        annotation=annotation,
+        **kwargs,
+    )
+    if arg:
+        set_defined_name_token(node, arg)
+    return node
+
+
 def make_arguments(
     pos_only: Optional[List[Tuple[ast.arg, None]]],
     pos_only_with_default: List[Tuple[ast.arg, Any]],
@@ -2347,3 +2401,7 @@ def make_arguments(
 
 def is_typhon_reserved_name(name: str) -> bool:
     return name.startswith("_typh_")
+
+
+def is_typhon_internal_name(name: str) -> bool:
+    return name.startswith("_typh_bi_")
