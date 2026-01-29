@@ -40,7 +40,9 @@ class ConstMemberToFinal(TyphonASTTransformer):
         else:
             new_annotation = ast.Name(id=get_final_name(), ctx=ast.Load(), **pos)
         return ast.AnnAssign(
-            target=ast.Name(id=target.id, ctx=ast.Store(), **pos),
+            target=ast.Name(
+                id=target.id, ctx=ast.Store(), **get_pos_attributes(target)
+            ),
             annotation=new_annotation,
             value=node.value,
             simple=1,

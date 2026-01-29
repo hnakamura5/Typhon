@@ -3,7 +3,7 @@ import ast
 from contextlib import contextmanager
 from typing import Any, cast
 from ..Driver.debugging import debug_verbose_print
-from ..Grammar.typhon_ast import DefinesName, get_defined_name
+from ..Grammar.typhon_ast import DefinesName, get_defined_name, get_import_from_names
 
 
 # Match the AST node to right module recursively
@@ -58,6 +58,12 @@ class MatchingVisitor(ast.NodeVisitor):
                 with self._with_right(right_name):
                     self.visit(left_name)
             # Allow defined name not matching
+        # Check import from module names
+        if isinstance(node, ast.ImportFrom):
+            modules = get_import_from_names(node)
+            right_modules = get_import_from_names(cast(ast.ImportFrom, right))
+            if modules and right_modules:
+                self._visit_list(modules, right_modules)
         # Recursively visit fields
         for field, value in ast.iter_fields(node):
             right_value = getattr(right, field, None)

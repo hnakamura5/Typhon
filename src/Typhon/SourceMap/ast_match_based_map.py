@@ -1,5 +1,5 @@
 import ast
-from .datatype import Range, Pos, RangeIntervalTree
+from .datatype import Range, Pos, RangeIntervalTree, RangeInterval
 from ..Grammar.typhon_ast import get_pos_attributes_if_exists
 from ..Driver.debugging import debug_print, debug_verbose_print
 from ..SourceMap.ast_matching import match_ast
@@ -122,11 +122,20 @@ class MatchBasedSourceMap:
     def unparsed_range_to_origin_node(
         self,
         range_unparsed: Range,
+        filter_node_type: type[ast.AST] | None = None,
     ) -> ast.AST | None:
-        nodes = self.unparsed_interval_tree.minimal_containers(range_unparsed)
+        nodes: list[RangeInterval[ast.AST]] = (
+            self.unparsed_interval_tree.minimal_containers(range_unparsed)
+        )
         debug_verbose_print(
             f"Mapping unparsed range to origin node: {range_unparsed} nodes: {nodes}"
         )
+        if filter_node_type is not None:
+            nodes = [
+                (r, n)
+                for r, n in nodes
+                if isinstance(self.unparsed_to_origin.get(n, None), filter_node_type)
+            ]
         if nodes and len(nodes) == 1:
             _, node = nodes[0]
             return self.unparsed_to_origin.get(node, None)

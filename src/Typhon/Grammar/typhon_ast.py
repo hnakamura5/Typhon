@@ -1324,6 +1324,25 @@ def make_alias(
     return result
 
 
+_IMPORT_FROM_NAMES = "_typh_import_from_names"
+
+
+def get_import_from_names(node: ast.ImportFrom) -> list[ast.Name]:
+    return getattr(node, _IMPORT_FROM_NAMES, [])
+
+
+def set_import_from_names(
+    node: ast.ImportFrom,
+    names: list[ast.Name],
+):
+    setattr(node, _IMPORT_FROM_NAMES, names)
+
+
+def clear_import_from_names(node: ast.ImportFrom):
+    if hasattr(node, _IMPORT_FROM_NAMES):
+        delattr(node, _IMPORT_FROM_NAMES)
+
+
 # Used only the case module part exists.
 def make_import_from(
     module: list[TokenInfo] | None,
@@ -1338,6 +1357,19 @@ def make_import_from(
         level=level,
         **kwargs,
     )
+    if module:
+        import_names = [
+            ast.Name(
+                id=n.string,
+                lineno=n.start[0],
+                col_offset=n.start[1],
+                end_lineno=n.end[0],
+                end_col_offset=n.end[1],
+                ctx=ast.Load(),
+            )
+            for n in module
+        ]
+        set_import_from_names(result, import_names)
     return result
 
 
@@ -2311,3 +2343,7 @@ def make_arguments(
     for key, value in kwargs.items():
         setattr(node, key, value)
     return node
+
+
+def is_typhon_reserved_name(name: str) -> bool:
+    return name.startswith("_typh_")

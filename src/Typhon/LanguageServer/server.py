@@ -1,6 +1,6 @@
 import copy
 from lsprotocol.types import SemanticTokens
-from typing import Any, override, Protocol, Final
+from typing import Any, Sequence, override, Protocol, Final
 import ast
 import traceback
 from pathlib import Path
@@ -59,7 +59,7 @@ class LanguageServer(PyglsLanguageServer):
         self.ast_modules: dict[str, ast.Module | None] = {}
         self.token_infos: dict[str, list[TokenInfo]] = {}
         self.semantic_tokens: dict[str, list[SemanticToken]] = {}
-        self.semantic_tokens_encoded: dict[str, list[int]] = {}
+        self.semantic_tokens_encoded: dict[str, Sequence[int]] = {}
         self.backend_client: LanguageClient = create_language_client()
         self.mapping: dict[str, MatchBasedSourceMap] = {}
         self.client_semantic_legend: dict[int, str] = {}

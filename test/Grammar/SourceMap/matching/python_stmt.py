@@ -60,3 +60,11 @@ def test_match_with_statement():
 
     assert_ast_match_unparse_code(left_func)
     assert_source_map_ident(left_func)
+
+
+def test_match_import_from():
+    def left_func():
+        from ...SourceMap.matching.python_exp import test_match_python_arithmetic
+
+    assert_ast_match_unparse_code(left_func)
+    assert_source_map_ident(left_func)

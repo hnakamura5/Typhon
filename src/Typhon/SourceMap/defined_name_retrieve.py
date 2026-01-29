@@ -2,6 +2,7 @@ import ast
 from ..Grammar.typhon_ast import (
     set_defined_name,
     get_pos_attributes,
+    set_import_from_names,
 )
 
 
@@ -80,6 +81,25 @@ class _DefinedNameRetriever(ast.NodeVisitor):
                 end_col_offset=start_col + len(defined_name),
             )
             set_defined_name(node, name)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom):
+        for alias in node.names:
+            self.visit(alias)
+        column = node.col_offset + len("from ") + node.level * len(".")
+        module_names: list[ast.Name] = []
+        for mod in node.module.split(".") if node.module else []:
+            if mod:
+                name = ast.Name(
+                    id=mod,
+                    lineno=node.lineno,
+                    col_offset=column,
+                    end_lineno=node.lineno,
+                    end_col_offset=column + len(mod),
+                    ctx=ast.Load(),
+                )
+                module_names.append(name)
+            column += len(mod) + len(".")
+        set_import_from_names(node, module_names)
 
 
 def defined_name_retrieve(node: ast.AST, unparsed_source_code: str) -> None:

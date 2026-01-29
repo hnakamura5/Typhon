@@ -196,3 +196,31 @@ def func(point1: (int?, int), point2: (int?, int)) -> int? {
 
 def test_match_typhon_stmt_while_let_multiple():
     assert_typh_code_match_unparse(code_while_let_multiple_code)
+
+
+code_import_from = """
+from ...SourceMap.matching.python_exp import test_match_python_arithmetic
+"""
+
+
+def test_match_typhon_stmt_import_from():
+    assert_typh_code_match_unparse(code_import_from)
+    sa = SourceMapAsserter(code_import_from)
+    sa.assert_range_text(  # import from module "SourceMap"
+        Range(Pos(1, 8), Pos(1, 17)),
+        "SourceMap",
+        Range(Pos(0, 8), Pos(0, 17)),
+        "SourceMap",
+    )
+    sa.assert_range_text(  # import from module "matching"
+        Range(Pos(1, 18), Pos(1, 26)),
+        "matching",
+        Range(Pos(0, 18), Pos(0, 26)),
+        "matching",
+    )
+    sa.assert_range_text(  # test_match_python_arithmetic (defined name of import)
+        Range(Pos(1, 45), Pos(1, 73)),
+        "test_match_python_arithmetic",
+        Range(Pos(0, 45), Pos(0, 73)),
+        "test_match_python_arithmetic",
+    )

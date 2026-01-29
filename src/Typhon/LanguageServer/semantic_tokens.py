@@ -1,3 +1,4 @@
+from typing import Sequence
 import attrs
 import enum
 import operator
@@ -16,7 +17,7 @@ from tokenize import (
 from lsprotocol import types
 from pygls.workspace import TextDocument
 
-from ..Grammar.typhon_ast import get_pos_attributes
+from ..Grammar.typhon_ast import get_pos_attributes, is_typhon_reserved_name
 from ..Grammar.tokenizer_custom import TokenInfo
 from ..Driver.debugging import debug_file_write_verbose
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
@@ -99,20 +100,30 @@ class SemanticToken:
     tok_modifiers: list[TokenModifier] = attrs.field(factory=list[TokenModifier])
 
 
-def semantic_token_to_encoded(token: SemanticToken) -> list[int]:
-    return [
-        token.line,
-        token.offset,
-        token.length,
-        TOKEN_TYPES_MAP.get(token.tok_type, 0),
-        reduce(operator.or_, token.tok_modifiers, 0),
-    ]
-
-
 def encode_semantic_tokens(
     tokens: list[SemanticToken],
 ) -> types.SemanticTokens:
-    encoded_tokens = [semantic_token_to_encoded(t) for t in tokens]
+    encoded_tokens: list[list[int]] = []
+    prev_line = 0
+    prev_start_col = 0
+    for token in tokens:
+        delta_line = token.line - prev_line
+        if delta_line == 0:
+            delta_offset = token.start_col - prev_start_col
+        else:
+            delta_offset = token.start_col
+            prev_start_col = 0
+        encoded_tokens.append(
+            [
+                delta_line,
+                delta_offset,
+                token.length,
+                TOKEN_TYPES_MAP.get(token.tok_type, 0),
+                reduce(operator.or_, token.tok_modifiers, 0),
+            ]
+        )
+        prev_line = token.line
+        prev_start_col = token.start_col
     return types.SemanticTokens(data=[i for token in encoded_tokens for i in token])
 
 
@@ -129,9 +140,10 @@ def decode_semantic_tokens(
         length = tokens.data[i + 2]
         tok_type_index = tokens.data[i + 3]
         tok_modifiers_bitmask = tokens.data[i + 4]
+        i += 5
         line += delta_line
         if delta_line == 0:
-            offset += delta_offset
+            offset = offset + delta_offset
         else:
             offset = delta_offset
         debug_file_write_verbose(
@@ -145,7 +157,7 @@ def decode_semantic_tokens(
         decoded_tokens.append(
             SemanticToken(
                 line=line,
-                offset=offset,
+                offset=delta_offset,
                 length=length,
                 start_col=offset,
                 end_col=offset + length,
@@ -154,7 +166,7 @@ def decode_semantic_tokens(
                 tok_modifiers=tok_modifiers,
             )
         )
-        i += 5
+        debug_file_write_verbose(f"  Decoded Semantic Token: {decoded_tokens[-1]}")
     return decoded_tokens
 
 
@@ -169,14 +181,6 @@ def map_semantic_tokens(
     # Map each token position
     mapped_tokens: list[SemanticToken] = []
 
-    def column_offset_in_line(line: int, column: int) -> int:
-        if mapped_tokens and mapped_tokens[-1].line == line:
-            # Calculate offset from the previous token in the same line.
-            return column - mapped_tokens[-1].end_col
-        else:
-            # First token on this line.
-            return column
-
     for token in decoded_tokens:
         token_range = Range(
             start=Pos(line=token.line, column=token.start_col),
@@ -184,20 +188,27 @@ def map_semantic_tokens(
         )
         # For debugging to see text.
         token.text = Range.of_string(token_range, mapping.unparsed_code)
-        if mapped_node := mapping.unparsed_range_to_origin_node(token_range):
-            if isinstance(mapped_node, ast.Name):
+        debug_file_write_verbose(
+            f"Mapping token from decoded: {token} at range: {token_range}"
+        )
+        if mapped_node := mapping.unparsed_range_to_origin_node(token_range, ast.Name):
+            if isinstance(mapped_node, ast.Name) and not is_typhon_reserved_name(
+                mapped_node.id
+            ):
                 if mapped_range := Range.from_ast_node(mapped_node):
                     line = mapped_range.start.line
-                    offset = column_offset_in_line(line, mapped_range.start.column)
                     # TODO Wrong now.
                     debug_file_write_verbose(
-                        f"Mapping token to node: {token}\n --> {ast.dump(mapped_node)}@{mapped_range}"
+                        f"Mapping token to node with range OK: {token}\n --> {ast.dump(mapped_node)}@{mapped_range}"
+                    )
+                    debug_file_write_verbose(
+                        f"  line: {line}, start_col: {mapped_range.start.column}, end_col: {mapped_range.end.column}"
                     )
                     mapped_tokens.append(
                         SemanticToken(
                             line=line,
-                            offset=offset,
-                            length=token.length,
+                            offset=-1,
+                            length=mapped_range.end.column - mapped_range.start.column,
                             start_col=mapped_range.start.column,
                             end_col=mapped_range.end.column,
                             text=Range.of_string(mapped_range, mapping.source_code),
@@ -206,28 +217,20 @@ def map_semantic_tokens(
                         )
                     )
                     continue
-        if mapped_range := mapping.unparsed_range_to_origin(token_range):
-            line = mapped_range.start.line
-            offset = column_offset_in_line(line, mapped_range.start.column)
-            debug_file_write_verbose(
-                f"Mapping token: {token} to line: {line}, offset: {offset}"
-            )
-            # TODO: Change token to original typhon source's tokens.
-            mapped_tokens.append(
-                SemanticToken(
-                    line=line,
-                    offset=offset,
-                    length=token.length,
-                    start_col=mapped_range.start.column,
-                    end_col=mapped_range.end.column,
-                    text=token.text,
-                    tok_type=token.tok_type,
-                    tok_modifiers=token.tok_modifiers,
-                )
-            )
+    # Sort tokens by position because with statement and so on are out of order in tokens.
+    sorted_tokens = list(sorted(mapped_tokens, key=lambda t: (t.line, t.start_col)))
+    # Calculate offsets
+    prev_line = 0
+    prev_end_col = 0
+    for token in sorted_tokens:
+        if token.line == prev_line:
+            token.offset = token.start_col - prev_end_col
         else:
-            debug_file_write_verbose(f"Mapping failed for token: {token}")
-    return encode_semantic_tokens(mapped_tokens)
+            token.offset = token.start_col
+            prev_line = token.line
+        prev_end_col = token.end_col
+    debug_file_write_verbose(f"Mapped semantic tokens(before encode): {sorted_tokens}")
+    return encode_semantic_tokens(sorted_tokens)
 
 
 def get_semantic_token_text(token: SemanticToken, lines: list[str]) -> str:
@@ -298,7 +301,7 @@ def token_to_type(tok: TokenInfo) -> str:
 # Fallback implementation that makes semantic tokens from tokens only.
 def ast_tokens_to_semantic_tokens(
     node: ast.AST | None, tokens: list[TokenInfo], doc: TextDocument
-) -> tuple[list[SemanticToken], list[int]]:
+) -> tuple[list[SemanticToken], Sequence[int]]:
     semantic_tokens: list[SemanticToken] = []
     prev_line = 0
     prev_end_offset = 0
@@ -325,10 +328,9 @@ def ast_tokens_to_semantic_tokens(
             )
         )
         debug_file_write_verbose(
-            f"  Added Semantic Token: {semantic_tokens[-1]}, {semantic_token_to_encoded(semantic_tokens[-1])}"
+            f"  Added Semantic Token: {semantic_tokens[-1]}, {encode_semantic_tokens([semantic_tokens[-1]]).data}"
         )
-    encoded_tokens = [semantic_token_to_encoded(t) for t in semantic_tokens]
-    return semantic_tokens, [i for token in encoded_tokens for i in token]
+    return semantic_tokens, encode_semantic_tokens(semantic_tokens).data
 
 
 # Mainly for testing
