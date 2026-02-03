@@ -19,7 +19,7 @@ def fun(file: Path) {
 var my_dir: Path = Path(__file__).parent.parent # RunFileTest
 if (my_dir.exists()) {
     let typh_path = my_dir / "semantic_token_showcase.typh"
-    fun(typh_path)
+    (try fun(typh_path) except print("File not found"))
 }
 
 """stdout

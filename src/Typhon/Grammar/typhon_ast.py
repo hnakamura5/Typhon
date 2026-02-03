@@ -189,6 +189,24 @@ def clear_type_ignore_node(node: ast.AST) -> None:
         delattr(node, _TYPE_IGNORE_NODES)
 
 
+# The name is internal when it has no counterpart in input typhon source code.
+_INTERNAL_NAME = "_typh_internal_name"
+
+
+def is_internal_name(name: ast.Name) -> bool:
+    return getattr(name, _INTERNAL_NAME, False)
+
+
+def set_is_internal_name(name: ast.Name, is_internal: bool = True) -> ast.Name:
+    setattr(name, _INTERNAL_NAME, is_internal)
+    return name
+
+
+def clear_internal_name(name: ast.Name) -> None:
+    if hasattr(name, _INTERNAL_NAME):
+        delattr(name, _INTERNAL_NAME)
+
+
 # Normal assignments, let assignments for variable declarations,
 # and constant assignments for constant definitions.
 # They all are Assign/AnnAssign in Python, we distinguish them by
@@ -637,6 +655,7 @@ def set_function_literal_def(
 ):
     setattr(name, _FUNC_DEF, func_def)
     setattr(func_def, _IS_FUNCTION_LITERAL, True)
+    set_is_internal_name(name)
 
 
 def clear_function_literal_def(name: FunctionLiteral):
@@ -1429,6 +1448,7 @@ def set_control_comprehension_def(
     node: ControlComprehension, func_def: ast.FunctionDef | ast.AsyncFunctionDef
 ):
     setattr(node, _CONTROL_COMPREHENSION, func_def)
+    set_is_internal_name(node)
 
 
 def clear_is_control_comprehension(node: ControlComprehension) -> None:
@@ -2397,11 +2417,3 @@ def make_arguments(
     for key, value in kwargs.items():
         setattr(node, key, value)
     return node
-
-
-def is_typhon_reserved_name(name: str) -> bool:
-    return name.startswith("_typh_")
-
-
-def is_typhon_internal_name(name: str) -> bool:
-    return name.startswith("_typh_bi_")

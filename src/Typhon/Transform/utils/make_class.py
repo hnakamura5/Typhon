@@ -8,10 +8,10 @@ from ...Grammar.typhon_ast import (
 import ast
 from typing import Protocol, Iterable, Final
 from .imports import (
-    add_import_for_dataclass,
-    add_import_for_protocol,
-    add_import_for_runtime_checkable,
-    add_import_for_final,
+    get_dataclass,
+    add_import_get_final,
+    get_protocol,
+    get_runtime_checkable,
 )
 
 
@@ -22,7 +22,7 @@ class NameAndAnnotation(Protocol):
 
 def _class_contents_for_fields(
     fields: Iterable[NameAndAnnotation],
-    final_imported_name: str,
+    final_imported_name: ast.Name,
 ) -> list[ast.stmt]:
     result: list[ast.stmt] = []
     for field in fields:
@@ -30,17 +30,13 @@ def _class_contents_for_fields(
         if field.annotation:
             # Currently annotation is always Final[...] for record fields.
             annotation = ast.Subscript(
-                value=ast.Name(
-                    id=final_imported_name, ctx=ast.Load(), **get_pos_attributes(name)
-                ),
+                value=final_imported_name,
                 slice=field.annotation,
                 ctx=ast.Load(),
                 **get_pos_attributes(name),
             )
         else:
-            annotation = ast.Name(
-                id=final_imported_name, ctx=ast.Load(), **get_pos_attributes(name)
-            )
+            annotation = final_imported_name
         ann_assign = ast.AnnAssign(
             target=ast.Name(id=name.id, ctx=ast.Store(), **get_pos_attributes(name)),
             annotation=annotation,
@@ -70,29 +66,27 @@ def make_protocol_definition(
     fields: Iterable[NameAndAnnotation],
     pos: PosAttributes,
 ) -> ast.ClassDef:
-    protocol_imported_name: str = add_import_for_protocol(mod)
-    runtime_checkable_imported_name: str = add_import_for_runtime_checkable(mod)
-    final_imported_name: str = add_import_for_final(mod)
+    protocol_imported_name = get_protocol(mod, ctx=ast.Load(), **pos)
+    runtime_checkable_imported_name = get_runtime_checkable(mod, ctx=ast.Load(), **pos)
+    final_imported_name = add_import_get_final(mod, ctx=ast.Load(), **pos)
     result = ast.ClassDef(
         name=class_name,
         type_params=_type_vars_for_fields(pos, type_variables),
-        bases=[ast.Name(id=protocol_imported_name, ctx=ast.Load(), **pos)],
+        bases=[protocol_imported_name],
         keywords=[],
         # Currently all fields are Final.
         body=_class_contents_for_fields(fields, final_imported_name),
-        decorator_list=[
-            ast.Name(id=runtime_checkable_imported_name, ctx=ast.Load(), **pos)
-        ],
+        decorator_list=[runtime_checkable_imported_name],
         **pos,
     )
     return result
 
 
 def _dataclass_decorator(
-    dataclass_imported_name: str, repr: bool, pos: PosAttributes
+    dataclass_imported_name: ast.Name, repr: bool, pos: PosAttributes
 ) -> ast.expr:
     return ast.Call(
-        func=ast.Name(id=dataclass_imported_name, ctx=ast.Load(), **pos),
+        func=dataclass_imported_name,
         args=[],
         keywords=[
             ast.keyword(arg="frozen", value=ast.Constant(value=True)),
@@ -110,8 +104,8 @@ def make_dataclass_definition(
     fields: Iterable[NameAndAnnotation],
     pos: PosAttributes,
 ) -> ast.ClassDef:
-    dataclass_imported_name: str = add_import_for_dataclass(mod)
-    final_imported_name: str = add_import_for_final(mod)
+    dataclass_imported_name = get_dataclass(mod, ctx=ast.Load(), **pos)
+    final_imported_name = add_import_get_final(mod, ctx=ast.Load(), **pos)
     result = ast.ClassDef(
         name=class_name,
         type_params=_type_vars_for_fields(pos, type_variables),
@@ -133,7 +127,7 @@ def make_dataclass_protocol_definition(
     fields: Iterable[NameAndAnnotation],
     pos: PosAttributes,
 ) -> ast.ClassDef:
-    dataclass_imported_name: str = add_import_for_dataclass(mod)
+    dataclass_imported_name = get_dataclass(mod, ctx=ast.Load(), **pos)
     result = make_protocol_definition(mod, class_name, type_variables, fields, pos)
     result.decorator_list.append(
         _dataclass_decorator(dataclass_imported_name, repr=True, pos=pos)

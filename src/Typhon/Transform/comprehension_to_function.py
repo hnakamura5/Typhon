@@ -56,12 +56,9 @@ class _Transform(TyphonASTTransformer):
         return result
 
     def visit_ControlComprehension(self, node: ControlComprehension):
+        clear_is_control_comprehension(node)
         return ast.Call(
-            func=ast.Name(
-                id=node.id,
-                ctx=ast.Load(),
-                **get_pos_attributes(node),
-            ),
+            func=node,
             args=[],
             keywords=[],
             **get_pos_attributes(node),

@@ -1,8 +1,10 @@
 from ...Grammar.typhon_ast import (
+    PosAttributes,
     add_import_alias_top,
     is_case_irrefutable,
     get_pos_attributes,
     pos_attribute_to_range,
+    set_is_internal_name,
     set_is_var,
 )
 from ..name_generator import (
@@ -14,13 +16,20 @@ from ..name_generator import (
 import ast
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Protocol, Iterable, Final
+from typing import Protocol, Iterable, Final, Unpack
 
 
-def add_import_for_protocol(mod: ast.Module):
+def _add_import_for_protocol(mod: ast.Module):
     name = get_protocol_name()
     add_import_alias_top(mod, "typing", "Protocol", name)
     return name
+
+
+def get_protocol(
+    mod: ast.Module, ctx: ast.expr_context, **kwargs: Unpack[PosAttributes]
+) -> ast.Name:
+    protocol_name = _add_import_for_protocol(mod)
+    return set_is_internal_name(ast.Name(id=protocol_name, ctx=ctx, **kwargs))
 
 
 def add_import_for_final(mod: ast.Module):
@@ -29,16 +38,42 @@ def add_import_for_final(mod: ast.Module):
     return name
 
 
-def add_import_for_dataclass(mod: ast.Module):
+def get_final(ctx: ast.expr_context, **kwargs: Unpack[PosAttributes]) -> ast.Name:
+    final_name = get_final_name()
+    return set_is_internal_name(ast.Name(id=final_name, ctx=ctx, **kwargs))
+
+
+def add_import_get_final(
+    mod: ast.Module, ctx: ast.expr_context, **kwargs: Unpack[PosAttributes]
+) -> ast.Name:
+    final_name = add_import_for_final(mod)
+    return set_is_internal_name(ast.Name(id=final_name, ctx=ctx, **kwargs))
+
+
+def _add_import_for_dataclass(mod: ast.Module):
     name = get_dataclass_name()
     add_import_alias_top(mod, "dataclasses", "dataclass", name)
     return name
 
 
-def add_import_for_runtime_checkable(mod: ast.Module):
+def get_dataclass(
+    mod: ast.Module, ctx: ast.expr_context, **kwargs: Unpack[PosAttributes]
+) -> ast.Name:
+    dataclass_name = _add_import_for_dataclass(mod)
+    return set_is_internal_name(ast.Name(id=dataclass_name, ctx=ctx, **kwargs))
+
+
+def _add_import_for_runtime_checkable(mod: ast.Module):
     name = get_runtime_checkable_name()
     add_import_alias_top(mod, "typing", "runtime_checkable", name)
     return name
+
+
+def get_runtime_checkable(
+    mod: ast.Module, ctx: ast.expr_context, **kwargs: Unpack[PosAttributes]
+) -> ast.Name:
+    runtime_checkable_name = _add_import_for_runtime_checkable(mod)
+    return set_is_internal_name(ast.Name(id=runtime_checkable_name, ctx=ctx, **kwargs))
 
 
 def get_insert_point_for_class(module: ast.Module) -> int:

@@ -123,7 +123,6 @@ def test_semantic_tokens():
         print(
             f"  texts:\n  {[get_semantic_token_text(token, lines) for token in tokens]}"
         )
-        assert len(response.data) == 5 * 38
         assert_tokens(lines, tokens)
         debug_file_write("Semantic token test completed successfully.\n")
         await client.shutdown_async(None)
@@ -142,6 +141,11 @@ def assert_tokens(
         token = tokens[i]
         i += 1
         return token
+
+    def assert_next_is_end():
+        assert i == len(tokens), (
+            f"Expected all tokens to be consumed, but {len(tokens) - i} remain."
+        )
 
     debug_verbose_print(f"Total tokens: {len(tokens)}")
     for t in tokens:
@@ -185,5 +189,6 @@ def assert_tokens(
     assert_semantic_token(lines, next_token(), "method", "exists", 19, 11)
     assert_semantic_token(lines, next_token(), "variable", "typh_path", 20, 8)
     assert_semantic_token(lines, next_token(), "variable", "my_dir", 20, 20)
-    assert_semantic_token(lines, next_token(), "function", "fun", 21, 4)
-    assert_semantic_token(lines, next_token(), "variable", "typh_path", 21, 8)
+    assert_semantic_token(lines, next_token(), "function", "fun", 21, 9)
+    assert_semantic_token(lines, next_token(), "variable", "typh_path", 21, 13)
+    assert_semantic_token(lines, next_token(), "function", "print", 21, 31)

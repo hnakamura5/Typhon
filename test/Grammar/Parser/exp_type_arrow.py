@@ -1,9 +1,12 @@
+from src.Typhon.Driver.debugging import set_debug_verbose
 from ..assertion_utils import (
     assert_parse,
     show_token,
     assert_transform_ast,
     assert_typh_code_match_unparse,
 )
+
+set_debug_verbose(True)
 
 type_arrow_annot_code = """
 let x: (int) -> int;

@@ -4,9 +4,8 @@ from ..Grammar.typhon_ast import (
     get_pos_attributes,
     is_let_assign,
 )
-from .visitor import TyphonASTTransformer, flat_append
-from .name_generator import get_final_name
-from .utils.imports import add_import_for_final
+from .visitor import TyphonASTTransformer
+from .utils.imports import add_import_for_final, get_final
 
 
 class ConstMemberToFinal(TyphonASTTransformer):
@@ -24,7 +23,9 @@ class ConstMemberToFinal(TyphonASTTransformer):
         target: ast.Name,
         annotation: ast.expr | None,
     ):
-        assert is_decl_assign(node), "Unexpected non-decl assign in class def"
+        assert is_decl_assign(node), (
+            f"Unexpected non-decl assign in class def: {ast.dump(node)}"
+        )
         if not is_let_assign(node):
             return self.generic_visit(node)
         self.changed = True
@@ -32,13 +33,13 @@ class ConstMemberToFinal(TyphonASTTransformer):
         self.generic_visit(node)
         if annotation is not None:
             new_annotation = ast.Subscript(
-                value=ast.Name(id=get_final_name(), ctx=ast.Load(), **pos),
+                value=get_final(ctx=ast.Load(), **pos),
                 slice=annotation,
                 ctx=ast.Load(),
                 **pos,
             )
         else:
-            new_annotation = ast.Name(id=get_final_name(), ctx=ast.Load(), **pos)
+            new_annotation = get_final(ctx=ast.Load(), **pos)
         return ast.AnnAssign(
             target=ast.Name(
                 id=target.id, ctx=ast.Store(), **get_pos_attributes(target)
@@ -75,4 +76,6 @@ def const_member_to_final(module: ast.Module):
     transformer = ConstMemberToFinal(module)
     transformer.run()
     if transformer.changed:
+        # If we use add_import_get_final, final import confuses the visitor
+        # by pushing the current visiting node.
         add_import_for_final(module)
