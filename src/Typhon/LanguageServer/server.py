@@ -170,7 +170,7 @@ class LanguageServer(PyglsLanguageServer):
         return cloned_param
 
 
-server = LanguageServer("typhon-language-server", "v0.1.3")
+server = LanguageServer("typhon-language-server", "v0.1.4")
 client = server.backend_client
 
 

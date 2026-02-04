@@ -24,7 +24,7 @@ def assert_capabilities_equal(
 
 
 async def start_typhon_connection_client() -> LanguageClient:
-    client = LanguageClient("typhon-language-client", "v0.1.3")
+    client = LanguageClient("typhon-language-client", "v0.1.4")
     async with asyncio.timeout(10):
         await client.start_io(  # type: ignore
             sys.executable,

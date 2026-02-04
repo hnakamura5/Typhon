@@ -65,7 +65,7 @@ def client_converter_bugfix(client: LanguageClient) -> None:
 
 
 def create_pyrefly_client() -> LanguageClient:
-    client = LanguageClient("pyrefly-language-client", "v0.1.3")
+    client = LanguageClient("pyrefly-language-client", "v0.1.4")
 
     client_converter_bugfix(client)
     return client

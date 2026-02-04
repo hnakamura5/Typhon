@@ -1,6 +1,7 @@
 import sys
 import subprocess
 import os
+from pathlib import Path
 from .util import get_project_root
 
 
@@ -76,6 +77,7 @@ def clean_grammar():
 
 
 def package_build():
+    clean_build()
     output = subprocess.run(
         [
             "uv",
@@ -87,6 +89,13 @@ def package_build():
     )
     print(output.stdout.decode())
     print(output.stderr.decode())
+
+
+def clean_build():
+    dist_path = Path(get_project_root()) / "dist"
+    if dist_path.exists() and dist_path.is_dir():
+        for item in dist_path.iterdir():
+            item.unlink()
 
 
 def setup() -> None:
