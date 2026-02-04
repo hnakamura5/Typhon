@@ -84,8 +84,6 @@ async def assert_semantic_tokens(
 
 
 def test_semantic_tokens_pyright():
-    debug_setup_logging(verbose=True)
-
     async def run_test():
         client = create_pyright_client()
         await start_pyright_client(client)
@@ -113,8 +111,6 @@ def test_semantic_tokens_pyright():
 
 
 def test_semantic_tokens_pyrefly():
-    debug_setup_logging(verbose=True)
-
     async def run_test():
         client = create_pyrefly_client()
         await start_pyrefly_client(client)

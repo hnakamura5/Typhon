@@ -173,7 +173,7 @@ class BinaryIOLogger(BinaryIO):
 
 def debug_setup_logging(verbose: bool = True, append: bool = False) -> None:
     set_debug_log_file(
-        str(get_project_root() / "private" / "server.log"),
+        str(get_project_root() / "private" / "server1.log"),
         verbose=verbose,
         append=append,
     )
