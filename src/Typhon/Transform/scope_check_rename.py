@@ -396,6 +396,9 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         self.visit_PossiblyAnnotatedNode(node)
         with self.scope():  # for initializer scope
             # Assuming target is a simple variable name for now
+            debug_verbose_print(
+                f"Visiting for target: {ast.dump(node.target)} is_var={is_var(node)}"
+            )
             self.visit_declaration(node.target, is_mutable=is_var(node))
             self.visit_list_scoped(node.body)
             self.visit_list_scoped(node.orelse)

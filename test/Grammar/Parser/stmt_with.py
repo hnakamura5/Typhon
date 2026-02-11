@@ -115,11 +115,14 @@ def func():
 print('a')
 """
 result_inline_with_transformed = """
+from typing import Final as _typh_bi_Final
+
 def func():
     with open('file1.txt') as f1:
-        x = f1.readline()
+        x: _typh_bi_Final = f1.readline()
         with open('file2.txt') as f2:
-            y = f2.readline()
+            f2: _typh_bi_Final
+            y: _typh_bi_Final = f2.readline()
 print('a')
 """
 

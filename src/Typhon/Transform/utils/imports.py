@@ -43,6 +43,20 @@ def get_final(ctx: ast.expr_context, **kwargs: Unpack[PosAttributes]) -> ast.Nam
     return set_is_internal_name(ast.Name(id=final_name, ctx=ctx, **kwargs))
 
 
+def get_final_of_type(
+    type_expr: ast.expr | None,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.expr:
+    if type_expr is None:
+        return get_final(ctx=ast.Load(), **kwargs)
+    return ast.Subscript(
+        value=get_final(ctx=ast.Load(), **kwargs),
+        slice=type_expr,
+        ctx=ast.Load(),
+        **kwargs,
+    )
+
+
 def add_import_get_final(
     mod: ast.Module, ctx: ast.expr_context, **kwargs: Unpack[PosAttributes]
 ) -> ast.Name:

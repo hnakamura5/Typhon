@@ -64,7 +64,7 @@ def g(y) {
     print(x + y);
 }
 
-let a = A();
+var a = A();
 """
 tdz_class_result = """
 class A:
@@ -92,7 +92,7 @@ class A {
 
 var x = 10;
 
-let a = A();
+var a = A();
 def g(y) {
     print(x + y);
 }
@@ -147,7 +147,7 @@ def test_tdz_mutation_violation_error():
 tdz_shadow_code = """
 def f() {
     x = x + 1;
-    let x = x + 1;
+    var x = x + 1;
     return x;
 }
 var x = 10;
@@ -157,8 +157,8 @@ tdz_shadow_result = """
 def f():
     global x
     x = x + 1
-    _typh_cn_f1_0_x = x + 1
-    return _typh_cn_f1_0_x
+    _typh_vr_f1_0_x = x + 1
+    return _typh_vr_f1_0_x
 x = 10
 f()
 """
@@ -171,7 +171,7 @@ def test_tdz_shadow():
 tdz_shadow_violation_error_code = """
 def f() {
     x = x + 1;
-    let x = x + 1;
+    var x = x + 1;
     return x;
 }
 f()
@@ -245,7 +245,7 @@ def rec(n: int) -> int {
         return rec(n - 1);
     }
 }
-let x = 0
+var x = 0
 """
 tdz_recursion_result = """
 def rec(n: int) -> int:

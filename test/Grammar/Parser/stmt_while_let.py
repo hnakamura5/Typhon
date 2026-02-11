@@ -73,6 +73,7 @@ def func(point1: Point, point2: Point) -> int | None:
     return None
 """
 while_let_multiple_transformed = """
+from typing import Final as _typh_bi_Final
 from dataclasses import dataclass
 
 @dataclass
@@ -87,8 +88,14 @@ def func(point1: Point, point2: Point) -> int | None:
         _typh_vr_f2_0_ = False
         match point1:
             case Point(x=a, y=b, z=c):
+                a: _typh_bi_Final
+                b: _typh_bi_Final
+                c: _typh_bi_Final
                 match point2:
                     case Point(d, e, f) if a > d:
+                        d: _typh_bi_Final
+                        e: _typh_bi_Final
+                        f: _typh_bi_Final
                         print(a + b + c + d + e + f)
                         _typh_vr_f2_0_ = True
                     case _:

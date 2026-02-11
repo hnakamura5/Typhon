@@ -42,7 +42,7 @@ def test_exp_placeholder_func_literal():
 
 
 placeholder_multiple_code = """
-let f = _ * _ + _;
+var f = _ * _ + _;
 """
 placeholder_multiple_result = """
 f = _ * _ + _

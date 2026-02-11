@@ -6,7 +6,7 @@ from ..assertion_utils import (
 )
 
 func_literal_exp_code = """
-let f = (x) => x + 1;
+var f = (x) => x + 1;
 """
 func_literal_exp_result = """
 f = lambda x: x + 1
@@ -23,7 +23,7 @@ def test_exp_func_literal_exp():
 
 
 func_literal_exp_typed_code = """
-let f = (x: int) -> int => x + 1;
+var f = (x: int) -> int => x + 1;
 """
 func_literal_exp_typed_result = """
 f = __function_literal
@@ -63,7 +63,7 @@ def test_exp_func_literal_block_():
 
 
 func_literal_block_typed_code = """
-let f = (x: int) -> int => {
+var f = (x: int) -> int => {
     return x + 1;
 };
 """
@@ -87,7 +87,7 @@ def test_exp_func_literal_block_typed():
 
 func_literal_nested_code = """
 def test_exp_func_literal_nested() {
-    let f = (x: int) -> (int) -> int => {
+    var f = (x: int) -> (int) -> int => {
         if (x > 0) {
             return (x: int) -> int => {
                 return x + 1;
@@ -98,7 +98,7 @@ def test_exp_func_literal_nested() {
             };
         }
     };
-    let g = (x: int) -> int => {
+    var g = (x: int) -> int => {
         return x * 2;
     };
 }

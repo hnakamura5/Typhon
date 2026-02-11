@@ -148,6 +148,8 @@ class _typh_cl_f1_2_[_typh_tv_f1_0_x, _typh_tv_f1_1_y](_typh_bi_Protocol):
 def f(r):
     match r:
         case _typh_cl_f1_2_(x=a, y=b):
+            a: _typh_bi_Final
+            b: _typh_bi_Final
             print(a, b)
 """
 
@@ -217,6 +219,8 @@ def f(r: _typh_cl_f1_2_[int, tuple[int, str]]) -> None:
     _typh_vr_f1_9_ = True
     match r:
         case _typh_cl_f1_5_(x=a, y=tuple([0, c])):
+            a: _typh_bi_Final
+            c: _typh_bi_Final
             _typh_vr_f1_9_ = False
             print(a, c)
         case _:
@@ -225,6 +229,7 @@ def f(r: _typh_cl_f1_2_[int, tuple[int, str]]) -> None:
         _typh_vr_f1_8_ = True
         match r:
             case _typh_cl_f1_7_(x=a):
+                a: _typh_bi_Final
                 _typh_vr_f1_8_ = False
                 print(a)
             case _:
@@ -269,6 +274,8 @@ class _typh_cl_f1_2_[_typh_tv_f1_0_x, _typh_tv_f1_1_y](_typh_bi_Protocol):
 def f(r):
     match r:
         case _typh_cl_f1_2_(x=x, y=a):
+            x: _typh_bi_Final
+            a: _typh_bi_Final
             print(x, a)
 """
 

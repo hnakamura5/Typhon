@@ -9,7 +9,7 @@ from src.Typhon.Transform.name_generator import (
 )
 
 postfix_op_code = """
-let a: int? = None;
+var a: int? = None;
 """
 postfix_op_result = """
 a: (int,) = None
@@ -27,7 +27,7 @@ def test_postfix_op():
 
 postfix_op_unwrap_code = """
 def unwrap(x: int?, y: int?) -> int {
-    let z = x!
+    var z = x!
     return z * x!- y!;
 }
 """

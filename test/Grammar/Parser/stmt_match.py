@@ -209,14 +209,16 @@ def func(x: (int, str)) -> int:
     return 0
 """
 match_annot_transformed = """
+from typing import Final as _typh_bi_Final
+
 def func(x: tuple[int, str]) -> int:
-    _typh_cn_f1_0_a: int
-    _typh_cn_f1_1_b: str
-    _typh_cn_f1_2_a: str
     match x:
         case tuple([_typh_cn_f1_0_a, _typh_cn_f1_1_b]):
+            _typh_cn_f1_0_a: _typh_bi_Final[int]
+            _typh_cn_f1_1_b: _typh_bi_Final[str]
             return _typh_cn_f1_0_a + len(_typh_cn_f1_1_b)
         case _typh_cn_f1_2_a:
+            _typh_cn_f1_2_a: _typh_bi_Final[str]
             return _typh_cn_f1_2_a
     return 0
 """
@@ -250,17 +252,19 @@ def func(x: [int]) -> int:
     return 0
 """
 match_sequence_annot_transformed = """
+from typing import Final as _typh_bi_Final
+
 def func(x: list[int]) -> int:
-    _typh_cn_f1_0_a: int
-    _typh_cn_f1_1_b: int
-    _typh_cn_f1_2_a: int
-    _typh_cn_f1_3_b: int
-    _typh_cn_f1_4_c: int
-    _typh_cn_f1_5_rest: list[int]
     match x:
         case [_typh_cn_f1_0_a, _typh_cn_f1_1_b]:
+            _typh_cn_f1_0_a: _typh_bi_Final[int]
+            _typh_cn_f1_1_b: _typh_bi_Final[int]
             return _typh_cn_f1_0_a + _typh_cn_f1_1_b
         case [_typh_cn_f1_2_a, _typh_cn_f1_3_b, _typh_cn_f1_4_c, *_typh_cn_f1_5_rest]:
+            _typh_cn_f1_2_a: _typh_bi_Final[int]
+            _typh_cn_f1_3_b: _typh_bi_Final[int]
+            _typh_cn_f1_4_c: _typh_bi_Final[int]
+            _typh_cn_f1_5_rest: _typh_bi_Final[list[int]]
             return _typh_cn_f1_2_a + _typh_cn_f1_3_b + _typh_cn_f1_4_c + sum(_typh_cn_f1_5_rest)
     return 0
 """

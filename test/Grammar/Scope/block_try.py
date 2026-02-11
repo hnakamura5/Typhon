@@ -16,7 +16,9 @@ try {
 }
 print(x);
 """
+
 block_try_result = """
+from typing import Final as _typh_bi_Final
 x = 10
 try:
     print(x)
@@ -24,11 +26,14 @@ try:
     _typh_vr_m0_0_x = _typh_vr_m0_0_x + 5
     print(_typh_vr_m0_0_x)
 except Exception as _typh_cn_m0_1_x:
+    _typh_cn_m0_1_x: _typh_bi_Final
     print(_typh_cn_m0_1_x)
     _typh_vr_m0_2_x = 5
     print(_typh_vr_m0_2_x)
     _typh_vr_m0_2_x = _typh_vr_m0_2_x * 2
 print(x)
+
+
 """
 
 
@@ -58,22 +63,24 @@ try {
 print(x);
 """
 block_try_full_result = """
-x = 10
+from typing import Final as _typh_bi_Final
+x: _typh_bi_Final = 10
 try:
     print(x)
-    _typh_cn_m0_0_x = 20
+    _typh_cn_m0_0_x: _typh_bi_Final = 20
     print(_typh_cn_m0_0_x)
 except Exception as _typh_cn_m0_1_x:
+    _typh_cn_m0_1_x: _typh_bi_Final
     print(_typh_cn_m0_1_x)
-    _typh_cn_m0_2_x = 5
+    _typh_cn_m0_2_x: _typh_bi_Final = 5
     print(_typh_cn_m0_2_x)
 else:
     print(x)
-    _typh_cn_m0_3_x = 15
+    _typh_cn_m0_3_x: _typh_bi_Final = 15
     print(_typh_cn_m0_3_x)
 finally:
     print(x)
-    _typh_cn_m0_4_x = 100
+    _typh_cn_m0_4_x: _typh_bi_Final = 100
     print(_typh_cn_m0_4_x)
 print(x)
 """

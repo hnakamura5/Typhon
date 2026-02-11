@@ -19,9 +19,12 @@ def left_func(x: int) -> int {
 }
 """
 transformed_code_stmt_if = """
+from typing import Final as _typh_bi_Final
+
 def left_func(x: int) -> int:
     y = 0
     for i in range(x):
+        i: _typh_bi_Final
         if i % 2 == 0:
             y += i
     return y
@@ -35,16 +38,16 @@ def test_match_typhon_stmt_if():
     sa.assert_range_text(  # left_func (defined name of FunctionDef)
         Range(Pos(1, 4), Pos(1, 13)),
         "left_func",
-        Range(Pos(0, 4), Pos(0, 13)),
+        Range(Pos(2, 4), Pos(2, 13)),
         "left_func",
     )
     sa.assert_range(  # x: int
         Range(start=Pos(1, 13), end=Pos(1, 19)),
-        Range(start=Pos(0, 13), end=Pos(0, 19)),
+        Range(start=Pos(2, 13), end=Pos(2, 19)),
     )
     sa.assert_range(  # var y = 0
         Range(start=Pos(2, 4), end=Pos(2, 13)),
-        Range(start=Pos(1, 4), end=Pos(1, 9)),
+        Range(start=Pos(3, 4), end=Pos(3, 9)),
     )
 
 

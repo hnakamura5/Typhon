@@ -6,17 +6,20 @@ from ..assertion_utils import (
 
 
 comp_try_code = """
-let val = (try 1/0 except (ZeroDivisionError as e) 0);
+var val = (try 1/0 except (ZeroDivisionError as e) 0);
 """
 
 comp_try_result = """
 val = __try_comp
 """
 comp_try_transformed = """
+from typing import Final as _typh_bi_Final
+
 def _typh_cc_m0_0():
     try:
         return 1 / 0
     except ZeroDivisionError as e:
+        e: _typh_bi_Final
         return 0
 val = _typh_cc_m0_0()
 """
@@ -72,14 +75,18 @@ def f(x, y):
     return __try_comp
 """
 comp_try_many_transformed = """
+from typing import Final as _typh_bi_Final
+
 def f(x, y):
 
     def _typh_cc_f1_0():
         try:
             return x / y
         except ZeroDivisionError as e:
+            e: _typh_bi_Final
             return 0
         except TypeError as e:
+            e: _typh_bi_Final
             return -1
         except:
             return 42

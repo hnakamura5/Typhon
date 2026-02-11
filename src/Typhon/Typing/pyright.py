@@ -45,6 +45,11 @@ script_config = {
     "reportDeprecated": "none",
 }
 
+ignore_errors_by_message = {
+    # for (let i in ...)
+    'A "Final" variable cannot be assigned within a loop',
+}
+
 
 def write_pyright_config(
     output_dir: Path, level: TypeCheckLevel = "translate", overwrite: bool = False
@@ -120,6 +125,39 @@ def parse_json_output(output: str, returncode: int, stderr: str) -> TypeCheckRes
     )
 
 
+def _filter_ignore_diagnostics(
+    result: TypeCheckResult,
+) -> TypeCheckResult:
+    filtered_diagnostics: list[Diagnostic] = []
+    num_error = 0
+    num_warning = 0
+    num_info = 0
+    for diag in result.diagnostics:
+        if diag.message in ignore_errors_by_message:
+            debug_print(f"Ignoring diagnostic: {diag}")
+            continue
+        filtered_diagnostics.append(diag)
+        if diag.severity == Severity.ERROR:
+            num_error += 1
+        elif diag.severity == Severity.WARNING:
+            num_warning += 1
+        elif diag.severity == Severity.INFO:
+            num_info += 1
+    returncode = result.returncode
+    if returncode == 1 and num_error == 0:
+        returncode = 0
+    return TypeCheckResult(
+        returncode=returncode,
+        stderr=result.stderr,
+        files_analyzed=result.files_analyzed,
+        num_errors=num_error,
+        num_warnings=num_warning,
+        num_info=num_info,
+        time_in_sec=result.time_in_sec,
+        diagnostics=filtered_diagnostics,
+    )
+
+
 def run_pyright(
     py_file_or_dir: Path, level: TypeCheckLevel = "translate"
 ) -> TypeCheckResult:
@@ -138,4 +176,4 @@ def run_pyright(
     result = parse_json_output(
         output.stdout.decode(), output.returncode, output.stderr.decode()
     )
-    return result
+    return _filter_ignore_diagnostics(result)

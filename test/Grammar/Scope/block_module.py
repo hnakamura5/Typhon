@@ -17,15 +17,17 @@ if (True) {
 let y = 20;
 """
 block_module_rename_result = """
+from typing import Final as _typh_bi_Final
+
 def f(x):
     print(x)
 if True:
-    _typh_cn_m0_0_x = 10
+    _typh_cn_m0_0_x: _typh_bi_Final = 10
 
     def _typh_df_f2_0_g():
         f(_typh_cn_m0_0_x)
     _typh_df_f2_0_g()
-y = 20
+y: _typh_bi_Final = 20
 """
 
 

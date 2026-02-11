@@ -26,10 +26,12 @@ if True:
             pass
 """
 if_let_none_check_transformed = """
+from typing import Final as _typh_bi_Final
 y: int | None = None
 _typh_vr_m0_0_ = True
 match y:
     case _typh_cn_m0_1_x if _typh_cn_m0_1_x is not None:
+        _typh_cn_m0_1_x: _typh_bi_Final
         _typh_vr_m0_0_ = False
         print(_typh_cn_m0_1_x)
     case _:
@@ -60,9 +62,12 @@ def func(x: int, y: int, z: int):
                 pass
 """
 if_let_star_transformed = """
+from typing import Final as _typh_bi_Final
+
 def func(x: int, y: int, z: int):
     match (x, y, z):
         case [1, *rest]:
+            rest: _typh_bi_Final
             return rest
         case _:
             pass
@@ -213,6 +218,7 @@ def func(point1: Point, point2: Point) -> int | None:
     return None
 """
 if_let_multiple_transformed = """
+from typing import Final as _typh_bi_Final
 from dataclasses import dataclass
 
 @dataclass
@@ -225,8 +231,14 @@ def func(point1: Point, point2: Point) -> int | None:
     _typh_vr_f2_0_ = True
     match point1:
         case Point(x=a, y=b, z=c):
+            a: _typh_bi_Final
+            b: _typh_bi_Final
+            c: _typh_bi_Final
             match point2:
                 case Point(d, e, f) if a > d:
+                    d: _typh_bi_Final
+                    e: _typh_bi_Final
+                    f: _typh_bi_Final
                     _typh_vr_f2_0_ = False
                     print(a + b + c + d + e + f)
                 case _:
@@ -236,8 +248,14 @@ def func(point1: Point, point2: Point) -> int | None:
     if _typh_vr_f2_0_:
         match point1:
             case Point(a, b, c):
+                a: _typh_bi_Final
+                b: _typh_bi_Final
+                c: _typh_bi_Final
                 match point2:
                     case Point(x=d, y=e, z=f):
+                        d: _typh_bi_Final
+                        e: _typh_bi_Final
+                        f: _typh_bi_Final
                         return a + b + c + d + e + f
                     case _:
                         pass
@@ -287,9 +305,12 @@ def func(x: (int,)) -> int:
     return y
 """
 let_else_transformed = """
+from typing import Final as _typh_bi_Final
+
 def func(x: int | None) -> int:
     match x:
         case y if y is not None:
+            y: _typh_bi_Final
             return y
         case _:
             pass
@@ -327,6 +348,8 @@ def func(x: int) -> int:
     return i
 """
 let_else_with_transformed = """
+from typing import Final as _typh_bi_Final
+
 def func(x: int) -> int:
 
     def _typh_cc_f1_0():
@@ -336,7 +359,9 @@ def func(x: int) -> int:
             return None
     match _typh_cc_f1_0():
         case i if i is not None:
+            i: _typh_bi_Final
             with open('file.txt') as f:
+                f: _typh_bi_Final
                 f.write(str(i))
                 return i
         case _:
@@ -371,10 +396,12 @@ def func(x: (int,)) -> int:
     return y
 """
 let_else_annotation_transformed = """
+from typing import Final as _typh_bi_Final
+
 def func(x: int | None) -> int:
-    _typh_cn_f1_0_y: int
     match x:
         case _typh_cn_f1_0_y if _typh_cn_f1_0_y is not None:
+            _typh_cn_f1_0_y: _typh_bi_Final[int]
             return _typh_cn_f1_0_y
         case _:
             pass

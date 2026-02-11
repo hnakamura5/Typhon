@@ -6,7 +6,7 @@ from ..assertion_utils import (
 
 
 code_while_comp = """
-let inf = (while (True) yield 1);
+var inf = (while (True) yield 1);
 """
 result_while_comp = """
 inf = __while_comp
@@ -26,7 +26,7 @@ def test_while_comp():
 
 
 code_while_let_comp = """
-let parsed = (with (let f = open("file.txt"))
+var parsed = (with (let f = open("file.txt"))
                 (while (let [x, y] = f.readline().split())
                     yield (x, y)))
 """
@@ -34,8 +34,11 @@ result_while_let_comp = """
 parsed = __with_control
 """
 transformed_while_let_comp = """
+from typing import Final as _typh_bi_Final
+
 def _typh_cc_m0_0():
     with open('file.txt') as f:
+        f: _typh_bi_Final
 
         def _typh_cc_f1_0():
             _typh_vr_f2_0_ = True
@@ -43,6 +46,8 @@ def _typh_cc_m0_0():
                 _typh_vr_f2_0_ = False
                 match f.readline().split():
                     case [x, y]:
+                        x: _typh_bi_Final
+                        y: _typh_bi_Final
                         yield (x, y)
                         _typh_vr_f2_0_ = True
                     case _:

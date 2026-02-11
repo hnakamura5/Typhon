@@ -222,15 +222,15 @@ def is_decl_stmt(node: ast.AST) -> bool:
     return isinstance(node, (ast.Assign, ast.AnnAssign))
 
 
-type DeclarableStmt = Union[
-    ast.Assign,
-    ast.AnnAssign,
-    ast.withitem,
-    ast.For,
-    ast.AsyncFor,
-    ast.comprehension,
-    ast.pattern,
-]
+DeclarableStmt = (
+    ast.Assign
+    | ast.AnnAssign
+    | ast.withitem
+    | ast.For
+    | ast.AsyncFor
+    | ast.comprehension
+    | ast.pattern
+)
 
 _IS_VAR = "_typh_is_var"
 _IS_LET = "_typh_is_let"
@@ -281,11 +281,12 @@ def _set_is_let_var(node: DeclarableStmt, decl_type: str):
         raise ValueError(f"Unknown declaration type: {decl_type}")
 
 
-def copy_is_let_var(src: DeclarableStmt, dest: DeclarableStmt) -> None:
-    if is_var_assign(src):
+def copy_is_let_var[T: DeclarableStmt](src: DeclarableStmt, dest: T) -> T:
+    if is_var(src):
         set_is_var(dest)
-    if is_let_assign(src):
+    if is_let(src):
         _set_is_let(dest)
+    return dest
 
 
 type PossibleAnnotatedNode = (
@@ -437,7 +438,7 @@ def _get_list_type(type_node: ast.expr, pos: PosAttributes) -> ast.expr:
 
 def get_annotations_of_declaration_target(
     target: ast.expr,
-    type_annotation: ast.expr,
+    type_annotation: ast.expr | None,
 ) -> list[tuple[ast.Name, ast.expr | None]]:
     if isinstance(target, ast.Name):
         debug_verbose_print(
@@ -448,9 +449,13 @@ def get_annotations_of_declaration_target(
         debug_verbose_print(
             f"get_annotations_of_declaration_target ast.Tuple: {target}, {type_annotation}"
         )
-        type_elts = _get_tuple_type_elements(type_annotation)
-        if not type_elts or len(type_elts) != len(target.elts):
-            return []
+        type_elts = (
+            _get_tuple_type_elements(type_annotation) if type_annotation else None
+        )
+        if type_elts is None or len(type_elts) != len(target.elts):
+            type_elts = type_elts if type_elts is not None else []
+            # return []
+            type_elts = type_elts + [None] * (len(target.elts) - len(type_elts))
         names: list[tuple[ast.Name, ast.expr | None]] = []
         for elt, ty_elt in zip(target.elts, type_elts):
             if isinstance(elt, ast.Name):
@@ -462,9 +467,7 @@ def get_annotations_of_declaration_target(
         debug_verbose_print(
             f"get_annotations_of_declaration_target ast.List: {target}, {type_annotation}"
         )
-        type_elt = _get_list_type_elements(type_annotation)
-        if not type_elt:
-            return []
+        type_elt = _get_list_type_elements(type_annotation) if type_annotation else None
         names: list[tuple[ast.Name, ast.expr | None]] = []
         for elt in target.elts:
             if isinstance(elt, ast.Name):
@@ -477,7 +480,10 @@ def get_annotations_of_declaration_target(
             f"get_annotations_of_declaration_target ast.Starred: {target}, {type_annotation}"
         )
         return get_annotations_of_declaration_target(
-            target.value, _get_list_type(type_annotation, get_pos_attributes(target))
+            target.value,
+            _get_list_type(type_annotation, get_pos_attributes(target))
+            if type_annotation
+            else None,
         )
     else:
         # TODO: message
@@ -1533,22 +1539,28 @@ def _comprehension_function(
             ]
         if gen.is_async:
             body_stmts = [
-                ast.AsyncFor(
-                    target=gen.target,
-                    iter=gen.iter,
-                    body=body_stmts,
-                    orelse=[],
-                    **kwargs,
+                copy_is_let_var(
+                    gen,
+                    ast.AsyncFor(
+                        target=gen.target,
+                        iter=gen.iter,
+                        body=body_stmts,
+                        orelse=[],
+                        **kwargs,
+                    ),
                 )
             ]
         else:
             body_stmts = [
-                ast.For(
-                    target=gen.target,
-                    iter=gen.iter,
-                    body=body_stmts,
-                    orelse=[],
-                    **kwargs,
+                copy_is_let_var(
+                    gen,
+                    ast.For(
+                        target=gen.target,
+                        iter=gen.iter,
+                        body=body_stmts,
+                        orelse=[],
+                        **kwargs,
+                    ),
                 )
             ]
     func_def = ast.FunctionDef(
@@ -1598,10 +1610,13 @@ def make_listcomp(
     return ast.ListComp(
         elt=ast.Name(id=comp_temp_name, ctx=ast.Load(), **kwargs),
         generators=[
-            _ref_genexp(
-                make_genexp(elt, generators, **kwargs),
-                comp_temp_name,
-                generators[0].is_async,
+            copy_is_let_var(
+                generators[0],
+                _ref_genexp(
+                    make_genexp(elt, generators, **kwargs),
+                    comp_temp_name,
+                    generators[0].is_async,
+                ),
             )
         ],
         **kwargs,
@@ -1619,10 +1634,13 @@ def make_setcomp(
     return ast.SetComp(
         elt=ast.Name(id=comp_temp_name, ctx=ast.Load(), **kwargs),
         generators=[
-            _ref_genexp(
-                make_genexp(elt, generators, **kwargs),
-                comp_temp_name,
-                generators[0].is_async,
+            copy_is_let_var(
+                generators[0],
+                _ref_genexp(
+                    make_genexp(elt, generators, **kwargs),
+                    comp_temp_name,
+                    generators[0].is_async,
+                ),
             )
         ],
         **kwargs,
@@ -1643,22 +1661,25 @@ def make_dictcomp(
         key=ast.Name(id=comp_temp_name_key, ctx=ast.Load(), **kwargs),
         value=ast.Name(id=comp_temp_name_val, ctx=ast.Load(), **kwargs),
         generators=[
-            ast.comprehension(
-                target=ast.Tuple(
-                    elts=[
-                        ast.Name(id=comp_temp_name_key, ctx=ast.Store(), **kwargs),
-                        ast.Name(id=comp_temp_name_val, ctx=ast.Store(), **kwargs),
-                    ],
-                    ctx=ast.Store(),
-                    **get_pos_attributes(key),
+            copy_is_let_var(
+                generators[0],
+                ast.comprehension(
+                    target=ast.Tuple(
+                        elts=[
+                            ast.Name(id=comp_temp_name_key, ctx=ast.Store(), **kwargs),
+                            ast.Name(id=comp_temp_name_val, ctx=ast.Store(), **kwargs),
+                        ],
+                        ctx=ast.Store(),
+                        **get_pos_attributes(key),
+                    ),
+                    iter=make_genexp(
+                        ast.Tuple(elts=[key, value], ctx=ast.Load(), **kwargs),
+                        generators,
+                        **kwargs,
+                    ),
+                    ifs=[],
+                    is_async=generators[0].is_async,
                 ),
-                iter=make_genexp(
-                    ast.Tuple(elts=[key, value], ctx=ast.Load(), **kwargs),
-                    generators,
-                    **kwargs,
-                ),
-                ifs=[],
-                is_async=generators[0].is_async,
             )
         ],
         **kwargs,

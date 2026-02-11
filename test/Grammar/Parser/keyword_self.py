@@ -6,7 +6,7 @@ class A {
         return self;
     }
 }
-let a = A();
+var a = A();
 """
 def_self_result = """
 class A:
@@ -35,7 +35,7 @@ class A {
         return self;
     }
 }
-let a = A();
+var a = A();
 """
 async_def_self_result = """
 class A:

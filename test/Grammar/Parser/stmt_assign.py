@@ -236,11 +236,12 @@ decl_assign_unpack_annotation_each_code = """
 let (a:int, b:int, c:str) = (1, 2, 'str')
 """
 decl_assign_unpack_annotation_each_transformed = """
-a: int
-b: int
-c: str
+from typing import Final as _typh_bi_Final
 match (1, 2, 'str'):
     case tuple([a, b, c]):
+        a: _typh_bi_Final[int]
+        b: _typh_bi_Final[int]
+        c: _typh_bi_Final[str]
         pass
     case _:# type: ignore[all]
         raise TypeError

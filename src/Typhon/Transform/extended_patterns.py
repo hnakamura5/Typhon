@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Protocol, Iterable, Final
 from ..Grammar.typhon_ast import (
     RecordLiteral,
+    copy_is_let_var,
     get_record_literal_fields,
     get_record_type_fields,
     get_pos_attributes,
@@ -103,14 +104,17 @@ class _Transform(TyphonASTTransformer):
     def visit_MatchSequence(self, node: ast.MatchSequence):
         if is_pattern_tuple(node):
             pos = get_pos_attributes(node)
-            return ast.MatchClass(
-                cls=ast.Name(id="tuple", ctx=ast.Load(), **pos),
-                patterns=[
-                    ast.MatchSequence(node.patterns, **pos_attribute_to_range(pos))
-                ],
-                kwd_attrs=[],
-                kwd_patterns=[],
-                **pos_attribute_to_range(pos),
+            return copy_is_let_var(
+                node,
+                ast.MatchClass(
+                    cls=ast.Name(id="tuple", ctx=ast.Load(), **pos),
+                    patterns=[
+                        ast.MatchSequence(node.patterns, **pos_attribute_to_range(pos))
+                    ],
+                    kwd_attrs=[],
+                    kwd_patterns=[],
+                    **pos_attribute_to_range(pos),
+                ),
             )
         return self.generic_visit(node)
 

@@ -9,7 +9,7 @@ from src.Typhon.Driver.debugging import set_debug_first_error
 
 
 tuple_type_code = """
-let t: (int, str) = (1, "a");
+var t: (int, str) = (1, "a");
 """
 tuple_type_result = """
 t: (int, str) = (1, 'a')
@@ -26,7 +26,7 @@ def test_exp_tuple_type():
 
 
 list_type_code = """
-let l: [int] = [1, 2, 3];
+var l: [int] = [1, 2, 3];
 """
 list_type_result = """
 l: [int] = [1, 2, 3]
@@ -43,7 +43,7 @@ def test_exp_list_type():
 
 
 list_type_nested_code = """
-let l: [[int]] = [[1, 2], [3, 4]];
+var l: [[int]] = [[1, 2], [3, 4]];
 """
 list_type_nested_result = """
 l: [[int]] = [[1, 2], [3, 4]]
@@ -60,7 +60,7 @@ def test_exp_list_type_nested():
 
 
 list_type_error_code = """
-let l: [int, int] = [1, 2];
+var l: [int, int] = [1, 2];
 """
 
 
@@ -72,7 +72,7 @@ def test_exp_list_type_error():
 
 
 tuple_list_type_nested_code = """
-let x: (int, [str], (int, int)) = (1, ["a", "b"], (2, 3));
+var x: (int, [str], (int, int)) = (1, ["a", "b"], (2, 3));
 """
 tuple_list_type_nested_result = """
 x: (int, [str], (int, int)) = (1, ['a', 'b'], (2, 3))

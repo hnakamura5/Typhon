@@ -54,11 +54,14 @@ def func(a: (int,)) -> (int,):
     return __if_let_comp
 """
 comp_if_let_transformed = """
+from typing import Final as _typh_bi_Final
+
 def func(a: int | None) -> int | None:
 
     def _typh_cc_f1_0():
         match a:
             case _typh_cn_f2_0_a if _typh_cn_f2_0_a is not None:
+                _typh_cn_f2_0_a: _typh_bi_Final
                 return _typh_cn_f2_0_a
             case _:
                 pass
@@ -103,6 +106,7 @@ def func(point1: Point, point2: Point) -> int | None:
     return __if_let_comp
 """
 comp_if_let_multiple_transformed = """
+from typing import Final as _typh_bi_Final
 from dataclasses import dataclass
 
 @dataclass
@@ -116,8 +120,14 @@ def func(point1: Point, point2: Point) -> int | None:
     def _typh_cc_f2_0():
         match point1:
             case Point(x=a, y=b, z=c):
+                a: _typh_bi_Final
+                b: _typh_bi_Final
+                c: _typh_bi_Final
                 match point2:
                     case Point(d, e, f) if a > d:
+                        d: _typh_bi_Final
+                        e: _typh_bi_Final
+                        f: _typh_bi_Final
                         return a + b + c + d + e + f
                     case _:
                         pass
@@ -127,8 +137,14 @@ def func(point1: Point, point2: Point) -> int | None:
         def _typh_cc_f3_0():
             match point1:
                 case Point(a, b, c):
+                    a: _typh_bi_Final
+                    b: _typh_bi_Final
+                    c: _typh_bi_Final
                     match point2:
                         case Point(x=d, y=e, z=f):
+                            d: _typh_bi_Final
+                            e: _typh_bi_Final
+                            f: _typh_bi_Final
                             return a + b + c + d + e + f
                         case _:
                             pass

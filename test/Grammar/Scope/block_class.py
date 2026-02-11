@@ -4,18 +4,18 @@ from ..assertion_utils import assert_transform
 block_class_code = """
 class A {
     def f() {
-        let A = 10;
+        var A = 10;
         print(A);
     }
 }
-let a = A();
+var a = A();
 """
 block_class_result = """
 class A:
 
     def f(self):
-        _typh_cn_f2_0_A = 10
-        print(_typh_cn_f2_0_A)
+        _typh_vr_f2_0_A = 10
+        print(_typh_vr_f2_0_A)
 a = A()
 """
 
@@ -28,17 +28,17 @@ block_class_nested_code = """
 class A {
     class B {
         def f() {
-            let A = 10;
+            var A = 10;
             print(A);
         }
     }
     def g() {
-        let b = B();
-        let B = 20;
+        var b = B();
+        var B = 20;
         print(B);
     }
 }
-let a = A();
+var a = A();
 a.g();
 """
 block_class_nested_result = """
@@ -47,13 +47,13 @@ class A:
     class B:
 
         def f(self):
-            _typh_cn_f3_0_A = 10
-            print(_typh_cn_f3_0_A)
+            _typh_vr_f3_0_A = 10
+            print(_typh_vr_f3_0_A)
 
     def g(self):
         b = B()
-        _typh_cn_f4_0_B = 20
-        print(_typh_cn_f4_0_B)
+        _typh_vr_f4_0_B = 20
+        print(_typh_vr_f4_0_B)
 a = A()
 a.g()
 """

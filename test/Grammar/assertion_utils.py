@@ -150,6 +150,7 @@ def assert_transform_ast(typhon_ast: ast.Module, python_code: str):
     transform(typhon_ast)
     print(f"Typhon AST:\n\n{unparse_custom(typhon_ast)}")
     print(f"\nTransform result:\n\n{unparse_custom(typhon_ast)}")
+    print(f"\nExpected Python code:\n\n{python_code.strip()}")
     assert unparse_custom(typhon_ast).strip() == python_code.strip()
 
 

@@ -8,7 +8,7 @@ from src.Typhon.Grammar.typhon_ast import OPTIONAL_QUESTION, FORCE_UNWRAP
 from tokenize import NAME, OP, NEWLINE, ENDMARKER
 
 code_postfix_op = """
-let a: int? = None;
+var a: int? = None;
 """
 # In AST, postfix `?` is represented as a tuple type with one element.
 result_postfix_op = """
@@ -22,7 +22,7 @@ a: int | None = None
 def test_postfix_op():
     show_token(code_postfix_op)
     ta = TokenizerAsserter(code_postfix_op)
-    ta.next(NAME, "let")
+    ta.next(NAME, "var")
     ta.next(NAME, "a")
     ta.next(OP, ":")
     ta.next(NAME, "int")

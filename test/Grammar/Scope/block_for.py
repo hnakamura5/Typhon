@@ -10,8 +10,10 @@ for (let x in x) {
 }
 """
 block_for_result = """
+from typing import Final as _typh_bi_Final
 x = range(5)
 for _typh_cn_m0_0_x in x:
+    _typh_cn_m0_0_x: _typh_bi_Final
     print(_typh_cn_m0_0_x)
     _typh_vr_m0_1_x = _typh_cn_m0_0_x + 1
     print(_typh_vr_m0_1_x)
@@ -30,11 +32,13 @@ for (let (a: int, b: float) in [(1, 1.0), (2, 2.0)]) {
 }
 """
 for_unpack_typed_result = """
+from typing import Final as _typh_bi_Final
 for _typh_vr_m0_0_ in [(1, 1.0), (2, 2.0)]:
-    _typh_cn_m0_1_a: int
-    _typh_cn_m0_2_b: float
+    _typh_vr_m0_0_: _typh_bi_Final
     match _typh_vr_m0_0_:
         case tuple([_typh_cn_m0_1_a, _typh_cn_m0_2_b]):
+            _typh_cn_m0_1_a: _typh_bi_Final[int]
+            _typh_cn_m0_2_b: _typh_bi_Final[float]
             print(_typh_cn_m0_1_a)
             print(_typh_cn_m0_2_b)
         case _:# type: ignore[all]
@@ -77,8 +81,8 @@ class _typh_ar_f1_3(_typh_bi_Protocol):
         ...
 
 def func(fs: list[_typh_ar_f1_0]) -> None:
-    f: _typh_ar_f1_2
     for f in fs:
+        f: _typh_ar_f1_2
         print(f(10)('test'))
 """
 

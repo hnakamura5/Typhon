@@ -9,7 +9,7 @@ from ..assertion_utils import (
 set_debug_verbose(True)
 
 type_arrow_annot_code = """
-let x: (int) -> int;
+var x: (int) -> int;
 """
 type_arrow_annot_result = """
 x: __arrow_type
@@ -32,7 +32,7 @@ def test_type_arrow_annot():
 
 
 type_arrow_param_annot_code = """
-let a: (x: int, y: str) -> int;
+var a: (x: int, y: str) -> int;
 """
 type_arrow_param_annot_result = """
 a: __arrow_type
@@ -82,7 +82,7 @@ def test_type_arrow_def_param():
 
 
 type_arrow_func_literal_code = """
-let f: (x: int) -> int = (x:int) -> int => {
+var f: (x: int) -> int = (x:int) -> int => {
     return x + 1;
 };
 """
@@ -110,7 +110,7 @@ def test_type_arrow_func_literal():
 
 
 type_arrow_star_etc_code = """
-let f: (float, x: int, *args: str, **kwds: int) -> int;
+var f: (float, x: int, *args: str, **kwds: int) -> int;
 """
 type_arrow_star_etc_result = """
 f: __arrow_type
@@ -133,7 +133,7 @@ def test_type_arrow_star_etc():
 
 
 type_arrow_single_no_paren_code = """
-let f: int -> int;
+var f: int -> int;
 """
 type_arrow_single_no_paren_result = """
 f: __arrow_type
@@ -158,7 +158,7 @@ def test_type_arrow_single_no_paren():
 
 
 type_arrow_in_subscript_code = """
-let x: list[int -> str];
+var x: list[int -> str];
 """
 type_arrow_in_subscript_result = """
 x: list[__arrow_type]
@@ -181,7 +181,7 @@ def test_type_arrow_in_subscript():
 
 
 type_arrow_to_subscript_code = """
-let x: list[int -> list[str -> float]];
+var x: list[int -> list[str -> float]];
 """
 type_arrow_to_subscript_result = """
 x: list[__arrow_type]
@@ -209,7 +209,7 @@ def test_type_arrow_to_subscript():
 
 
 type_arrow_single_no_paren_chain_code = """
-let f: int? -> [int] -> list[str -> float] -> (int -> int) -> (int, float) -> int?;
+var f: int? -> [int] -> list[str -> float] -> (int -> int) -> (int, float) -> int?;
 """
 type_arrow_single_no_paren_chain_result = """
 f: __arrow_type

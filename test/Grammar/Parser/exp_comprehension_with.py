@@ -5,14 +5,17 @@ from ..assertion_utils import (
 )
 
 code_with_comp = """
-let result = (with (let f = open("file.txt")) f.read())
+var result = (with (let f = open("file.txt")) f.read())
 """
 code_with_comp_result = """
 result = __with_control
 """
 code_with_comp_transformed = """
+from typing import Final as _typh_bi_Final
+
 def _typh_cc_m0_0():
     with open('file.txt') as f:
+        f: _typh_bi_Final
         return f.read()
 result = _typh_cc_m0_0()
 """
@@ -26,8 +29,8 @@ def test_with_comp():
 
 code_with_call_comp = """
 def func(f: str -> str) {
-    let name = "file.txt"
-    let result = f(with (let file = open(name)) file.read())
+    var name = "file.txt"
+    var result = f(with (let file = open(name)) file.read())
     return result
 }
 """
@@ -39,6 +42,7 @@ def func(f: __arrow_type):
 """
 code_with_call_comp_transformed = """
 from typing import Protocol as _typh_bi_Protocol
+from typing import Final as _typh_bi_Final
 
 class _typh_ar_f1_1(_typh_bi_Protocol):
 
@@ -50,6 +54,7 @@ def func(f: _typh_ar_f1_1):
 
     def _typh_cc_f1_0():
         with open(name) as file:
+            file: _typh_bi_Final
             return file.read()
     result = f(_typh_cc_f1_0())
     return result
