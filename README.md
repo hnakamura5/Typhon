@@ -151,3 +151,15 @@ Typhon draws inspiration from several modern programming languages:
 - Rust
 - Scala
 - F#
+
+## Agent Configuration (Copilot / Claude Code)
+
+This repository contains shared agent configuration files:
+
+- [AGENTS.md](AGENTS.md): repository rules and policies.
+- [SKILLS.md](SKILLS.md): minimal operational workflow and script usage.
+
+Tool-specific entry files refers the shared files:
+
+- [.github/copilot-instructions.md](.github/copilot-instructions.md)
+- [CLAUDE.md](CLAUDE.md)
