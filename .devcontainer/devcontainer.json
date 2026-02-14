@@ -1,0 +1,22 @@
+{
+    "name": "Typhon Dev Container",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "postCreateCommand": "uv sync && uv run -m  script.build",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.debugpy",
+                "ms-python.vscode-python-envs",
+                "detachhead.basedpyright",
+                "meta.pyrefly",
+                "charliermarsh.ruff",
+                "gruntfuggly.todo-tree",
+                "eamodio.gitlens",
+                "oderwat.indent-rainbow"
+            ]
+        }
+    }
+}
