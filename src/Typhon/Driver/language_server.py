@@ -16,6 +16,7 @@ def language_server():
     """
     Start the Typhon Language Server.
     """
+    # debug_setup_logging()
     server.start_io(
         stdin=BinaryIOLogger(sys.stdin.buffer),
         stdout=BinaryIOLogger(sys.stdout.buffer),

@@ -125,6 +125,10 @@ def parse_json_output(output: str, returncode: int, stderr: str) -> TypeCheckRes
     )
 
 
+def filter_ignore_message(message: str) -> bool:
+    return message in ignore_errors_by_message
+
+
 def _filter_ignore_diagnostics(
     result: TypeCheckResult,
 ) -> TypeCheckResult:
@@ -133,7 +137,7 @@ def _filter_ignore_diagnostics(
     num_warning = 0
     num_info = 0
     for diag in result.diagnostics:
-        if diag.message in ignore_errors_by_message:
+        if filter_ignore_message(diag.message):
             debug_print(f"Ignoring diagnostic: {diag}")
             continue
         filtered_diagnostics.append(diag)

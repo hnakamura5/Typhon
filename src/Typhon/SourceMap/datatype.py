@@ -1,11 +1,9 @@
 from dataclasses import dataclass
 from ..Grammar.typhon_ast import PosAttributes, PosRange, get_pos_attributes_if_exists
 from ..Driver.debugging import debug_verbose_print
-from intervaltree import IntervalTree, Interval
+from intervaltree import IntervalTree, Interval  # type: ignore[import]
 from typing import Iterable
 import ast
-
-from basedpyright.langserver import main
 
 
 @dataclass(frozen=True, unsafe_hash=True, order=True)

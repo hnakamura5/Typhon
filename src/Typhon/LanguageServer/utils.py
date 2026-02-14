@@ -12,6 +12,7 @@ from ..Driver.debugging import (
 from ..Driver.utils import output_dir_for_server_workspace
 from .semantic_tokens import semantic_token_capabilities
 from .client import configure_language_client_option
+from ..SourceMap.datatype import Range, Pos
 
 
 def uri_to_path(uri: str) -> Path:
@@ -29,6 +30,10 @@ def path_to_uri(path: Path) -> str:
         return path.resolve().as_uri()
     except Exception as e:
         raise ValueError(f"Could not convert path to URI: {path}") from e
+
+
+def canonicalize_uri(uri: str) -> str:
+    return path_to_uri(uri_to_path(uri))
 
 
 def clone_and_map_initialize_param(
@@ -63,3 +68,17 @@ def clone_and_map_initialize_param(
     if is_debug_mode():
         cloned_params.trace = types.TraceValue.Verbose
     return cloned_params
+
+
+def range_to_lsp_range(r: Range) -> types.Range:
+    return types.Range(
+        start=types.Position(line=r.start.line, character=r.start.column),
+        end=types.Position(line=r.end.line, character=r.end.column),
+    )
+
+
+def lsp_range_to_range(r: types.Range) -> Range:
+    return Range(
+        start=Pos(line=r.start.line, column=r.start.character),
+        end=Pos(line=r.end.line, column=r.end.character),
+    )

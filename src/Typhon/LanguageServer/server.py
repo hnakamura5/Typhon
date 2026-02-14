@@ -1,4 +1,5 @@
 import copy
+from os import path
 from lsprotocol.types import SemanticTokens
 from typing import Any, Sequence, override, Protocol, Final
 import ast
@@ -37,7 +38,11 @@ from .semantic_tokens import (
     semantic_legends_of_initialized_response,
     semantic_token_capabilities,
 )
+from .diagnostics import (
+    map_and_add_diagnostics,
+)
 from .utils import (
+    canonicalize_uri,
     uri_to_path,
     path_to_uri,
     clone_and_map_initialize_param,
@@ -56,6 +61,7 @@ class LanguageServer(PyglsLanguageServer):
     @override
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         PyglsLanguageServer.__init__(self, *args, **kwargs)  # type: ignore
+        # Key URIs is original typhon document URI.
         self.ast_modules: dict[str, ast.Module | None] = {}
         self.token_infos: dict[str, list[TokenInfo]] = {}
         self.semantic_tokens: dict[str, list[SemanticToken]] = {}
@@ -63,12 +69,19 @@ class LanguageServer(PyglsLanguageServer):
         self.backend_client: LanguageClient = create_language_client()
         self.mapping: dict[str, MatchBasedSourceMap] = {}
         self.client_semantic_legend: dict[int, str] = {}
+        self.translated_uri_to_original_uri: dict[str, str] = {}
 
     def reload(self, uri: str) -> str | None:
         doc: TextDocument = self.workspace.get_text_document(uri)
         try:
+            uri = canonicalize_uri(uri)
+            self.translated_uri_to_original_uri.setdefault(
+                self.get_translated_file_uri(uri), uri
+            )
             source = doc.source
-            debug_file_write(f"Reloading document {uri} source: {source[:100]}...")
+            debug_file_write(
+                f"Reloading document uri={uri} translated uri={self.get_translated_file_uri(uri)} source: {source.strip()[:50]}..."
+            )
             tokenizer = tokenizer_for_string(source)
             self.token_infos[uri] = tokenizer.read_all_tokens()
             ast_node = parse_tokenizer(tokenizer)
@@ -150,6 +163,11 @@ class LanguageServer(PyglsLanguageServer):
         translated_path, _ = self.get_translated_file_path_and_root(src_path)
         uri = path_to_uri(translated_path)
         return uri
+
+    def get_original_file_uri(self, translated_uri: str) -> str | None:
+        return self.translated_uri_to_original_uri.get(
+            canonicalize_uri(translated_uri), None
+        )
 
     def setup_container_directories(self, file: Path, root: Path | None) -> None:
         """
@@ -281,8 +299,19 @@ async def on_workspace_folders(ls_client: LanguageClient, params: None):
 async def on_publish_diagnostics(
     ls_client: LanguageClient, params: types.PublishDiagnosticsParams
 ):
-    debug_file_write(f"Backend published diagnostics: {params}")
-    server.text_document_publish_diagnostics(params)
+    original_uri = server.get_original_file_uri(params.uri)
+    module = server.ast_modules.get(canonicalize_uri(params.uri))
+    debug_file_write(
+        f"Backend published diagnostics: {params} original_uri={original_uri}   module={module}"
+    )
+    server.text_document_publish_diagnostics(
+        map_and_add_diagnostics(
+            original_uri,
+            params,
+            module,
+            server.mapping.get(original_uri, None) if original_uri else None,
+        )
+    )
 
 
 # Define handlers for debug logging from backend
@@ -338,6 +367,7 @@ def did_change(ls: LanguageServer, params: types.DidChangeTextDocumentParams):
 
 @server.feature(types.TEXT_DOCUMENT_SEMANTIC_TOKENS_FULL, semantic_legend())
 async def semantic_tokens_full(ls: LanguageServer, params: types.SemanticTokensParams):
+    uri = canonicalize_uri(params.text_document.uri)
     try:
         debug_file_write(f"Semantic tokens requested {params}")
         cloned_params = ls.clone_params_map_uri(params)
@@ -350,7 +380,7 @@ async def semantic_tokens_full(ls: LanguageServer, params: types.SemanticTokensP
         debug_file_write(f"Received semantic tokens: {semantic_tokens}")
         if not semantic_tokens:
             return None
-        if (mapping := ls.mapping.get(params.text_document.uri)) is None:
+        if (mapping := ls.mapping.get(uri)) is None:
             return None
         mapped = map_semantic_tokens(
             semantic_tokens, mapping, ls.client_semantic_legend
@@ -362,15 +392,11 @@ async def semantic_tokens_full(ls: LanguageServer, params: types.SemanticTokensP
             f"Error during semantic tokens retrieval: {type(e).__name__}: {e}"
         )
         # Fall back to precomputed rough semantic tokens (encoded).
-        if (mapping := ls.mapping.get(params.text_document.uri)) is not None:
+        if (mapping := ls.mapping.get(uri)) is not None:
             try:
-                fallback = encode_semantic_tokens(
-                    ls.semantic_tokens.get(params.text_document.uri, [])
-                )
+                fallback = encode_semantic_tokens(ls.semantic_tokens.get(uri, []))
                 debug_file_write(f"Fallback: {fallback}")
                 return map_semantic_tokens(fallback, mapping, ls.client_semantic_legend)
             except Exception as mapping_error:
                 debug_file_write(f"Fallback mapping failed: {mapping_error}")
-        return encode_semantic_tokens(
-            ls.semantic_tokens.get(params.text_document.uri, [])
-        )
+        return encode_semantic_tokens(ls.semantic_tokens.get(uri, []))
