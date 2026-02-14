@@ -83,7 +83,7 @@ def debug_print(*arg, **kwargs) -> None:  # type: ignore
         if _debug_limit_check(*arg):
             return
         if _debug_log_file is not None:
-            with _debug_log_file.open("a") as log_file:
+            with _debug_log_file.open("a", errors="ignore") as log_file:
                 print(*arg, file=log_file, **kwargs)  # type: ignore
         else:
             print(*arg, **kwargs)  # type: ignore
@@ -95,7 +95,7 @@ def debug_verbose_print(*arg, **kwargs) -> None:  # type: ignore
         if _debug_limit_check(*arg):
             return
         if _debug_log_file is not None:
-            with _debug_log_file.open("a") as log_file:
+            with _debug_log_file.open("a", errors="ignore") as log_file:
                 print(*arg, file=log_file, **kwargs)  # type: ignore
         else:
             print(*arg, **kwargs)  # type: ignore
@@ -107,7 +107,7 @@ def debug_file_write(*arg, **kwargs) -> None:  # type: ignore
         if _debug_log_file is not None:
             if _debug_limit_check(*arg):
                 return
-            with _debug_log_file.open("a") as log_file:
+            with _debug_log_file.open("a", errors="ignore") as log_file:
                 print(*arg, file=log_file, **kwargs)  # type: ignore
 
 
@@ -117,7 +117,7 @@ def debug_file_write_verbose(*arg, **kwargs) -> None:  # type: ignore
         if _debug_log_file is not None:
             if _debug_limit_check(*arg):
                 return
-            with _debug_log_file.open("a") as log_file:
+            with _debug_log_file.open("a", errors="ignore") as log_file:
                 print(*arg, file=log_file, **kwargs)  # type: ignore
 
 
@@ -138,7 +138,7 @@ class BinaryIOLogger(BinaryIO):
     def write(self, data: ReadableBuffer) -> int:
         # Log the data being written
         if _debug_log_file is not None:
-            with _debug_log_file.open("a") as log_file:
+            with _debug_log_file.open("a", errors="ignore") as log_file:
                 log_file.write(f"Writing {data}\n")
                 log_file.flush()
         return self._pipe.write(data)
@@ -149,14 +149,14 @@ class BinaryIOLogger(BinaryIO):
     def read(self, n: int = -1) -> bytes:
         data = self._pipe.read(n)
         if _debug_log_file is not None:
-            with _debug_log_file.open("a") as log_file:
+            with _debug_log_file.open("a", errors="ignore") as log_file:
                 log_file.write(f"Read {data}\n")
                 log_file.flush()
         return data
 
     def close(self) -> None:
         if _debug_log_file is not None:
-            with _debug_log_file.open("a") as log_file:
+            with _debug_log_file.open("a", errors="ignore") as log_file:
                 log_file.write("Closing pipe.\n")
                 log_file.flush()
         self._pipe.close()
@@ -165,15 +165,17 @@ class BinaryIOLogger(BinaryIO):
     def readline(self, limit: int = -1) -> bytes:
         line = self._pipe.readline(limit)
         if _debug_log_file is not None:
-            with _debug_log_file.open("a") as log_file:
+            with _debug_log_file.open("a", errors="ignore") as log_file:
                 log_file.write(f"Read line {line}\n")
                 log_file.flush()
         return line
 
 
-def debug_setup_logging(verbose: bool = True, append: bool = False) -> None:
+def debug_setup_logging(
+    verbose: bool = True, append: bool = False, postfix: str = ""
+) -> None:
     set_debug_log_file(
-        str(get_project_root() / "private" / "server.log"),
+        str(get_project_root() / "private" / f"server{postfix}.log"),
         verbose=verbose,
         append=append,
     )
@@ -186,5 +188,6 @@ def debug_setup_logging(verbose: bool = True, append: bool = False) -> None:
             filemode="a",
             format="%(asctime)s %(levelname)s %(name)s %(message)s",
             force=True,
+            errors="ignore",
         )
     debug_file_write("=== Typhon Debug Logging set ===\n")

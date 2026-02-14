@@ -1,0 +1,38 @@
+# Simple showcase of Typhon type errors
+
+# Assignment: annotated type and value mismatch
+let user_id: int = "A"
+
+# Assignment: reassignment type mismatch on var
+var score: int = 100
+score = "high"
+
+# Function call: argument type mismatch
+def add(x: int, y: int) -> int {
+	return x + y
+}
+let sum1 = add(1, "2")
+
+# Function call: argument count mismatch
+let sum2 = add(1)
+
+# Return type mismatch
+def bad_flag(name: str) -> bool {
+	return name
+}
+
+# Collection element type mismatch
+let numbers: [int] = [1, 2, "3"]
+
+# Function type assignment/call mismatch
+let double: (int) -> int = (n: int) -> int => n * 2
+let broken: (int) -> int = (s: str) -> int => len(s)
+let d = double("10")
+
+# Data record field type mismatch
+let point: {|x: int, y: int|} = {|x = 10, y = "20"|}
+
+# Syntax error
+if (len(numbers) > 0 {
+	print(numbers)
+}

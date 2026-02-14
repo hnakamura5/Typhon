@@ -1,18 +1,22 @@
 import sys
 import asyncio
+from typing import Callable
 from lsprotocol import types
 from pygls.lsp.client import LanguageClient
 from pathlib import Path
 from src.Typhon.LanguageServer.utils import path_to_uri
 from src.Typhon.Driver.utils import get_project_root
+from src.Typhon.Driver.debugging import debug_file_write, debug_verbose_print
 
 from ..initialize_params_example import initialize_params_example
 
-sample_dir = get_project_root() / "test" / "execute" / "RunFileTest"
-sample_file = sample_dir / "semantic_token_showcase.typh"
-small_sample_file = sample_dir / "hello.typh"
-sample_file_uri = sample_file.resolve().as_uri()
-small_sample_file_uri = small_sample_file.resolve().as_uri()
+run_file_dir = get_project_root() / "test" / "execute" / "RunFileTest"
+semtok_file = run_file_dir / "semantic_token_showcase.typh"
+hello_file = run_file_dir / "hello.typh"
+semtok_file_uri = semtok_file.resolve().as_uri()
+hello_file_uri = hello_file.resolve().as_uri()
+type_error_dir = get_project_root() / "test" / "execute" / "TypeErrorTest"
+diag_file = type_error_dir / "diagnostic_showcase.typh"
 
 
 def assert_capabilities_equal(
@@ -36,13 +40,20 @@ async def start_typhon_connection_client() -> LanguageClient:
 
 
 async def start_initialize_open_typhon_connection_client(
-    root_dir: Path = sample_dir,
-    open_file: Path = sample_file,
+    root_dir: Path = run_file_dir,
+    open_file: Path = semtok_file,
+    on_before_initialize: Callable[[LanguageClient], None] | None = None,
 ) -> tuple[LanguageClient, types.InitializeResult]:
     client = await start_typhon_connection_client()
     open_file_uri = path_to_uri(open_file)
 
+    @client.feature(types.CLIENT_REGISTER_CAPABILITY)  # type: ignore
+    def on_register_capability(params: types.RegistrationParams):
+        debug_verbose_print(f"Received registration request: {params}")
+
     async with asyncio.timeout(10):
+        if on_before_initialize:
+            on_before_initialize(client)
         initialize_result = await client.initialize_async(
             initialize_params_example(root_dir)
         )
@@ -68,3 +79,26 @@ async def ensure_exit(client: LanguageClient) -> None:
             await client.stop()
     except Exception:
         pass
+
+
+class EventHandlerAssertTunnel:
+    def __init__(self):
+        self.done = False
+        self.error: Exception | None = None
+
+    def finish(self):
+        self.done = True
+
+    def error_occurred(self, error: Exception):
+        self.error = error
+        self.done = True
+
+    async def waiter(self, second: int = 5):
+        waited_seconds = 0
+        while not self.done:
+            await asyncio.sleep(1)
+            waited_seconds += 1
+            if waited_seconds >= second:
+                raise TimeoutError("Waited too long for the event to occur.")
+        if self.error:
+            raise self.error

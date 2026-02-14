@@ -12,6 +12,7 @@ from pygls.lsp.client import LanguageClient
 from pygls.workspace import TextDocument
 from lsprotocol import types
 
+
 from ..Grammar.tokenizer_custom import TokenInfo, tokenizer_for_string
 from ..Grammar.parser import parse_tokenizer
 from ..Grammar.unparse_custom import unparse_custom
@@ -26,6 +27,7 @@ from ..Driver.utils import (
     default_server_output_dir,
     mkdir_and_setup_init_py,
 )
+from ..Driver.type_check import write_config
 from ..SourceMap.ast_match_based_map import map_from_translated
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
 from .client import create_language_client, start_language_client
@@ -91,7 +93,7 @@ class LanguageServer(PyglsLanguageServer):
                 f"Parsed AST for {uri}: {ast.dump(ast_node) if ast_node else 'None'}"
             )
             if ast_node:
-                transform(ast_node)
+                transform(ast_node, ignore_error=True)
             self.ast_modules[uri] = ast_node
             semantic_tokens, encoded = ast_tokens_to_semantic_tokens(
                 ast_node, self.token_infos[uri], doc
@@ -109,6 +111,13 @@ class LanguageServer(PyglsLanguageServer):
             if mapping:
                 self.mapping[uri] = mapping
             self.setup_container_directories(translate_file_path, root)
+            # Setup the server directory
+            server_temp_dir = output_dir_for_server_workspace(root) if root else None
+            write_config(
+                server_temp_dir
+                if server_temp_dir
+                else default_server_output_dir(doc.path)
+            )
             with open(translate_file_path, "w", encoding="utf-8") as f:
                 debug_file_write(
                     f"Writing translated file to {translate_file_path}, length={len(unparsed)}"
@@ -300,7 +309,7 @@ async def on_publish_diagnostics(
     ls_client: LanguageClient, params: types.PublishDiagnosticsParams
 ):
     original_uri = server.get_original_file_uri(params.uri)
-    module = server.ast_modules.get(canonicalize_uri(params.uri))
+    module = server.ast_modules.get(original_uri) if original_uri else None
     debug_file_write(
         f"Backend published diagnostics: {params} original_uri={original_uri}   module={module}"
     )

@@ -2,7 +2,7 @@ import sys
 import subprocess
 import os
 from pathlib import Path
-from .util import get_project_root
+from ._util import get_project_root
 
 
 def build_grammar():

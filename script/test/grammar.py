@@ -1,7 +1,7 @@
 import subprocess
 import sys
 from pathlib import Path
-from ..util import get_project_root, gather_directory
+from .._util import get_project_root, gather_directory
 from ..build import setup
 
 

@@ -18,7 +18,7 @@ from ..Grammar.syntax_errors import raise_from_module_syntax_errors
 from ..Grammar.unparse_custom import unparse_custom
 
 
-def transform(mod: ast.Module):
+def transform(mod: ast.Module, ignore_error: bool = False) -> None:
     check_forbidden_statements(mod)
     record_to_dataclass(mod)
     debug_verbose_print(f"After record_to_dataclass:\n{unparse_custom(mod)}\n")
@@ -45,4 +45,5 @@ def transform(mod: ast.Module):
     type_abbrev_desugar(mod)
     debug_verbose_print(f"After func_type_to_protocol:\n{unparse_custom(mod)}\n")
     debug_print(f"After transform:\n{unparse_custom(mod)}\n")
-    raise_from_module_syntax_errors(mod)
+    if not ignore_error:
+        raise_from_module_syntax_errors(mod)

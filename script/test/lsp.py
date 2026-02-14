@@ -1,16 +1,13 @@
 import subprocess
 import sys
 from pathlib import Path
-from ..util import get_project_root, gather_directory
+from .._util import get_project_root, gather_directory
 from ..build import setup
 
 
 def gather_lsp_tests() -> list[str]:
-    root = get_project_root()
-    dir_path = Path(root) / "test" / "LanguageServer"
-    if not dir_path.exists():
-        return []
-    return gather_directory(dir_path)
+    dir_path = Path(get_project_root()) / "test" / "LanguageServer"
+    return gather_directory(dir_path, sys.argv[1:])
 
 
 def run_all_tests():

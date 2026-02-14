@@ -6,9 +6,9 @@ from pathlib import Path
 from src.Typhon.Driver.debugging import debug_file_write, debug_verbose_print
 from src.Typhon.LanguageServer.utils import path_to_uri
 from .utils import (
-    sample_dir,
-    sample_file,
-    small_sample_file,
+    run_file_dir,
+    semtok_file,
+    hello_file,
     start_initialize_open_typhon_connection_client,
     ensure_exit,
 )
@@ -73,12 +73,12 @@ async def access_semantic_tokens_of_uri(
 
 def test_semantic_tokens_small():
     async def run_test():
-        target_file_uri = path_to_uri(small_sample_file)
+        target_file_uri = path_to_uri(hello_file)
         (
             client,
             initialize_result,
         ) = await start_initialize_open_typhon_connection_client(
-            sample_dir, small_sample_file
+            run_file_dir, hello_file
         )
         response, tokens = await access_semantic_tokens_of_uri(
             client, target_file_uri, semantic_legend()
@@ -107,12 +107,12 @@ def assert_tokens_small(
 
 def test_semantic_tokens():
     async def run_test():
-        target_file_uri = path_to_uri(sample_file)
+        target_file_uri = path_to_uri(semtok_file)
         (
             client,
             initialize_result,
         ) = await start_initialize_open_typhon_connection_client(
-            sample_dir, sample_file
+            run_file_dir, semtok_file
         )
         response, tokens = await access_semantic_tokens_of_uri(
             client, target_file_uri, semantic_legend()

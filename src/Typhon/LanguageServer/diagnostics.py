@@ -7,9 +7,7 @@ from functools import reduce
 from lsprotocol import types
 from pygls.workspace import TextDocument
 
-from Typhon.Typing.pyright import filter_ignore_message
-
-
+from ..Typing.pyright import filter_ignore_message
 from ..Grammar.typhon_ast import is_internal_name
 from ..Grammar.syntax_errors import get_syntax_error_in_module
 from ..Grammar.tokenizer_custom import TokenInfo
@@ -61,7 +59,10 @@ def map_and_add_diagnostics(
 ) -> types.PublishDiagnosticsParams:
     syntax_errors = get_syntax_error_in_module(module) if module else None
     diagnostics: list[types.Diagnostic] = []
-    for syntax_error in syntax_errors or []:
+    debug_file_write_verbose(
+        f"Mapping and adding diagnostics for URI {diagnostic_params.uri}, mapped_uri={mapped_uri}, syntax_errors={syntax_errors}, module={module} source_map={source_map}"
+    )
+    for syntax_error in syntax_errors if syntax_errors else []:
         debug_file_write_verbose(f"Adding syntax error diagnostic: {syntax_error}")
         diagnostics.append(
             types.Diagnostic(
@@ -86,5 +87,15 @@ def map_and_add_diagnostics(
 
     return types.PublishDiagnosticsParams(
         uri=mapped_uri if mapped_uri else diagnostic_params.uri,
-        diagnostics=diagnostics,
+        diagnostics=list(
+            sorted(
+                diagnostics,
+                key=lambda diag: (
+                    diag.range.start.line,
+                    diag.range.start.character,
+                    diag.range.end.line,
+                    diag.range.end.character,
+                ),
+            )
+        ),
     )
