@@ -7,7 +7,7 @@ from ..build import setup
 
 def gather_test_in_grammar_test_dir(dir_name: str) -> list[str]:
     root = get_project_root()
-    dir_path = Path(root) / "test" / "grammar" / dir_name
+    dir_path = Path(root) / "test" / "Grammar" / dir_name
     if not dir_path.exists():
         return []
     return gather_directory(dir_path)

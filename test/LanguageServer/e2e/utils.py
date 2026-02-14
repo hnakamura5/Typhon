@@ -10,12 +10,12 @@ from src.Typhon.Driver.debugging import debug_file_write, debug_verbose_print
 
 from ..initialize_params_example import initialize_params_example
 
-run_file_dir = get_project_root() / "test" / "execute" / "RunFileTest"
+run_file_dir = get_project_root() / "test" / "Execute" / "RunFileTest"
 semtok_file = run_file_dir / "semantic_token_showcase.typh"
 hello_file = run_file_dir / "hello.typh"
 semtok_file_uri = semtok_file.resolve().as_uri()
 hello_file_uri = hello_file.resolve().as_uri()
-type_error_dir = get_project_root() / "test" / "execute" / "TypeErrorTest"
+type_error_dir = get_project_root() / "test" / "Execute" / "TypeErrorTest"
 diag_file = type_error_dir / "diagnostic_showcase.typh"
 
 

@@ -6,7 +6,7 @@ from ..build import setup
 
 
 def run_all_tests() -> int:
-    test_dir = Path(get_project_root()) / "test" / "execute"
+    test_dir = Path(get_project_root()) / "test" / "Execute"
     # First of all run tokenizer tests.
     return subprocess.run(
         [sys.executable, "-m", "pytest", str(test_dir / "run_typh_test.py")],
