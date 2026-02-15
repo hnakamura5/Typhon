@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 
@@ -39,3 +40,20 @@ def gather_directory(dir_path: Path, filter_paths: list[str] = []) -> list[str]:
                     continue
             test_files.extend(gather_directory(subdir, sub_filter_paths))
     return test_files
+
+
+def cleanup_temp_dirs(
+    dir_path: Path,
+    target_dir_names: tuple[str, ...] = (".typhon", ".typhon-server"),
+) -> None:
+    if not dir_path.exists():
+        return
+
+    temp_dirs = {
+        temp_dir
+        for target_dir_name in target_dir_names
+        for temp_dir in dir_path.rglob(target_dir_name)
+    }
+    for temp_dir in sorted(temp_dirs, key=lambda p: len(p.parts), reverse=True):
+        if temp_dir.is_dir():
+            shutil.rmtree(temp_dir, ignore_errors=True)
