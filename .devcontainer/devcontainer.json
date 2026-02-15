@@ -15,8 +15,15 @@
                 "charliermarsh.ruff",
                 "gruntfuggly.todo-tree",
                 "eamodio.gitlens",
-                "oderwat.indent-rainbow"
-            ]
+                "oderwat.indent-rainbow",
+                "hnakamura5.typhon-language-support"
+            ],
+            "settings": {
+                "typhon.path": "/workspaces/Typhon/.venv/bin/typhon",
+                "typhon.args": [
+                    "lsp"
+                ]
+            }
         }
     }
 }

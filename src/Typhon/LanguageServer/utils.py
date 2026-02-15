@@ -82,3 +82,8 @@ def lsp_range_to_range(r: types.Range) -> Range:
         start=Pos(line=r.start.line, column=r.start.character),
         end=Pos(line=r.end.line, column=r.end.character),
     )
+
+
+def point_range_from_lsp_position(position: types.Position) -> Range:
+    pos = Pos(line=position.line, column=position.character)
+    return Range(start=pos, end=pos)

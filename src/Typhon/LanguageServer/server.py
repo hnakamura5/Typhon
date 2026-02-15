@@ -43,6 +43,10 @@ from .semantic_tokens import (
 from .diagnostics import (
     map_and_add_diagnostics,
 )
+from .hover import (
+    map_hover,
+    map_hover_position,
+)
 from .utils import (
     canonicalize_uri,
     uri_to_path,
@@ -409,3 +413,32 @@ async def semantic_tokens_full(ls: LanguageServer, params: types.SemanticTokensP
             except Exception as mapping_error:
                 debug_file_write(f"Fallback mapping failed: {mapping_error}")
         return encode_semantic_tokens(ls.semantic_tokens.get(uri, []))
+
+
+@server.feature(types.TEXT_DOCUMENT_HOVER)
+async def hover(ls: LanguageServer, params: types.HoverParams):
+    uri = canonicalize_uri(params.text_document.uri)
+    try:
+        debug_file_write(f"Hover requested: {params}")
+        cloned_params = ls.clone_params_map_uri(params)
+        mapping = ls.mapping.get(uri)
+        mapped_position = map_hover_position(params.position, mapping)
+        if mapped_position is None:
+            debug_file_write(
+                "Hover mapping failed for request position. Skipping hover."
+            )
+            return None
+        cloned_params.position = mapped_position
+        debug_file_write(f"Translated hover params: {cloned_params}")
+        hover_result = await ls.backend_client.text_document_hover_async(cloned_params)
+        debug_file_write(f"Received hover result: {hover_result}")
+        if hover_result is None:
+            return None
+        mapped_hover = map_hover(hover_result, mapping)
+        if mapped_hover is None:
+            debug_file_write("Hover mapping failed for response range. Skipping hover.")
+            return None
+        return mapped_hover
+    except Exception as e:
+        debug_file_write(f"Error during hover retrieval: {type(e).__name__}: {e}")
+        return None
