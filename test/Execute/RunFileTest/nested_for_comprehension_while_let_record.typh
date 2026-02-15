@@ -1,0 +1,25 @@
+let pairs = (for (let i in range(0, 3))
+                 for (let j in range(0, 2))
+                     yield (i, j))
+
+for (let (a: int, b: int) in pairs) {
+    print(f"pair={a},{b}")
+}
+
+let records = (for (let i in range(0, 4))
+                   yield {|x = i // 2, y = i * i|})
+
+while (let {.x = 0, .y} = records |> next) {
+    print(f"record=0:{y}")
+}
+
+"""stdout
+pair=0,0
+pair=0,1
+pair=1,0
+pair=1,1
+pair=2,0
+pair=2,1
+record=0:0
+record=0:1
+"""

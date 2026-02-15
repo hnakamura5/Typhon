@@ -1,0 +1,47 @@
+class Counter {
+    var n: int;
+
+    def __init__(seed: int) {
+        self.n = seed
+    }
+
+    def inc(step: int = 1) -> int {
+        self.n = self.n + step
+        return self.n
+    }
+
+    def value() -> int {
+        return self.n
+    }
+}
+
+
+def safe_div(a: int, b: int) -> int {
+    let v = (try a // b) else {
+        return -1
+    }
+    return v
+}
+
+
+let c = Counter(3)
+print(f"counter0={c.value()}")
+
+for (let step in [1, 2, 3]) {
+    print(f"inc={c.inc(step)}")
+}
+
+for (let i in range(0, 4)) {
+    print(f"div{i}={safe_div(12, 3 - i)}")
+}
+
+"""stdout
+counter0=3
+inc=4
+inc=6
+inc=9
+div0=4
+div1=6
+div2=12
+div3=-1
+"""

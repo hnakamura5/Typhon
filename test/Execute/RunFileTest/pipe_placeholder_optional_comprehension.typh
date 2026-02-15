@@ -1,0 +1,34 @@
+import re
+
+let numbers = range(1, 8)
+    |> filter(_ % 2 == 1, _)
+    |> map(_ * 2, _)
+
+for (let n: int in numbers) {
+    print(f"odd_double={n}")
+}
+
+let m = re.match(r'(?P<num>\d+)-(?P<tag>\w+)', "123-xyz")
+print(f"num={m?.group?("num")}")
+
+let none_match = re.match(r"x+", "abc")
+print(f"fallback={none_match?.group?(0) ?? "none"}")
+
+let comp = (for (let i in range(0, 6))
+                if (i % 3 == 0)
+                    yield i + 10)
+
+for (let v: int in comp) {
+    print(f"comp={v}")
+}
+
+"""stdout
+odd_double=2
+odd_double=6
+odd_double=10
+odd_double=14
+num=123
+fallback=none
+comp=10
+comp=13
+"""

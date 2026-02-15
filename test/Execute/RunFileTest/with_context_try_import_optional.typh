@@ -1,0 +1,48 @@
+import re
+
+class MultiplierContext {
+    let factor: int;
+
+    def __init__(factor: int) {
+        self.factor = factor
+    }
+
+    def __enter__() -> "MultiplierContext" {
+        print("enter")
+        return self
+    }
+
+    def __exit__(exc_type: BaseException, exc_value: BaseException, traceback: BaseException) {
+        print("exit")
+    }
+}
+
+
+def parse_or(default: int, source: str) -> int {
+    let parsed = (try int(source) except default)
+    return parsed
+}
+
+
+let maybe = re.match(r"id=(?P<id>\d+)", "id=42")
+print(f"id={maybe?.group?("id") ?? "none"}")
+
+def run_scaled_values() {
+    with let ctx = MultiplierContext(3)
+    for (let text in ["10", "x", "7"]) {
+        let value = parse_or(-1, text)
+        print(f"scaled={value * ctx.factor}")
+    }
+}
+
+
+run_scaled_values()
+
+"""stdout
+id=42
+enter
+scaled=30
+scaled=-3
+scaled=21
+exit
+"""
