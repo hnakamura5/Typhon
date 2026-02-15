@@ -25,6 +25,7 @@ Use these script entry points as the default workflow.
 - Command: `uv run -m script.test.lsp <test_name>`
 - Command: `uv run -m script.test.grammar <test_name>`
 - Command: `uv run -m script.test.run`
+- Command: `uv run -m script.test.files <test_files...>`
 - Use for specific test categories. `<test_name>` is optional, to specify relative test path from
   - `test/Grammar` for grammar tests.
   - `test/LanguageServer` for LSP tests.

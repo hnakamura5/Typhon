@@ -20,7 +20,7 @@ This file defines the shared, tool-agnostic rules for automated coding agents in
 7. For large changes such as feature implementations, always create a brief implementation overview first, get it reviewed, and start coding only after the review is completed.
 8. When changing existing tests, summarize the planned test changes and explain the reason in advance, then get a review before applying the changes.
 9. Keep documentation updates in sync with code changes. If behavior, commands, structure, or developer workflow changes, update the relevant docs in the same task.
-10. Standardize script execution with `uv run -m ...` as the default. Use ad-hoc or direct alternatives only when explicitly required.
+10. Standardize script execution with `uv run -m ...` as the default. Use script under `script` directory as far as possible. Use ad-hoc or direct alternatives only when explicitly required.
 
 ## Language and Comment Policy
 

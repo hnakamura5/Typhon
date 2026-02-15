@@ -21,6 +21,10 @@
     "/^cd /workspaces/Typhon && uv run -m pytest test/Grammar/Parser/exp_pipe_operator\\.py$/": {
       "approve": true,
       "matchCommandLine": true
+    },
+    "/^cd /workspaces/Typhon && uv run -m pytest test/Grammar/Parser/exp_pipe_operator\\.py test/Grammar/Parser/exp_operator_precedence\\.py$/": {
+      "approve": true,
+      "matchCommandLine": true
     }
   }
 }
