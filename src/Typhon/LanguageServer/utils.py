@@ -72,18 +72,26 @@ def clone_and_map_initialize_param(
 
 def range_to_lsp_range(r: Range) -> types.Range:
     return types.Range(
-        start=types.Position(line=r.start.line, character=r.start.column),
-        end=types.Position(line=r.end.line, character=r.end.column),
+        start=pos_to_lsp_position(r.start),
+        end=pos_to_lsp_position(r.end),
     )
 
 
 def lsp_range_to_range(r: types.Range) -> Range:
     return Range(
-        start=Pos(line=r.start.line, column=r.start.character),
-        end=Pos(line=r.end.line, column=r.end.character),
+        start=lsp_position_to_pos(r.start),
+        end=lsp_position_to_pos(r.end),
     )
 
 
-def point_range_from_lsp_position(position: types.Position) -> Range:
-    pos = Pos(line=position.line, column=position.character)
+def lsp_position_to_pos(position: types.Position) -> Pos:
+    return Pos(line=position.line, column=position.character)
+
+
+def pos_to_lsp_position(pos: Pos) -> types.Position:
+    return types.Position(line=pos.line, character=pos.column)
+
+
+def to_point_range(position: types.Position) -> Range:
+    pos = lsp_position_to_pos(position)
     return Range(start=pos, end=pos)

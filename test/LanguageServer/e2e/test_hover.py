@@ -112,6 +112,26 @@ def test_hover_mapped_range():
             expected_end_character=10,
             expected_text_fragment="my_dir",
         )
+        # attribute access assignment: self.x = 10
+        await assert_hover(
+            client,
+            target_file_uri,
+            line=6,
+            character=9,
+            expected_start_character=8,
+            expected_end_character=12,
+            expected_text_fragment="self",
+        )
+        await assert_hover(
+            client,
+            target_file_uri,
+            line=6,
+            character=13,
+            expected_start_character=14,
+            expected_end_character=15,
+            expected_text_fragment="x",
+        )
+
         await client.shutdown_async(None)
 
     asyncio.run(run_test())

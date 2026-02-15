@@ -100,6 +100,55 @@ class MatchBasedSourceMap:
                 )
         debug_verbose_print("No nodes found for the given range.")
 
+    def _pos_to(
+        self,
+        pos: Pos,
+        interval_tree: RangeIntervalTree[ast.AST],
+        mapping: dict[ast.AST, ast.AST],
+        prefer_right: bool,
+    ) -> Pos | None:
+        # Primary strategy: map a width-1 range then drop to a point.
+        # This preserves local offset better than mapping a zero-width point directly.
+        probe = Range(start=pos, end=pos.col_forward())
+        mapped_probe = self._range_to(probe, interval_tree, mapping)
+        if mapped_probe is not None:
+            return mapped_probe.end if prefer_right else mapped_probe.start
+
+        # Fallback strategy: point container lookup from interval tree.
+        mapped_node = self._pos_to_node(pos, interval_tree, mapping)
+        if mapped_node is None:
+            return None
+        mapped_range = Range.from_ast_node(mapped_node)
+        if mapped_range is None:
+            return None
+        return mapped_range.end if prefer_right else mapped_range.start
+
+    def _pos_to_node(
+        self,
+        pos: Pos,
+        interval_tree: RangeIntervalTree[ast.AST],
+        mapping: dict[ast.AST, ast.AST],
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None:
+        nodes = interval_tree.at(pos)
+        if filter_node_type is not None:
+            nodes = [
+                (r, n)
+                for r, n in nodes
+                if isinstance(mapping.get(n, None), filter_node_type)
+            ]
+        if not nodes:
+            return None
+        # Prefer most-specific container.
+        _, node = min(
+            nodes,
+            key=lambda entry: (
+                entry[0].end.line - entry[0].start.line,
+                entry[0].end.column - entry[0].start.column,
+            ),
+        )
+        return mapping.get(node, None)
+
     def unparsed_range_to_origin(
         self,
         range_unparsed: Range,
@@ -142,6 +191,30 @@ class MatchBasedSourceMap:
         debug_verbose_print("No nodes found for the given unparsed range.")
         return None
 
+    def unparsed_pos_to_origin_node(
+        self,
+        pos_unparsed: Pos,
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None:
+        return self._pos_to_node(
+            pos_unparsed,
+            self.unparsed_interval_tree,
+            self.unparsed_to_origin,
+            filter_node_type,
+        )
+
+    def unparsed_pos_to_origin(
+        self,
+        pos_unparsed: Pos,
+        prefer_right: bool = True,
+    ) -> Pos | None:
+        return self._pos_to(
+            pos_unparsed,
+            self.unparsed_interval_tree,
+            self.unparsed_to_origin,
+            prefer_right,
+        )
+
     def origin_range_to_unparsed(
         self,
         range_origin: Range,
@@ -151,6 +224,30 @@ class MatchBasedSourceMap:
             range_origin,
             self.origin_interval_tree,
             self.origin_to_unparsed,
+        )
+
+    def origin_pos_to_unparsed(
+        self,
+        pos_origin: Pos,
+        prefer_right: bool = True,
+    ) -> Pos | None:
+        return self._pos_to(
+            pos_origin,
+            self.origin_interval_tree,
+            self.origin_to_unparsed,
+            prefer_right,
+        )
+
+    def origin_pos_to_unparsed_node(
+        self,
+        pos_origin: Pos,
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None:
+        return self._pos_to_node(
+            pos_origin,
+            self.origin_interval_tree,
+            self.origin_to_unparsed,
+            filter_node_type,
         )
 
     def origin_node_to_unparsed_range(

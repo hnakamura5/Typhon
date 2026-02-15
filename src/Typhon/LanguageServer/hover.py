@@ -11,11 +11,11 @@ from ..Grammar.typhon_ast import (
     get_mangled_name_pattern,
 )
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
-from ..SourceMap.datatype import Pos, Range
 from .utils import (
     lsp_range_to_range,
-    point_range_from_lsp_position,
     range_to_lsp_range,
+    pos_to_lsp_position,
+    lsp_position_to_pos,
 )
 
 
@@ -80,26 +80,16 @@ def map_hover_position(
     if source_map is None:
         return None
 
-    point = point_range_from_lsp_position(position)
-    mapped = source_map.origin_range_to_unparsed(point)
-
-    # Fallback for cursor-at-token-end cases.
-    if mapped is None and position.character > 0:
-        mapped = source_map.origin_range_to_unparsed(
-            Range(
-                start=Pos(line=position.line, column=position.character - 1),
-                end=Pos(line=position.line, column=position.character),
-            )
-        )
-    if mapped is None:
+    mapped_pos = source_map.origin_pos_to_unparsed(
+        lsp_position_to_pos(position),
+        prefer_right=True,
+    )
+    if mapped_pos is None:
         debug_file_write_verbose(
             f"Could not map hover position {position} to translated source."
         )
         return None
-    mapped_position = types.Position(
-        line=mapped.start.line,
-        character=mapped.start.column,
-    )
+    mapped_position = pos_to_lsp_position(mapped_pos)
     debug_file_write_verbose(
         f"Mapped hover position from {position} to {mapped_position}"
     )

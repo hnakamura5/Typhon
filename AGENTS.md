@@ -12,7 +12,7 @@ This file defines the shared, tool-agnostic rules for automated coding agents in
    - `src/Typhon/Grammar/_typhon_parser.py`
    - Regenerate it through the build script instead.
 4. Prefer project scripts for routine operations (build, test, run, upload).
-5. Run quality checks when relevant to the change:
+5. Run quality checks when relevant to the change, and always run tests when it seems the work is done:
    - formatting (`uv run -m ruff format`)
    - type checking (`basedpyright`) (Type error still exists, but try to minimize new ones)
    - tests (`uv run -m script.test.all`)
@@ -21,6 +21,7 @@ This file defines the shared, tool-agnostic rules for automated coding agents in
 8. When changing existing tests, summarize the planned test changes and explain the reason in advance, then get a review before applying the changes.
 9. Keep documentation updates in sync with code changes. If behavior, commands, structure, or developer workflow changes, update the relevant docs in the same task.
 10. Standardize script execution with `uv run -m ...` as the default. Use script under `script` directory as far as possible. Use ad-hoc or direct alternatives only when explicitly required.
+11. When implementing logic with utility code, explicitly consider whether it should be added as a reusable utility API. If added, follow the existing utility naming conventions.
 
 ## Language and Comment Policy
 

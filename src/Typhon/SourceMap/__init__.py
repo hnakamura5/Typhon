@@ -1,5 +1,5 @@
 from typing import Protocol
-from .datatype import Range
+from .datatype import Range, Pos
 import ast
 
 
@@ -26,3 +26,27 @@ class SourceMap(Protocol):
         self,
         origin_node: ast.AST,
     ) -> Range | None: ...
+
+    def origin_pos_to_unparsed(
+        self,
+        pos_origin: Pos,
+        prefer_right: bool = True,
+    ) -> Pos | None: ...
+
+    def unparsed_pos_to_origin(
+        self,
+        pos_unparsed: Pos,
+        prefer_right: bool = True,
+    ) -> Pos | None: ...
+
+    def origin_pos_to_unparsed_node(
+        self,
+        pos_origin: Pos,
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None: ...
+
+    def unparsed_pos_to_origin_node(
+        self,
+        pos_unparsed: Pos,
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None: ...
