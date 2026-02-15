@@ -52,3 +52,7 @@ class C {
 ```
 
 Note: Do not use `Final` with `let` manually, as `let` implies it.
+
+## Initialization Requirement
+
+Instance members must be initialized in `__init__`.

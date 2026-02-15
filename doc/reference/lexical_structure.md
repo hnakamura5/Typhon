@@ -63,7 +63,7 @@ A line break is treated as **whitespace** (continuation) when it appears:
 1. **Just after**:
    - Operators (e.g., `+`, `-`, `.`, `=`, `?`, `:`, `=>`, `->`, `,`).
    - Open brackets (`(`, `[`, `{`).
-   - Modifiers and decorators (`static`, `async`, `@`).
+   - Modifiers (`static`, `async`).
    - Statement keywords that expect a body or continuation (e.g., `class`, `def`, `if`, `elif`, `while`, `for`, `except`, `with`, `match`, `case`).
    - The closing parenthesis `)` of a control statement header (e.g., `if (cond)`).
 
@@ -73,6 +73,8 @@ A line break is treated as **whitespace** (continuation) when it appears:
    - Keywords that continue a statement (`elif`, `else`, `except`, `finally`, `case`).
 
 In all other cases, a line break is treated as a **semicolon** (statement terminator).
+
+Note: `class` and `def` headers use continuation behavior, but decorator lines (`@...`) do not.
 
 Line breaks immediately after scope-exiting keywords (`return`, `yield`, `raise`, `break`, `continue`) are always **delimiters**, not continuation.
 
@@ -93,7 +95,9 @@ def f() {
 
 ### Dead Code
 
-Dead code after scope-exiting statements (`return`, `raise`, `break`, `continue`) is always a syntax error.
+Dead code is checked only for the syntactically immediate next statement after scope-exiting statements (`return`, `raise`, `break`, `continue`). This is a syntax-only rule (no semantic reachability analysis).
+
+Note: This rule exists to avoid newline-related hazards after scope-exiting statements (similar to pitfalls known from JavaScript ASI). Semantic unreachable code is not a syntax error; it is handled as a type-checker warning.
 
 ```typhon
 return

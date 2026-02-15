@@ -93,8 +93,11 @@ Typhon keeps Python semantics where possible, but changes syntax and some safety
 ### Detailed Design Changes
 
 - **Logical Operators**: `&&`, `||`, `!` replace `and`, `or`, `not` (though Python keywords are still reserved).
+- **Operator Notes**: `??` is weaker than `||`; `?`-family operators short-circuit. (`|>` precedence details are pending.)
 - **Const Parameters**: Function parameters are immutable by default.
-- **Header Parentheses Convention**: Forms that introduce a braced inner scope use parenthesized headers (for example, `with (...) { ... }`), while forms that declare into the current scope omit them (for example, inline `with let ...` and `let-else`).
+- **Header Parentheses Convention**: This rule is general: forms that introduce a braced inner scope use parenthesized headers, while forms that declare into the current scope omit them.
+- **Assignment Restriction**: Reassignment is only to single variable names; pattern reassignment is forbidden.
+- **`if-let` Rule**: Single-variable target means `None` check; non-single target means pattern-success check.
 - **Line Breaks**: Stricter rules for line continuations. See [Lexical Structure](doc/reference/lexical_structure.md).
 
 ### Syntax Restrictions

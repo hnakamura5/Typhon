@@ -6,7 +6,9 @@ The pipe operator `|>` passes the left value as the first argument of the right 
 x |> f  # Equivalent to f(x)
 ```
 
-It is left-associative with low precedence.
+It is left-associative.
+
+Note: precedence details relative to other operators are currently pending.
 
 ```typhon
 data |> process |> save

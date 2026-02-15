@@ -4,7 +4,11 @@
 
 A Typhon program consists of modules.
 
-Each directory is treated as a module containing all `.typh` files in that directory. `__init__.typh` is optional.
+Each directory is treated as a package/module boundary containing all `.typh` files in that directory.
+
+Semantically, Typhon treats every directory as if `__init__.py` exists.
+
+`__init__.typh` is optional on the Typhon source side.
 
 `__main__.typh` is the entry point module when running as a Typhon program.
 

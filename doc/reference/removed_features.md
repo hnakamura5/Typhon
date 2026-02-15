@@ -13,7 +13,8 @@ Typhon removes some Python features to keep scoping and control flow explicit.
 
 - **Wildcard imports**: `from module import *` is forbidden to prevent namespace pollution.
 - **Chained Assignment**: `a = b = c` is forbidden. Use separate assignments.
-- **Tuple Unpacking Assignment without Parentheses**: `a, b = 1, 2` is invalid. Use `(a, b) = (1, 2)`.
+- **Pattern Reassignment**: Reassignment to patterns is forbidden. Use declarations (`let`/`var`) for pattern binding.
+- **Tuple Unpacking Reassignment**: Tuple unpacking in reassignment is forbidden.
 - **If Expression**: `x if cond else y` is forbidden. Use `(if (cond) x else y)`.
 - **Control Statements in Class Body**: Only declarations (`let`, `var`, `def`) are allowed in class bodies.
 - **Dead code**: Code after scope-exiting statements is forbidden.

@@ -26,6 +26,8 @@ let val = (try x / y except (ZeroDivisionError) 0)
 
 Returns `None` if an exception occurs and is not handled in the expression.
 
+`try` comprehension supports the same clauses as statement `try`, except `else` is not allowed.
+
 ## Let Comprehension
 
 ```typhon
@@ -55,3 +57,5 @@ Typhon also allows using `while` in comprehensions.
 ```
 
 List/dict/set/generator comprehension forms are supported.
+
+`for` and `while` comprehensions follow statement forms, except `else` is not allowed.

@@ -12,6 +12,22 @@ Typhon uses C-style logical operators, while Python keyword forms remain reserve
 if (x > 0 && y < 10) { ... }
 ```
 
+`&&` and `||` short-circuit.
+
+## Precedence Notes
+
+From stronger to weaker (excerpt):
+
+- Unary `!` (stronger than arithmetic operators)
+- Arithmetic and bitwise operators (standard order)
+- `&&`
+- `||`
+- `??` (weaker than `||`)
+
+For `?.`, `?[]`, and `?()`, precedence is the same as the non-optional forms (`.`, `[]`, `()`).
+
+Precedence details for `|>`/`?|>` are currently pending.
+
 ## Arithmetic Operators
 
 Standard arithmetic operators are supported: `+`, `-`, `*`, `/`, `//`, `%`, `**`.

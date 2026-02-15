@@ -5,6 +5,8 @@ Typhon uses this syntax convention:
 - Use parentheses when the header binds names for a new braced inner scope.
 - Omit parentheses when binding into the current scope.
 
+This convention is general across language forms, not only `with`.
+
 ## With Statement
 
 Use `with` for resource management.

@@ -43,7 +43,7 @@ Patterns that may fail to match (for example, literals or specific variants) are
 
 `let-else` binds names into the current scope, so this form does not use header parentheses.
 
-The `else` block **must diverge** (`return`, `raise`, `continue`, or `break`), so the remaining scope cannot run with uninitialized bindings.
+The `else` block **must diverge** (`return`, `raise`, `continue`, or `break`), so the remaining scope cannot run with uninitialized bindings. Only statements valid in that context are allowed.
 
 ```typhon
 let (1, x) = (1, 100) else {

@@ -40,6 +40,11 @@ v |> f(_)     # v |> ((x) => f(x))
 
 ## Rules in Detail
 
+`_` is interpreted by syntactic context:
+
+- In left-hand-side contexts (assignment targets, `match`/`case` patterns, import bindings), `_` is a wildcard pattern.
+- In all other contexts, `_` is a placeholder expression.
+
 The smallest expression containing `_` (but not only `_`) is converted into an anonymous function. The function scope is determined by the innermost **boundary**:
 
 - **Function Calls:** Both the callee and the arguments act as boundaries.

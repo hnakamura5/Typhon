@@ -2,6 +2,8 @@
 
 Typhon provides operators for safe handling of `None` values.
 
+All `?`-family operators short-circuit.
+
 ## Optional Chaining (`?.`)
 
 Access attributes or methods only when the receiver is not `None`.

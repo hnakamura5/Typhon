@@ -73,3 +73,5 @@ Typhon also supports standard patterns found in Python:
 - **Or Patterns**: Match one of multiple patterns (e.g., `case 0 | 1`).
 - **Wildcard Pattern**: `_` matches anything but does not bind it.
 - **Rest Patterns**: `*rest` matches the remaining elements in a sequence.
+
+Note: `_` is a wildcard in left-hand-side contexts (assignment targets, pattern positions, import bindings). In other contexts, `_` is parsed as a placeholder expression.
