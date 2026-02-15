@@ -2,14 +2,14 @@
 
 ## Class Definition
 
-Classes are defined using `class`.
+Classes are defined with `class`.
 
 ```typhon
 class Point {
     let x: int
     let y: int
 
-    def __init__(self, x: int, y: int) {
+    def __init__(x: int, y: int) {
         self.x = x
         self.y = y
     }
@@ -18,7 +18,7 @@ class Point {
 
 ## Self
 
-`self` is a keyword in Typhon. It is NOT passed as the first argument in the method definition signature, but it is available in the body.
+`self` is a Typhon keyword. In non-`static` methods (including `__init__`), explicitly writing `self` in parameter lists is forbidden. `self` is injected automatically and available in the body.
 
 ```typhon
 class C {
@@ -42,7 +42,7 @@ class C {
 
 ## Const Members
 
-`let` members in a class are immutable. They are translated to `Final[T]` in Python.
+`let` members are immutable and translated to `Final[T]` in Python.
 
 ```typhon
 class C {

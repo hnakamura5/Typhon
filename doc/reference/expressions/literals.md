@@ -2,7 +2,7 @@
 
 ## Basic Literals
 
-Basic literals in Typhon are the same as Python:
+Basic literals follow Python:
 
 - **Integers**: `1`, `42`, `-5`
 - **Floats**: `1.0`, `3.14`, `-0.01`
@@ -12,7 +12,7 @@ Basic literals in Typhon are the same as Python:
 
 ### F-Strings
 
-Typhon supports f-strings (formatted string literals) with the same syntax as Python:
+Typhon supports Python-style f-strings:
 
 ```typhon
 let name = "World"
@@ -24,7 +24,7 @@ let y = 20
 print(f"{x} + {y} = {x + y}") # 10 + 20 = 30
 ```
 
-F-strings can contain arbitrary expressions and format specifiers:
+F-strings can contain expressions and format specifiers:
 
 ```typhon
 let pi = 3.14159
@@ -33,7 +33,7 @@ print(f"Pi is approximately {pi:.2f}") # Pi is approximately 3.14
 
 ## Collection Literals
 
-Collection literals in Typhon are the same as Python:
+Collection literals follow Python:
 
 - **Lists**: `[1, 2, 3]`
 - **Tuples**: `(1, "a")`
@@ -42,11 +42,11 @@ Collection literals in Typhon are the same as Python:
 
 ## Function Literals
 
-Function literals (arrow functions) provide a concise syntax for creating anonymous functions. Unlike Python's `lambda`, Typhon's function literals have no restrictions and can contain multiple statements.
+Function literals (arrow functions) provide concise anonymous function syntax. Unlike Python `lambda`, they can contain multiple statements.
 
 ### Single-Expression Form
 
-For simple functions that return a single expression:
+For single-expression functions:
 
 ```typhon
 let add = (x, y) => x + y
@@ -68,7 +68,7 @@ let process = (x) => {
 
 ### With Type Annotations
 
-Function literals support full type annotations:
+Function literals support type annotations:
 
 ```typhon
 let add: (int, int) -> int = (x: int, y: int) -> int => x + y
@@ -81,7 +81,7 @@ let validate = (value: str) -> bool => {
 }
 ```
 
-Function literals have the same capabilities as regular functions defined with `def`, including the ability to capture variables from their enclosing scope.
+Function literals have the same capabilities as `def` functions, including closure capture.
 
 ## Data Record Literals
 
@@ -92,7 +92,7 @@ let record = {|x = 10, y = "20"|}
 print(record.x)
 ```
 
-They are typed as `{|x: int, y: str|}`.
+Their type form is `{|x: int, y: str|}`.
 
 ### Translation
 

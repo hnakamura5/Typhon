@@ -1,10 +1,10 @@
 # Future Plans and Work in Progress
 
-This section outlines features that are planned, currently under development, or have known limitations.
+This document lists planned features and current limitations.
 
 ## Temporal Restrictions
 
-- **Type Inference for Function Literals**: Currently works only when the function body is a single expression.
+- **Function literal type inference**: Currently works only when the body is a single expression.
 - **Error Messages**: The column end of error messages is not yet precise.
 - **Placeholder Type Annotation**: Type annotations for placeholder expressions (`_`) are not supported yet.
 
@@ -14,7 +14,7 @@ This section outlines features that are planned, currently under development, or
 
 ## Compile Time Control
 
-Typhon plans to support `static if` and `static assert` for compile-time code control. These are intended for debugging, testing, versioning, and transportation, *not* for metaprogramming or optimization.
+Typhon plans to support `static if` and `static assert` for compile-time code control. These are intended for debugging, testing, versioning, and portability, *not* for metaprogramming or optimization.
 
 ### Static If
 
@@ -32,7 +32,7 @@ static if (VERSION >= 3.13) {
 static assert("ast_debug" in DEBUG_FLAGS)
 ```
 
-Causes a compile error if the assertion fails.
+Raises a compile-time error if the assertion fails.
 
 ### Compile Time Booleans
 

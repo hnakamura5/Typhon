@@ -1,22 +1,22 @@
 # Architecture Overview
 
-This document provides a concise map of the `src/` layout.
+This document summarizes the `src/` layout.
 
 ## Top-Level under `src/`
 
-- `Typhon/`: main implementation package.
+- `Typhon/`: Main implementation package.
 
 ## `Typhon/` Package Map
 
 - `__main__.py`: CLI entry point (`typhon`).
-- `Driver/`: command orchestration for run/translate/type-check/language-server flows.
-- `Grammar/`: tokenizer/parser/AST definitions and grammar artifacts. Important files are:
+- `Driver/`: Command orchestration for run/translate/type-check/language-server flows.
+- `Grammar/`: Tokenizer/parser/AST definitions and grammar artifacts. Important files include:
   - `typhon.gram`: grammar definition for parser generation.
-  - `typhon_ast.py`: AST node definitions. Extends Python `ast` objects using ad hoc `getattr`/`setattr`.
+  - `typhon_ast.py`: AST node definitions. Extends Python `ast` objects using dynamic attributes.
 - `Transform/`: AST rewrite pipeline (desugaring, safety checks, normalization).
-- `Typing/`: type-check backends and result diagnostics (`pyright`/`pyrefly`). The main type checker is `basedpyright` (called `pyright`).
-- `SourceMap/`: source-to-source mapping between Typhon code and generated Python code, for diagnostics, error reporting, and language server features.
-- `LanguageServer/`: LSP server integration, diagnostics, semantic tokens, and checker clients.
+- `Typing/`: Type-check backends and diagnostics (`basedpyright`/`pyrefly`).
+- `SourceMap/`: Source mapping between Typhon and generated Python for diagnostics and editor features.
+- `LanguageServer/`: LSP integration, diagnostics, semantic tokens, and checker clients.
 
 ## Data Flow (High Level)
 

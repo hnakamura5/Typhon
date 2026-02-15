@@ -1,6 +1,6 @@
 # Types
 
-Typhon is a statically typed language. It supports Python's basic types and extends them with new constructs.
+Typhon is statically typed. It supports Python base types and adds Typhon-specific type syntax.
 
 ## Basic Types
 
@@ -15,7 +15,7 @@ Typhon is a statically typed language. It supports Python's basic types and exte
 
 ### Tuples
 
-Typhon introduces a dedicated syntax for tuple types: `(T1, T2, ...)`.
+Tuple types use `(T1, T2, ...)`.
 
 ```typhon
 let x: (int, str) = (1, "hello")
@@ -23,7 +23,7 @@ let x: (int, str) = (1, "hello")
 
 ### Lists
 
-List types are denoted as `[T]`.
+List types use `[T]`.
 
 ```typhon
 let numbers: [int] = [1, 2, 3]
@@ -31,7 +31,7 @@ let numbers: [int] = [1, 2, 3]
 
 ## Optional Types
 
-Optional types are written as `T?`, which is equivalent to `T | None`.
+Optional types use `T?`, equivalent to `T | None`.
 
 ```typhon
 let maybe_int: int? = None
@@ -39,7 +39,7 @@ let maybe_int: int? = None
 
 ## Function Types
 
-Arrow syntax is used for function types: `(ArgType1, ArgType2) -> ReturnType`.
+Function types use arrow syntax: `(ArgType1, ArgType2) -> ReturnType`.
 
 ```typhon
 let adder: (int, int) -> int = (x, y) => x + y
@@ -47,7 +47,7 @@ let adder: (int, int) -> int = (x, y) => x + y
 
 ### Translation
 
-This is syntactic sugar for `Protocol`.
+This is syntactic sugar over `Protocol`.
 
 ```python
 class MyProtocol(Protocol):
@@ -56,7 +56,7 @@ class MyProtocol(Protocol):
 
 ## Data Record Types
 
-[Data records](./expressions/literals.md#data-record-literals) are anonymous immutable data structures, similar to anonymous dataclasses.
+[Data records](./expressions/literals.md#data-record-literals) are anonymous immutable structures, similar to anonymous dataclasses.
 
 ```typhon
 let point: {|x: int, y: str|} = {|x = 10, y = "20"|}
@@ -64,7 +64,7 @@ let point: {|x: int, y: str|} = {|x = 10, y = "20"|}
 
 ### Translation
 
-This is translated to a `Protocol` of a dataclass.
+This is translated to a dataclass shape expressed as a `Protocol`.
 
 ```python
 @dataclass(frozen=True, repr=False, unsafe_hash=True)

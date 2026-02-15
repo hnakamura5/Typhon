@@ -1,12 +1,12 @@
 # Pipe Operator
 
-The pipe operator `|>` allows you to pass the result of an expression as the first argument to a function.
+The pipe operator `|>` passes the left value as the first argument of the right call.
 
 ```typhon
 x |> f  # Equivalent to f(x)
 ```
 
-It is left-associative and has low precedence.
+It is left-associative with low precedence.
 
 ```typhon
 data |> process |> save
@@ -15,7 +15,7 @@ data |> process |> save
 
 ## Optional Pipe (`?|>`)
 
-The optional pipe operator calls the function only if the left-hand side is not `None`.
+The optional pipe operator evaluates the right side only when the left-hand side is not `None`.
 
 ```typhon
 maybe_val ?|> process

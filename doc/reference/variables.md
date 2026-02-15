@@ -4,11 +4,11 @@ Typhon enforces strict variable declaration and lexical scoping.
 
 ## Declarations
 
-Variables must be declared using `let` or `var`. In Typhon, the left-hand side of a declaration is a **pattern**, not just a variable name. This allows for powerful destructuring and pattern matching capabilities right at the point of declaration.
+Variables must be declared with `let` or `var`. The left-hand side is a **pattern**, not only a name, so destructuring and matching are supported at declaration.
 
 ### Immutable Variables (`let`)
 
-`let` declares an immutable binding. The value cannot be reassigned.
+`let` declares an immutable binding. It cannot be reassigned.
 
 ```typhon
 let x = 10
@@ -26,7 +26,7 @@ y = 20 # OK
 
 ## Pattern Matching in Declarations
 
-Since `let` and `var` accept patterns, you can destructure values immediately. For a full list of supported patterns, see [Patterns](statements/patterns.md).
+Because `let` and `var` accept patterns, you can destructure values directly. For all supported patterns, see [Patterns](statements/patterns.md).
 
 ### Irrefutable Patterns
 
@@ -39,9 +39,11 @@ let {.x, .y} = {|x = 10, y = 20|}
 
 ### Refutable Patterns and `let-else`
 
-Patterns that might fail to match (like literals or specific enum variants) are called **refutable patterns**. When using a refutable pattern in a declaration, you must provide a `else` block to handle the failure case.
+Patterns that may fail to match (for example, literals or specific variants) are **refutable patterns**. When using a refutable pattern in a declaration, you must provide an `else` block.
 
-The code inside the `else` block **must diverge** (e.g., `return`, `raise`, `continue`, `break`), ensuring that the rest of the scope is not entered with uninitialized variables.
+`let-else` binds names into the current scope, so this form does not use header parentheses.
+
+The `else` block **must diverge** (`return`, `raise`, `continue`, or `break`), so the remaining scope cannot run with uninitialized bindings.
 
 ```typhon
 let (1, x) = (1, 100) else {
@@ -60,7 +62,7 @@ If you try to use a refutable pattern without `else`, it is a compile-time error
 
 ## Type Annotations in Patterns
 
-Type annotations can be used in `for`, `with`, and `case` capture patterns.
+Type annotations can be used in capture patterns in `for`, `with`, and `case`.
 
 ```typhon
 for (let x: int in range(10)) { ... }
@@ -70,11 +72,11 @@ match (v) {
 }
 ```
 
-Note: In `match`, the annotation applies to the *result* of the match (the bound variable), it does not affect the matching logic itself (runtime check).
+Note: In `match`, annotations apply to bound variables and do not change runtime matching behavior.
 
-## Builtin symbols
+## Built-in Symbols
 
-Python's built-in symbols are available as global **immutable** symbols.
+Python built-ins are available as global **immutable** symbols.
 
 ```typhon
 print(1)
@@ -86,7 +88,7 @@ print = 1 # Error: Cannot assign to immutable symbol
 
 ## Scoping Rules
 
-Typhon uses standard block scope (lexical scope). Variables declared inside a block `{ ... }` are not visible outside of it.
+Typhon uses lexical block scope. Variables declared inside `{ ... }` are not visible outside the block.
 
 ```typhon
 if (True) {
@@ -111,7 +113,7 @@ print(x) # Prints 1
 
 ### Temporal Dead Zone (TDZ)
 
-In general, variables in Typhon must be declared before they are accessed. There is **no** temporal dead zone in local scopes - you simply cannot reference a variable before it's declared.
+In general, variables must be declared before use. There is **no** temporal dead zone in local scopes: referencing a name before declaration is an error.
 
 ```typhon
 # Error: x is not declared yet
@@ -121,9 +123,9 @@ let x = 10
 
 #### Module Top-Level: Static TDZ for Recursion
 
-The **only** place where Typhon has a Temporal Dead Zone mechanism is at module top-level, to support mutual recursion between function definitions.
+The **only** TDZ-like mechanism is at module top level, to support mutual recursion between function definitions.
 
-At module top-level, functions can reference symbols that are declared later in the module. Such functions are temporarily marked as **DEAD** until all the symbols they reference are defined. This DEAD marking is purely a compile-time mechanism.
+At module top level, functions may reference symbols declared later. Such functions are temporarily marked as **DEAD** until all referenced symbols are defined. This is a compile-time mechanism.
 
 **Rules:**
 
@@ -140,7 +142,7 @@ At module top-level, functions can reference symbols that are declared later in 
    # Now foo is no longer DEAD
    ```
 
-2. **DEAD propagates**: If function A references DEAD function B, then A also becomes DEAD.
+2. **DEAD propagates**: If function `A` references DEAD function `B`, `A` also becomes DEAD.
 
    ```typhon
    def a() { return b() } # DEAD (b is DEAD)
@@ -158,6 +160,6 @@ At module top-level, functions can reference symbols that are declared later in 
    }
    ```
 
-This mechanism enables mutual recursion at module level while preventing premature execution of functions that depend on not-yet-defined symbols.
+This mechanism allows module-level mutual recursion while preventing premature execution.
 
-**Important**: This TDZ mechanism applies **only** to module top-level. In all other scopes (functions, blocks, etc.), variables must simply be declared before use - there is no special handling.
+**Important**: This behavior applies **only** at module top level. In all other scopes, declarations must appear before use.

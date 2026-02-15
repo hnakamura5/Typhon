@@ -2,7 +2,7 @@
 
 ## Try-Except
 
-Handle exceptions using `try`, `except`, and `finally`.
+Exceptions are handled with `try`, `except`, and `finally`.
 
 ```typhon
 try {
@@ -16,7 +16,7 @@ try {
 }
 ```
 
-`else` block is also supported, executed if no exception occurs.
+An `else` block is also supported and runs when no exception occurs.
 
 ## Raise
 

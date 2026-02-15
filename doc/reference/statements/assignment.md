@@ -1,8 +1,8 @@
 # Assignment
 
-Assignment binds a value to a variable. In Typhon, variables must be declared with `let` or `var` before assignment, or assigned at declaration.
+Assignment binds a value to an existing mutable target. Declarations use `let` or `var`.
 
-The name declared by `let` is immutable, cannot be assigned.
+Bindings declared by `let` are immutable and cannot be reassigned.
 
 ## Simple Assignment
 

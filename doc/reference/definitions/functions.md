@@ -2,7 +2,7 @@
 
 ## Function Definition
 
-Functions are defined using `def`.
+Functions are defined with `def`.
 
 ```typhon
 def add(x: int, y: int) -> int {
@@ -12,7 +12,7 @@ def add(x: int, y: int) -> int {
 
 ## Static Functions
 
-Functions can be marked as `static` (e.g., in classes).
+Functions can be marked `static` (for example, in classes).
 
 ```typhon
 class Math {
@@ -22,7 +22,7 @@ class Math {
 
 ## Async Functions
 
-Async functions are supported with `async def`.
+Async functions use `async def`.
 
 ```typhon
 async def fetch_data() { ... }
@@ -44,7 +44,7 @@ let typed_add = (x: int, y: int) -> int => x + y
 - **Varargs**: `*args`
 - **Kwargs**: `**kwargs`
 
-Parameters are constant by default. Shadow them to modify.
+Parameters are immutable by default. Shadow them if mutation is needed.
 
 ```typhon
 def f(x) {

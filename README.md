@@ -1,6 +1,6 @@
 # Typhon
 
-Typhon is a modernized syntax sugar for Python, designed to improve developer experience with features like static typing, brace-based scoping, and expressive functional programming capabilities.
+Typhon is a Python-compatible language with modern syntax: brace-based blocks, static type checking, and expression-oriented features.
 
 - GitHub repository: [Typhon](https://github.com/hnakamura5/Typhon)
 - PyPI package: [Typhon-Language](https://pypi.org/project/Typhon-Language/)
@@ -49,9 +49,9 @@ Typhon is built on three core pillars:
 2. **Expressiveness**: Expression-oriented design with functional programming features. Control comprehension forms for `if`, `match`, `try`, and so on enable concise, value-returning expressions. Function literals, placeholders and pipe operators facilitate clean and readable code.
 3. **Python Interoperability**: Typhon compiles directly to Python, allowing you to use the vast ecosystem of Python libraries seamlessly while enjoying a modern syntax.
 
-### How it looks like
+### Sample code
 
-You can see small code snippets in the test directory: [Typhon Tests](test/Execute/RunFileTest/).
+See more examples in [Typhon Tests](test/Execute/RunFileTest/).
 
 
 ## Documentation
@@ -70,30 +70,31 @@ For a complete guide to the language, please visit the **[Typhon Reference Manua
 
 ## Syntax Changes from Python
 
-Typhon retains most of Python's semantics but introduces significant syntax changes.
+Typhon keeps Python semantics where possible, but changes syntax and some safety rules.
 
 ### Main Changes
 
-- **Brace Scoping**: Typhon uses `{ ... }` for blocks, replacing indentation-based scoping. Both `;` and line breaks can also act as delimiters. See [Lexical Structure](doc/reference/lexical_structure.md) for more details.
+- **Brace Scoping**: Typhon uses `{ ... }` for blocks instead of indentation. Both `;` and line breaks can terminate statements. See [Lexical Structure](doc/reference/lexical_structure.md).
 - **Static Typing**: Type checking is enforced at compile time. Currently powered by [basedpyright](https://docs.basedpyright.com/latest/) type checker.
 - **Declarations**: Variables must be declared with `let` (immutable) or `var` (mutable). See [Variables](doc/reference/variables.md).
 
 ### Syntax Extensions
 
 - **Null Safety**: `?.`, `??`, `?()`, `?[]` operators. See [Null Safety](doc/reference/expressions/null_safety.md).
-- **Function literals**: Unrestricted function literals with `(x) => { return x + 1 }` syntax, with totally the same capability as normal functions. See [Function literals](doc/reference/expressions/literals.md#function-literals).
+- **Function literals**: Arrow functions such as `(x) => { return x + 1 }` have the same capability as regular functions. See [Function literals](doc/reference/expressions/literals.md#function-literals).
 - **Pipe Operator**: `x |> f` for function chaining. See [Pipe Operator](doc/reference/expressions/pipe_operator.md).
 - **Placeholders**: `_` for concise anonymous functions (e.g., `_ + 1`). See [Placeholders](doc/reference/expressions/placeholders.md).
-- **Control Comprehensions**: Control statements as expressions (e.g., `(if (c) x else y)`). All `if/while/for/let/try/with/match` are supported as comprehension. See [Comprehensions](doc/reference/expressions/comprehensions.md).
+- **Control Comprehensions**: Control forms as expressions (for example, `(if (c) x else y)`). `if/while/for/let/try/with/match` are supported. See [Comprehensions](doc/reference/expressions/comprehensions.md).
 - **Pattern Matching**: Enhanced `match`, `if-let`, and `let-else` statements. See [Control Flow](doc/reference/statements/control_flow.md).
-- **`self` Keyword**: `self` is a keyword and is not explicitly declared in method signatures. See [Classes](doc/reference/definitions/classes.md).
-- **Data Records**: Anonymous immutable structs `{|x=1|}`. See [Types](doc/reference/types.md).
+- **`self` Keyword**: In non-`static` methods, `self` is implicit and explicit `self` parameters are forbidden (including `__init__`). See [Classes](doc/reference/definitions/classes.md).
+- **Data Records**: Anonymous immutable records such as `{|x = 1|}`. See [Types](doc/reference/types.md).
 - **Block Comments**: `#( ... )#` allows nested comments.
 
 ### Detailed Design Changes
 
 - **Logical Operators**: `&&`, `||`, `!` replace `and`, `or`, `not` (though Python keywords are still reserved).
 - **Const Parameters**: Function parameters are immutable by default.
+- **Header Parentheses Convention**: Forms that introduce a braced inner scope use parenthesized headers (for example, `with (...) { ... }`), while forms that declare into the current scope omit them (for example, inline `with let ...` and `let-else`).
 - **Line Breaks**: Stricter rules for line continuations. See [Lexical Structure](doc/reference/lexical_structure.md).
 
 ### Syntax Restrictions
@@ -109,9 +110,9 @@ Some Python features are removed to enforce safety and clarity. See [Removed Fea
 
 Typhon can be run directly or translated to Python.
 
-`.typh` files are Typhon source files. In directory mode, all `.typh` files are processed.
+`.typh` files are Typhon source files. In directory mode, Typhon processes all `.typh` files.
 
-Note Typhon uses `.typhon` directory in source paths to place translated Python files and caches.
+Typhon uses a `.typhon` directory under source paths for translated Python and caches. At the same time, `.typhon-server` is used for language server temporal data.
 
 ### Run
 

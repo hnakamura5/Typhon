@@ -1,6 +1,6 @@
 # Placeholders
 
-The underscore `_` can be used as a placeholder to create anonymous functions concisely.
+The underscore `_` can act as a placeholder to build anonymous functions concisely.
 
 ```typhon
 let add_one = _ + 1
@@ -9,28 +9,28 @@ let add_one = _ + 1
 
 ## Examples
 
-- The expression containing `_` becomes a function.
+- An expression containing `_` becomes a function.
 
 ```typhon
 let add1 = _ + 1
 # Equivalent to: (x) => x + 1
 ```
 
-- Multiple `_` placeholders create a function with multiple arguments, assigned from left to right.
+- Multiple `_` placeholders create a function with multiple parameters, assigned left to right.
 
 ```typhon
 let add = _ + _
 # Equivalent to: (x, y) => x + y
 ```
 
-- Sole `_` is not converted to function.
+- A standalone `_` is not converted into a function.
 
 ```typhon
 let x = _
 # Syntax error
 ```
 
-- Boundaries: The function scope is determined by the innermost "boundary" (function call, pipe, or explicit lambda).
+- Boundaries: Function scope is determined by the innermost boundary (function call, pipe, or function literal).
 
 ```typhon
 f(_ + 1)      # f((x) => x + 1)
@@ -40,7 +40,7 @@ v |> f(_)     # v |> ((x) => f(x))
 
 ## Rules in Detail
 
-The smallest expression containing a placeholder `_` (but not consisting solely of `_`) is converted into an anonymous function. The scope of this function is determined by the innermost **boundary**, defined as follows:
+The smallest expression containing `_` (but not only `_`) is converted into an anonymous function. The function scope is determined by the innermost **boundary**:
 
 - **Function Calls:** Both the callee and the arguments act as boundaries.
   - Example: `f(_ + 1)` becomes `f((x) => x + 1)`.

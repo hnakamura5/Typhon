@@ -1,6 +1,6 @@
 # Definitions
 
-Top-level definitions in a Typhon program.
+Top-level definition forms in Typhon.
 
 - [Functions](functions.md): Reusable code blocks.
 - [Classes](classes.md): Blueprints for objects.

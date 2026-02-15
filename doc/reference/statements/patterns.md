@@ -4,26 +4,26 @@ Typhon supports powerful pattern matching in various contexts, including `let`/`
 
 ## Tuple Patterns
 
-Tuple patterns match tuples specifically. They are distinguished from general sequence patterns by using parentheses `()`.
+Tuple patterns match tuples specifically. They use parentheses `()`.
 
 ```typhon
 let (x, y) = (1, 2)
 ```
 
-This pattern matches a tuple of exactly two elements. It will **not** match a list or other sequences, unlike Python's behavior where tuples and lists are often interchangeable in patterns.
+This pattern matches a tuple of exactly two elements. It does **not** match lists or other sequences.
 
-Note: In a `match` statement, `case (x, y)` is equivalent to `case ((x, y))`. The parentheses around the pattern in `case` are part of the syntax, but if the pattern itself is a tuple, the extra parentheses are optional.
+Note: In `match`, `case (x, y)` is equivalent to `case ((x, y))`. Outer parentheses are syntax; tuple parentheses belong to the pattern.
 
 ## Sequence Patterns
 
-Sequence patterns match any sequence (lists, tuples, etc.) and use square brackets `[]`.
+Sequence patterns use square brackets `[]` and match sequences (lists, tuples, etc.).
 
 ```typhon
 let [x, y] = [1, 2]
 let [head, *tail] = (1, 2, 3) # Matches a tuple too
 ```
 
-**Note on Matching Order:** Since sequence patterns `[...]` match both lists and tuples, you must be careful with the order of patterns in a `match` statement if you want to distinguish them.
+**Note on matching order:** Because `[...]` can match both lists and tuples, order matters when you need to distinguish them in `match`.
 
 ```typhon
 match ((1, 2)) {
@@ -40,7 +40,7 @@ match ((1, 2)) {
 
 ## Attribute Patterns
 
-Attribute patterns allow you to match against the attributes of an object. This is similar to class patterns but focuses on the structure (attributes) rather than the class type itself. The syntax uses curly braces with dot-prefixed keys `{.key}`.
+Attribute patterns match object attributes by structure, not class type. Syntax uses dot-prefixed keys in braces (`{.key}`).
 
 ```typhon
 # Simple capture
@@ -50,18 +50,16 @@ let {.x, .y} = point
 let {.x = a: int, .y = b: str} = obj
 ```
 
-In the second example:
-- The attribute `x` of `obj` is matched and bound to variable `a`, which is expected to be an `int`.
-- The attribute `y` of `obj` is matched and bound to variable `b`, which is expected to be a `str`.
+In the second example, `obj.x` is captured as `a: int` and `obj.y` as `b: str`.
 
 ## Capture Patterns & Type Annotations
 
-You can bind values to variables using capture patterns. Typhon allows you to add type annotations to **any** captured variable in a pattern, modifying standard Python.
+Capture patterns bind values to variables. Typhon allows type annotations on **any** captured variable in a pattern.
 
 ```typhon
 match (val) {
     case (x: int, y: str) { ... }
-    case [head: int, *tail: list[int]] { ... }
+    case [head: int, *tail: [int]] { ... }
 }
 ```
 

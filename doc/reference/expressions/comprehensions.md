@@ -1,6 +1,6 @@
 # Control Comprehensions
 
-Typhon treats control flow statements as expressions when wrapped in parentheses.
+Typhon treats control-flow forms as expressions when wrapped in parentheses.
 
 ## If Comprehension
 
@@ -16,7 +16,7 @@ If `else` is omitted and the condition is false, the result is `None`.
 let res = (match (val) case (1) "one" case (x, y) x + y)
 ```
 
-Default case is optional (result is `None` if no match).
+The default case is optional (result is `None` if no case matches).
 
 ## Try Comprehension
 
@@ -24,7 +24,7 @@ Default case is optional (result is `None` if no match).
 let val = (try x / y except (ZeroDivisionError) 0)
 ```
 
-Returns `None` if an exception occurs and is not caught by the expression's handler.
+Returns `None` if an exception occurs and is not handled in the expression.
 
 ## Let Comprehension
 
@@ -32,7 +32,7 @@ Returns `None` if an exception occurs and is not caught by the expression's hand
 let y = (let x = 1; x + 1)
 ```
 
-Declaration and the expression are separated by `;`. The last expression is the value. `var` is not allowed in block expressions.
+The declaration and expression are separated by `;`. The last expression is the value. `var` is not allowed in block expressions.
 
 ## With Comprehension
 
@@ -42,7 +42,7 @@ let content = (with (let f = open("file.txt")) f.read())
 
 ## Generator Comprehensions
 
-Standard Python comprehensions are supported, but `yield` keyword is used to be explicit about the yielded value.
+Python-style comprehensions are supported, but Typhon uses `yield` explicitly for produced values.
 
 ```typhon
 [for (i in range(10)) if (i % 2 == 0) yield i * i]
@@ -54,4 +54,4 @@ Typhon also allows using `while` in comprehensions.
 (while (cond) yield x)
 ```
 
-All the list/dict/set/generator comprehension forms from Python are supported.
+List/dict/set/generator comprehension forms are supported.

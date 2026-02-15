@@ -1,6 +1,6 @@
 # Typhon Reference Manual
 
-Welcome to the Typhon Reference Manual. Typhon is a modernized syntax sugar for Python, designed to improve developer experience with features like static typing, brace-based scoping, and enhanced functional programming capabilities.
+Welcome to the Typhon Reference Manual. Typhon is a Python-compatible language with modern syntax, static type checking, and expression-oriented features.
 
 ## Table of Contents
 

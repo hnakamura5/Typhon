@@ -2,7 +2,7 @@
 
 ## If Statement
 
-Standard `if`, `elif`, `else` structure. Parentheses around the condition are required.
+Standard `if`/`elif`/`else` structure. Parentheses around conditions are required.
 
 ```typhon
 if (x > 0) {
@@ -16,7 +16,7 @@ if (x > 0) {
 
 ## If-Let Statement
 
-`if-let` combines a check for `None` (or pattern matching) with a conditional block.
+`if-let` combines pattern binding with a conditional block.
 
 ```typhon
 if (let x = maybe_val()) {
@@ -26,7 +26,7 @@ if (let x = maybe_val()) {
 }
 ```
 
-It supports additional conditions and pattern matching:
+It also supports additional conditions and patterns:
 
 ```typhon
 if (let x = f(); x > 0) { ... }
@@ -35,19 +35,21 @@ if (let [1, x] = get_list()) { ... }
 
 ## Let-Else Statement
 
-`let-else` allows for refutable pattern matching where the failure case must diverge (exit the scope). This is useful for flattening nested `if-let` structures (guard clauses).
+`let-else` supports refutable pattern matching where the failure case must diverge (exit the scope). This is useful for guard-style code.
+
+`let-else` binds variables in the current scope, so it uses no header parentheses.
 
 ```typhon
-let Some(x) = maybe_val else {
+let [head, *tail] = values else {
     return # Must return, break, continue, or raise
 }
-# x is available here
-print(x)
+# head and tail are available here
+print(head)
 ```
 
 ## Match Statement
 
-Pattern matching with `match` and `case`. See [Patterns](patterns.md) for details on available patterns.
+Pattern matching uses `match` and `case`. See [Patterns](patterns.md) for available pattern forms.
 
 ```typhon
 match (val) {

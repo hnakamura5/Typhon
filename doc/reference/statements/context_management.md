@@ -1,8 +1,13 @@
 # Context Management
 
+Typhon uses this syntax convention:
+
+- Use parentheses when the header binds names for a new braced inner scope.
+- Omit parentheses when binding into the current scope.
+
 ## With Statement
 
-Manage resources using `with`.
+Use `with` for resource management.
 
 ```typhon
 with (let f = open("file.txt")) {
@@ -12,7 +17,7 @@ with (let f = open("file.txt")) {
 
 ## Inline With
 
-Typhon supports an inline `with` statement that applies to the rest of the current scope.
+Typhon also supports inline `with`, which applies to the rest of the current scope.
 
 ```typhon
 if (True) {
@@ -20,3 +25,5 @@ if (True) {
     f.read()
 } # f is closed here
 ```
+
+`with (let ...) { ... }` binds for the braced block. `with let ...` binds in the current scope.

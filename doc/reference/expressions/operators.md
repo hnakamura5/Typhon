@@ -2,7 +2,7 @@
 
 ## Logical Operators
 
-Typhon uses C-style logical operators, though the Python keywords are still reserved.
+Typhon uses C-style logical operators, while Python keyword forms remain reserved.
 
 - `&&`: Logical AND
 - `||`: Logical OR
@@ -14,12 +14,11 @@ if (x > 0 && y < 10) { ... }
 
 ## Arithmetic Operators
 
-Standard arithmetic operators are supported: `+`, `-`, `*`, `/`, `//` (floor div), `%`, `**` (power).
+Standard arithmetic operators are supported: `+`, `-`, `*`, `/`, `//`, `%`, `**`.
 
 ## Comparison Operators
 
-Standard comparison operators: `==`, `!=`, `<`, `>`, `<=`, `>=`.
-Also `is`, `is not`, `in`, `not in`.
+Standard comparison operators are supported: `==`, `!=`, `<`, `>`, `<=`, `>=`, `is`, `is not`, `in`, `not in`.
 
 ## Assignment Operators
 

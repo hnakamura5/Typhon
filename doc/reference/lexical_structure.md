@@ -2,7 +2,7 @@
 
 ## Comments
 
-Typhon also supports block comments that can be nested. This is useful for commenting out large blocks of code that may already contain comments.
+Typhon supports nested block comments. This is useful when commenting out code that already contains comments.
 
 ```typhon
 #( This is a block comment )#
@@ -22,17 +22,17 @@ Typhon also supports block comments that can be nested. This is useful for comme
   }
 ```
 
-Comments act as whitespace.
+Comments are treated as whitespace.
 
 ## Identifiers
 
-Identifiers follow standard rules but with a few Typhon-specific restrictions:
+Identifiers mostly follow Python rules, with Typhon-specific restrictions:
 
-- Identifiers starting with `_typh_` are reserved for internal use.
+- Names starting with `_typh_` are reserved for internal use.
 
 ## Keywords
 
-Typhon retains most Python keywords but adds and removes some.
+Typhon keeps most Python keywords, but adds and forbids some forms.
 
 ### New/Changed Keywords
 
@@ -50,15 +50,15 @@ Typhon retains most Python keywords but adds and removes some.
 
 ## Delimiters
 
-Typhon uses a mix of braces and significant whitespace, but with stricter rules than Python.
+Typhon uses braces and line breaks, with stricter continuation rules than Python.
 
-- **Statement Termination**: Statements are terminated by a semicolon `;` or a newline.
+- **Statement termination**: A statement ends at `;` or a newline.
 - **Blocks**: Blocks are delimited by braces `{ ... }`.
-- **Line Breaks**: Line breaks act as delimiters (end of statement) unless the statement is clearly incomplete.
+- **Line breaks**: A line break ends a statement unless continuation is explicit.
 
 ### Line Break Rules
 
-A line break is treated as **whitespace** (continuation) if it occurs:
+A line break is treated as **whitespace** (continuation) when it appears:
 
 1. **Just after**:
    - Operators (e.g., `+`, `-`, `.`, `=`, `?`, `:`, `=>`, `->`, `,`).
@@ -74,7 +74,7 @@ A line break is treated as **whitespace** (continuation) if it occurs:
 
 In all other cases, a line break is treated as a **semicolon** (statement terminator).
 
-Note especially that line breaks just after return like keywords (`return`, `yield`, `raise`, `break`, `continue`) are **delimiter**. Not treated as whitespace.
+Line breaks immediately after scope-exiting keywords (`return`, `yield`, `raise`, `break`, `continue`) are always **delimiters**, not continuation.
 
 ```typhon
 let x = 1
@@ -93,7 +93,7 @@ def f() {
 
 ### Dead Code
 
-The dead codes after scope exiting statement (`return`, `raise`, `break`, `continue`) are always syntax error.
+Dead code after scope-exiting statements (`return`, `raise`, `break`, `continue`) is always a syntax error.
 
 ```typhon
 return
