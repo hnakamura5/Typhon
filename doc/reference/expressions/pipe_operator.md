@@ -8,11 +8,19 @@ x |> f  # Equivalent to f(x)
 
 It is left-associative.
 
-Note: precedence details relative to other operators are currently pending.
+`|>` and `?|>` have low precedence (weaker than `??`, `||`, `&&`, comparisons, and arithmetic operators).
 
 ```typhon
 data |> process |> save
 # Equivalent to save(process(data))
+```
+
+```typhon
+x + 1 |> f
+# Equivalent to f(x + 1)
+
+x ?? y |> f
+# Equivalent to f(x ?? y)
 ```
 
 ## Optional Pipe (`?|>`)
@@ -23,3 +31,5 @@ The optional pipe operator evaluates the right side only when the left-hand side
 maybe_val ?|> process
 # Equivalent to: process(maybe_val) if maybe_val is not None else None
 ```
+
+`?|>` is also left-associative and uses the same precedence as `|>`.

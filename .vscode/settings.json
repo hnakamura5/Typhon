@@ -16,5 +16,11 @@
   "basedpyright.analysis.diagnosticMode": "workspace",
   "basedpyright.disableLanguageServices": false,
   "basedpyright.analysis.logLevel": "Trace",
-  "python.pyrefly.displayTypeErrors": "force-on"
+  "python.pyrefly.displayTypeErrors": "force-on",
+  "chat.tools.terminal.autoApprove": {
+    "/^cd /workspaces/Typhon && uv run -m pytest test/Grammar/Parser/exp_pipe_operator\\.py$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
 }

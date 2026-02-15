@@ -23,10 +23,9 @@ From stronger to weaker (excerpt):
 - `&&`
 - `||`
 - `??` (weaker than `||`)
+- `|>`, `?|>` (weaker than `??`; left-associative)
 
 For `?.`, `?[]`, and `?()`, precedence is the same as the non-optional forms (`.`, `[]`, `()`).
-
-Precedence details for `|>`/`?|>` are currently pending.
 
 ## Arithmetic Operators
 
