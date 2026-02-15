@@ -47,5 +47,6 @@ Welcome to the Typhon Reference Manual. Typhon is a modernized syntax sugar for 
 
 ### Other
 
+- [Architecture](architecture.md)
 - [Removed Features](removed_features.md)
 - [Future Plans](future_plans.md)

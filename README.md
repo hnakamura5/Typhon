@@ -51,7 +51,7 @@ Typhon is built on three core pillars:
 
 ### How it looks like
 
-You can see small code snippets in the test directory: [Typhon Tests](test/execute/RunFileTest/).
+You can see small code snippets in the test directory: [Typhon Tests](test/Execute/RunFileTest/).
 
 
 ## Documentation
@@ -81,12 +81,12 @@ Typhon retains most of Python's semantics but introduces significant syntax chan
 ### Syntax Extensions
 
 - **Null Safety**: `?.`, `??`, `?()`, `?[]` operators. See [Null Safety](doc/reference/expressions/null_safety.md).
-- **Function literals**: Unrestricted function literals with `(x) => { return x + 1 }` syntax, with totally the same capability as normal functions. See[Function literals](doc/reference/expressions/literals.md#function-literals).
+- **Function literals**: Unrestricted function literals with `(x) => { return x + 1 }` syntax, with totally the same capability as normal functions. See [Function literals](doc/reference/expressions/literals.md#function-literals).
 - **Pipe Operator**: `x |> f` for function chaining. See [Pipe Operator](doc/reference/expressions/pipe_operator.md).
 - **Placeholders**: `_` for concise anonymous functions (e.g., `_ + 1`). See [Placeholders](doc/reference/expressions/placeholders.md).
 - **Control Comprehensions**: Control statements as expressions (e.g., `(if (c) x else y)`). All `if/while/for/let/try/with/match` are supported as comprehension. See [Comprehensions](doc/reference/expressions/comprehensions.md).
 - **Pattern Matching**: Enhanced `match`, `if-let`, and `let-else` statements. See [Control Flow](doc/reference/statements/control_flow.md).
-- **`self` Keyword**: `self` is a keyword and is not explicitly declared in method signatures. See [Classes](doc/reference/items/classes.md).
+- **`self` Keyword**: `self` is a keyword and is not explicitly declared in method signatures. See [Classes](doc/reference/definitions/classes.md).
 - **Data Records**: Anonymous immutable structs `{|x=1|}`. See [Types](doc/reference/types.md).
 - **Block Comments**: `#( ... )#` allows nested comments.
 
@@ -163,3 +163,8 @@ Tool-specific entry files refers the shared files:
 
 - [.github/copilot-instructions.md](.github/copilot-instructions.md)
 - [CLAUDE.md](CLAUDE.md)
+
+Repository policy highlights:
+
+- Use `uv run -m ...` as the default script execution style.
+- Keep documentation concise, practical, and example-focused rather than long or decorative.
