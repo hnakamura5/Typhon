@@ -1,9 +1,9 @@
 import asyncio
-from src.Typhon.LanguageServer.client.pyright import (
+from Typhon.LanguageServer.client.pyright import (
     create_pyright_client,
     start_pyright_client,
 )
-from src.Typhon.LanguageServer.client.pyrefly import (
+from Typhon.LanguageServer.client.pyrefly import (
     create_pyrefly_client,
     start_pyrefly_client,
 )

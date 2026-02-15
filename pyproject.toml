@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "Typhon-Language"
 version = "0.1.4"
@@ -17,3 +21,10 @@ dependencies = [
 
 [project.scripts]
 typhon="Typhon.__main__:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["Typhon*"]

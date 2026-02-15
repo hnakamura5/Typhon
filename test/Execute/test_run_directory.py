@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from src.Typhon.Driver.debugging import debug_print, set_debug_mode
-from src.Typhon.Driver.run import run_directory
+from Typhon.Driver.debugging import debug_print, set_debug_mode
+from Typhon.Driver.run import run_directory
 
 from .file_check_util import assert_file_stderr, assert_file_stdout
 

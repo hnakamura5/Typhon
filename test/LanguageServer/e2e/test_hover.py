@@ -4,7 +4,7 @@ from typing import cast
 from lsprotocol import types
 from pygls.lsp.client import LanguageClient
 
-from src.Typhon.LanguageServer.utils import path_to_uri
+from Typhon.LanguageServer.utils import path_to_uri
 from .utils import (
     run_file_dir,
     semtok_file,

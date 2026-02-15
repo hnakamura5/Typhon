@@ -5,7 +5,7 @@ from ..assertion_utils import (
     assert_typh_code_match_unparse,
     with_parser_verbose,
 )
-from src.Typhon.Driver.debugging import set_debug_mode
+from Typhon.Driver.debugging import set_debug_mode
 
 
 record_literal_code = """

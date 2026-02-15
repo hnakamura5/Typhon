@@ -3,7 +3,7 @@ from ..assertion_utils import (
     assert_parse,
     TokenizerAsserter,
 )
-from src.Typhon.Grammar.typhon_ast import (
+from Typhon.Grammar.typhon_ast import (
     is_record_literal,
 )
 from tokenize import NAME, OP, NEWLINE, ENDMARKER, NUMBER, STRING

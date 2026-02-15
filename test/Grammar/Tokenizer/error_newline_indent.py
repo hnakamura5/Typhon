@@ -19,7 +19,7 @@ from tokenize import (
     FSTRING_MIDDLE,
     FSTRING_END,
 )
-from src.Typhon.Driver.debugging import set_debug_verbose
+from Typhon.Driver.debugging import set_debug_verbose
 
 # This file test the cases that becomes syntax error (TokenError) in Python's original tokenizer
 

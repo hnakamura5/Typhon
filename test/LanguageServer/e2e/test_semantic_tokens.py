@@ -3,8 +3,8 @@ from lsprotocol import types
 from pygls.lsp.client import LanguageClient
 from pathlib import Path
 
-from src.Typhon.Driver.debugging import debug_file_write, debug_verbose_print
-from src.Typhon.LanguageServer.utils import path_to_uri
+from Typhon.Driver.debugging import debug_file_write, debug_verbose_print
+from Typhon.LanguageServer.utils import path_to_uri
 from .utils import (
     run_file_dir,
     semtok_file,
@@ -12,7 +12,7 @@ from .utils import (
     start_initialize_open_typhon_connection_client,
     ensure_exit,
 )
-from src.Typhon.LanguageServer.semantic_tokens import (
+from Typhon.LanguageServer.semantic_tokens import (
     semantic_legend,
     SemanticToken,
     decode_semantic_tokens,

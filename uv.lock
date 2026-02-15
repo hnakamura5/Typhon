@@ -235,7 +235,7 @@ wheels = [
 [[package]]
 name = "typhon-language"
 version = "0.1.4"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "basedpyright" },
     { name = "fire" },

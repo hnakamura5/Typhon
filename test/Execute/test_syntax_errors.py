@@ -1,10 +1,10 @@
 from pathlib import Path
 import pytest
 
-from src.Typhon.Driver.debugging import debug_print
-from src.Typhon.Driver.translate import translate_file
-from src.Typhon.Utils.path import prepare_default_output_file
-from src.Typhon.Grammar.syntax_errors import diag_errors
+from Typhon.Driver.debugging import debug_print
+from Typhon.Driver.translate import translate_file
+from Typhon.Utils.path import prepare_default_output_file
+from Typhon.Grammar.syntax_errors import diag_errors
 
 from .file_check_util import assert_file_stderr
 

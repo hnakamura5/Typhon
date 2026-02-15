@@ -56,18 +56,17 @@ def _type_check(source_file: str) -> bool:
 def install_editable_package():
     output = subprocess.run(
         [
-            "uv",
+            sys.executable,
+            "-m",
             "pip",
             "install",
             "-e",
             f"{get_project_root()}/.",
         ],
+        check=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-    if output.returncode != 0:
-        print("Failed to install editable package:", output.stderr.decode())
-        return False
     print(output.stdout.decode())
     print(output.stderr.decode())
 

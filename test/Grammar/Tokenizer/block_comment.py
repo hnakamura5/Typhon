@@ -16,7 +16,7 @@ from tokenize import (
     FSTRING_MIDDLE,
     FSTRING_END,
 )
-from src.Typhon.Driver.debugging import set_debug_verbose
+from Typhon.Driver.debugging import set_debug_verbose
 
 block_comment_code = """
 let x = 10 #(comment in line)#

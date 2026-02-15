@@ -1,5 +1,5 @@
 import ast
-from src.Typhon.Transform._utils.jump_away import is_body_jump_away
+from Typhon.Transform._utils.jump_away import is_body_jump_away
 from ..assertion_utils import get_code_source_ast, assert_ast_type
 from typing import Any
 

@@ -5,7 +5,7 @@ from ..assertion_utils import (
     assert_transform,
     AllTokenAsserter,
 )
-from src.Typhon.Grammar.typhon_ast import (
+from Typhon.Grammar.typhon_ast import (
     OPTIONAL_QUESTION,
     FORCE_UNWRAP,
     is_optional,

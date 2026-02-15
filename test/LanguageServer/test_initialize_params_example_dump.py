@@ -1,5 +1,5 @@
 from .initialize_params_example import initialize_params_example, path_encode_colon
-from src.Typhon.Driver.debugging import get_project_root
+from Typhon.Driver.debugging import get_project_root
 
 sample_dir = get_project_root() / "test" / "Execute" / "RunFileTest"
 

@@ -1,8 +1,8 @@
 from pathlib import Path
 import pytest
 
-from src.Typhon.Driver.debugging import debug_print
-from src.Typhon.Driver.run import run_file
+from Typhon.Driver.debugging import debug_print
+from Typhon.Driver.run import run_file
 
 from .file_check_util import assert_file_stderr, assert_file_stdout
 

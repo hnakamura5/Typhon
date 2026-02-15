@@ -6,8 +6,8 @@ from ..assertion_utils import (
     set_parser_verbose,
     with_parser_verbose,
 )
-from src.Typhon.Grammar.typhon_ast import OPTIONAL_QUESTION, FORCE_UNWRAP
-from src.Typhon.Driver.debugging import set_debug_verbose
+from Typhon.Grammar.typhon_ast import OPTIONAL_QUESTION, FORCE_UNWRAP
+from Typhon.Driver.debugging import set_debug_verbose
 from tokenize import (
     NAME,
     OP,

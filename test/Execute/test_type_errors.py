@@ -1,11 +1,11 @@
 from pathlib import Path
 import pytest
 
-from src.Typhon.Driver.debugging import debug_print
-from src.Typhon.Driver.translate import translate_file
-from src.Typhon.Driver.type_check import run_type_check
-from src.Typhon.Utils.path import prepare_default_output_file
-from src.Typhon.Grammar.syntax_errors import diag_errors
+from Typhon.Driver.debugging import debug_print
+from Typhon.Driver.translate import translate_file
+from Typhon.Driver.type_check import run_type_check
+from Typhon.Utils.path import prepare_default_output_file
+from Typhon.Grammar.syntax_errors import diag_errors
 
 
 TYPE_ERROR_TESTS = sorted((Path(__file__).parent / "TypeErrorTest").glob("*.typh"))

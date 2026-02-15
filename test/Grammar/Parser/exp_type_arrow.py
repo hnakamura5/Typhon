@@ -1,4 +1,4 @@
-from src.Typhon.Driver.debugging import set_debug_verbose
+from Typhon.Driver.debugging import set_debug_verbose
 from ..assertion_utils import (
     assert_parse,
     show_token,

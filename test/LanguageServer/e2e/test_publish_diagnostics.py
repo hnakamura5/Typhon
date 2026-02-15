@@ -3,8 +3,8 @@ from typing import Sequence
 from lsprotocol import types
 from pygls.lsp.client import LanguageClient
 
-from src.Typhon.Driver.debugging import debug_file_write_verbose, debug_verbose_print
-from src.Typhon.LanguageServer.utils import canonicalize_uri, path_to_uri
+from Typhon.Driver.debugging import debug_file_write_verbose, debug_verbose_print
+from Typhon.LanguageServer.utils import canonicalize_uri, path_to_uri
 from .utils import (
     EventHandlerAssertTunnel,
     diag_file,
