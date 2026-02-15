@@ -22,7 +22,7 @@ from ..Driver.debugging import (
     debug_file_write_verbose,
     is_debug_mode,
 )
-from ..Driver.utils import (
+from ..Utils.path import (
     output_dir_for_server_workspace,
     default_server_output_dir,
     mkdir_and_setup_init_py,

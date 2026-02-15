@@ -3,7 +3,7 @@ from enum import Enum
 from ..SourceMap.datatype import Range
 from ..SourceMap import SourceMap
 from pathlib import Path
-from ..Driver.utils import canonicalize_path
+from ..Utils.path import canonicalize_path
 from ..Driver.debugging import debug_print
 from ..Driver.diagnostic import diag_error_file_position, positioned_source_code
 

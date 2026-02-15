@@ -17,10 +17,10 @@ from ..Grammar.typhon_ast import (
     is_pattern_tuple,
 )
 from .visitor import TyphonASTVisitor, TyphonASTTransformer, flat_append
-from .utils.imports import (
+from ._utils.imports import (
     get_insert_point_for_class,
 )
-from .utils.make_class import (
+from ._utils.make_class import (
     make_protocol_definition,
 )
 

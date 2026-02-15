@@ -5,7 +5,7 @@ from lsprotocol import types
 from pygls.lsp.client import LanguageClient
 from pathlib import Path
 from src.Typhon.LanguageServer.utils import path_to_uri
-from src.Typhon.Driver.utils import get_project_root
+from src.Typhon.Utils.path import get_project_root
 from src.Typhon.Driver.debugging import debug_file_write, debug_verbose_print
 
 from ..initialize_params_example import initialize_params_example

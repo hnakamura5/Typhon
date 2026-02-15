@@ -17,6 +17,7 @@ This document summarizes the `src/` layout.
 - `Typing/`: Type-check backends and diagnostics (`basedpyright`/`pyrefly`).
 - `SourceMap/`: Source mapping between Typhon and generated Python for diagnostics and editor features.
 - `LanguageServer/`: LSP integration, diagnostics, semantic tokens, and checker clients.
+- `Utils/`: Cross-directory shared public utility APIs (for example, path-related helpers).
 
 ## Data Flow (High Level)
 

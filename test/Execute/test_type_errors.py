@@ -4,7 +4,7 @@ import pytest
 from src.Typhon.Driver.debugging import debug_print
 from src.Typhon.Driver.translate import translate_file
 from src.Typhon.Driver.type_check import run_type_check
-from src.Typhon.Driver.utils import prepare_default_output_file
+from src.Typhon.Utils.path import prepare_default_output_file
 from src.Typhon.Grammar.syntax_errors import diag_errors
 
 

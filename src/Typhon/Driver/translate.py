@@ -9,13 +9,15 @@ from ..Grammar.syntax_errors import (
     TyphonSyntaxErrorList,
 )
 from ..Grammar.unparse_custom import unparse_custom
-from .utils import (
-    shorthand,
+from ..Utils.path import (
     TYPHON_EXT,
-    copy_type,
     default_output_dir,
     canonicalize_path,
     mkdir_and_setup_init_py,
+)
+from ._utils import (
+    shorthand,
+    copy_type,
 )
 from ..Transform.transform import transform
 from .debugging import is_debug_mode, debug_print, is_debug_verbose

@@ -10,7 +10,7 @@ from ..Grammar.typhon_ast import (
 from .visitor import TyphonASTTransformer, flat_append
 from contextlib import contextmanager
 from dataclasses import dataclass
-from .utils.jump_away import is_body_jump_away
+from ._utils.jump_away import is_body_jump_away
 from ..Grammar.syntax_errors import raise_let_missing_else_error
 
 

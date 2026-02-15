@@ -21,7 +21,15 @@ This file defines the shared, tool-agnostic rules for automated coding agents in
 8. When changing existing tests, summarize the planned test changes and explain the reason in advance, then get a review before applying the changes.
 9. Keep documentation updates in sync with code changes. If behavior, commands, structure, or developer workflow changes, update the relevant docs in the same task.
 10. Standardize script execution with `uv run -m ...` as the default. Use script under `script` directory as far as possible. Use ad-hoc or direct alternatives only when explicitly required.
-11. When implementing logic with utility code, explicitly consider whether it should be added as a reusable utility API. If added, follow the existing utility naming conventions.
+11. When implementing logic with utility code, explicitly consider whether it should be added as a reusable utility API.
+12. Utility commonization should be selective: prefer extraction only when used in 2+ places or clearly expected to be reused soon.
+13. Naming and placement rules:
+   - Private/internal helper module: `_utils.py`
+   - Private/internal helper package: `_utils/`
+   - Cross-directory shared/public utility API: `src/Typhon/Utils/<domain>.py`
+14. Avoid introducing new `utils.py` or `utils/` names for internal helpers.
+15. If a private `_utils` API needs to be imported across directories under `src/`, promote it to a public module under `src/Typhon/Utils/` and update call sites.
+16. Test code under `test/` may import private `_utils` APIs when needed for white-box tests.
 
 ## Language and Comment Policy
 

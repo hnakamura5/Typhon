@@ -13,7 +13,7 @@ from ..Grammar.typhon_ast import (
     is_optional_question,
 )
 from .visitor import TyphonASTVisitor, TyphonASTTransformer
-from .utils.imports import (
+from ._utils.imports import (
     get_insert_point_for_class,
     get_protocol,
 )

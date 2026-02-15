@@ -1,11 +1,7 @@
 from ...Grammar.typhon_ast import (
     PosAttributes,
     add_import_alias_top,
-    is_case_irrefutable,
-    get_pos_attributes,
-    pos_attribute_to_range,
     set_is_internal_name,
-    set_is_var,
 )
 from ..name_generator import (
     get_protocol_name,
@@ -14,9 +10,7 @@ from ..name_generator import (
     get_runtime_checkable_name,
 )
 import ast
-from contextlib import contextmanager
-from dataclasses import dataclass
-from typing import Protocol, Iterable, Final, Unpack
+from typing import Unpack
 
 
 def _add_import_for_protocol(mod: ast.Module):

@@ -4,12 +4,14 @@ from pathlib import Path
 import subprocess
 from dataclasses import dataclass
 from ..Grammar.parser import parse_file
-from .utils import (
-    shorthand,
+from ..Utils.path import (
     TYPHON_EXT,
-    copy_type,
     default_output_dir,
     prepare_default_output_file,
+)
+from ._utils import (
+    shorthand,
+    copy_type,
 )
 from ..Transform.transform import transform
 from .debugging import is_debug_mode, debug_print, is_debug_verbose

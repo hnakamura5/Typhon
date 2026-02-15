@@ -1,4 +1,5 @@
-from .utils import copy_type, get_project_root
+from ..Utils.path import get_project_root
+from ._utils import copy_type
 from typing import BinaryIO, override
 from pathlib import Path
 import logging

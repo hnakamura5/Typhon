@@ -9,7 +9,7 @@ from ..Driver.debugging import (
     debug_file_write,
     is_debug_mode,
 )
-from ..Driver.utils import output_dir_for_server_workspace
+from ..Utils.path import output_dir_for_server_workspace
 from .semantic_tokens import semantic_token_capabilities
 from .client import configure_language_client_option
 from ..SourceMap.datatype import Range, Pos

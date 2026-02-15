@@ -2,7 +2,7 @@ import ast
 from typing import override, Callable
 from contextlib import contextmanager
 
-from .utils.imports import add_import_for_final, get_final, get_final_of_type
+from ._utils.imports import add_import_for_final, get_final, get_final_of_type
 from ..Grammar.typhon_ast import (
     DeclarableStmt,
     is_decl_assign,
