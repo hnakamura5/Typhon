@@ -27,6 +27,7 @@ Welcome to the Typhon Reference Manual. Typhon is a Python-compatible language w
 
 - [Literals](expressions/literals.md)
 - [Operators](expressions/operators.md)
+- [Operator Precedence](expressions/precedence.md)
 - [Null Safety](expressions/null_safety.md)
 - [Pipe Operator](expressions/pipe_operator.md)
 - [Placeholders](expressions/placeholders.md)

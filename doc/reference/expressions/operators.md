@@ -16,7 +16,9 @@ if (x > 0 && y < 10) { ... }
 
 ## Precedence Notes
 
-From stronger to weaker (excerpt):
+See the complete table in [Operator Precedence](precedence.md).
+
+Key points:
 
 - Unary `!` (stronger than arithmetic operators)
 - Arithmetic and bitwise operators (standard order)
