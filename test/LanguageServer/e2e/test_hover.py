@@ -1,4 +1,6 @@
 import asyncio
+from collections.abc import Sequence
+from typing import cast
 from lsprotocol import types
 from pygls.lsp.client import LanguageClient
 
@@ -25,6 +27,32 @@ async def request_hover(
         )
 
 
+type HoverContents = (
+    types.MarkedString | types.MarkupContent | Sequence[types.MarkedString]
+)
+
+
+def hover_contents_to_text(contents: HoverContents) -> str:
+    if isinstance(contents, types.MarkupContent):
+        return contents.value
+    if isinstance(contents, str):
+        return contents
+    if isinstance(contents, dict):
+        value = cast(dict[str, object], contents).get("value", None)
+        return value if isinstance(value, str) else ""
+    if isinstance(contents, types.MarkedStringWithLanguage):
+        return contents.value
+    parts: list[str] = []
+    for item in contents:
+        if isinstance(item, str):
+            parts.append(item)
+        elif isinstance(item, dict):
+            value = cast(dict[str, object], item).get("value", None)
+            if isinstance(value, str):
+                parts.append(value)
+    return "\n".join(parts)
+
+
 async def assert_hover(
     client: LanguageClient,
     uri: str,
@@ -32,6 +60,7 @@ async def assert_hover(
     character: int,
     expected_start_character: int,
     expected_end_character: int,
+    expected_text_fragment: str,
 ) -> None:
     hover = await request_hover(client, uri, line=line, character=character)
     assert hover is not None
@@ -41,6 +70,9 @@ async def assert_hover(
     assert hover.range.end.line == line
     assert hover.range.start.character == expected_start_character
     assert hover.range.end.character == expected_end_character
+    hover_text = hover_contents_to_text(hover.contents)
+    assert expected_text_fragment in hover_text
+    assert "_typh_" not in hover_text
 
 
 def test_hover_mapped_range():
@@ -50,7 +82,6 @@ def test_hover_mapped_range():
             root_dir=run_file_dir,
             open_file=semtok_file,
         )
-
         # file parameter declaration: def fun(file: Path)
         await assert_hover(
             client,
@@ -59,8 +90,8 @@ def test_hover_mapped_range():
             character=9,
             expected_start_character=8,
             expected_end_character=12,
+            expected_text_fragment="file",
         )
-
         # file parameter usage: str(file)
         await assert_hover(
             client,
@@ -69,8 +100,8 @@ def test_hover_mapped_range():
             character=29,
             expected_start_character=27,
             expected_end_character=31,
+            expected_text_fragment="file",
         )
-
         # variable usage: my_dir.exists()
         await assert_hover(
             client,
@@ -79,8 +110,8 @@ def test_hover_mapped_range():
             character=6,
             expected_start_character=4,
             expected_end_character=10,
+            expected_text_fragment="my_dir",
         )
-
         await client.shutdown_async(None)
 
     asyncio.run(run_test())

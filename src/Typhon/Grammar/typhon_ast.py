@@ -1,6 +1,6 @@
 # Ast Extensions for Typhon
 from __future__ import annotations
-from re import A
+import re
 from typing import (
     Union,
     Unpack,
@@ -122,6 +122,11 @@ def get_empty_pos_attributes() -> PosAttributes:
 
 
 _ANONYMOUS_NAME = "_typh_anonymous"
+_MANGLED_NAME_PATTERN = re.compile(r"\b(_typh_[A-Za-z0-9_]+)\b")
+
+
+def get_mangled_name_pattern() -> re.Pattern[str]:
+    return _MANGLED_NAME_PATTERN
 
 
 def set_anonymous_name_id(node: ast.Name, id: int) -> ast.Name:
@@ -2259,6 +2264,25 @@ def get_postfix_operator_temp_name(symbol: str) -> str:
         return FORCE_UNWRAP
     else:
         raise ValueError(f"Unknown postfix operator symbol: {symbol}")
+
+
+_GENERATED_NAME_ORIGINAL_MAP = "_typh_generated_name_original_map"
+
+
+def get_generated_name_original_map(mod: ast.Module) -> dict[str, str]:
+    mapping: dict[str, str] | None = getattr(mod, _GENERATED_NAME_ORIGINAL_MAP, None)
+    if mapping is None:
+        mapping = {}
+        setattr(mod, _GENERATED_NAME_ORIGINAL_MAP, mapping)
+    return mapping
+
+
+def add_generated_name_original(
+    mod: ast.Module,
+    generated_name: str,
+    original_name: str,
+) -> None:
+    get_generated_name_original_map(mod)[generated_name] = original_name
 
 
 _IMPORTS = "_typh_imports"

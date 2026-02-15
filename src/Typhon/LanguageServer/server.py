@@ -44,6 +44,7 @@ from .diagnostics import (
     map_and_add_diagnostics,
 )
 from .hover import (
+    demangle_hover_names,
     map_hover,
     map_hover_position,
 )
@@ -438,7 +439,7 @@ async def hover(ls: LanguageServer, params: types.HoverParams):
         if mapped_hover is None:
             debug_file_write("Hover mapping failed for response range. Skipping hover.")
             return None
-        return mapped_hover
+        return demangle_hover_names(mapped_hover, ls.ast_modules.get(uri))
     except Exception as e:
         debug_file_write(f"Error during hover retrieval: {type(e).__name__}: {e}")
         return None

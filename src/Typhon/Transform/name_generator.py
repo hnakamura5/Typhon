@@ -1,7 +1,11 @@
 import ast
-from typing import Union, Any, Literal
+from typing import Union
 from enum import Enum, auto
 from contextlib import contextmanager
+from ..Grammar.typhon_ast import (
+    get_generated_name_original_map,
+    add_generated_name_original,
+)
 
 
 typhon_prefix = "_typh_"
@@ -50,7 +54,6 @@ def get_runtime_checkable_name() -> str:
 
 
 _SCOPE_COUNTER = "_typh_name_generator_scope_counters"
-_GENERATED_NAMES = "_typh_name_generator_generated_names"
 _SCOPE_IDS = "_typh_name_generator_scope_ids"
 
 
@@ -59,13 +62,13 @@ class UniqueNameGenerator:
     scope_ids: dict[PythonScope, str] = {}
     counter_in_scope: dict[str, int]
     scope_stack: list[tuple[PythonScope, str]] = []
-    generated_names: set[str]
+    generated_name_map: dict[str, str]
 
     def __init__(self, module: ast.Module):
         self._module = module
         self.scope_ids = self._module_scope_ids(module)
         self.counter_in_scope = self._module_scope_counter(module)
-        self.generated_names = self._module_generated_names(module)
+        self.generated_name_map = get_generated_name_original_map(module)
 
     # To use consistent scope counters across multiple passes on the same module.
     def _module_scope_counter(self, module: ast.Module) -> dict[str, int]:
@@ -85,14 +88,6 @@ class UniqueNameGenerator:
             scope_id_counter = {}
             setattr(module, attr_name, scope_id_counter)
         return scope_id_counter
-
-    def _module_generated_names(self, module: ast.Module) -> set[str]:
-        attr_name = _GENERATED_NAMES
-        generated_names: set[str] | None = getattr(module, attr_name, None)
-        if generated_names is None:
-            generated_names = set()
-            setattr(module, attr_name, generated_names)
-        return generated_names
 
     # Here the scope is Python scope: module, class, function. Not block scope.
     def enter_scope(self, scope: PythonScope):
@@ -119,10 +114,8 @@ class UniqueNameGenerator:
             return "m"
         elif isinstance(scope, ast.ClassDef):
             return "c"
-        elif isinstance(scope, ast.FunctionDef | ast.AsyncFunctionDef):
-            return "f"
         else:
-            raise ValueError(f"Unknown scope type: {type(scope)}")
+            return "f"
 
     def _get_next_id(self) -> str:
         _, scope_id = self.scope_stack[-1]
@@ -158,7 +151,7 @@ class UniqueNameGenerator:
 
     def new_name(self, kind: NameKind, original_name: str = "") -> str:
         result = self._new_name(kind, original_name)
-        if result in self.generated_names:
+        if result in self.generated_name_map:
             raise SyntaxError(f"Generated name conflict: {result}")
-        self.generated_names.add(result)
+        add_generated_name_original(self._module, result, original_name)
         return result
