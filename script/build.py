@@ -15,8 +15,7 @@ def build_grammar():
             "-o",
             f"{get_project_root()}/src/Typhon/Grammar/_typhon_parser.py",
         ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     if output.returncode != 0:
         print("Error building grammar:", output.stderr.decode())
@@ -30,8 +29,7 @@ def build_grammar():
             f"{get_project_root()}/src/Typhon/Grammar/_typhon_parser.py",
         ],
         check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
 
 
@@ -43,8 +41,7 @@ def _type_check(source_file: str) -> bool:
             "pyright",
             source_file,
         ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     if output.returncode != 0:
         print("Type check failed:", output.stderr.decode())
@@ -56,19 +53,17 @@ def _type_check(source_file: str) -> bool:
 def install_editable_package():
     output = subprocess.run(
         [
-            sys.executable,
-            "-m",
+            "uv",
             "pip",
             "install",
             "-e",
-            f"{get_project_root()}/.",
+            f"{get_project_root()}",
         ],
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
-    print(output.stdout.decode())
-    print(output.stderr.decode())
+    if output.returncode != 0:
+        print("Editable package installation failed:", output.stderr.decode())
+        sys.exit(output.returncode)
 
 
 def clean_grammar():
@@ -82,12 +77,11 @@ def package_build():
             "uv",
             "build",
         ],
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
-    print(output.stdout.decode())
-    print(output.stderr.decode())
+    if output.returncode != 0:
+        print("Package build failed:", output.stderr.decode())
+        sys.exit(output.returncode)
 
 
 def clean_build():

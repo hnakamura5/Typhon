@@ -17,9 +17,7 @@ def run_all_tests():
         print("No LSP tests were found to run.")
         return 1
 
-    result = subprocess.run(
-        [sys.executable, "-m", "pytest"] + test_files,
-    )
+    result = subprocess.run([sys.executable, "-m", "pytest"] + test_files)
     return result.returncode
 
 

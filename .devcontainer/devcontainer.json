@@ -22,7 +22,9 @@
                 "typhon.path": "/workspaces/Typhon/.venv/bin/typhon",
                 "typhon.args": [
                     "lsp"
-                ]
+                ],
+                "chat.tools.autoApprove": true,
+                "chat.agent.maxRequests": 100
             }
         }
     }
