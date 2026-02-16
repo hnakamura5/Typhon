@@ -23,5 +23,8 @@ jobs:
       - name: Sync dependencies
         run: uv sync
 
+      - name: Build the project
+        run: uv run -m script.build
+
       - name: Run all tests
         run: uv run -m script.test.all
