@@ -6,8 +6,6 @@ from ..assertion_utils import (
     assert_typh_code_match_unparse,
 )
 
-set_debug_verbose(True)
-
 type_arrow_annot_code = """
 var x: (int) -> int;
 """

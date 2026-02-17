@@ -110,7 +110,6 @@ func(42)
 
 def test_f_string_with_string():
     show_token(f_string_with_string_code)
-    set_debug_verbose(True)
     ta = TokenizerAsserter(f_string_with_string_code)
     ta.next(NAME, "def")
     ta.next(NAME, "func")

@@ -1,7 +1,10 @@
 from ..LanguageServer import server
 from ..Driver.debugging import (
+    debug_file_write,
+    debug_verbose_print,
     is_debug_mode,
     BinaryIOLogger,
+    is_debug_verbose,
     set_debug_log_file,
     debug_print,
     get_debug_log_file,
@@ -16,7 +19,8 @@ def language_server():
     """
     Start the Typhon Language Server.
     """
-    # debug_setup_logging()
+    if is_debug_verbose():
+        debug_setup_logging(verbose=is_debug_verbose())
     server.start_io(
         stdin=BinaryIOLogger(sys.stdin.buffer),
         stdout=BinaryIOLogger(sys.stdout.buffer),

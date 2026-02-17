@@ -1,6 +1,8 @@
 import subprocess
 import sys
 from pathlib import Path
+
+from script.test._util import get_debug_options
 from .._util import get_project_root, gather_directory
 from ..build import setup
 
@@ -37,7 +39,9 @@ def run_all_tests() -> int:
     # First of all run tokenizer tests.
     if (
         subprocess.run(
-            [sys.executable, "-m", "pytest"] + gather_tokenizer_tests()
+            [sys.executable, "-m", "pytest"]
+            + get_debug_options(sys.argv[1:])
+            + gather_tokenizer_tests()
         ).returncode
         != 0
     ):  # Failed
@@ -55,7 +59,7 @@ def run_all_tests() -> int:
 
     # print(f"Running tests {test_files} in {dir_path}")
     result = subprocess.run(
-        [sys.executable, "-m", "pytest"] + test_files,
+        [sys.executable, "-m", "pytest"] + get_debug_options(sys.argv[1:]) + test_files,
     )
     return result.returncode
 
@@ -63,6 +67,7 @@ def run_all_tests() -> int:
 def run_single_grammar_test(test_dir_name: str) -> int:
     result = subprocess.run(
         [sys.executable, "-m", "pytest"]
+        + get_debug_options(sys.argv[1:])
         + gather_test_in_grammar_test_dir(test_dir_name),
     )
     return result.returncode

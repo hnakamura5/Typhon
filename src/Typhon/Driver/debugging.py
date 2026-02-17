@@ -34,6 +34,8 @@ def set_debug_log_file(
     global _debug_log_file
     _debug_log_file = Path(log_file) if log_file else None
     if _debug_log_file is not None:
+        if not _debug_log_file.parent.exists():
+            _debug_log_file.parent.mkdir(parents=True, exist_ok=True)
         if verbose:
             set_debug_verbose(True)
         set_debug_mode(True)

@@ -6,7 +6,13 @@ from pygls.lsp.client import LanguageClient
 from pathlib import Path
 from Typhon.LanguageServer.utils import path_to_uri
 from Typhon.Utils.path import get_project_root
-from Typhon.Driver.debugging import debug_file_write, debug_verbose_print
+from Typhon.Driver.debugging import (
+    debug_file_write,
+    debug_setup_logging,
+    debug_verbose_print,
+    is_debug_mode,
+    is_debug_verbose,
+)
 
 from ..initialize_params_example import initialize_params_example
 
@@ -29,12 +35,10 @@ def assert_capabilities_equal(
 
 async def start_typhon_connection_client() -> LanguageClient:
     client = LanguageClient("typhon-language-client", "v0.1.4")
+    debug_options = ["--debug-verbose"] if is_debug_verbose() else []
     async with asyncio.timeout(10):
         await client.start_io(  # type: ignore
-            sys.executable,
-            "-m",
-            "Typhon",
-            "lsp",
+            sys.executable, "-m", "Typhon", "lsp", *debug_options
         )
     return client
 
