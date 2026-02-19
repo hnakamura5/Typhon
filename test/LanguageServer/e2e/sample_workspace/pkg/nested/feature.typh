@@ -1,0 +1,6 @@
+from pkg.math import add
+
+def greet(name: str) -> str {
+    let total: int = add(1, 2)
+    return f"Hello {name} {total}"
+}

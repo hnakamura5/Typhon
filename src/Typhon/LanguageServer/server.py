@@ -23,6 +23,8 @@ from ..Driver.debugging import (
     is_debug_mode,
 )
 from ..Utils.path import (
+    TYPHON_EXT,
+    TYPHON_SERVER_TEMP_DIR,
     output_dir_for_server_workspace,
     default_server_output_dir,
     mkdir_and_setup_init_py,
@@ -77,15 +79,19 @@ class LanguageServer(PyglsLanguageServer):
         self.mapping: dict[str, MatchBasedSourceMap] = {}
         self.client_semantic_legend: dict[int, str] = {}
         self.translated_uri_to_original_uri: dict[str, str] = {}
+        self.preload_task: asyncio.Task[None] | None = None
+        self.preloaded_uris: set[str] = set()
 
     def reload(self, uri: str) -> str | None:
         doc: TextDocument = self.workspace.get_text_document(uri)
+        return self.reload_from_source(uri, doc.source, Path(doc.path))
+
+    def reload_from_source(self, uri: str, source: str, doc_path: Path) -> str | None:
         try:
             uri = canonicalize_uri(uri)
             self.translated_uri_to_original_uri.setdefault(
                 self.get_translated_file_uri(uri), uri
             )
-            source = doc.source
             debug_file_write(
                 f"Reloading document uri={uri} translated uri={self.get_translated_file_uri(uri)} source: {source.strip()[:50]}..."
             )
@@ -101,7 +107,7 @@ class LanguageServer(PyglsLanguageServer):
                 transform(ast_node, ignore_error=True)
             self.ast_modules[uri] = ast_node
             semantic_tokens, encoded = ast_tokens_to_semantic_tokens(
-                ast_node, self.token_infos[uri], doc
+                ast_node, self.token_infos[uri]
             )
             self.semantic_tokens[uri] = semantic_tokens
             self.semantic_tokens_encoded[uri] = encoded
@@ -109,10 +115,10 @@ class LanguageServer(PyglsLanguageServer):
                 return None
             # Write translated file to server temporal directory
             translate_file_path, root = self.get_translated_file_path_and_root(
-                Path(doc.path)
+                doc_path
             )
             unparsed = unparse_custom(ast_node)
-            mapping = map_from_translated(ast_node, source, doc.path, unparsed)
+            mapping = map_from_translated(ast_node, source, doc_path.as_posix(), unparsed)
             if mapping:
                 self.mapping[uri] = mapping
             self.setup_container_directories(translate_file_path, root)
@@ -121,7 +127,7 @@ class LanguageServer(PyglsLanguageServer):
             write_config(
                 server_temp_dir
                 if server_temp_dir
-                else default_server_output_dir(doc.path)
+                else default_server_output_dir(doc_path.as_posix())
             )
             with open(translate_file_path, "w", encoding="utf-8") as f:
                 debug_file_write(
@@ -201,6 +207,45 @@ class LanguageServer(PyglsLanguageServer):
         )
         return cloned_param
 
+    def _iter_workspace_typhon_files(self) -> list[Path]:
+        files: list[Path] = []
+        for folder in self.workspace.folders.values():
+            folder_path = uri_to_path(folder.uri)
+            if not folder_path.exists():
+                continue
+            for file_path in folder_path.rglob(f"*{TYPHON_EXT}"):
+                if TYPHON_SERVER_TEMP_DIR in file_path.parts:
+                    continue
+                files.append(file_path)
+        return files
+
+    def schedule_workspace_preload(self) -> None:
+        if self.preload_task and not self.preload_task.done():
+            debug_file_write("Workspace preload is already running.")
+            return
+        self.preload_task = asyncio.create_task(self.preload_workspace())
+
+    async def preload_workspace(self) -> None:
+        files = self._iter_workspace_typhon_files()
+        if not files:
+            debug_file_write("No Typhon files found for preload.")
+            return
+        debug_file_write(f"Starting workspace preload for {len(files)} file(s).")
+        for file_path in files:
+            await asyncio.sleep(0)
+            try:
+                uri = canonicalize_uri(path_to_uri(file_path))
+                if uri in self.preloaded_uris:
+                    continue
+                if uri in self.ast_modules:
+                    continue
+                source = file_path.read_text(encoding="utf-8")
+                self.reload_from_source(uri, source, file_path)
+                self.preloaded_uris.add(uri)
+            except Exception as e:
+                debug_file_write(f"Preload failed for {file_path}: {e}")
+        debug_file_write("Workspace preload completed.")
+
 
 server = LanguageServer("typhon-language-server", "v0.1.4")
 client = server.backend_client
@@ -235,6 +280,7 @@ def lsp_client_initialized(ls: LanguageServer, params: types.InitializedParams):
     try:
         debug_file_write(f"Sending initialized notification to backend {params}")
         ls.backend_client.initialized(params)
+        ls.schedule_workspace_preload()
     except Exception as e:
         debug_file_write(f"Error during initialized notification: {e}")
 

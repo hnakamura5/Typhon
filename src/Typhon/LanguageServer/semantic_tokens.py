@@ -298,7 +298,9 @@ def token_to_type(tok: TokenInfo) -> str:
 
 # Fallback implementation that makes semantic tokens from tokens only.
 def ast_tokens_to_semantic_tokens(
-    node: ast.AST | None, tokens: list[TokenInfo], doc: TextDocument
+    node: ast.AST | None,
+    tokens: list[TokenInfo],
+    doc: TextDocument | None = None,
 ) -> tuple[list[SemanticToken], Sequence[int]]:
     semantic_tokens: list[SemanticToken] = []
     prev_line = 0
