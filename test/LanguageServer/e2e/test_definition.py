@@ -11,13 +11,12 @@ from .utils import (
     ensure_exit,
     start_initialize_open_typhon_connection_client,
     wait_file_exists,
+    sample_workspace,
+    main_file,
+    feature_file,
+    math_file,
+    assert_has_location,
 )
-
-
-sample_workspace = Path(__file__).resolve().parent / "sample_workspace"
-main_file = sample_workspace / "main.typh"
-feature_file = sample_workspace / "pkg" / "nested" / "feature.typh"
-math_file = sample_workspace / "pkg" / "math.typh"
 
 
 def normalize_locations(
@@ -77,28 +76,6 @@ async def request_type_definition(
         )
     debug_verbose_print(f"Received type definition result: {result}")
     return normalize_locations(result)
-
-
-def assert_has_location(
-    locations: list[types.Location],
-    expected_uri: str,
-    expected_line: int,
-    expected_start_character: int,
-    expected_end_character: int,
-) -> None:
-    for location in locations:
-        if (
-            canonicalize_uri(location.uri) == expected_uri
-            and location.range.start.line == expected_line
-            and location.range.start.character == expected_start_character
-            and location.range.end.character == expected_end_character
-        ):
-            return
-    raise AssertionError(
-        f"Expected definition location uri={expected_uri}, "
-        f"line={expected_line}, start={expected_start_character}, "
-        f"end={expected_end_character}, got={locations}"
-    )
 
 
 def test_definition_main_greet_to_feature_definition():

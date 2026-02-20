@@ -56,6 +56,10 @@ from .definition import (
     map_type_definition_request_position,
     map_type_definition_result,
 )
+from .reference import (
+    map_reference_request_position,
+    map_reference_result,
+)
 from .utils import (
     canonicalize_uri,
     uri_to_path,
@@ -363,6 +367,21 @@ async def on_workspace_folders(ls_client: LanguageClient, params: None):
     return await server.workspace_workspace_folders_async(None)
 
 
+@client.feature(types.WINDOW_WORK_DONE_PROGRESS_CREATE)  # type: ignore
+async def on_window_work_done_progress_create(
+    ls_client: LanguageClient, params: types.WorkDoneProgressCreateParams
+):
+    debug_file_write(f"Backend requested workDoneProgress/create: {params}")
+    # Keep backend requests local. Test clients may not implement this method.
+    return None
+
+
+@client.feature(types.PROGRESS)  # type: ignore
+async def on_progress(ls_client: LanguageClient, params: types.ProgressParams):
+    debug_file_write(f"Backend progress notification: {params}")
+    return None
+
+
 @client.feature(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)  # type: ignore
 async def on_publish_diagnostics(
     ls_client: LanguageClient, params: types.PublishDiagnosticsParams
@@ -552,4 +571,31 @@ async def type_definition(ls: LanguageServer, params: types.TypeDefinitionParams
         debug_file_write(
             f"Error during type definition retrieval: {type(e).__name__}: {e}"
         )
+        return None
+
+
+@server.feature(types.TEXT_DOCUMENT_REFERENCES)
+async def references(ls: LanguageServer, params: types.ReferenceParams):
+    uri = canonicalize_uri(params.text_document.uri)
+    try:
+        debug_file_write(f"References requested: {params}")
+        cloned_params = ls.clone_params_map_uri(params)
+        mapping = ls.mapping.get(uri)
+        mapped_position = map_reference_request_position(params.position, mapping)
+        if mapped_position is None:
+            debug_file_write("References mapping failed for request position.")
+            return None
+        cloned_params.position = mapped_position
+        debug_file_write(f"Translated references params: {cloned_params}")
+        reference_result = await ls.backend_client.text_document_references_async(
+            cloned_params
+        )
+        debug_file_write(f"Received references result: {reference_result}")
+        return map_reference_result(
+            reference_result,
+            ls.mapping,
+            ls.translated_uri_to_original_uri,
+        )
+    except Exception as e:
+        debug_file_write(f"Error during references retrieval: {type(e).__name__}: {e}")
         return None

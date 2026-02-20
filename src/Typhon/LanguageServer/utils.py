@@ -1,16 +1,17 @@
+import ast
 import copy
 from pathlib import Path
 
 from lsprotocol import types
 from pygls import uris
-from pygls.workspace import text_document
 
 from ..Driver.debugging import (
     debug_file_write,
+    debug_file_write_verbose,
     is_debug_mode,
 )
+from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
 from ..Utils.path import output_dir_for_server_workspace
-from .semantic_tokens import semantic_token_capabilities
 from .client import configure_language_client_option
 from ..SourceMap.datatype import Range, Pos
 
@@ -95,3 +96,58 @@ def pos_to_lsp_position(pos: Pos) -> types.Position:
 def to_point_range(position: types.Position) -> Range:
     pos = lsp_position_to_pos(position)
     return Range(start=pos, end=pos)
+
+
+def map_name_request_position_to_unparsed(
+    position: types.Position,
+    source_map: MatchBasedSourceMap | None,
+    debug_prefix: str,
+) -> types.Position | None:
+    if source_map is None:
+        return None
+    mapped_name = source_map.origin_pos_to_unparsed_node(
+        lsp_position_to_pos(position),
+        ast.Name,
+    )
+    if not isinstance(mapped_name, ast.Name):
+        debug_file_write_verbose(
+            f"{debug_prefix} request position is not mapped as ast.Name: {position}"
+        )
+        return None
+    mapped_range = Range.from_ast_node(mapped_name)
+    if mapped_range is None:
+        return None
+    return pos_to_lsp_position(mapped_range.start)
+
+
+def map_name_unparsed_range_to_original_range(
+    original_uri: str,
+    source_range: types.Range,
+    mapping: dict[str, MatchBasedSourceMap],
+) -> types.Range | None:
+    result = None
+    # When jumping (0, 0), possible to jump top of the file.
+    # TODO: More precise way?
+    if source_range.start.line == 0 and source_range.start.character == 0:
+        result = source_range
+    source_map = mapping.get(original_uri)
+    if source_map is None:
+        return result
+
+    mapped_name = source_map.unparsed_pos_to_origin_node(
+        lsp_position_to_pos(source_range.start),
+        ast.Name,
+    )
+    if not isinstance(mapped_name, ast.Name):
+        return result
+    mapped_range = Range.from_ast_node(mapped_name)
+    if mapped_range is None:
+        return result
+    mapped_position = pos_to_lsp_position(mapped_range.start)
+    mapped_back = source_map.origin_pos_to_unparsed_node(
+        lsp_position_to_pos(mapped_position),
+        ast.Name,
+    )
+    if not isinstance(mapped_back, ast.Name):
+        return result
+    return range_to_lsp_range(mapped_range)

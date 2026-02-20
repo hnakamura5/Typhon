@@ -4,7 +4,7 @@ from typing import Callable
 from lsprotocol import types
 from pygls.lsp.client import LanguageClient
 from pathlib import Path
-from Typhon.LanguageServer.utils import path_to_uri
+from Typhon.LanguageServer.utils import path_to_uri, canonicalize_uri
 from Typhon.Utils.path import get_project_root
 from Typhon.Driver.debugging import (
     debug_file_write,
@@ -23,6 +23,11 @@ semtok_file_uri = semtok_file.resolve().as_uri()
 hello_file_uri = hello_file.resolve().as_uri()
 type_error_dir = get_project_root() / "test" / "Execute" / "TypeErrorTest"
 diag_file = type_error_dir / "diagnostic_showcase.typh"
+
+sample_workspace = Path(__file__).resolve().parent / "sample_workspace"
+main_file = sample_workspace / "main.typh"
+feature_file = sample_workspace / "pkg" / "nested" / "feature.typh"
+math_file = sample_workspace / "pkg" / "math.typh"
 
 
 def assert_capabilities_equal(
@@ -81,6 +86,20 @@ async def start_initialize_open_typhon_connection_client(
     return client, initialize_result
 
 
+def open_file_in_client(client: LanguageClient, file_path: Path):
+    file_uri = path_to_uri(file_path)
+    client.text_document_did_open(
+        types.DidOpenTextDocumentParams(
+            text_document=types.TextDocumentItem(
+                uri=file_uri,
+                language_id="typhon",
+                version=1,
+                text=file_path.read_text(),
+            )
+        )
+    )
+
+
 async def ensure_exit(client: LanguageClient) -> None:
     try:
         if client.protocol and getattr(client.protocol, "transport", None):
@@ -120,3 +139,25 @@ async def wait_file_exists(path: Path, timeout_seconds: int = 5):
         waited_seconds += 0.5
         if waited_seconds >= timeout_seconds:
             raise TimeoutError(f"Waited too long for file to exist: {path}")
+
+
+def assert_has_location(
+    locations: list[types.Location],
+    expected_uri: str,
+    expected_line: int,
+    expected_start_character: int,
+    expected_end_character: int,
+) -> None:
+    for location in locations:
+        if (
+            canonicalize_uri(location.uri) == expected_uri
+            and location.range.start.line == expected_line
+            and location.range.start.character == expected_start_character
+            and location.range.end.character == expected_end_character
+        ):
+            return
+    raise AssertionError(
+        f"Expected definition location uri={expected_uri}, "
+        f"line={expected_line}, start={expected_start_character}, "
+        f"end={expected_end_character}, got={locations}"
+    )
