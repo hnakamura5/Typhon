@@ -14,6 +14,7 @@ type DefinitionItem = types.Location | types.LocationLink
 type DefinitionResult = (
     types.Location | Sequence[types.Location] | Sequence[types.LocationLink] | None
 )
+type TypeDefinitionResult = DefinitionResult
 
 
 def map_definition_request_position(
@@ -36,6 +37,13 @@ def map_definition_request_position(
         return None
     mapped_position = pos_to_lsp_position(mapped_range.start)
     return mapped_position
+
+
+def map_type_definition_request_position(
+    position: types.Position,
+    source_map: MatchBasedSourceMap | None,
+) -> types.Position | None:
+    return map_definition_request_position(position, source_map)
 
 
 def _map_definition_range_name_to_name(
@@ -166,3 +174,15 @@ def map_definition_result(
                 ):
                     mapped_location_links.append(mapped)
         return mapped_location_links
+
+
+def map_type_definition_result(
+    type_definition_result: TypeDefinitionResult,
+    mapping: dict[str, MatchBasedSourceMap],
+    translated_uri_to_original_uri: dict[str, str],
+) -> TypeDefinitionResult:
+    return map_definition_result(
+        type_definition_result,
+        mapping,
+        translated_uri_to_original_uri,
+    )

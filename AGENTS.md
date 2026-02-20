@@ -16,6 +16,7 @@ This file defines the shared, tool-agnostic rules for automated coding agents in
    - formatting (`uv run -m ruff format`)
    - type checking (`basedpyright`) (Type error still exists, but try to minimize new ones)
    - tests (`uv run -m script.test.all`)
+   - before reporting task completion, always run `uv run -m script.test.all` as the final test gate.
 6. Never run release/upload operations unless the user explicitly asks.
 7. For large changes such as feature implementations, always create a brief implementation overview first, get it reviewed, and start coding only after the review is completed.
 8. When changing existing tests, summarize the planned test changes and explain the reason in advance, then get a review before applying the changes.

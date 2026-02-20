@@ -4,3 +4,16 @@ def greet(name: str) -> str {
     let total: int = add(1, 2)
     return f"Hello {name} {total}"
 }
+
+
+class Greeter {
+    def format(prefix: str, name: str) -> str {
+        return f"{prefix} {name}"
+    }
+}
+
+
+def typed_message(name: str) -> str {
+    let greeter: Greeter = Greeter()
+    return greeter.format("Hi", name)
+}

@@ -53,6 +53,8 @@ from .hover import (
 from .definition import (
     map_definition_request_position,
     map_definition_result,
+    map_type_definition_request_position,
+    map_type_definition_result,
 )
 from .utils import (
     canonicalize_uri,
@@ -521,4 +523,33 @@ async def definition(ls: LanguageServer, params: types.DefinitionParams):
         )
     except Exception as e:
         debug_file_write(f"Error during definition retrieval: {type(e).__name__}: {e}")
+        return None
+
+
+@server.feature(types.TEXT_DOCUMENT_TYPE_DEFINITION)
+async def type_definition(ls: LanguageServer, params: types.TypeDefinitionParams):
+    uri = canonicalize_uri(params.text_document.uri)
+    try:
+        debug_file_write(f"Type definition requested: {params}")
+        cloned_params = ls.clone_params_map_uri(params)
+        mapping = ls.mapping.get(uri)
+        mapped_position = map_type_definition_request_position(params.position, mapping)
+        if mapped_position is None:
+            debug_file_write("Type definition mapping failed for request position.")
+            return None
+        cloned_params.position = mapped_position
+        debug_file_write(f"Translated type definition params: {cloned_params}")
+        type_definition_result = (
+            await ls.backend_client.text_document_type_definition_async(cloned_params)
+        )
+        debug_file_write(f"Received type definition result: {type_definition_result}")
+        return map_type_definition_result(
+            type_definition_result,
+            ls.mapping,
+            ls.translated_uri_to_original_uri,
+        )
+    except Exception as e:
+        debug_file_write(
+            f"Error during type definition retrieval: {type(e).__name__}: {e}"
+        )
         return None

@@ -20,19 +20,6 @@ feature_file = sample_workspace / "pkg" / "nested" / "feature.typh"
 math_file = sample_workspace / "pkg" / "math.typh"
 
 
-def _open_typhon_document(client: LanguageClient, file: Path, version: int = 1) -> None:
-    client.text_document_did_open(
-        types.DidOpenTextDocumentParams(
-            text_document=types.TextDocumentItem(
-                uri=path_to_uri(file),
-                language_id="typhon",
-                version=version,
-                text=file.read_text(encoding="utf-8"),
-            )
-        )
-    )
-
-
 def normalize_locations(
     result: types.Location
     | Sequence[types.Location]
@@ -75,6 +62,23 @@ async def request_definition(
     return normalize_locations(result)
 
 
+async def request_type_definition(
+    client: LanguageClient,
+    uri: str,
+    line: int,
+    character: int,
+) -> list[types.Location]:
+    async with asyncio.timeout(10):
+        result = await client.text_document_type_definition_async(
+            types.TypeDefinitionParams(
+                text_document=types.TextDocumentIdentifier(uri=uri),
+                position=types.Position(line=line, character=character),
+            )
+        )
+    debug_verbose_print(f"Received type definition result: {result}")
+    return normalize_locations(result)
+
+
 def assert_has_location(
     locations: list[types.Location],
     expected_uri: str,
@@ -106,7 +110,6 @@ def test_definition_main_greet_to_feature_definition():
         # Wait until workspace preload.
         await wait_file_exists(feature_file)
         try:
-            # _open_typhon_document(client, feature_file, version=2)
             locations = await request_definition(
                 client,
                 path_to_uri(main_file),
@@ -136,7 +139,6 @@ def test_definition_feature_add_to_math_definition():
         # Wait until workspace preload.
         await wait_file_exists(math_file)
         try:
-            # _open_typhon_document(client, math_file, version=2)
             locations = await request_definition(
                 client,
                 path_to_uri(feature_file),
@@ -150,6 +152,33 @@ def test_definition_feature_add_to_math_definition():
                 expected_line=0,
                 expected_start_character=4,
                 expected_end_character=7,
+            )
+        finally:
+            await ensure_exit(client)
+
+    asyncio.run(run_test())
+
+
+def test_type_definition_feature_greeter_usage_to_class_definition():
+    async def run_test() -> None:
+        client, _ = await start_initialize_open_typhon_connection_client(
+            root_dir=sample_workspace,
+            open_file=feature_file,
+        )
+        try:
+            locations = await request_type_definition(
+                client,
+                path_to_uri(feature_file),
+                line=16,
+                character=11,
+            )
+            assert len(locations) > 0
+            assert_has_location(
+                locations,
+                expected_uri=path_to_uri(feature_file),
+                expected_line=8,
+                expected_start_character=6,
+                expected_end_character=13,
             )
         finally:
             await ensure_exit(client)
