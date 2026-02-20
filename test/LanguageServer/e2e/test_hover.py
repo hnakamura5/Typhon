@@ -77,11 +77,11 @@ async def assert_hover(
 
 def test_hover_mapped_range():
     async def run_test():
-        target_file_uri = path_to_uri(semtok_file)
         client, _ = await start_initialize_open_typhon_connection_client(
             root_dir=run_file_dir,
             open_file=semtok_file,
         )
+        target_file_uri = path_to_uri(semtok_file)
         # file parameter declaration: def fun(file: Path)
         await assert_hover(
             client,

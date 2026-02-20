@@ -1,5 +1,6 @@
 import asyncio
 from pathlib import Path
+import shutil
 
 from .utils import (
     ensure_exit,
@@ -25,10 +26,7 @@ def test_workspace_preload_translates_all_workspace_typhon_files():
     async def run_test() -> None:
         translated_root = sample_workspace / ".typhon-server"
         if translated_root.exists():  # Clean up from previous test runs
-            for file in translated_root.rglob("*"):
-                if file.is_file():
-                    file.unlink()
-            translated_root.rmdir()
+            shutil.rmtree(translated_root)
         expected_paths = [
             translated_root / "main.py",
             translated_root / "pkg" / "math.py",

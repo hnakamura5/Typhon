@@ -463,7 +463,7 @@ def initialize_params_example(root_dir: Path) -> types.InitializeParams:
             ),
             experimental=None,
         ),
-        process_id=690652,
+        process_id=None,  # This must be None. Otherwise backend server process ends immediately by misunderstanding the client process is already ended: detecting the 'actual' process id is not relevant.
         client_info=types.ClientInfo(
             name="Visual Studio Code",
             version="1.108.0",

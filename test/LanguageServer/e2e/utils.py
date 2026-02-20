@@ -55,6 +55,11 @@ async def start_initialize_open_typhon_connection_client(
     def on_register_capability(params: types.RegistrationParams):
         debug_verbose_print(f"Received registration request: {params}")
 
+    @client.feature(types.WORKSPACE_CONFIGURATION)  # type: ignore
+    def on_configuration(params: types.ConfigurationParams):
+        debug_verbose_print(f"Received configuration request: {params}")
+        return [{}]  # Return empty config for all requests.
+
     async with asyncio.timeout(10):
         if on_before_initialize:
             on_before_initialize(client)
@@ -106,3 +111,12 @@ class EventHandlerAssertTunnel:
                 raise TimeoutError("Waited too long for the event to occur.")
         if self.error:
             raise self.error
+
+
+async def wait_file_exists(path: Path, timeout_seconds: int = 5):
+    waited_seconds = 0
+    while not path.exists():
+        await asyncio.sleep(0.5)
+        waited_seconds += 0.5
+        if waited_seconds >= timeout_seconds:
+            raise TimeoutError(f"Waited too long for file to exist: {path}")

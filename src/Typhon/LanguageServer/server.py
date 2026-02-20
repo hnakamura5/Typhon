@@ -50,6 +50,10 @@ from .hover import (
     map_hover,
     map_hover_position,
 )
+from .definition import (
+    map_definition_request_position,
+    map_definition_result,
+)
 from .utils import (
     canonicalize_uri,
     uri_to_path,
@@ -114,11 +118,11 @@ class LanguageServer(PyglsLanguageServer):
             if not ast_node:
                 return None
             # Write translated file to server temporal directory
-            translate_file_path, root = self.get_translated_file_path_and_root(
-                doc_path
-            )
+            translate_file_path, root = self.get_translated_file_path_and_root(doc_path)
             unparsed = unparse_custom(ast_node)
-            mapping = map_from_translated(ast_node, source, doc_path.as_posix(), unparsed)
+            mapping = map_from_translated(
+                ast_node, source, doc_path.as_posix(), unparsed
+            )
             if mapping:
                 self.mapping[uri] = mapping
             self.setup_container_directories(translate_file_path, root)
@@ -228,7 +232,9 @@ class LanguageServer(PyglsLanguageServer):
     async def preload_workspace(self) -> None:
         files = self._iter_workspace_typhon_files()
         if not files:
-            debug_file_write("No Typhon files found for preload.")
+            debug_file_write(
+                f"No Typhon files found for preload in {self.workspace.folders}."
+            )
             return
         debug_file_write(f"Starting workspace preload for {len(files)} file(s).")
         for file_path in files:
@@ -395,7 +401,7 @@ def did_change_watched_files(
             for change in params.changes
         ]
     )
-    # ls.backend_client.workspace_did_change_watched_files(uri_changed_params)
+    ls.backend_client.workspace_did_change_watched_files(uri_changed_params)
 
 
 @server.feature(types.TEXT_DOCUMENT_DID_OPEN)
@@ -488,4 +494,31 @@ async def hover(ls: LanguageServer, params: types.HoverParams):
         return demangle_hover_names(mapped_hover, ls.ast_modules.get(uri))
     except Exception as e:
         debug_file_write(f"Error during hover retrieval: {type(e).__name__}: {e}")
+        return None
+
+
+@server.feature(types.TEXT_DOCUMENT_DEFINITION)
+async def definition(ls: LanguageServer, params: types.DefinitionParams):
+    uri = canonicalize_uri(params.text_document.uri)
+    try:
+        debug_file_write(f"Definition requested: {params}")
+        cloned_params = ls.clone_params_map_uri(params)
+        mapping = ls.mapping.get(uri)
+        mapped_position = map_definition_request_position(params.position, mapping)
+        if mapped_position is None:
+            debug_file_write("Definition mapping failed for request position.")
+            return None
+        cloned_params.position = mapped_position
+        debug_file_write(f"Translated definition params: {cloned_params}")
+        definition_result = await ls.backend_client.text_document_definition_async(
+            cloned_params
+        )
+        debug_file_write(f"Received definition result: {definition_result}")
+        return map_definition_result(
+            definition_result,
+            ls.mapping,
+            ls.translated_uri_to_original_uri,
+        )
+    except Exception as e:
+        debug_file_write(f"Error during definition retrieval: {type(e).__name__}: {e}")
         return None
