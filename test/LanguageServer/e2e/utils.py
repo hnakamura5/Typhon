@@ -1,5 +1,7 @@
 import sys
 import asyncio
+import shutil
+from dataclasses import dataclass
 from typing import Callable
 from lsprotocol import types
 from pygls.lsp.client import LanguageClient
@@ -24,10 +26,38 @@ hello_file_uri = hello_file.resolve().as_uri()
 type_error_dir = get_project_root() / "test" / "Execute" / "TypeErrorTest"
 diag_file = type_error_dir / "diagnostic_showcase.typh"
 
-sample_workspace = Path(__file__).resolve().parent / "sample_workspace"
+e2e_dir = Path(__file__).resolve().parent
+sample_workspace = e2e_dir / "sample_workspace"
 main_file = sample_workspace / "main.typh"
 feature_file = sample_workspace / "pkg" / "nested" / "feature.typh"
 math_file = sample_workspace / "pkg" / "math.typh"
+
+
+@dataclass(frozen=True)
+class SampleWorkspaceFiles:
+    root: Path
+    main_file: Path
+    feature_file: Path
+    math_file: Path
+
+
+def sample_workspace_files(root: Path) -> SampleWorkspaceFiles:
+    return SampleWorkspaceFiles(
+        root=root,
+        main_file=root / "main.typh",
+        feature_file=root / "pkg" / "nested" / "feature.typh",
+        math_file=root / "pkg" / "math.typh",
+    )
+
+
+def copy_sample_workspace_to_temp() -> SampleWorkspaceFiles:
+    temp_root = e2e_dir / "temp"
+    temp_sample_workspace = temp_root / "sample_workspace"
+    if temp_sample_workspace.exists():
+        shutil.rmtree(temp_sample_workspace)
+    temp_root.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(sample_workspace, temp_sample_workspace)
+    return sample_workspace_files(temp_sample_workspace)
 
 
 def assert_capabilities_equal(

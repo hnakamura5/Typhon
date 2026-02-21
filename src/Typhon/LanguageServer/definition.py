@@ -4,9 +4,8 @@ from lsprotocol import types
 
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
 from .utils import (
-    canonicalize_uri,
-    map_name_unparsed_range_to_original_range,
     map_name_request_position_to_unparsed,
+    map_translated_uri_and_name_range_to_original,
 )
 
 
@@ -40,16 +39,15 @@ def _map_location(
     mapping: dict[str, MatchBasedSourceMap],
     translated_uri_to_original_uri: dict[str, str],
 ) -> types.Location | None:
-    original_uri = translated_uri_to_original_uri.get(canonicalize_uri(location.uri))
-    if original_uri is None:
-        return None
-    mapped_range = map_name_unparsed_range_to_original_range(
-        original_uri,
+    mapped_result = map_translated_uri_and_name_range_to_original(
+        location.uri,
         location.range,
         mapping,
+        translated_uri_to_original_uri,
     )
-    if mapped_range is None:
+    if mapped_result is None:
         return None
+    original_uri, mapped_range = mapped_result
     return types.Location(uri=original_uri, range=mapped_range)
 
 
@@ -58,26 +56,33 @@ def _map_location_link(
     mapping: dict[str, MatchBasedSourceMap],
     translated_uri_to_original_uri: dict[str, str],
 ) -> types.LocationLink | None:
-    original_uri = translated_uri_to_original_uri.get(
-        canonicalize_uri(location_link.target_uri)
+    mapped_target_selection_range_result = (
+        map_translated_uri_and_name_range_to_original(
+            location_link.target_uri,
+            location_link.target_selection_range,
+            mapping,
+            translated_uri_to_original_uri,
+        )
     )
-    if original_uri is None:
-        return None
-
-    mapped_target_selection_range = map_name_unparsed_range_to_original_range(
-        original_uri,
-        location_link.target_selection_range,
-        mapping,
-    )
-    mapped_target_range = map_name_unparsed_range_to_original_range(
-        original_uri,
+    mapped_target_range_result = map_translated_uri_and_name_range_to_original(
+        location_link.target_uri,
         location_link.target_range,
         mapping,
+        translated_uri_to_original_uri,
     )
-    if mapped_target_selection_range is None or mapped_target_range is None:
+    if (
+        mapped_target_selection_range_result is None
+        or mapped_target_range_result is None
+    ):
+        return None
+    target_selection_uri, mapped_target_selection_range = (
+        mapped_target_selection_range_result
+    )
+    target_uri, mapped_target_range = mapped_target_range_result
+    if target_selection_uri != target_uri:
         return None
     return types.LocationLink(
-        target_uri=original_uri,
+        target_uri=target_uri,
         target_range=mapped_target_range,
         target_selection_range=mapped_target_selection_range,
         origin_selection_range=None,

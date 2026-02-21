@@ -151,3 +151,28 @@ def map_name_unparsed_range_to_original_range(
     if not isinstance(mapped_back, ast.Name):
         return result
     return range_to_lsp_range(mapped_range)
+
+
+def map_translated_uri_and_name_range_to_original(
+    translated_uri: str,
+    source_range: types.Range,
+    mapping: dict[str, MatchBasedSourceMap],
+    translated_uri_to_original_uri: dict[str, str],
+) -> tuple[str, types.Range] | None:
+    original_uri = translated_uri_to_original_uri.get(canonicalize_uri(translated_uri))
+    if original_uri is None:
+        return None
+    mapped_range = map_name_unparsed_range_to_original_range(
+        original_uri,
+        source_range,
+        mapping,
+    )
+    if mapped_range is None:
+        return None
+    return original_uri, mapped_range
+
+
+DocumentEdits = (
+    types.TextDocumentEdit | types.CreateFile | types.RenameFile | types.DeleteFile
+)
+TextEdits = types.TextEdit | types.AnnotatedTextEdit | types.SnippetTextEdit

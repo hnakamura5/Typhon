@@ -60,6 +60,10 @@ from .reference import (
     map_reference_request_position,
     map_reference_result,
 )
+from .rename import (
+    map_rename_request_position,
+    map_rename_result,
+)
 from .utils import (
     canonicalize_uri,
     uri_to_path,
@@ -444,10 +448,24 @@ def did_change(ls: LanguageServer, params: types.DidChangeTextDocumentParams):
     """Parse each document when it is changed"""
     try:
         uri = params.text_document.uri
-        ls.reload(uri)
-        cloned_params = ls.clone_params_map_uri(params)
-        debug_file_write(f"Did change called for {uri}, translated to {cloned_params}")
-        ls.backend_client.text_document_did_change(cloned_params)
+        unparsed = ls.reload(uri)
+        translated_uri = ls.get_translated_file_uri(uri)
+        ls.backend_client.text_document_did_change(
+            types.DidChangeTextDocumentParams(
+                text_document=types.VersionedTextDocumentIdentifier(
+                    uri=translated_uri,
+                    version=params.text_document.version,
+                ),
+                content_changes=[
+                    types.TextDocumentContentChangeWholeDocument(
+                        text=unparsed if unparsed is not None else "",
+                    )
+                ],
+            )
+        )
+        debug_file_write(
+            f"Did change called for {uri}, synced translated full-document change."
+        )
     except Exception as e:
         debug_file_write(f"Error during document change: {e}")
 
@@ -598,4 +616,31 @@ async def references(ls: LanguageServer, params: types.ReferenceParams):
         )
     except Exception as e:
         debug_file_write(f"Error during references retrieval: {type(e).__name__}: {e}")
+        return None
+
+
+@server.feature(types.TEXT_DOCUMENT_RENAME)
+async def rename(ls: LanguageServer, params: types.RenameParams):
+    uri = canonicalize_uri(params.text_document.uri)
+    try:
+        debug_file_write(f"Rename requested: {params}")
+        cloned_params = ls.clone_params_map_uri(params)
+        mapping = ls.mapping.get(uri)
+        mapped_position = map_rename_request_position(params.position, mapping)
+        if mapped_position is None:
+            debug_file_write("Rename mapping failed for request position.")
+            return None
+        cloned_params.position = mapped_position
+        debug_file_write(f"Translated rename params: {cloned_params}")
+        rename_result = await ls.backend_client.text_document_rename_async(
+            cloned_params
+        )
+        debug_file_write(f"Received rename result: {rename_result}")
+        return map_rename_result(
+            rename_result,
+            ls.mapping,
+            ls.translated_uri_to_original_uri,
+        )
+    except Exception as e:
+        debug_file_write(f"Error during rename retrieval: {type(e).__name__}: {e}")
         return None

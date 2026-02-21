@@ -17,4 +17,9 @@
   "basedpyright.disableLanguageServices": false,
   "basedpyright.analysis.logLevel": "Trace",
   "python.pyrefly.displayTypeErrors": "force-on",
+  // To debug LSP server. Note it makes long long log in private/server.log
+  // "typhon.args": [
+  //   "lsp",
+  //   "--debug-verbose"
+  // ],
 }
