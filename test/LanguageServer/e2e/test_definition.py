@@ -87,6 +87,7 @@ def test_definition_main_greet_to_feature_definition():
         # Wait until workspace preload.
         await wait_file_exists(feature_file)
         try:
+            # greet usage in print(greet(...))
             locations = await request_definition(
                 client,
                 path_to_uri(main_file),
@@ -96,6 +97,22 @@ def test_definition_main_greet_to_feature_definition():
             assert len(locations) > 0
             assert_has_location(
                 locations,
+                expected_uri=path_to_uri(feature_file),
+                expected_line=2,
+                expected_start_character=4,
+                expected_end_character=9,
+            )
+
+            # greet usage in import statement: from pkg.nested.feature import greet
+            import_locations = await request_definition(
+                client,
+                path_to_uri(main_file),
+                line=1,
+                character=32,
+            )
+            assert len(import_locations) > 0
+            assert_has_location(
+                import_locations,
                 expected_uri=path_to_uri(feature_file),
                 expected_line=2,
                 expected_start_character=4,

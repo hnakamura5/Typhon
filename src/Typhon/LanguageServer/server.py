@@ -652,7 +652,7 @@ async def rename(ls: LanguageServer, params: types.RenameParams):
         debug_file_write(f"Received rename result: {rename_result}")
         return map_rename_result(
             rename_result,
-            ls._mapping,
+            ls.get_mapping,
             ls.translated_uri_to_original_uri,
         )
     except Exception as e:

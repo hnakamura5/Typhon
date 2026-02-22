@@ -1,4 +1,6 @@
 import asyncio
+from collections.abc import Sequence
+
 from lsprotocol import types
 from pygls.lsp.client import LanguageClient
 
@@ -35,6 +37,44 @@ async def request_inlay_hints(
     return list(result)
 
 
+def _label_to_text(label: str | Sequence[types.InlayHintLabelPart]) -> str:
+    if isinstance(label, str):
+        return label
+    return "".join(part.value for part in label)
+
+
+def _assert_hint_exists(
+    hints: Sequence[types.InlayHint],
+    *,
+    kind: types.InlayHintKind,
+    line: int,
+    character: int,
+    label_contains: str,
+) -> None:
+    for hint in hints:
+        if hint.kind != kind:
+            continue
+        if hint.position.line != line or hint.position.character != character:
+            continue
+        if label_contains in _label_to_text(hint.label):
+            return
+
+    observed = [
+        (
+            hint.kind,
+            hint.position.line,
+            hint.position.character,
+            _label_to_text(hint.label),
+        )
+        for hint in hints
+    ]
+    assert False, (
+        "Expected inlay hint was not found: "
+        f"kind={kind}, pos=({line}, {character}), label_contains='{label_contains}'. "
+        f"Observed={observed}"
+    )
+
+
 def test_inlay_hint_response_received_e2e():
     async def run_test() -> None:
         client, _ = await start_initialize_open_typhon_connection_client(
@@ -50,8 +90,30 @@ def test_inlay_hint_response_received_e2e():
                 end_line=max(len(lines), 0),
                 end_character=0,
             )
-            # At this stage we only verify end-to-end response delivery.
             assert isinstance(hints, list) and len(hints) > 0
+            # add(1, 2)
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Parameter,
+                line=4,
+                character=16,
+                label_contains="x=",
+            )
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Parameter,
+                line=4,
+                character=19,
+                label_contains="y=",
+            )
+            # var out = ...
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Type,
+                line=5,
+                character=7,
+                label_contains="int",
+            )
         finally:
             await ensure_exit(client)
 

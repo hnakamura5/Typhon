@@ -65,6 +65,14 @@ def test_references_main_greet_definitiont_to_usage():
                 expected_start_character=4,
                 expected_end_character=9,
             )
+            # Import usage in main.typh
+            assert_has_location(
+                locations,
+                expected_uri=path_to_uri(main_file),
+                expected_line=1,
+                expected_start_character=31,
+                expected_end_character=36,
+            )
             # Usage in main.typh
             assert_has_location(
                 locations,

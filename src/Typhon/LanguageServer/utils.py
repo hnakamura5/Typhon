@@ -135,7 +135,7 @@ def map_name_unparsed_range_to_original_range(
     if source_map is None:
         return result
 
-    mapped_name = source_map.unparsed_pos_to_unparsed_node(
+    mapped_name = source_map.unparsed_pos_to_origin_node(
         lsp_position_to_pos(source_range.start),
         ast.Name,
     )
@@ -144,6 +144,8 @@ def map_name_unparsed_range_to_original_range(
     mapped_range = Range.from_ast_node(mapped_name)
     if mapped_range is None:
         return result
+
+    # Sanity check: the mapped original name should map back to a translated name.
     mapped_position = pos_to_lsp_position(mapped_range.start)
     mapped_back = source_map.origin_pos_to_unparsed_node(
         lsp_position_to_pos(mapped_position),

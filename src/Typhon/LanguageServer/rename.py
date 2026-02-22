@@ -1,4 +1,4 @@
-from typing import Mapping, Sequence
+from typing import Callable, Mapping, Sequence
 import copy
 
 from lsprotocol import types
@@ -39,7 +39,7 @@ def _map_text_edits(
 def _map_text_edit_range(
     translated_uri: str,
     source_range: types.Range,
-    mapping: dict[str, MatchBasedSourceMap],
+    mapping: Callable[[str], MatchBasedSourceMap | None],
     translated_uri_to_original_uri: dict[str, str],
 ) -> tuple[str, types.Range] | None:
     return map_translated_uri_and_name_range_to_original(
@@ -52,7 +52,7 @@ def _map_text_edit_range(
 
 def _map_changes(
     changes: Mapping[str, Sequence[types.TextEdit]] | None,
-    mapping: dict[str, MatchBasedSourceMap],
+    mapping: Callable[[str], MatchBasedSourceMap | None],
     translated_uri_to_original_uri: dict[str, str],
 ) -> dict[str, list[types.TextEdit]] | None:
     if changes is None:
@@ -86,7 +86,7 @@ def _map_changes(
 
 def _map_text_document_edit(
     change: types.TextDocumentEdit,
-    mapping: dict[str, MatchBasedSourceMap],
+    mapping: Callable[[str], MatchBasedSourceMap | None],
     translated_uri_to_original_uri: dict[str, str],
 ) -> types.TextDocumentEdit | None:
     translated_uri = change.text_document.uri
@@ -118,7 +118,7 @@ def _map_text_document_edit(
 
 def _map_document_change(
     change: DocumentEdits,
-    mapping: dict[str, MatchBasedSourceMap],
+    mapping: Callable[[str], MatchBasedSourceMap | None],
     translated_uri_to_original_uri: dict[str, str],
 ) -> DocumentEdits | None:
     if isinstance(change, types.TextDocumentEdit):
@@ -161,7 +161,7 @@ def _map_document_change(
 
 def _map_document_changes(
     document_changes: Sequence[DocumentEdits] | None,
-    mapping: dict[str, MatchBasedSourceMap],
+    mapping: Callable[[str], MatchBasedSourceMap | None],
     translated_uri_to_original_uri: dict[str, str],
 ) -> list[DocumentEdits] | None:
     if document_changes is None:
@@ -179,7 +179,7 @@ def _map_document_changes(
 
 def map_rename_result(
     rename_result: RenameResult,
-    mapping: dict[str, MatchBasedSourceMap],
+    mapping: Callable[[str], MatchBasedSourceMap | None],
     translated_uri_to_original_uri: dict[str, str],
 ) -> RenameResult:
     if rename_result is None:
