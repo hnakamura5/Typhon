@@ -344,6 +344,9 @@ class SourceMapAsserter:
     ):
         mapped_range = self.source_map.unparsed_range_to_origin(unparsed_range)
         print(
+            f"Source map origin interval tree: {self.source_map.origin_interval_tree.interval_tree}"
+        )
+        print(
             f"Unparsed interval tree: {self.source_map.unparsed_interval_tree.interval_tree}"
         )
         assert mapped_range is not None, "Mapped range is None"

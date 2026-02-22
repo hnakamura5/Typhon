@@ -296,6 +296,7 @@ def recover_maybe_invalid_function_def_raw(
             body=body,
             type_comment=type_comment,
             type_params=type_params,
+            close_paren_anchor=close_paren,
             **kwargs,
         ),
         open_anchor=open_anchor,

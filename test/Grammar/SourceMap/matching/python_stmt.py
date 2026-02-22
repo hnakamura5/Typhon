@@ -68,3 +68,11 @@ def test_match_import_from():
 
     assert_ast_match_unparse_code(left_func)
     assert_source_map_ident(left_func)
+
+
+def test_match_return_type_annotation():
+    def left_func(x: int):
+        return x * 2
+
+    assert_ast_match_unparse_code(left_func)
+    assert_source_map_ident(left_func)

@@ -3,7 +3,12 @@ import ast
 from contextlib import contextmanager
 from typing import Any, cast
 from ..Driver.debugging import debug_verbose_print
-from ..Grammar.typhon_ast import DefinesName, get_defined_name, get_import_from_names
+from ..Grammar.typhon_ast import (
+    DefinesName,
+    get_defined_name,
+    get_import_from_names,
+    get_return_type_annotation_anchor,
+)
 
 
 # Match the AST node to right module recursively
@@ -64,6 +69,16 @@ class MatchingVisitor(ast.NodeVisitor):
             right_modules = get_import_from_names(cast(ast.ImportFrom, right))
             if modules and right_modules:
                 self._visit_list(modules, right_modules)
+        # Check return type annotation anchor
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            left_anchor = get_return_type_annotation_anchor(node)
+            right_anchor = get_return_type_annotation_anchor(
+                cast(ast.FunctionDef | ast.AsyncFunctionDef, right)
+            )
+            if left_anchor is not None and right_anchor is not None:
+                with self._with_right(right_anchor):
+                    self.visit(left_anchor)
+            # Allow return type annotation anchor not matching
         # Recursively visit fields
         for field, value in ast.iter_fields(node):
             right_value = getattr(right, field, None)

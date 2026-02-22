@@ -5,6 +5,7 @@ from ..Grammar.typhon_ast import (
     set_defined_name,
     get_pos_attributes,
     set_import_from_names,
+    set_return_type_annotation_anchor,
 )
 
 
@@ -12,6 +13,7 @@ from ..Grammar.typhon_ast import (
 class _DefinedNameRetriever(ast.NodeVisitor):
     def __init__(self, unparsed_source_code: str):
         self.unparsed_source_code = unparsed_source_code
+        self.unparsed_source_code_lines = unparsed_source_code.splitlines()
 
     def _visit_defines(
         self,
@@ -33,6 +35,23 @@ class _DefinedNameRetriever(ast.NodeVisitor):
             end_col_offset=start_col + len(node.name),
         )
         set_defined_name(node, name)
+
+    def _visit_finction_return_type_anchor(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ):
+        pos = get_pos_attributes(node)
+        end_col = len(self.unparsed_source_code_lines[pos["lineno"] - 1]) - 1
+        set_return_type_annotation_anchor(
+            node,
+            ast.Name(
+                id=")",
+                ctx=ast.Load(),
+                lineno=pos["lineno"],
+                col_offset=end_col,
+                end_lineno=pos["lineno"],
+                end_col_offset=end_col + 1,
+            ),
+        )
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
         self._visit_defines(node, len("def "))

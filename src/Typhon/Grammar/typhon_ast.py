@@ -1292,6 +1292,26 @@ def clear_defined_name(node: DefinesName):
         delattr(node, _DEFINED_NAME)
 
 
+_RETURN_TYPE_ANNOTATION_ANCHOR = "_typh_return_type_annotation_anchor"
+
+
+def set_return_type_annotation_anchor(
+    node: ast.FunctionDef | ast.AsyncFunctionDef, anchor: ast.Name | None
+):
+    setattr(node, _RETURN_TYPE_ANNOTATION_ANCHOR, anchor)
+
+
+def get_return_type_annotation_anchor(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> ast.Name | None:
+    return getattr(node, _RETURN_TYPE_ANNOTATION_ANCHOR, None)
+
+
+def clear_return_type_annotation_anchor(node: ast.FunctionDef | ast.AsyncFunctionDef):
+    if hasattr(node, _RETURN_TYPE_ANNOTATION_ANCHOR):
+        delattr(node, _RETURN_TYPE_ANNOTATION_ANCHOR)
+
+
 def make_function_def(
     is_async: bool,
     is_static: bool,
@@ -1301,6 +1321,7 @@ def make_function_def(
     body: list[ast.stmt],
     type_comment: str | None,
     type_params: list[ast.type_param],
+    close_paren_anchor: TokenInfo | None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.FunctionDef | ast.AsyncFunctionDef:
     if is_async:
@@ -1326,6 +1347,18 @@ def make_function_def(
     set_is_static(result, is_static)
     if isinstance(name, TokenInfo):
         set_defined_name_token(result, name)
+    if close_paren_anchor is not None:
+        set_return_type_annotation_anchor(
+            result,
+            ast.Name(
+                id=")",
+                lineno=close_paren_anchor.start[0],
+                col_offset=close_paren_anchor.start[1],
+                end_lineno=close_paren_anchor.end[0],
+                end_col_offset=close_paren_anchor.end[1],
+                ctx=ast.Load(),
+            ),
+        )
     return result
 
 
@@ -1713,6 +1746,7 @@ def make_with_comp(
         returns=None,
         type_comment=None,
         type_params=[],
+        close_paren_anchor=None,
         **get_pos_attributes(body),
     )
     result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
@@ -1773,6 +1807,7 @@ def make_try_comp(
         returns=None,
         type_comment=None,
         type_params=[],
+        close_paren_anchor=None,
         **get_pos_attributes(body),
     )
     result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
@@ -1866,6 +1901,7 @@ def make_match_comp(
         returns=None,
         type_comment=None,
         type_params=[],
+        close_paren_anchor=None,
         **kwargs,
     )
     result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
@@ -1897,6 +1933,7 @@ def make_while_comp(
         returns=None,
         type_comment=None,
         type_params=[],
+        close_paren_anchor=None,
         **kwargs,
     )
     result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
@@ -1933,6 +1970,7 @@ def make_if_let_comp(
         returns=None,
         type_comment=None,
         type_params=[],
+        close_paren_anchor=None,
         **kwargs,
     )
     result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
@@ -1964,6 +2002,7 @@ def make_while_let_comp(
         returns=None,
         type_comment=None,
         type_params=[],
+        close_paren_anchor=None,
         **kwargs,
     )
     result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
@@ -2001,6 +2040,7 @@ def make_let_comp(
         returns=None,
         type_comment=None,
         type_params=[],
+        close_paren_anchor=None,
         **kwargs,
     )
     result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)

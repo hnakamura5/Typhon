@@ -227,3 +227,34 @@ def test_match_typhon_stmt_import_from():
         Range(Pos(0, 45), Pos(0, 73)),
         "test_match_python_arithmetic",
     )
+
+
+code_type_annotation_anchor = """
+def left_func(x: int) {
+    return x * 2;
+}
+"""
+transformed_code_type_annotation_anchor = """
+def left_func(x: int):
+    return x * 2
+"""
+
+
+def test_match_typhon_stmt_return_type_annotation_anchor():
+    assert_transform(
+        code_type_annotation_anchor, transformed_code_type_annotation_anchor
+    )
+    assert_typh_code_match_unparse(code_type_annotation_anchor)
+    sa = SourceMapAsserter(code_type_annotation_anchor)
+    sa.assert_range_text(  # left_func (defined name of FunctionDef)
+        Range(Pos(1, 4), Pos(1, 13)),
+        "left_func",
+        Range(Pos(0, 4), Pos(0, 13)),
+        "left_func",
+    )
+    sa.assert_range_text(  # anchor of return type annotation ')' after parameter list.
+        Range(start=Pos(1, 20), end=Pos(1, 21)),
+        ")",
+        Range(start=Pos(0, 20), end=Pos(0, 21)),
+        ")",
+    )
