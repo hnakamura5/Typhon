@@ -23,7 +23,7 @@ def map_diagnostic(
 ) -> types.Diagnostic:
     # Map the diagnostic position back to the original source code
     mapped_range = (
-        source_map.unparsed_range_to_origin(lsp_range_to_range(diagnostic.range))
+        source_map.unparsed_range_to_origin_range(lsp_range_to_range(diagnostic.range))
         if source_map
         else None
     )

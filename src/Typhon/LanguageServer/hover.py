@@ -80,7 +80,7 @@ def map_hover_position(
     if source_map is None:
         return None
 
-    mapped_pos = source_map.origin_pos_to_unparsed(
+    mapped_pos = source_map.origin_pos_to_unparsed_pos(
         lsp_position_to_pos(position),
         prefer_right=True,
     )
@@ -103,7 +103,9 @@ def map_hover(
     if source_map is None or hover.range is None:
         return None
 
-    mapped_range = source_map.unparsed_range_to_origin(lsp_range_to_range(hover.range))
+    mapped_range = source_map.unparsed_range_to_origin_range(
+        lsp_range_to_range(hover.range)
+    )
     if mapped_range is None:
         debug_file_write_verbose(f"Could not map hover range: {hover.range}")
         return None

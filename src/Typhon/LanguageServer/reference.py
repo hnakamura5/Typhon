@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from typing import Callable, Sequence
 
 from lsprotocol import types
 
@@ -25,7 +25,7 @@ def map_reference_request_position(
 
 def _map_location(
     location: types.Location,
-    mapping: dict[str, MatchBasedSourceMap],
+    mapping: Callable[[str], MatchBasedSourceMap | None],
     translated_uri_to_original_uri: dict[str, str],
 ) -> types.Location | None:
     mapped_result = map_translated_uri_and_name_range_to_original(
@@ -42,7 +42,7 @@ def _map_location(
 
 def map_reference_result(
     reference_result: ReferenceResult,
-    mapping: dict[str, MatchBasedSourceMap],
+    mapping: Callable[[str], MatchBasedSourceMap | None],
     translated_uri_to_original_uri: dict[str, str],
 ) -> ReferenceResult:
     if reference_result is None:

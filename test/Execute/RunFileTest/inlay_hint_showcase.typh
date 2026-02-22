@@ -1,0 +1,8 @@
+def add(x: int, y: int) {
+    return x + y
+}
+
+let total = add(1, 2)
+var out = add(total, 3)
+
+var rec = {|a = 1, b = 2|}

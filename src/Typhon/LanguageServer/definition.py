@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from typing import Callable, Sequence
 
 from lsprotocol import types
 
@@ -36,7 +36,7 @@ def map_type_definition_request_position(
 
 def _map_location(
     location: types.Location,
-    mapping: dict[str, MatchBasedSourceMap],
+    mapping: Callable[[str], MatchBasedSourceMap | None],
     translated_uri_to_original_uri: dict[str, str],
 ) -> types.Location | None:
     mapped_result = map_translated_uri_and_name_range_to_original(
@@ -53,7 +53,7 @@ def _map_location(
 
 def _map_location_link(
     location_link: types.LocationLink,
-    mapping: dict[str, MatchBasedSourceMap],
+    mapping: Callable[[str], MatchBasedSourceMap | None],
     translated_uri_to_original_uri: dict[str, str],
 ) -> types.LocationLink | None:
     mapped_target_selection_range_result = (
@@ -91,7 +91,7 @@ def _map_location_link(
 
 def map_definition_result(
     definition_result: DefinitionResult,
-    mapping: dict[str, MatchBasedSourceMap],
+    mapping: Callable[[str], MatchBasedSourceMap | None],
     translated_uri_to_original_uri: dict[str, str],
 ) -> DefinitionResult:
     if definition_result is None:
@@ -130,7 +130,7 @@ def map_definition_result(
 
 def map_type_definition_result(
     type_definition_result: TypeDefinitionResult,
-    mapping: dict[str, MatchBasedSourceMap],
+    mapping: Callable[[str], MatchBasedSourceMap | None],
     translated_uri_to_original_uri: dict[str, str],
 ) -> TypeDefinitionResult:
     return map_definition_result(

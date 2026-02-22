@@ -64,6 +64,10 @@ from .rename import (
     map_rename_request_position,
     map_rename_result,
 )
+from .inlay_hint import (
+    map_inlay_hint_request_params,
+    map_inlay_hints_result,
+)
 from .utils import (
     canonicalize_uri,
     uri_to_path,
@@ -85,46 +89,58 @@ class LanguageServer(PyglsLanguageServer):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         PyglsLanguageServer.__init__(self, *args, **kwargs)  # type: ignore
         # Key URIs is original typhon document URI.
-        self.ast_modules: dict[str, ast.Module | None] = {}
+        self._ast_modules: dict[str, ast.Module | None] = {}
         self.token_infos: dict[str, list[TokenInfo]] = {}
         self.semantic_tokens: dict[str, list[SemanticToken]] = {}
         self.semantic_tokens_encoded: dict[str, Sequence[int]] = {}
         self.backend_client: LanguageClient = create_language_client()
-        self.mapping: dict[str, MatchBasedSourceMap] = {}
+        self._mapping: dict[str, MatchBasedSourceMap] = {}
         self.client_semantic_legend: dict[int, str] = {}
         self.translated_uri_to_original_uri: dict[str, str] = {}
         self.preload_task: asyncio.Task[None] | None = None
         self.preloaded_uris: set[str] = set()
 
-    def reload(self, uri: str) -> str | None:
-        doc: TextDocument = self.workspace.get_text_document(uri)
-        return self.reload_from_source(uri, doc.source, Path(doc.path))
+    def get_module(self, original_uri: str | None) -> ast.Module | None:
+        if original_uri is None:
+            return None
+        return self._ast_modules.get(original_uri, None)
 
-    def reload_from_source(self, uri: str, source: str, doc_path: Path) -> str | None:
+    def get_mapping(self, original_uri: str | None) -> MatchBasedSourceMap | None:
+        if original_uri is None:
+            return None
+        return self._mapping.get(original_uri, None)
+
+    def reload(self, original_uri: str) -> str | None:
+        doc: TextDocument = self.workspace.get_text_document(original_uri)
+        return self.reload_from_source(original_uri, doc.source, Path(doc.path))
+
+    def reload_from_source(
+        self, orignal_uri: str, source: str, doc_path: Path
+    ) -> str | None:
         try:
-            uri = canonicalize_uri(uri)
+            orignal_uri = canonicalize_uri(orignal_uri)
             self.translated_uri_to_original_uri.setdefault(
-                self.get_translated_file_uri(uri), uri
+                self.get_translated_file_uri(orignal_uri), orignal_uri
             )
             debug_file_write(
-                f"Reloading document uri={uri} translated uri={self.get_translated_file_uri(uri)} source: {source.strip()[:50]}..."
+                f"Reloading document uri={orignal_uri} translated uri={self.get_translated_file_uri(orignal_uri)} source: {source.strip()[:50]}..."
             )
             tokenizer = tokenizer_for_string(source)
-            self.token_infos[uri] = tokenizer.read_all_tokens()
+            self.token_infos[orignal_uri] = tokenizer.read_all_tokens()
             ast_node = parse_tokenizer(tokenizer)
             if not isinstance(ast_node, ast.Module):
                 ast_node = None
             debug_file_write(
-                f"Parsed AST for {uri}: {ast.dump(ast_node) if ast_node else 'None'}"
+                f"Parsed AST for {orignal_uri}: {ast.dump(ast_node) if ast_node else 'None'}"
             )
             if ast_node:
                 transform(ast_node, ignore_error=True)
-            self.ast_modules[uri] = ast_node
+            self._ast_modules[orignal_uri] = ast_node
             semantic_tokens, encoded = ast_tokens_to_semantic_tokens(
-                ast_node, self.token_infos[uri]
+                ast_node, self.token_infos[orignal_uri]
             )
-            self.semantic_tokens[uri] = semantic_tokens
-            self.semantic_tokens_encoded[uri] = encoded
+            self.semantic_tokens[orignal_uri] = semantic_tokens
+            self.semantic_tokens_encoded[orignal_uri] = encoded
             if not ast_node:
                 return None
             # Write translated file to server temporal directory
@@ -134,7 +150,7 @@ class LanguageServer(PyglsLanguageServer):
                 ast_node, source, doc_path.as_posix(), unparsed
             )
             if mapping:
-                self.mapping[uri] = mapping
+                self._mapping[orignal_uri] = mapping
             self.setup_container_directories(translate_file_path, root)
             # Setup the server directory
             server_temp_dir = output_dir_for_server_workspace(root) if root else None
@@ -150,11 +166,11 @@ class LanguageServer(PyglsLanguageServer):
                 f.write(unparsed)
             return unparsed
         except Exception as e:
-            self.ast_modules[uri] = None
-            self.token_infos[uri] = []
-            self.semantic_tokens[uri] = []
-            self.semantic_tokens_encoded[uri] = []
-            debug_file_write(f"Error reloading document {uri}: {e}")
+            self._ast_modules[orignal_uri] = None
+            self.token_infos[orignal_uri] = []
+            self.semantic_tokens[orignal_uri] = []
+            self.semantic_tokens_encoded[orignal_uri] = []
+            debug_file_write(f"Error reloading document {orignal_uri}: {e}")
             # dump traceback to debug log
             traceback_str = traceback.format_exc()
             debug_file_write_verbose(f"Traceback:\n{traceback_str}")
@@ -253,7 +269,7 @@ class LanguageServer(PyglsLanguageServer):
                 uri = canonicalize_uri(path_to_uri(file_path))
                 if uri in self.preloaded_uris:
                     continue
-                if uri in self.ast_modules:
+                if uri in self._ast_modules:
                     continue
                 source = file_path.read_text(encoding="utf-8")
                 self.reload_from_source(uri, source, file_path)
@@ -391,16 +407,13 @@ async def on_publish_diagnostics(
     ls_client: LanguageClient, params: types.PublishDiagnosticsParams
 ):
     original_uri = server.get_original_file_uri(params.uri)
-    module = server.ast_modules.get(original_uri) if original_uri else None
+    module = server._ast_modules.get(original_uri) if original_uri else None
     debug_file_write(
         f"Backend published diagnostics: {params} original_uri={original_uri}   module={module}"
     )
     server.text_document_publish_diagnostics(
         map_and_add_diagnostics(
-            original_uri,
-            params,
-            module,
-            server.mapping.get(original_uri, None) if original_uri else None,
+            original_uri, params, module, server.get_mapping(original_uri)
         )
     )
 
@@ -485,7 +498,7 @@ async def semantic_tokens_full(ls: LanguageServer, params: types.SemanticTokensP
         debug_file_write(f"Received semantic tokens: {semantic_tokens}")
         if not semantic_tokens:
             return None
-        if (mapping := ls.mapping.get(uri)) is None:
+        if (mapping := ls.get_mapping(uri)) is None:
             return None
         mapped = map_semantic_tokens(
             semantic_tokens, mapping, ls.client_semantic_legend
@@ -497,7 +510,7 @@ async def semantic_tokens_full(ls: LanguageServer, params: types.SemanticTokensP
             f"Error during semantic tokens retrieval: {type(e).__name__}: {e}"
         )
         # Fall back to precomputed rough semantic tokens (encoded).
-        if (mapping := ls.mapping.get(uri)) is not None:
+        if (mapping := ls.get_mapping(uri)) is not None:
             try:
                 fallback = encode_semantic_tokens(ls.semantic_tokens.get(uri, []))
                 debug_file_write(f"Fallback: {fallback}")
@@ -510,10 +523,11 @@ async def semantic_tokens_full(ls: LanguageServer, params: types.SemanticTokensP
 @server.feature(types.TEXT_DOCUMENT_HOVER)
 async def hover(ls: LanguageServer, params: types.HoverParams):
     uri = canonicalize_uri(params.text_document.uri)
+    original_uri = ls.get_original_file_uri(uri)
     try:
         debug_file_write(f"Hover requested: {params}")
         cloned_params = ls.clone_params_map_uri(params)
-        mapping = ls.mapping.get(uri)
+        mapping = ls.get_mapping(uri)
         mapped_position = map_hover_position(params.position, mapping)
         if mapped_position is None:
             debug_file_write(
@@ -530,7 +544,7 @@ async def hover(ls: LanguageServer, params: types.HoverParams):
         if mapped_hover is None:
             debug_file_write("Hover mapping failed for response range. Skipping hover.")
             return None
-        return demangle_hover_names(mapped_hover, ls.ast_modules.get(uri))
+        return demangle_hover_names(mapped_hover, ls._ast_modules.get(uri))
     except Exception as e:
         debug_file_write(f"Error during hover retrieval: {type(e).__name__}: {e}")
         return None
@@ -542,7 +556,7 @@ async def definition(ls: LanguageServer, params: types.DefinitionParams):
     try:
         debug_file_write(f"Definition requested: {params}")
         cloned_params = ls.clone_params_map_uri(params)
-        mapping = ls.mapping.get(uri)
+        mapping = ls.get_mapping(uri)
         mapped_position = map_definition_request_position(params.position, mapping)
         if mapped_position is None:
             debug_file_write("Definition mapping failed for request position.")
@@ -555,7 +569,7 @@ async def definition(ls: LanguageServer, params: types.DefinitionParams):
         debug_file_write(f"Received definition result: {definition_result}")
         return map_definition_result(
             definition_result,
-            ls.mapping,
+            ls.get_mapping,
             ls.translated_uri_to_original_uri,
         )
     except Exception as e:
@@ -569,7 +583,7 @@ async def type_definition(ls: LanguageServer, params: types.TypeDefinitionParams
     try:
         debug_file_write(f"Type definition requested: {params}")
         cloned_params = ls.clone_params_map_uri(params)
-        mapping = ls.mapping.get(uri)
+        mapping = ls.get_mapping(uri)
         mapped_position = map_type_definition_request_position(params.position, mapping)
         if mapped_position is None:
             debug_file_write("Type definition mapping failed for request position.")
@@ -582,7 +596,7 @@ async def type_definition(ls: LanguageServer, params: types.TypeDefinitionParams
         debug_file_write(f"Received type definition result: {type_definition_result}")
         return map_type_definition_result(
             type_definition_result,
-            ls.mapping,
+            ls.get_mapping,
             ls.translated_uri_to_original_uri,
         )
     except Exception as e:
@@ -598,7 +612,7 @@ async def references(ls: LanguageServer, params: types.ReferenceParams):
     try:
         debug_file_write(f"References requested: {params}")
         cloned_params = ls.clone_params_map_uri(params)
-        mapping = ls.mapping.get(uri)
+        mapping = ls.get_mapping(uri)
         mapped_position = map_reference_request_position(params.position, mapping)
         if mapped_position is None:
             debug_file_write("References mapping failed for request position.")
@@ -611,7 +625,7 @@ async def references(ls: LanguageServer, params: types.ReferenceParams):
         debug_file_write(f"Received references result: {reference_result}")
         return map_reference_result(
             reference_result,
-            ls.mapping,
+            ls.get_mapping,
             ls.translated_uri_to_original_uri,
         )
     except Exception as e:
@@ -625,7 +639,7 @@ async def rename(ls: LanguageServer, params: types.RenameParams):
     try:
         debug_file_write(f"Rename requested: {params}")
         cloned_params = ls.clone_params_map_uri(params)
-        mapping = ls.mapping.get(uri)
+        mapping = ls._mapping.get(uri)
         mapped_position = map_rename_request_position(params.position, mapping)
         if mapped_position is None:
             debug_file_write("Rename mapping failed for request position.")
@@ -638,9 +652,34 @@ async def rename(ls: LanguageServer, params: types.RenameParams):
         debug_file_write(f"Received rename result: {rename_result}")
         return map_rename_result(
             rename_result,
-            ls.mapping,
+            ls._mapping,
             ls.translated_uri_to_original_uri,
         )
     except Exception as e:
         debug_file_write(f"Error during rename retrieval: {type(e).__name__}: {e}")
+        return None
+
+
+@server.feature(types.TEXT_DOCUMENT_INLAY_HINT)
+async def inlay_hint(ls: LanguageServer, params: types.InlayHintParams):
+    uri = canonicalize_uri(params.text_document.uri)
+    original_uri = ls.get_original_file_uri(uri)
+    try:
+        debug_file_write(f"Inlay hint requested: {params}")
+        cloned_params = ls.clone_params_map_uri(params)
+        mapping = ls._mapping.get(uri)
+        mapped_params = map_inlay_hint_request_params(cloned_params, mapping)
+        if mapped_params is None:
+            debug_file_write("Inlay hint request range mapping failed.")
+            return None
+        debug_file_write(f"Translated inlay hint params: {mapped_params}")
+        inlay_result = await ls.backend_client.text_document_inlay_hint_async(
+            mapped_params
+        )
+        debug_file_write(f"Received inlay hint result: {inlay_result}")
+        return map_inlay_hints_result(
+            inlay_result, ls.get_module(original_uri), mapping
+        )
+    except Exception as e:
+        debug_file_write(f"Error during inlay hint retrieval: {type(e).__name__}: {e}")
         return None

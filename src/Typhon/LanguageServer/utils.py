@@ -1,6 +1,7 @@
 import ast
 import copy
 from pathlib import Path
+from typing import Callable
 
 from lsprotocol import types
 from pygls import uris
@@ -123,18 +124,18 @@ def map_name_request_position_to_unparsed(
 def map_name_unparsed_range_to_original_range(
     original_uri: str,
     source_range: types.Range,
-    mapping: dict[str, MatchBasedSourceMap],
+    mapping: Callable[[str], MatchBasedSourceMap | None],
 ) -> types.Range | None:
     result = None
     # When jumping (0, 0), possible to jump top of the file.
     # TODO: More precise way?
     if source_range.start.line == 0 and source_range.start.character == 0:
         result = source_range
-    source_map = mapping.get(original_uri)
+    source_map = mapping(original_uri)
     if source_map is None:
         return result
 
-    mapped_name = source_map.unparsed_pos_to_origin_node(
+    mapped_name = source_map.unparsed_pos_to_unparsed_node(
         lsp_position_to_pos(source_range.start),
         ast.Name,
     )
@@ -156,7 +157,7 @@ def map_name_unparsed_range_to_original_range(
 def map_translated_uri_and_name_range_to_original(
     translated_uri: str,
     source_range: types.Range,
-    mapping: dict[str, MatchBasedSourceMap],
+    mapping: Callable[[str], MatchBasedSourceMap | None],
     translated_uri_to_original_uri: dict[str, str],
 ) -> tuple[str, types.Range] | None:
     original_uri = translated_uri_to_original_uri.get(canonicalize_uri(translated_uri))

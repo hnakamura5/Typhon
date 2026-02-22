@@ -40,7 +40,10 @@ class _DefinedNameRetriever(ast.NodeVisitor):
         self, node: ast.FunctionDef | ast.AsyncFunctionDef
     ):
         pos = get_pos_attributes(node)
-        end_col = len(self.unparsed_source_code_lines[pos["lineno"] - 1]) - 1
+        end_col = len(self.unparsed_source_code_lines[pos["lineno"] - 1]) - 2
+        debug_verbose_print(
+            f'Setting return type annotation anchor for function "{node.name}" at line {pos["lineno"]}, col {end_col}'
+        )
         set_return_type_annotation_anchor(
             node,
             ast.Name(
@@ -55,10 +58,12 @@ class _DefinedNameRetriever(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
         self._visit_defines(node, len("def "))
+        self._visit_finction_return_type_anchor(node)
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
         self._visit_defines(node, len("async def "))
+        self._visit_finction_return_type_anchor(node)
         self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef):

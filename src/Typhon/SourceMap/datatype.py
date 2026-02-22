@@ -21,6 +21,20 @@ class Pos:
             return None
         return Pos(line=attr["end_lineno"], column=attr["end_col_offset"])
 
+    @staticmethod
+    def from_node_start(node: ast.AST) -> "Pos | None":
+        mapped_range = Range.from_ast_node(node)
+        if mapped_range is None:
+            return None
+        return mapped_range.start
+
+    @staticmethod
+    def from_node_end(node: ast.AST) -> "Pos | None":
+        mapped_range = Range.from_ast_node(node)
+        if mapped_range is None:
+            return None
+        return mapped_range.end
+
     def col_back(self) -> "Pos":
         if self.column == 0:
             return self

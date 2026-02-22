@@ -330,7 +330,7 @@ class SourceMapAsserter:
         self.unparsed_code = unparsed_code
 
     def assert_range(self, origin_range: Range, unparsed_range: Range):
-        mapped_range = self.source_map.unparsed_range_to_origin(unparsed_range)
+        mapped_range = self.source_map.unparsed_range_to_origin_range(unparsed_range)
         assert mapped_range == origin_range, (
             f"Expected mapped range {origin_range}, got {mapped_range}"
         )
@@ -342,7 +342,7 @@ class SourceMapAsserter:
         unparsed_range: Range,
         unparsed_text: str,
     ):
-        mapped_range = self.source_map.unparsed_range_to_origin(unparsed_range)
+        mapped_range = self.source_map.unparsed_range_to_origin_range(unparsed_range)
         print(
             f"Source map origin interval tree: {self.source_map.origin_interval_tree.interval_tree}"
         )

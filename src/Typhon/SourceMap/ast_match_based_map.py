@@ -22,26 +22,25 @@ class MatchBasedSourceMap:
         self.source_code = source_code
         self.source_file = source_file
         self.unparsed_code: str = unparsed_code
+        self.unparsed_code_lines = unparsed_code.splitlines()
         self._setup_interval_trees()
 
     def _setup_interval_trees(self):
         for origin_node, unparsed_node in self.origin_to_unparsed.items():
             origin_pos = get_pos_attributes_if_exists(origin_node)
             if origin_pos is not None:
+                origin_range = Range.from_pos_attr_may_not_end(origin_pos)
                 debug_verbose_print(
-                    f"Adding to origin interval tree:\n    range={Range.from_pos_attr_may_not_end(origin_pos)}\n    {ast.dump(origin_node)}\n    pos: {origin_pos}"
+                    f"Adding to origin interval tree: in {self.source_file}\n    range={origin_range}\n    {ast.dump(origin_node)}\n    pos: {origin_pos}, text:{origin_range.of_string(self.source_code)}"
                 )
-                self.origin_interval_tree.add(
-                    Range.from_pos_attr_may_not_end(origin_pos), origin_node
-                )
+                self.origin_interval_tree.add(origin_range, origin_node)
             unparsed_pos = get_pos_attributes_if_exists(unparsed_node)
             if unparsed_pos is not None:
+                unparsed_range = Range.from_pos_attr_may_not_end(unparsed_pos)
                 debug_verbose_print(
-                    f"  Adding to unparsed interval tree:\n    range={Range.from_pos_attr_may_not_end(unparsed_pos)}\n    {ast.dump(unparsed_node)}\n    pos: {unparsed_pos}"
+                    f"  Adding to unparsed interval tree: in {self.source_file}\n    range={unparsed_range}\n    {ast.dump(unparsed_node)}\n    pos: {unparsed_pos}, text:{unparsed_range.of_string(self.unparsed_code)}"
                 )
-                self.unparsed_interval_tree.add(
-                    Range.from_pos_attr_may_not_end(unparsed_pos), unparsed_node
-                )
+                self.unparsed_interval_tree.add(unparsed_range, unparsed_node)
 
     # Assume range in base_node, apply the offset of the range in base_node to result_node
     # TODO: This is valid range conversion only for very simple cases.
@@ -127,16 +126,12 @@ class MatchBasedSourceMap:
         self,
         pos: Pos,
         interval_tree: RangeIntervalTree[ast.AST],
-        mapping: dict[ast.AST, ast.AST],
+        mapping: dict[ast.AST, ast.AST] | None,
         filter_node_type: type[ast.AST] | None = None,
     ) -> ast.AST | None:
         nodes = interval_tree.at(pos)
         if filter_node_type is not None:
-            nodes = [
-                (r, n)
-                for r, n in nodes
-                if isinstance(mapping.get(n, None), filter_node_type)
-            ]
+            nodes = [(r, n) for r, n in nodes if isinstance(n, filter_node_type)]
         if not nodes:
             return None
         # Prefer most-specific container.
@@ -147,9 +142,17 @@ class MatchBasedSourceMap:
                 entry[0].end.column - entry[0].start.column,
             ),
         )
+        if mapping is None:
+            return node
         return mapping.get(node, None)
 
-    def unparsed_range_to_origin(
+    def unparsed_node_to_origin_node(
+        self,
+        unparsed_node: ast.AST,
+    ) -> ast.AST | None:
+        return self.unparsed_to_origin.get(unparsed_node, None)
+
+    def unparsed_range_to_origin_range(
         self,
         range_unparsed: Range,
     ) -> Range | None:
@@ -163,7 +166,7 @@ class MatchBasedSourceMap:
         self,
         range_unparsed: Range,
     ) -> str | None:
-        range_in_origin = self.unparsed_range_to_origin(range_unparsed)
+        range_in_origin = self.unparsed_range_to_origin_range(range_unparsed)
         if range_in_origin is None:
             return None
         return range_in_origin.of_string(self.source_code)
@@ -191,6 +194,30 @@ class MatchBasedSourceMap:
         debug_verbose_print("No nodes found for the given unparsed range.")
         return None
 
+    def unparsed_pos_to_unparsed_node(
+        self,
+        pos_unparsed: Pos,
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None:
+        return self._pos_to_node(
+            pos_unparsed,
+            self.unparsed_interval_tree,
+            None,
+            filter_node_type,
+        )
+
+    def unparsed_pos_to_origin_pos(
+        self,
+        pos_unparsed: Pos,
+        prefer_right: bool = True,
+    ) -> Pos | None:
+        return self._pos_to(
+            pos_unparsed,
+            self.unparsed_interval_tree,
+            self.unparsed_to_origin,
+            prefer_right,
+        )
+
     def unparsed_pos_to_origin_node(
         self,
         pos_unparsed: Pos,
@@ -203,19 +230,13 @@ class MatchBasedSourceMap:
             filter_node_type,
         )
 
-    def unparsed_pos_to_origin(
+    def origin_node_to_unparsed_node(
         self,
-        pos_unparsed: Pos,
-        prefer_right: bool = True,
-    ) -> Pos | None:
-        return self._pos_to(
-            pos_unparsed,
-            self.unparsed_interval_tree,
-            self.unparsed_to_origin,
-            prefer_right,
-        )
+        origin_node: ast.AST,
+    ) -> ast.AST | None:
+        return self.origin_to_unparsed.get(origin_node, None)
 
-    def origin_range_to_unparsed(
+    def origin_range_to_unparsed_range(
         self,
         range_origin: Range,
     ) -> Range | None:
@@ -226,7 +247,7 @@ class MatchBasedSourceMap:
             self.origin_to_unparsed,
         )
 
-    def origin_pos_to_unparsed(
+    def origin_pos_to_unparsed_pos(
         self,
         pos_origin: Pos,
         prefer_right: bool = True,
@@ -258,7 +279,28 @@ class MatchBasedSourceMap:
         if range_origin is None:
             return None
         range_origin_part = Range.from_pos_attr_may_not_end(range_origin)
-        return self.origin_range_to_unparsed(range_origin_part)
+        return self.origin_range_to_unparsed_range(range_origin_part)
+
+    def origin_pos_to_origin_node(
+        self,
+        pos_origin: Pos,
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None:
+        return self._pos_to_node(
+            pos_origin,
+            self.origin_interval_tree,
+            None,
+            filter_node_type,
+        )
+
+    def unparsed_code_end_pos(self) -> Pos:
+        if self.unparsed_code_lines:
+            return Pos(
+                line=len(self.unparsed_code_lines) - 1,
+                column=len(self.unparsed_code_lines[-1]),
+            )
+        else:
+            return Pos(line=0, column=0)
 
 
 def map_from_translated_ast(
