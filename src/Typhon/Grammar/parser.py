@@ -78,3 +78,39 @@ def parse_string(
     if parsed:
         gather_errors(parsed)
     return parsed
+
+
+def parse_expr(
+    source: str,
+    py_version: Optional[tuple[int, int]] = None,
+    verbose: bool = False,
+) -> ast.expr:
+    """Parse an expression string and return expression node."""
+    parsed = parse_string(
+        source,
+        mode="eval",
+        py_version=py_version,
+        verbose=verbose,
+    )
+    assert isinstance(parsed, ast.Expression), f"Expression parsing failed: {parsed}"
+    return parsed.body
+
+
+def parse_type(
+    source: str,
+    py_version: Optional[tuple[int, int]] = None,
+    verbose: bool = False,
+) -> ast.expr:
+    """Parse a typing expression string and return expression node."""
+    tok_stream = token_stream_factory(io.StringIO(source).readline)
+    tokenizer = TokenizerCustom(tok_stream, verbose=verbose)
+    parsed = parse(
+        filename="<typing_expr>",
+        tokenizer=tokenizer,
+        mode="typing_expr",
+        py_version=py_version,
+        verbose=verbose,
+    )
+    assert isinstance(parsed, ast.Expression), f"Type parsing failed: {parsed}"
+    gather_errors(parsed)
+    return parsed.body
