@@ -13,7 +13,10 @@ from ..Grammar.typhon_ast import (
     is_record_type,
     is_attributes_pattern,
 )
-from ..Grammar.pretty_printer import pretty_print_expr
+from ..Grammar.pretty_printer import (
+    pretty_print_expr,
+    make_record_type_demangle_template,
+)
 from .visitor import TyphonASTVisitor, TyphonASTTransformer, flat_append
 from ._utils.imports import (
     get_insert_point_for_class,
@@ -24,7 +27,7 @@ from ._utils.make_class import (
     NameAndAnnotation,
 )
 from dataclasses import dataclass
-from typing import Protocol, Iterable, Final
+from typing import Protocol, Iterable
 
 
 @dataclass
@@ -120,7 +123,13 @@ class _GatherRecords(TyphonASTVisitor):
                 type_vars,
             )
         )
-        add_generated_name_original(self.module, class_name, pretty_print_expr(node))
+        add_generated_name_original(
+            self.module,
+            class_name,
+            make_record_type_demangle_template(
+                [field.name.id for field in field_infos]
+            ),
+        )
 
     def visit_Name(self, node: RecordLiteral):
         if is_record_literal(node):

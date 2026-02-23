@@ -1,5 +1,6 @@
 # type: ignore[all]
 import ast
+import re
 
 from .typhon_ast import (
     FunctionType,
@@ -15,6 +16,34 @@ from .typhon_ast import (
     is_record_literal,
     is_record_type,
 )
+
+
+_RECORD_TYPE_DEMANGLE_PLACEHOLDER_PREFIX = "_typh_record_type_arg_"
+RECORD_TYPE_DEMANGLE_PLACEHOLDER_PATTERN = re.compile(
+    rf"{_RECORD_TYPE_DEMANGLE_PLACEHOLDER_PREFIX}(\d+)_"
+)
+
+
+def record_type_demangle_placeholder(index: int) -> str:
+    return f"{_RECORD_TYPE_DEMANGLE_PLACEHOLDER_PREFIX}{index}_"
+
+
+def make_record_type_demangle_template(field_names: list[str]) -> str:
+    field_parts = [
+        f"{field_name}: {record_type_demangle_placeholder(i)}"
+        for i, field_name in enumerate(field_names)
+    ]
+    return "{| " + ", ".join(field_parts) + " |}"
+
+
+def apply_record_type_arg_placeholders(template: str, args: list[str]) -> str:
+    def _replace_placeholder(match: re.Match[str]) -> str:
+        index = int(match.group(1))
+        if 0 <= index < len(args):
+            return args[index]
+        return match.group(0)
+
+    return RECORD_TYPE_DEMANGLE_PLACEHOLDER_PATTERN.sub(_replace_placeholder, template)
 
 
 def _print_arg(arg: ast.arg) -> str:
