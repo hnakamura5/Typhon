@@ -2,9 +2,12 @@ import ast
 from typing import override, Callable
 from contextlib import contextmanager
 
+from Typhon.Grammar.pretty_printer import make_final_demangle_template
+
 from ._utils.imports import add_import_for_final, get_final, get_final_of_type
 from ..Grammar.typhon_ast import (
     DeclarableStmt,
+    add_generated_name_original,
     is_decl_assign,
     PosAttributes,
     get_pos_attributes,
@@ -480,4 +483,5 @@ def type_annotation_check_expand(module: ast.Module):
         expander.run()
         use_final |= expander.use_final
     if use_final:
-        add_import_for_final(module)
+        final_name = add_import_for_final(module)
+        add_generated_name_original(module, final_name, make_final_demangle_template())

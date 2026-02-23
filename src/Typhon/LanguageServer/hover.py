@@ -6,7 +6,7 @@ from lsprotocol import types
 
 from ..Driver.debugging import debug_file_write_verbose
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
-from ._utils.demangle import get_demangle_mapping, replace_mangled_names
+from ._utils.demangle import demangle_text
 from ._utils.mapping import (
     lsp_range_to_range,
     range_to_lsp_range,
@@ -22,38 +22,34 @@ type HoverContents = (
 
 def _demangle_marked_string(
     marked: types.MarkedString,
-    mapping: dict[str, str],
+    module: ast.Module | None,
 ) -> types.MarkedString:
     if isinstance(marked, str):
-        return replace_mangled_names(marked, mapping)
+        return demangle_text(marked, module)
     return types.MarkedStringWithLanguage(
         language=marked.language,
-        value=replace_mangled_names(marked.value, mapping),
+        value=demangle_text(marked.value, module),
     )
 
 
 def _demangle_hover_contents(
-    contents: HoverContents,
-    mapping: dict[str, str],
+    contents: HoverContents, module: ast.Module | None
 ) -> HoverContents:
     if isinstance(contents, str):
-        return replace_mangled_names(contents, mapping)
+        return demangle_text(contents, module)
     if isinstance(contents, types.MarkedStringWithLanguage):
-        return _demangle_marked_string(contents, mapping)
+        return _demangle_marked_string(contents, module)
     if isinstance(contents, types.MarkupContent):
         return types.MarkupContent(
             kind=contents.kind,
-            value=replace_mangled_names(contents.value, mapping),
+            value=demangle_text(contents.value, module),
         )
-    return [_demangle_marked_string(item, mapping) for item in contents]
+    return [_demangle_marked_string(item, module) for item in contents]
 
 
 def demangle_hover_names(hover: types.Hover, module: ast.Module | None) -> types.Hover:
-    if module is None:
-        return hover
-    mapping = dict(get_demangle_mapping(module))
     demangled = copy.copy(hover)
-    demangled.contents = _demangle_hover_contents(hover.contents, mapping)
+    demangled.contents = _demangle_hover_contents(hover.contents, module)
     return demangled
 
 

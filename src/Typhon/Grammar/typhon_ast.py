@@ -122,11 +122,6 @@ def get_empty_pos_attributes() -> PosAttributes:
 
 
 _ANONYMOUS_NAME = "_typh_anonymous"
-_MANGLED_NAME_PATTERN = re.compile(r"\b(_typh_[A-Za-z0-9_]+)\b")
-
-
-def get_mangled_name_pattern() -> re.Pattern[str]:
-    return _MANGLED_NAME_PATTERN
 
 
 def set_anonymous_name_id(node: ast.Name, id: int) -> ast.Name:

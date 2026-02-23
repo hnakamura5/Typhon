@@ -18,14 +18,19 @@ from .typhon_ast import (
 )
 
 
-_RECORD_TYPE_DEMANGLE_PLACEHOLDER_PREFIX = "_typh_record_type_arg_"
-RECORD_TYPE_DEMANGLE_PLACEHOLDER_PATTERN = re.compile(
-    rf"{_RECORD_TYPE_DEMANGLE_PLACEHOLDER_PREFIX}(\d+)_"
+_TYPE_DEMANGLE_PLACEHOLDER_PREFIX = "_typh_record_type_arg_"
+_TYPE_DEMANGLE_PLACEHOLDER_PATTERN = re.compile(
+    rf"{_TYPE_DEMANGLE_PLACEHOLDER_PREFIX}(\d+)_"
 )
 
 
+# Use the type itself as the demangle type.
+def make_final_demangle_template() -> str:
+    return f"{_TYPE_DEMANGLE_PLACEHOLDER_PREFIX}0_"
+
+
 def record_type_demangle_placeholder(index: int) -> str:
-    return f"{_RECORD_TYPE_DEMANGLE_PLACEHOLDER_PREFIX}{index}_"
+    return f"{_TYPE_DEMANGLE_PLACEHOLDER_PREFIX}{index}_"
 
 
 def make_record_type_demangle_template(field_names: list[str]) -> str:
@@ -37,30 +42,20 @@ def make_record_type_demangle_template(field_names: list[str]) -> str:
 
 
 def make_record_literal_demangle_template(
-    fields: list[tuple[str, str | None, str | None]],
-    *,
-    include_values: bool = False,
+    fields: list[tuple[str, str | None]],
 ) -> str:
     """
     Build demangle template for record literals.
-
     If a field type is unknown, the type slot is represented by a placeholder
     so callers can inject inferred type arguments later.
-
-    By default this returns a type-only shape (no `= value`) for type-hint use.
-    Set `include_values=True` when value text should be retained for future
-    literal-inline hint rendering.
     """
     parts: list[str] = []
     placeholder_index = 0
-    for name, annotation_text, value_text in fields:
+    for name, annotation_text in fields:
         if annotation_text is None:
             annotation_text = record_type_demangle_placeholder(placeholder_index)
             placeholder_index += 1
-        if include_values and value_text is not None:
-            parts.append(f"{name}: {annotation_text} = {value_text}")
-        else:
-            parts.append(f"{name}: {annotation_text}")
+        parts.append(f"{name}: {annotation_text}")
     return "{| " + ", ".join(parts) + " |}"
 
 
@@ -71,7 +66,7 @@ def apply_record_type_arg_placeholders(template: str, args: list[str]) -> str:
             return args[index]
         return match.group(0)
 
-    return RECORD_TYPE_DEMANGLE_PLACEHOLDER_PATTERN.sub(_replace_placeholder, template)
+    return _TYPE_DEMANGLE_PLACEHOLDER_PATTERN.sub(_replace_placeholder, template)
 
 
 def _print_arg(arg: ast.arg) -> str:
