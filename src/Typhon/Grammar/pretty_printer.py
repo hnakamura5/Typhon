@@ -18,14 +18,19 @@ from .typhon_ast import (
 )
 
 
-_RECORD_TYPE_DEMANGLE_PLACEHOLDER_PREFIX = "_typh_record_type_arg_"
-RECORD_TYPE_DEMANGLE_PLACEHOLDER_PATTERN = re.compile(
-    rf"{_RECORD_TYPE_DEMANGLE_PLACEHOLDER_PREFIX}(\d+)_"
+_TYPE_DEMANGLE_PLACEHOLDER_PREFIX = "_typh_record_type_arg_"
+_TYPE_DEMANGLE_PLACEHOLDER_PATTERN = re.compile(
+    rf"{_TYPE_DEMANGLE_PLACEHOLDER_PREFIX}(\d+)_"
 )
 
 
+# Use the type itself as the demangle type.
+def make_final_demangle_template() -> str:
+    return f"{_TYPE_DEMANGLE_PLACEHOLDER_PREFIX}0_"
+
+
 def record_type_demangle_placeholder(index: int) -> str:
-    return f"{_RECORD_TYPE_DEMANGLE_PLACEHOLDER_PREFIX}{index}_"
+    return f"{_TYPE_DEMANGLE_PLACEHOLDER_PREFIX}{index}_"
 
 
 def make_record_type_demangle_template(field_names: list[str]) -> str:
@@ -61,7 +66,7 @@ def apply_record_type_arg_placeholders(template: str, args: list[str]) -> str:
             return args[index]
         return match.group(0)
 
-    return RECORD_TYPE_DEMANGLE_PLACEHOLDER_PATTERN.sub(_replace_placeholder, template)
+    return _TYPE_DEMANGLE_PLACEHOLDER_PATTERN.sub(_replace_placeholder, template)
 
 
 def _print_arg(arg: ast.arg) -> str:

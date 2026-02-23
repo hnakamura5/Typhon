@@ -100,6 +100,12 @@ class Range:
         end_offset = other.start.calc_offset(other.end)
         return Range(offset, end_offset)
 
+    def col_back(self) -> "Range":
+        return Range(start=self.start.col_back(), end=self.end.col_back())
+
+    def col_forward(self) -> "Range":
+        return Range(start=self.start.col_forward(), end=self.end.col_forward())
+
     @staticmethod
     def from_positions(
         start_line: int, start_column: int, end_line: int, end_column: int

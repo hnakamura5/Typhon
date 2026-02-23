@@ -3,7 +3,7 @@ import re
 
 from ...Grammar.parser import parse_type
 from ...Grammar.pretty_printer import (
-    RECORD_TYPE_DEMANGLE_PLACEHOLDER_PATTERN,
+    _TYPE_DEMANGLE_PLACEHOLDER_PATTERN,
     apply_record_type_arg_placeholders,
     pretty_print_expr,
 )
@@ -108,7 +108,7 @@ def replace_mangled_names(text: str, mapping: dict[str, str]) -> str:
                 suffix_type_param, mapping
             )
             # If the original contains placeholders, replace them with the pretty-printed args.
-            if RECORD_TYPE_DEMANGLE_PLACEHOLDER_PATTERN.search(original_name):
+            if _TYPE_DEMANGLE_PLACEHOLDER_PATTERN.search(original_name):
                 replacement = apply_record_type_arg_placeholders(
                     original_name, pretty_args
                 )

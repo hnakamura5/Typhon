@@ -118,9 +118,9 @@ def _demangle_inlay_hint_label(
     return result
 
 
-def _adjust_final_type_adhoc_form(
-    source_map: MatchBasedSourceMap, name_node: ast.Name, label: InlayHintLabel
-) -> tuple[ast.Name, InlayHintLabel]:
+def _adjust_final_type_adhoc_form[TextT: InlayHintLabel | str](
+    source_map: MatchBasedSourceMap, name_node: ast.Name, label: TextT
+) -> tuple[ast.Name, TextT]:
     if (
         name_node.id == get_final_name()
         and isinstance(label, str)
@@ -170,7 +170,9 @@ def _map_inlay_hint_for_type(
                 position=pos_to_lsp_position(name_node_pos),
                 label=label,
                 kind=types.InlayHintKind.Type,
-                text_edits=hint.text_edits,
+                text_edits=_map_inlay_hint_text_edits(
+                    hint.text_edits, module, source_map
+                ),
                 tooltip=_demangle_inlay_hint_tooltip(hint.tooltip, module),
                 padding_left=hint.padding_left,
                 padding_right=hint.padding_right,
@@ -194,7 +196,9 @@ def _map_inlay_hint_demangle_and_position(
                 position=mapped_arg_pos,
                 label=_demangle_inlay_hint_label(hint.label, module),
                 kind=hint.kind,
-                text_edits=_map_inlay_hint_text_edits(hint.text_edits, source_map),
+                text_edits=_map_inlay_hint_text_edits(
+                    hint.text_edits, module, source_map
+                ),
                 tooltip=_demangle_inlay_hint_tooltip(hint.tooltip, module),
                 padding_left=hint.padding_left,
                 padding_right=hint.padding_right,
@@ -213,23 +217,32 @@ def _map_inlay_hint_demangle_and_position(
 
 def _map_inlay_hint_text_edits(
     text_edits: Sequence[types.TextEdit] | None,
+    module: ast.Module | None,
     source_map: MatchBasedSourceMap,
 ) -> list[types.TextEdit] | None:
     if text_edits is None:
         return None
     mapped_text_edits: list[types.TextEdit] = []
     for edit in text_edits:
-        mapped_range = source_map.unparsed_range_to_origin_range(
-            lsp_range_to_range(edit.range)
+        name_node = source_map.unparsed_range_to_origin_node(
+            lsp_range_to_range(edit.range).col_back()
         )
-        if mapped_range is None:
-            continue
-        mapped_text_edits.append(
-            types.TextEdit(
-                range=range_to_lsp_range(mapped_range),
-                new_text=edit.new_text,
+        debug_file_write_verbose(
+            f"Mapping inlay hint text edit {edit}, got node {ast.dump(name_node) if name_node is not None else None}"
+        )
+        if isinstance(name_node, ast.Name):
+            name_node, new_text = _adjust_final_type_adhoc_form(
+                source_map, name_node, edit.new_text
             )
-        )
+            if name_node_pos := Pos.from_node_end(name_node):
+                mapped_text_edits.append(
+                    types.TextEdit(
+                        range=range_to_lsp_range(
+                            Range(start=name_node_pos, end=name_node_pos)
+                        ),
+                        new_text=demangle_text(new_text, module),
+                    )
+                )
     return mapped_text_edits
 
 
