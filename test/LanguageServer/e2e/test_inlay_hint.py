@@ -12,7 +12,6 @@ from .utils import (
     start_initialize_open_typhon_connection_client,
 )
 
-
 inlay_hint_file = run_file_dir / "inlay_hint_showcase.typh"
 
 

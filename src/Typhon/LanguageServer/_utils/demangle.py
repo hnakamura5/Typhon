@@ -1,6 +1,5 @@
 import ast
 import re
-from collections.abc import Mapping
 
 from ...Grammar.parser import parse_type
 from ...Grammar.pretty_printer import (
@@ -10,11 +9,11 @@ from ...Grammar.pretty_printer import (
 )
 from ...Grammar.typhon_ast import (
     get_generated_name_original_map,
-    get_mangled_name_pattern,
 )
 
 
-_MANGLED_NAME_PATTERN = get_mangled_name_pattern()
+_MANGLED_NAME_PATTERN = re.compile(r"\b(?P<name>_typh_[A-Za-z0-9_]+)\b")
+
 _GENERATED_NAME_ORIGINAL_SUFFIX_PATTERN = re.compile(
     r"^_typh_[a-z]{2}_[mcf]\d+_\d+_(?P<name>[A-Za-z_][A-Za-z0-9_]*)$"
 )
@@ -29,11 +28,11 @@ def _fallback_demangle_generated_name(name: str) -> str | None:
     if match := _GENERATED_NAME_ORIGINAL_SUFFIX_PATTERN.match(name):
         return match.group("name")
     if name.startswith("_typh_"):
-        return "anonymous"  # TODO: Temporal
+        return "<anonymous>"  # TODO: Temporal
     return None
 
 
-def get_demangle_mapping(module: ast.Module | None) -> Mapping[str, str]:
+def _get_demangle_mapping(module: ast.Module | None) -> dict[str, str]:
     if module is None:
         return {}
     mapping = get_generated_name_original_map(module)
@@ -42,7 +41,7 @@ def get_demangle_mapping(module: ast.Module | None) -> Mapping[str, str]:
     return mapping
 
 
-def _extract_bracket_suffix(text: str, index: int) -> tuple[str | None, int]:
+def _extract_type_param_suffix(text: str, index: int) -> tuple[str | None, int]:
     if index >= len(text) or text[index] != "[":
         return None, index
     depth = 0
@@ -59,8 +58,9 @@ def _extract_bracket_suffix(text: str, index: int) -> tuple[str | None, int]:
 
 def _parse_type_args_suffix(
     suffix: str,
-    mapping: Mapping[str, str],
+    mapping: dict[str, str],
 ) -> list[ast.expr] | None:
+    # TODO: This is wrong
     inner = suffix[1:-1].strip()
     if not inner:
         return []
@@ -77,7 +77,7 @@ def _parse_type_args_suffix(
     return [parsed.slice]
 
 
-def _pretty_print_type_arg(text: str, mapping: Mapping[str, str]) -> str:
+def _pretty_print_type_arg(text: str, mapping: dict[str, str]) -> str:
     demangled = replace_mangled_names(text.strip(), mapping)
     try:
         parsed = ast.parse(demangled, mode="eval")
@@ -88,7 +88,7 @@ def _pretty_print_type_arg(text: str, mapping: Mapping[str, str]) -> str:
 
 def _pretty_print_type_args_suffix(
     suffix: str,
-    mapping: Mapping[str, str],
+    mapping: dict[str, str],
 ) -> list[str]:
     inner = suffix[1:-1].strip()
     if not inner:
@@ -99,42 +99,37 @@ def _pretty_print_type_args_suffix(
     return [_pretty_print_type_arg(inner, mapping)]
 
 
-def replace_mangled_names(text: str, mapping: Mapping[str, str]) -> str:
+def replace_mangled_names(text: str, mapping: dict[str, str]) -> str:
     result: list[str] = []
     last_index = 0
-
     for match in _MANGLED_NAME_PATTERN.finditer(text):
-        start, end = match.span(1)
+        start, end = match.span("name")
         if start < last_index:
             continue
-
         result.append(text[last_index:start])
-        name = match.group(1)
-
-        original = mapping.get(name, "")
-        base = original
-        if not base:
+        last_index = end
+        name = match.group("name")
+        original_name = mapping.get(name, "")
+        if not original_name:
             fallback = _fallback_demangle_generated_name(name)
-            base = fallback if fallback else name
-
-        suffix, suffix_end = _extract_bracket_suffix(text, end)
-        consumed_until = end
-        replacement = base
-
-        if suffix is not None:
-            consumed_until = suffix_end
-            pretty_args = _pretty_print_type_args_suffix(suffix, mapping)
-            if RECORD_TYPE_DEMANGLE_PLACEHOLDER_PATTERN.search(base):
-                replacement = apply_record_type_arg_placeholders(base, pretty_args)
-            elif base == name:
-                replacement = base + "[" + ", ".join(pretty_args) + "]"
-
+            original_name = fallback if fallback else name
+        # Check for type params like "[int, str]" after the mangled name.
+        suffix_type_param, suffix_end = _extract_type_param_suffix(text, end)
+        replacement: str = original_name
+        if suffix_type_param is not None:
+            last_index = suffix_end
+            pretty_args = _pretty_print_type_args_suffix(suffix_type_param, mapping)
+            # If the original contains placeholders, replace them with the pretty-printed args.
+            if RECORD_TYPE_DEMANGLE_PLACEHOLDER_PATTERN.search(original_name):
+                replacement = apply_record_type_arg_placeholders(
+                    original_name, pretty_args
+                )
+            else:
+                replacement = original_name + "[" + ", ".join(pretty_args) + "]"
         result.append(replacement)
-        last_index = consumed_until
-
-    result.append(text[last_index:])
+    result.append(text[last_index:])  # Save the remaining text after the last match.
     return "".join(result)
 
 
 def demangle_text(text: str, module: ast.Module | None) -> str:
-    return replace_mangled_names(text, get_demangle_mapping(module))
+    return replace_mangled_names(text, _get_demangle_mapping(module))

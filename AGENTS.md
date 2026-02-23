@@ -32,6 +32,8 @@ This file defines the shared, tool-agnostic rules for automated coding agents in
 15. If a private `_utils` API needs to be imported across directories under `src/`, promote it to a public module under `src/Typhon/Utils/` and update call sites.
 16. Test code under `test/` may import private `_utils` APIs when needed for white-box tests.
 17. During refactoring, do not keep compatibility layers unless explicitly requested. Update all affected imports to the new paths in the same task.
+18. For type annotations, prefer `typing` imports over `collections.abc`.
+19. For generics, prefer Python's generic syntax (e.g., `class Box[T]: ...`, `def f[T](x: T) -> T: ...`) over introducing `TypeVar` unless explicitly required.
 
 ## Language and Comment Policy
 

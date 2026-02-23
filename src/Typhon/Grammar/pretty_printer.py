@@ -37,30 +37,20 @@ def make_record_type_demangle_template(field_names: list[str]) -> str:
 
 
 def make_record_literal_demangle_template(
-    fields: list[tuple[str, str | None, str | None]],
-    *,
-    include_values: bool = False,
+    fields: list[tuple[str, str | None]],
 ) -> str:
     """
     Build demangle template for record literals.
-
     If a field type is unknown, the type slot is represented by a placeholder
     so callers can inject inferred type arguments later.
-
-    By default this returns a type-only shape (no `= value`) for type-hint use.
-    Set `include_values=True` when value text should be retained for future
-    literal-inline hint rendering.
     """
     parts: list[str] = []
     placeholder_index = 0
-    for name, annotation_text, value_text in fields:
+    for name, annotation_text in fields:
         if annotation_text is None:
             annotation_text = record_type_demangle_placeholder(placeholder_index)
             placeholder_index += 1
-        if include_values and value_text is not None:
-            parts.append(f"{name}: {annotation_text} = {value_text}")
-        else:
-            parts.append(f"{name}: {annotation_text}")
+        parts.append(f"{name}: {annotation_text}")
     return "{| " + ", ".join(parts) + " |}"
 
 

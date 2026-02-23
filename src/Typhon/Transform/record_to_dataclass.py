@@ -36,6 +36,7 @@ class RecordFieldInfo:
     name: ast.Name
     annotation: ast.expr
     value: ast.expr
+    is_type_var: bool
 
 
 @dataclass
@@ -77,13 +78,15 @@ class _GatherRecords(TyphonASTVisitor):
         type_vars: list[str] = []
         field_infos: list[RecordFieldInfo] = []
         for name, annotation, value in fields:
+            is_type_var = False
             if not annotation:
                 type_var = self.new_typevar_name(name.id)
                 type_vars.append(type_var)
                 annotation = ast.Name(
                     id=type_var, ctx=ast.Load(), **get_pos_attributes(name)
                 )
-            field_infos.append(RecordFieldInfo(name, annotation, value))
+                is_type_var = True
+            field_infos.append(RecordFieldInfo(name, annotation, value, is_type_var))
         class_name = self.new_class_name("")
         self.records.append(
             RecordInfo(
@@ -100,11 +103,9 @@ class _GatherRecords(TyphonASTVisitor):
                 [
                     (
                         field.name.id,
-                        None
-                        if isinstance(field.annotation, ast.Name)
-                        and field.annotation.id in type_vars
-                        else pretty_print_expr(field.annotation),
-                        pretty_print_expr(field.value),
+                        pretty_print_expr(field.annotation)
+                        if not field.is_type_var
+                        else None,
                     )
                     for field in field_infos
                 ]
