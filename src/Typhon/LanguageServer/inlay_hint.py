@@ -5,15 +5,15 @@ from collections.abc import Sequence
 
 from lsprotocol import types
 
-from Typhon.Grammar.typhon_ast import (
-    get_generated_name_original_map,
-    get_pos_attributes,
-)
-
 from ..Transform.name_generator import get_final_name
 from ..Driver.debugging import debug_file_write_verbose
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
 from ..SourceMap.datatype import Pos, Range
+from ._utils.demangle import (
+    demangle_text,
+    get_demangle_mapping,
+    replace_mangled_names,
+)
 from ._utils.mapping import (
     lsp_position_to_pos,
     pos_to_lsp_position,
@@ -89,12 +89,13 @@ def _map_type_name(module: ast.Module | None, name: str, add_colon: bool) -> str
             and type_params
             and type_params.count(",") == 0
         ):
-            return colon + type_params
-        elif module is not None:
-            mapping = get_generated_name_original_map(module)
-            mapped_name = mapping.get(type_name)
-            return colon + (mapped_name if mapped_name else type_name)
-    return name
+            return colon + demangle_text(type_params, module)
+
+        mapped_name = type_name
+        if type_params:
+            mapped_name = f"{mapped_name}[{type_params}]"
+        return colon + demangle_text(mapped_name, module)
+    return demangle_text(name, module)
 
 
 _TYPE_PARAM_SIGNLE_TYPE_PATTERN = re.compile(
@@ -102,6 +103,51 @@ _TYPE_PARAM_SIGNLE_TYPE_PATTERN = re.compile(
 )
 
 InlayHintLabel = str | Sequence[types.InlayHintLabelPart]
+InlayHintTooltip = str | types.MarkupContent | None
+
+
+def _demangle_inlay_hint_tooltip(
+    tooltip: InlayHintTooltip,
+    module: ast.Module | None,
+) -> InlayHintTooltip:
+    mapping = get_demangle_mapping(module)
+    if isinstance(tooltip, str):
+        return replace_mangled_names(tooltip, mapping)
+    if isinstance(tooltip, types.MarkupContent):
+        return types.MarkupContent(
+            kind=tooltip.kind,
+            value=replace_mangled_names(tooltip.value, mapping),
+        )
+    return tooltip
+
+
+def _demangle_inlay_hint_label(
+    label: InlayHintLabel,
+    module: ast.Module | None,
+) -> InlayHintLabel:
+    mapping = get_demangle_mapping(module)
+    if isinstance(label, str):
+        return replace_mangled_names(label, mapping)
+
+    result: list[types.InlayHintLabelPart] = []
+    for part in label:
+        part_tooltip = part.tooltip
+        if isinstance(part_tooltip, str):
+            part_tooltip = replace_mangled_names(part_tooltip, mapping)
+        elif isinstance(part_tooltip, types.MarkupContent):
+            part_tooltip = types.MarkupContent(
+                kind=part_tooltip.kind,
+                value=replace_mangled_names(part_tooltip.value, mapping),
+            )
+        result.append(
+            types.InlayHintLabelPart(
+                value=replace_mangled_names(part.value, mapping),
+                tooltip=part_tooltip,
+                location=part.location,
+                command=part.command,
+            )
+        )
+    return result
 
 
 def _adjust_final_adhoc_form(
@@ -145,6 +191,8 @@ def _map_inlay_hint_for_type(
         if name_node_pos := Pos.from_node_end(name_node):
             if isinstance(label, str):
                 label = _map_type_name(module=module, name=label, add_colon=True)
+            else:
+                label = _demangle_inlay_hint_label(label, module)
             debug_file_write_verbose(
                 f"Mapping inlay hint type for name node {ast.dump(name_node)} with label '{label}' at last to position {pos} with name node position {name_node_pos}"
             )
@@ -153,7 +201,7 @@ def _map_inlay_hint_for_type(
                 label=label,
                 kind=types.InlayHintKind.Type,
                 text_edits=hint.text_edits,
-                tooltip=hint.tooltip,
+                tooltip=_demangle_inlay_hint_tooltip(hint.tooltip, module),
                 padding_left=hint.padding_left,
                 padding_right=hint.padding_right,
                 data=hint.data,
@@ -174,10 +222,10 @@ def _map_inlay_hint_position(
         ):
             return types.InlayHint(
                 position=mapped_arg_pos,
-                label=hint.label,
+                label=_demangle_inlay_hint_label(hint.label, module),
                 kind=hint.kind,
                 text_edits=_map_inlay_hint_text_edits(hint.text_edits, source_map),
-                tooltip=hint.tooltip,
+                tooltip=_demangle_inlay_hint_tooltip(hint.tooltip, module),
                 padding_left=hint.padding_left,
                 padding_right=hint.padding_right,
                 data=hint.data,

@@ -43,6 +43,11 @@ def _label_to_text(label: str | Sequence[types.InlayHintLabelPart]) -> str:
     return "".join(part.value for part in label)
 
 
+def _assert_no_mangled_name_in_labels(hints: Sequence[types.InlayHint]) -> None:
+    for hint in hints:
+        assert "_typh_" not in _label_to_text(hint.label)
+
+
 def _assert_hint_exists(
     hints: Sequence[types.InlayHint],
     *,
@@ -91,6 +96,7 @@ def test_inlay_hint_response_received_e2e():
                 end_character=0,
             )
             assert isinstance(hints, list) and len(hints) > 0
+            _assert_no_mangled_name_in_labels(hints)
             # add(1, 2)
             _assert_hint_exists(
                 hints,

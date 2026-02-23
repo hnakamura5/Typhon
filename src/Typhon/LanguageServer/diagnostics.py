@@ -14,11 +14,13 @@ from ..Grammar.tokenizer_custom import TokenInfo
 from ..Driver.debugging import debug_file_write_verbose
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
 from ..SourceMap.datatype import Range, Pos
+from ._utils.demangle import demangle_text
 from ._utils.mapping import range_to_lsp_range, lsp_range_to_range
 
 
 def map_diagnostic(
     diagnostic: types.Diagnostic,
+    module: ast.Module | None,
     source_map: MatchBasedSourceMap | None,
 ) -> types.Diagnostic:
     # Map the diagnostic position back to the original source code
@@ -38,15 +40,24 @@ def map_diagnostic(
     debug_file_write_verbose(
         f"Mapped diagnostic range from {diagnostic.range} to {mapped_range}"
     )
+    related_information = diagnostic.related_information
+    if related_information is not None:
+        related_information = [
+            types.DiagnosticRelatedInformation(
+                location=info.location,
+                message=demangle_text(info.message, module),
+            )
+            for info in related_information
+        ]
     return types.Diagnostic(
         range=range_to_lsp_range(mapped_range),
         severity=diagnostic.severity,
         code=diagnostic.code,
         code_description=diagnostic.code_description,
         source="Typhon Language Server",
-        message=diagnostic.message,
+        message=demangle_text(diagnostic.message, module),
         tags=diagnostic.tags,
-        related_information=diagnostic.related_information,
+        related_information=related_information,
         data=diagnostic.data,
     )
 
@@ -68,7 +79,7 @@ def map_and_add_diagnostics(
             types.Diagnostic(
                 range=range_to_lsp_range(Range.from_syntax_error(syntax_error)),
                 severity=types.DiagnosticSeverity.Error,
-                message=str(syntax_error),
+                message=demangle_text(str(syntax_error), module),
                 source="Typhon Language Server (Syntax Error)",
             )
         )
@@ -81,6 +92,7 @@ def map_and_add_diagnostics(
             continue
         mapped_diagnostic = map_diagnostic(
             diagnostic,
+            module=module,
             source_map=source_map,
         )
         diagnostics.append(mapped_diagnostic)
