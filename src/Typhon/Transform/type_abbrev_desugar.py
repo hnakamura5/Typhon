@@ -12,6 +12,7 @@ from ..Grammar.typhon_ast import (
     is_typing_expression,
     is_optional_question,
 )
+from ..Grammar.pretty_printer import pretty_print_expr
 from .visitor import TyphonASTVisitor, TyphonASTTransformer
 from ._utils.imports import (
     get_insert_point_for_class,
@@ -28,7 +29,9 @@ class _GatherArrowType(TyphonASTVisitor):
         self.func_types = []
 
     def visit_FunctionType(self, node: FunctionType):
-        self.func_types.append((node, self.new_arrow_type_name()))
+        self.func_types.append(
+            (node, self.new_arrow_type_name(pretty_print_expr(node)))
+        )
         return self.generic_visit(node)
 
 

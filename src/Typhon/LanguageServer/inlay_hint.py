@@ -92,7 +92,8 @@ def _map_type_name(module: ast.Module | None, name: str, add_colon: bool) -> str
             return colon + type_params
         elif module is not None:
             mapping = get_generated_name_original_map(module)
-            return colon + mapping.get(type_name, type_name)
+            mapped_name = mapping.get(type_name)
+            return colon + (mapped_name if mapped_name else type_name)
     return name
 
 

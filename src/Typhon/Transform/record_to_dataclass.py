@@ -1,6 +1,7 @@
 import ast
 from ..Grammar.typhon_ast import (
     RecordLiteral,
+    add_generated_name_original,
     get_record_literal_fields,
     get_record_type_fields,
     get_pos_attributes,
@@ -12,6 +13,7 @@ from ..Grammar.typhon_ast import (
     is_record_type,
     is_attributes_pattern,
 )
+from ..Grammar.pretty_printer import pretty_print_expr
 from .visitor import TyphonASTVisitor, TyphonASTTransformer, flat_append
 from ._utils.imports import (
     get_insert_point_for_class,
@@ -78,9 +80,16 @@ class _GatherRecords(TyphonASTVisitor):
                     id=type_var, ctx=ast.Load(), **get_pos_attributes(name)
                 )
             field_infos.append(RecordFieldInfo(name, annotation, value))
+        class_name = self.new_class_name("")
         self.records.append(
-            RecordInfo(node, self.new_class_name(""), field_infos, type_vars)
+            RecordInfo(
+                node,
+                class_name,
+                field_infos,
+                type_vars,
+            )
         )
+        add_generated_name_original(self.module, class_name, pretty_print_expr(node))
 
     def _visit_RecordType(self, node: RecordLiteral):
         type_fields = get_record_type_fields(node)
@@ -102,9 +111,16 @@ class _GatherRecords(TyphonASTVisitor):
                     annotation,
                 )
             )
+        class_name = self.new_class_name("")
         self.record_types.append(
-            RecordTypeInfo(node, self.new_class_name(""), field_infos, type_vars)
+            RecordTypeInfo(
+                node,
+                class_name,
+                field_infos,
+                type_vars,
+            )
         )
+        add_generated_name_original(self.module, class_name, pretty_print_expr(node))
 
     def visit_Name(self, node: RecordLiteral):
         if is_record_literal(node):
