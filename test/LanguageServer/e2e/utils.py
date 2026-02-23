@@ -93,7 +93,30 @@ async def start_initialize_open_typhon_connection_client(
     @client.feature(types.WORKSPACE_CONFIGURATION)  # type: ignore
     def on_configuration(params: types.ConfigurationParams):
         debug_verbose_print(f"Received configuration request: {params}")
-        return [{}]  # Return empty config for all requests.
+        # BasedPyright-specific configuration to enable inlay hints for generic types
+        result: list[dict[str, object]] = []
+        for item in params.items:
+            section = item.section
+            if section == "basedpyright":
+                result.append(
+                    {
+                        "inlayHints": {
+                            "genericTypes": True,
+                        }
+                    }
+                )
+                continue
+            if section == "basedpyright.analysis":
+                result.append(
+                    {
+                        "inlayHints": {
+                            "genericTypes": True,
+                        }
+                    }
+                )
+                continue
+            result.append({})
+        return result
 
     async with asyncio.timeout(10):
         if on_before_initialize:

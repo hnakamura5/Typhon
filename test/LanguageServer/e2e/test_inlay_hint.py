@@ -120,6 +120,14 @@ def test_inlay_hint_response_received_e2e():
                 character=7,
                 label_contains="int",
             )
+            # var rec = ...
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Type,
+                line=7,
+                character=7,
+                label_contains=": {| a: int, b: int |}",
+            )
         finally:
             await ensure_exit(client)
 

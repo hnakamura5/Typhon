@@ -471,7 +471,19 @@ def initialize_params_example(root_dir: Path) -> types.InitializeParams:
         locale="en",
         root_path=str(root_dir.resolve()),
         root_uri=path_encode_colon(root_dir.resolve().as_uri()),
-        initialization_options=None,
+        # BasedPyright-specific initialization options to enable inlay hints for generic types
+        initialization_options={
+            "basedpyright": {
+                "inlayHints": {
+                    "genericTypes": True,
+                }
+            },
+            "basedpyright.analysis": {
+                "inlayHints": {
+                    "genericTypes": True,
+                }
+            },
+        },
         trace=types.TraceValue.Off,
         work_done_token=None,
         workspace_folders=(

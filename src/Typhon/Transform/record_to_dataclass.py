@@ -15,6 +15,7 @@ from ..Grammar.typhon_ast import (
 )
 from ..Grammar.pretty_printer import (
     pretty_print_expr,
+    make_record_literal_demangle_template,
     make_record_type_demangle_template,
 )
 from .visitor import TyphonASTVisitor, TyphonASTTransformer, flat_append
@@ -92,7 +93,23 @@ class _GatherRecords(TyphonASTVisitor):
                 type_vars,
             )
         )
-        add_generated_name_original(self.module, class_name, pretty_print_expr(node))
+        add_generated_name_original(
+            self.module,
+            class_name,
+            make_record_literal_demangle_template(
+                [
+                    (
+                        field.name.id,
+                        None
+                        if isinstance(field.annotation, ast.Name)
+                        and field.annotation.id in type_vars
+                        else pretty_print_expr(field.annotation),
+                        pretty_print_expr(field.value),
+                    )
+                    for field in field_infos
+                ]
+            ),
+        )
 
     def _visit_RecordType(self, node: RecordLiteral):
         type_fields = get_record_type_fields(node)

@@ -32,6 +32,16 @@ def test_replace_mangled_record_type_with_nested_type_args() -> None:
     assert replace_mangled_names(text, mapping) == "{| x: [T?], y: (str, int)? |}"
 
 
+def test_replace_mangled_record_literal_class_with_type_args() -> None:
+    mapping = {
+        "_typh_cl_m0_2_": "{| a: _typh_record_type_arg_0_, b: _typh_record_type_arg_1_ |}"
+    }
+
+    text = ": _typh_cl_m0_2_[int, int]"
+
+    assert replace_mangled_names(text, mapping) == ": {| a: int, b: int |}"
+
+
 def test_record_type_transform_stores_demangle_template() -> None:
     pos = get_empty_pos_attributes()
     record_type = make_record_type(

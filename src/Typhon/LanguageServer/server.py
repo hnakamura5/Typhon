@@ -664,6 +664,7 @@ async def rename(ls: LanguageServer, params: types.RenameParams):
 async def inlay_hint(ls: LanguageServer, params: types.InlayHintParams):
     uri = canonicalize_uri(params.text_document.uri)
     original_uri = ls.get_original_file_uri(uri)
+    module_uri = original_uri if original_uri is not None else uri
     try:
         debug_file_write(f"Inlay hint requested: {params}")
         cloned_params = ls.clone_params_map_uri(params)
@@ -678,7 +679,9 @@ async def inlay_hint(ls: LanguageServer, params: types.InlayHintParams):
         )
         debug_file_write(f"Received inlay hint result: {inlay_result}")
         return map_inlay_hints_result(
-            inlay_result, ls.get_module(original_uri), mapping
+            inlay_result,
+            ls.get_module(module_uri),
+            mapping,
         )
     except Exception as e:
         debug_file_write(f"Error during inlay hint retrieval: {type(e).__name__}: {e}")
