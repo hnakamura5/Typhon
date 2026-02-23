@@ -58,45 +58,31 @@ def _extract_type_param_suffix(text: str, index: int) -> tuple[str | None, int]:
 
 def _parse_type_args_suffix(
     suffix: str,
-    mapping: dict[str, str],
 ) -> list[ast.expr] | None:
-    # TODO: This is wrong
-    inner = suffix[1:-1].strip()
-    if not inner:
-        return []
-    demangled_inner = replace_mangled_names(inner, mapping)
     try:
-        parsed = parse_type(f"tuple[{demangled_inner}]")
-    except (SyntaxError, AssertionError):
+        # Still is python syntax.
+        parsed = ast.parse(suffix, mode="eval").body
+    except Exception:
         return None
 
-    if not isinstance(parsed, ast.Subscript):
-        return None
-    if isinstance(parsed.slice, ast.Tuple):
-        return [*parsed.slice.elts]
-    return [parsed.slice]
+    if isinstance(parsed, ast.List):
+        return parsed.elts
+    return None
 
 
-def _pretty_print_type_arg(text: str, mapping: dict[str, str]) -> str:
-    demangled = replace_mangled_names(text.strip(), mapping)
-    try:
-        parsed = ast.parse(demangled, mode="eval")
-    except (SyntaxError, AssertionError):
-        return demangled
-    return pretty_print_expr(parsed.body)
-
-
-def _pretty_print_type_args_suffix(
+def _pretty_print_and_demangle_type_args_suffix(
     suffix: str,
     mapping: dict[str, str],
 ) -> list[str]:
     inner = suffix[1:-1].strip()
-    if not inner:
+    if not inner:  # Fast path for empty type args.
         return []
-    parsed_args = _parse_type_args_suffix(suffix, mapping)
-    if parsed_args is not None:
-        return [pretty_print_expr(arg) for arg in parsed_args]
-    return [_pretty_print_type_arg(inner, mapping)]
+    if parsed_args := _parse_type_args_suffix(suffix):
+        return [
+            replace_mangled_names(pretty_print_expr(arg), mapping)
+            for arg in parsed_args
+        ]
+    return [replace_mangled_names(inner, mapping)]
 
 
 def replace_mangled_names(text: str, mapping: dict[str, str]) -> str:
@@ -118,7 +104,9 @@ def replace_mangled_names(text: str, mapping: dict[str, str]) -> str:
         replacement: str = original_name
         if suffix_type_param is not None:
             last_index = suffix_end
-            pretty_args = _pretty_print_type_args_suffix(suffix_type_param, mapping)
+            pretty_args = _pretty_print_and_demangle_type_args_suffix(
+                suffix_type_param, mapping
+            )
             # If the original contains placeholders, replace them with the pretty-printed args.
             if RECORD_TYPE_DEMANGLE_PLACEHOLDER_PATTERN.search(original_name):
                 replacement = apply_record_type_arg_placeholders(
