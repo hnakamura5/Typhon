@@ -61,3 +61,39 @@ def test_pretty_print_expr_fallback_matches_unparse():
     node = ast.parse("a + b * 2", mode="eval").body
 
     assert pretty_print_expr(node) == ast.unparse(node)
+
+
+def test_pretty_print_expr_list_type_abbrev():
+    node = ast.parse("list[int]", mode="eval").body
+
+    assert pretty_print_expr(node) == "[int]"
+
+
+def test_pretty_print_expr_tuple_type_abbrev():
+    node = ast.parse("tuple[str]", mode="eval").body
+
+    assert pretty_print_expr(node) == "(str)"
+
+
+def test_pretty_print_expr_tuple_type_abbrev_multiple_elements():
+    node = ast.parse("tuple[str, int]", mode="eval").body
+
+    assert pretty_print_expr(node) == "(str, int)"
+
+
+def test_pretty_print_expr_optional_type_abbrev():
+    node = ast.parse("T | None", mode="eval").body
+
+    assert pretty_print_expr(node) == "T?"
+
+
+def test_pretty_print_expr_optional_type_abbrev_none_left():
+    node = ast.parse("None | T", mode="eval").body
+
+    assert pretty_print_expr(node) == "T?"
+
+
+def test_pretty_print_comlex_expr_fallback():
+    node = ast.parse("tuple[list[T | None], int | str] | None", mode="eval").body
+
+    assert pretty_print_expr(node) == "([T?], int | str)?"
