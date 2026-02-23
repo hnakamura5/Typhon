@@ -68,7 +68,7 @@ from .inlay_hint import (
     map_inlay_hint_request_params,
     map_inlay_hints_result,
 )
-from .utils import (
+from ._utils.path import (
     canonicalize_uri,
     uri_to_path,
     path_to_uri,

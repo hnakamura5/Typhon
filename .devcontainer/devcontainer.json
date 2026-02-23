@@ -24,6 +24,7 @@
                     "lsp"
                 ],
                 "chat.tools.autoApprove": true,
+                "chat.tools.terminal.autoApprove": true,
                 "chat.agent.maxRequests": 100
             }
         }

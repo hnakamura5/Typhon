@@ -14,7 +14,7 @@ from ..Transform.name_generator import get_final_name
 from ..Driver.debugging import debug_file_write_verbose
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
 from ..SourceMap.datatype import Pos, Range
-from .utils import (
+from ._utils.mapping import (
     lsp_position_to_pos,
     pos_to_lsp_position,
     lsp_range_to_range,

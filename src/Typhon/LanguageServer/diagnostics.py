@@ -14,7 +14,7 @@ from ..Grammar.tokenizer_custom import TokenInfo
 from ..Driver.debugging import debug_file_write_verbose
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
 from ..SourceMap.datatype import Range, Pos
-from .utils import range_to_lsp_range, lsp_range_to_range
+from ._utils.mapping import range_to_lsp_range, lsp_range_to_range
 
 
 def map_diagnostic(

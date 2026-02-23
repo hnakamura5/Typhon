@@ -6,7 +6,7 @@ from typing import Callable
 from lsprotocol import types
 from pygls.lsp.client import LanguageClient
 from pathlib import Path
-from Typhon.LanguageServer.utils import path_to_uri, canonicalize_uri
+from Typhon.LanguageServer._utils.path import path_to_uri, canonicalize_uri
 from Typhon.Utils.path import get_project_root
 from Typhon.Driver.debugging import (
     debug_file_write,

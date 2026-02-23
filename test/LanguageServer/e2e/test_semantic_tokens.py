@@ -4,7 +4,7 @@ from pygls.lsp.client import LanguageClient
 from pathlib import Path
 
 from Typhon.Driver.debugging import debug_file_write, debug_verbose_print
-from Typhon.LanguageServer.utils import path_to_uri
+from Typhon.LanguageServer._utils.path import path_to_uri
 from .utils import (
     run_file_dir,
     semtok_file,

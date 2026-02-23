@@ -11,7 +11,7 @@ from ..Grammar.typhon_ast import (
     get_mangled_name_pattern,
 )
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
-from .utils import (
+from ._utils.mapping import (
     lsp_range_to_range,
     range_to_lsp_range,
     pos_to_lsp_position,

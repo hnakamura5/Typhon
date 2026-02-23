@@ -5,7 +5,7 @@ from lsprotocol import types
 from pygls.lsp.client import LanguageClient
 
 from Typhon.Driver.debugging import debug_verbose_print
-from Typhon.LanguageServer.utils import path_to_uri
+from Typhon.LanguageServer._utils.path import path_to_uri
 from .utils import (
     ensure_exit,
     run_file_dir,

@@ -4,12 +4,13 @@ import copy
 from lsprotocol import types
 
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
-from .utils import (
-    canonicalize_uri,
+from ._utils.edit import DocumentEdits, TextEdits
+from ._utils.mapping import (
     map_name_request_position_to_unparsed,
     map_translated_uri_and_name_range_to_original,
-    DocumentEdits,
-    TextEdits,
+)
+from ._utils.path import (
+    canonicalize_uri,
 )
 
 
