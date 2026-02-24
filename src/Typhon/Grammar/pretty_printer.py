@@ -59,7 +59,11 @@ def make_record_literal_demangle_template(
     return "{| " + ", ".join(parts) + " |}"
 
 
-def apply_record_type_arg_placeholders(template: str, args: list[str]) -> str:
+def has_pretty_print_type_arg_placeholders(text: str) -> bool:
+    return _TYPE_DEMANGLE_PLACEHOLDER_PATTERN.search(text) is not None
+
+
+def apply_pretty_print_arg_placeholders(template: str, args: list[str]) -> str:
     def _replace_placeholder(match: re.Match[str]) -> str:
         index = int(match.group(1))
         if 0 <= index < len(args):
@@ -67,6 +71,21 @@ def apply_record_type_arg_placeholders(template: str, args: list[str]) -> str:
         return match.group(0)
 
     return _TYPE_DEMANGLE_PLACEHOLDER_PATTERN.sub(_replace_placeholder, template)
+
+
+_RECORD_LITERAL_TYPEVAR_FIELDS = "_typh_record_literal_typevar_fields"
+
+
+def get_record_literal_typevar_fields(
+    class_name_in_call: ast.Name,
+) -> list[ast.Name] | None:
+    return getattr(class_name_in_call, _RECORD_LITERAL_TYPEVAR_FIELDS, None)
+
+
+def set_record_literal_typevar_fields(
+    class_name_in_call: ast.Name, typevar_fields: list[ast.Name]
+) -> None:
+    setattr(class_name_in_call, _RECORD_LITERAL_TYPEVAR_FIELDS, typevar_fields)
 
 
 def _print_arg(arg: ast.arg) -> str:

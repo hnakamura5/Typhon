@@ -108,6 +108,8 @@ NAME_OR_UNUSABLE[Tuple[TokenInfo, bool]]:
     | u=UNUSABLE_NAME { (u, False) }
     | n=NAME { (n, True) }
 
+symbol: n=NAME { ast.Name(id=n.string, ctx=Load, LOCATIONS) }
+
 # GENERAL STATEMENTS
 # ==================
 
@@ -1572,14 +1574,13 @@ kvpair[Tuple[ast.expr, ast.expr]]: a=expression ':' b=expression { (a, b) }
 # ------
 
 record_literal_field[Tuple[ast.Name, ast.expr | None, ast.expr]]:
-    | a=NAME b=annotation? '=' c=expression { (ast.Name(id=a.string, LOCATIONS), b, c) }
+    | a=symbol b=annotation? '=' c=expression { (a, b, c) }
 
 record_literal[ast.Name]:
     | '{|' fs=','.record_literal_field+ [','] '|}' { make_record_literal(fs, LOCATIONS) }
 
 record_type_field[Tuple[ast.Name, ast.expr]]:
-    | a=NAME b=annotation { (ast.Name(id=a.string, LOCATIONS), b) }
-
+    | a=symbol b=annotation { (a, b) }
 record_type[ast.Name]:
     | '{|' fs=','.record_type_field+ [','] '|}' { make_record_type(fs, LOCATIONS) }
 

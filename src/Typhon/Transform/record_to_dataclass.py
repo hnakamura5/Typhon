@@ -1,4 +1,5 @@
 import ast
+import keyword
 from ..Grammar.typhon_ast import (
     RecordLiteral,
     add_generated_name_original,
@@ -17,6 +18,7 @@ from ..Grammar.pretty_printer import (
     pretty_print_expr,
     make_record_literal_demangle_template,
     make_record_type_demangle_template,
+    set_record_literal_typevar_fields,
 )
 from .visitor import TyphonASTVisitor, TyphonASTTransformer, flat_append
 from ._utils.imports import (
@@ -127,7 +129,9 @@ class _GatherRecords(TyphonASTVisitor):
                 RecordTypeFieldInfo(
                     name,
                     # Use the type variable as the annotation.
-                    ast.Name(id=type_var, ctx=ast.Load(), **get_pos_attributes(name)),
+                    ast.Name(
+                        id=type_var, ctx=ast.Load(), **get_pos_attributes(annotation)
+                    ),
                     # And pass the original annotation as parameter.
                     annotation,
                 )
@@ -225,8 +229,27 @@ class _Transform(TyphonASTTransformer):
         if node in self.class_for_record:
             class_def = self.class_for_record[node]
             pos = get_pos_attributes(node)
+            keywords: list[ast.keyword] = []
+            type_var_fields: list[ast.Name] = []
+            for field in self.info_for_record[node].fields:
+                keywords.append(
+                    ast.keyword(
+                        arg=field.name.id,
+                        value=ast.Name(
+                            id=field.name.id,
+                            ctx=ast.Load(),
+                            **get_pos_attributes(field.name),
+                        ),
+                        **get_pos_attributes(field.name),
+                    )
+                )
+                if field.is_type_var:
+                    type_var_fields.append(field.name)
+            class_name = ast.Name(id=class_def.name, ctx=ast.Load(), **pos)
+            if type_var_fields:
+                set_record_literal_typevar_fields(class_name, type_var_fields)
             return ast.Call(
-                func=ast.Name(id=class_def.name, ctx=ast.Load(), **pos),
+                func=class_name,
                 args=[],
                 keywords=[
                     ast.keyword(
