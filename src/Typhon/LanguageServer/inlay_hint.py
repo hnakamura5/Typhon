@@ -5,12 +5,16 @@ from collections.abc import Sequence
 
 from lsprotocol import types
 
+from Typhon.Grammar.pretty_printer import get_record_literal_typevar_fields
+from Typhon.Grammar.typhon_ast import get_pos_attributes
+
 from ..Transform.name_generator import get_final_name
 from ..Driver.debugging import debug_file_write_verbose
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
 from ..SourceMap.datatype import Pos, Range
 from ._utils.demangle import (
     demangle_text,
+    pretty_print_and_demangle_type_args_suffix,
 )
 from ._utils.mapping import (
     lsp_position_to_pos,
@@ -96,7 +100,6 @@ def _demangle_inlay_hint_label(
 ) -> InlayHintLabel:
     if isinstance(label, str):
         return demangle_text(label, module)
-
     result: list[types.InlayHintLabelPart] = []
     for part in label:
         part_tooltip = part.tooltip
@@ -257,6 +260,60 @@ def _map_inlay_hint(
     return None
 
 
+# Split type hint for record {|a=1, b="2"|}[int, str] into {|a:int=1, b:str="2"|}.
+def _map_inlay_hint_for_record_literal(
+    hint: types.InlayHint,
+    module: ast.Module | None,
+    source_map: MatchBasedSourceMap,
+) -> list[types.InlayHint] | None:
+    if hint.kind != types.InlayHintKind.Type:
+        return None
+    pos = lsp_position_to_pos(hint.position)
+    name_node = source_map.unparsed_pos_to_origin_node(
+        pos.col_back(),
+        ast.Name,
+    )
+    debug_file_write_verbose(
+        f"Mapping inlay hint for record literal for hint {hint.label} at position {hint.position}, got node {ast.dump(name_node) if name_node is not None else None}"
+    )
+    if not isinstance(name_node, ast.Name):
+        return None
+    record_fields = get_record_literal_typevar_fields(name_node)
+    if not record_fields:
+        return None
+    params = pretty_print_and_demangle_type_args_suffix(
+        hint.label if isinstance(hint.label, str) else None, module
+    )
+    if params is None or len(params) != len(record_fields):
+        return None
+    debug_file_write_verbose(
+        f"Mapping inlay hint for record literal with fields {[f'{ast.dump(field)}@{get_pos_attributes(field)}' for field in record_fields]} and params {params}"
+    )
+    mapped_hints: list[types.InlayHint] = []
+    for field, param in zip(record_fields, params):
+        if field_pos := Pos.from_node_end(field):
+            mapped_hints.append(
+                types.InlayHint(
+                    position=pos_to_lsp_position(field_pos),
+                    label=": " + param,
+                    kind=types.InlayHintKind.Type,
+                    text_edits=[
+                        types.TextEdit(
+                            range=range_to_lsp_range(
+                                Range(start=field_pos, end=field_pos)
+                            ),
+                            new_text=": " + param,
+                        )
+                    ],
+                    tooltip=None,
+                    padding_left=hint.padding_left,
+                    padding_right=hint.padding_right,
+                    data=hint.data,
+                )
+            )
+    return mapped_hints if mapped_hints else None
+
+
 def map_inlay_hints_result(
     hints: InlayHintResult,
     module: ast.Module | None,
@@ -268,6 +325,11 @@ def map_inlay_hints_result(
         return []
     mapped_hints: list[types.InlayHint] = []
     for hint in hints:
+        if mapped_record_literal_hints := _map_inlay_hint_for_record_literal(
+            hint, module, source_map
+        ):
+            mapped_hints.extend(mapped_record_literal_hints)
+            continue
         if mapped := _map_inlay_hint(hint, module, source_map):
             debug_file_write_verbose(
                 f"Mapped inlay hint from {hint} to position {mapped.position}"

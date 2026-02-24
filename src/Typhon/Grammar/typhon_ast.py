@@ -1053,7 +1053,8 @@ def _make_nested_match_for_multiple_let(
                 ast.Raise(
                     ast.Name(id="TypeError", ctx=ast.Load(), **kwargs),
                     None,
-                    **kwargs,
+                    # **kwargs, # TODO: appropriate position?
+                    **get_empty_pos_attributes(),
                 )
                 if type_error_on_failure
                 else ast.Pass(**kwargs)

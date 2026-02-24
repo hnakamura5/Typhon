@@ -3,8 +3,8 @@ import re
 
 from ...Grammar.parser import parse_type
 from ...Grammar.pretty_printer import (
-    _TYPE_DEMANGLE_PLACEHOLDER_PATTERN,
-    apply_record_type_arg_placeholders,
+    has_pretty_print_type_arg_placeholders,
+    apply_pretty_print_arg_placeholders,
     pretty_print_expr,
 )
 from ...Grammar.typhon_ast import (
@@ -85,6 +85,17 @@ def _pretty_print_and_demangle_type_args_suffix(
     return [replace_mangled_names(inner, mapping)]
 
 
+def pretty_print_and_demangle_type_args_suffix(
+    maybe_suffix: str | None,
+    module: ast.Module | None,
+) -> list[str] | None:
+    if maybe_suffix is None:
+        return None
+    mapping = _get_demangle_mapping(module)
+    pretty_args = _pretty_print_and_demangle_type_args_suffix(maybe_suffix, mapping)
+    return pretty_args
+
+
 def replace_mangled_names(text: str, mapping: dict[str, str]) -> str:
     result: list[str] = []
     last_index = 0
@@ -108,8 +119,8 @@ def replace_mangled_names(text: str, mapping: dict[str, str]) -> str:
                 suffix_type_param, mapping
             )
             # If the original contains placeholders, replace them with the pretty-printed args.
-            if _TYPE_DEMANGLE_PLACEHOLDER_PATTERN.search(original_name):
-                replacement = apply_record_type_arg_placeholders(
+            if has_pretty_print_type_arg_placeholders(original_name):
+                replacement = apply_pretty_print_arg_placeholders(
                     original_name, pretty_args
                 )
             else:
