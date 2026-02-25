@@ -1,6 +1,8 @@
 import ast
 import re
 
+from Typhon.Driver.debugging import debug_verbose_print
+
 from ...Grammar.parser import parse_type
 from ...Grammar.pretty_printer import (
     has_pretty_print_type_arg_placeholders,
@@ -99,6 +101,9 @@ def pretty_print_and_demangle_type_args_suffix(
 def replace_mangled_names(text: str, mapping: dict[str, str]) -> str:
     result: list[str] = []
     last_index = 0
+    debug_verbose_print(
+        f"Replacing mangled names in text: '{text}' with mapping: {mapping}"
+    )
     for match in _MANGLED_NAME_PATTERN.finditer(text):
         start, end = match.span("name")
         if start < last_index:
@@ -113,12 +118,16 @@ def replace_mangled_names(text: str, mapping: dict[str, str]) -> str:
         # Check for type params like "[int, str]" after the mangled name.
         suffix_type_param, suffix_end = _extract_type_param_suffix(text, end)
         replacement: str = original_name
+        debug_verbose_print(
+            f"Demangling name '{name}' with original name '{original_name}' and type args suffix '{suffix_type_param}', has placeholders: {has_pretty_print_type_arg_placeholders(original_name)}"
+        )
         if suffix_type_param is not None:
             last_index = suffix_end
             pretty_args = _pretty_print_and_demangle_type_args_suffix(
                 suffix_type_param, mapping
             )
             # If the original contains placeholders, replace them with the pretty-printed args.
+
             if has_pretty_print_type_arg_placeholders(original_name):
                 replacement = apply_pretty_print_arg_placeholders(
                     original_name, pretty_args
