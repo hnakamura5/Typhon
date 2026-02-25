@@ -2252,17 +2252,19 @@ def clear_is_attributes_pattern(node: ast.Name) -> None:
 
 
 def make_attributes_pattern(
-    keywords: list[tuple[str, ast.pattern]],
+    keywords: list[tuple[ast.Name, ast.pattern | None]],
     **kwargs: Unpack[PosAttributes],
 ) -> ast.MatchClass:
     debug_verbose_print(f"Creating attributes pattern with keywords: {keywords}")
-    kwd_attrs = [k for k, _ in keywords]
+    kwd_attrs = [k.id for k, _ in keywords]
     kwd_patterns = [
         (
             p
             if p is not None
             # Only name is given, capture by member name.
-            else ast.MatchAs(pattern=None, name=k, **pos_attribute_to_range(kwargs))
+            else ast.MatchAs(
+                pattern=None, name=k.id, **pos_attribute_to_range(get_pos_attributes(k))
+            )
         )
         for k, p in keywords
     ]

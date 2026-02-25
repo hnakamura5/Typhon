@@ -134,10 +134,15 @@ def _adjust_final_type_adhoc_form[TextT: InlayHintLabel | str](
             f"Adjusting inlay hint for Final type parameter for name node {ast.dump(name_node)} with label {label} to label {get_final_name() + label} adjusted for Final name"
         )
         if pos := Pos.from_node_end(name_node):
-            pos = Pos(
-                line=pos.line, column=pos.column - len(get_final_name()) - len(": ")
+            adjusted_pos = Pos(
+                line=pos.line, column=pos.column - len(get_final_name()) - len(": ") - 1
             )
-            decl_name_node = source_map.origin_pos_to_origin_node(pos, ast.Name)
+            decl_name_node = source_map.unparsed_pos_to_unparsed_node(
+                adjusted_pos, ast.Name
+            )
+            debug_file_write_verbose(
+                f"Found declaration name node pos={pos} adjusted_pos={adjusted_pos} decl_name_node={ast.dump(decl_name_node) if decl_name_node is not None else None}@{get_pos_attributes(decl_name_node) if isinstance(decl_name_node, ast.Name) else None} for Final type parameter hint adjustment"
+            )
             if isinstance(decl_name_node, ast.Name):
                 return decl_name_node, ": " + get_final_name() + label
     return name_node, label
@@ -150,7 +155,7 @@ def _map_inlay_hint_for_type(
 ) -> types.InlayHint | None:
     pos = lsp_position_to_pos(hint.position)
     # Anchor is name of declaration or return type annotation anchor, both of them are ast.Name before the position.
-    name_node = source_map.unparsed_pos_to_origin_node(
+    name_node = source_map.unparsed_pos_to_unparsed_node(
         pos.col_back(),
         ast.Name,
     )
@@ -161,13 +166,19 @@ def _map_inlay_hint_for_type(
         name_node, label = _adjust_final_type_adhoc_form(
             source_map, name_node, hint.label
         )
+        name_node = source_map.unparsed_node_to_origin_node(name_node)
+        debug_file_write_verbose(
+            f"Mapping inlay hint to origin node {ast.dump(name_node) if name_node is not None else None}@{get_pos_attributes(name_node) if isinstance(name_node, ast.Name) else None} after Final type parameter adjustment with label {label}"
+        )
+        if name_node is None:
+            return None
         if name_node_pos := Pos.from_node_end(name_node):
             if isinstance(label, str):
                 label = demangle_text(label, module)
             else:
                 label = _demangle_inlay_hint_label(label, module)
             debug_file_write_verbose(
-                f"Mapping inlay hint type for name node {ast.dump(name_node)} with label '{label}' at last to position {pos} with name node position {name_node_pos}"
+                f"Mapped inlay hint type for name node {ast.dump(name_node)} with label '{label}' at last to position {pos} with name node position {name_node_pos}"
             )
             return types.InlayHint(
                 position=pos_to_lsp_position(name_node_pos),

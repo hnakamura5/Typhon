@@ -26,6 +26,7 @@ from .typhon_ast import (
     make_record_literal, make_record_type, make_attributes_pattern, make_tuple_pattern, make_for_let_pattern, make_with_let_pattern, make_inline_with_let_pattern, make_class_def,
     make_match_case, make_alias, make_import_from, make_arguments, make_attribute,
     make_arg,
+    get_pos_attributes,
 )
 from .typhon_ast_error import (
     maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, recover_invalid_for, recover_invalid_try, recover_maybe_invalid_function_def_raw,
@@ -793,7 +794,7 @@ pattern:
 
 as_pattern["ast.MatchAs"]:
     | pattern=or_pattern 'as' target=pattern_capture_target_annot {
-        set_type_annotation(ast.MatchAs(pattern=pattern, name=target[0], LOCATIONS), target[1])
+        set_type_annotation(ast.MatchAs(pattern=pattern, name=target[0].id, LOCATIONS), target[1])
      }
     | invalid_as_pattern
 
@@ -867,17 +868,17 @@ imaginary_number[ast.Constant]:
 
 capture_pattern:
     | target=pattern_capture_target_annot {
-        set_type_annotation(ast.MatchAs(pattern=None, name=target[0], LOCATIONS), target[1])
+        set_type_annotation(ast.MatchAs(pattern=None, name=target[0].id, LOCATIONS), target[1])
      }
 
 # Allow '=' after name for if-net statement
 # pattern_capture_target[str]:
 #     | !"_" name=NAME !('.' | '(' | '=') { name.string }
-pattern_capture_target[str]:
-    | !"_" name=NAME !('.' | '(') { name.string }
+pattern_capture_target[ast.Name]:
+    | !"_" n=symbol !('.' | '(') { n }
 
-pattern_capture_target_annot[tuple[str, ast.expr | None]]:
-    | !"_" name=NAME a=annotation? !('.' | '(') { (name.string, a) }
+pattern_capture_target_annot[tuple[ast.Name, ast.expr | None]]:
+    | !"_" n=symbol a=annotation? !('.' | '(') { (n, a) }
 
 wildcard_pattern["ast.MatchAs"]:
     | "_" { ast.MatchAs(pattern=None, name=None, LOCATIONS) }
@@ -897,7 +898,7 @@ attr[ast.Attribute]:
 
 name_or_attr:
     | attr
-    | name=NAME { ast.Name(id=name.string, ctx=Load, LOCATIONS) }
+    | symbol
 
 group_pattern:
     | '(' pattern=pattern ')' { pattern }
@@ -921,7 +922,7 @@ maybe_star_pattern:
 
 star_pattern:
     | '*' target=pattern_capture_target_annot {
-        set_type_annotation(ast.MatchStar(name=target[0], LOCATIONS), target[1])
+        set_type_annotation(ast.MatchStar(name=target[0].id, **get_pos_attributes(target[0])), target[1])
      }
     | '*' wildcard_pattern { ast.MatchStar(target=None, LOCATIONS) }
 
@@ -946,7 +947,7 @@ mapping_pattern:
         )
      }
 
-items_pattern:
+items_pattern[List[Tuple[ast.expr, ast.pattern]]]:
     | ','.key_value_pattern+
 
 # In pattern '?.' is not allowed
@@ -957,9 +958,9 @@ attr_pattern[ast.Attribute]:
 
 name_or_attr_pattern:
     | attr_pattern
-    | name=NAME { ast.Name(id=name.string, ctx=Load, LOCATIONS) }
+    | symbol
 
-key_value_pattern:
+key_value_pattern[Tuple[ast.expr, ast.pattern]]:
     | key=(literal_expr | attr_pattern) ':' pattern=pattern { (key, pattern) }
 
 double_star_pattern:
@@ -976,7 +977,7 @@ class_pattern["ast.MatchClass"]:
         ast.MatchClass(
             cls=cls,
             patterns=[],
-            kwd_attrs=[k for k, _ in keywords],
+            kwd_attrs=[k.id for k, _ in keywords],
             kwd_patterns=[p for _, p in keywords],
             LOCATIONS,
         )
@@ -985,16 +986,16 @@ class_pattern["ast.MatchClass"]:
         ast.MatchClass(
             cls=cls,
             patterns=patterns,
-            kwd_attrs=[k for k, _ in keywords],
+            kwd_attrs=[k.id for k, _ in keywords],
             kwd_patterns=[p for _, p in keywords],
             LOCATIONS,
         )
      }
     | invalid_class_pattern
 
-attribute_capture_pattern[tuple[str, ast.pattern | None]]:
+attribute_capture_pattern[tuple[ast.Name, ast.pattern | None]]:
     | '.' p=keyword_pattern { p }
-    | '.' a=NAME { (a.string, None) }
+    | '.' a=symbol { (a, None) }
 
 attributes_pattern["ast.MatchClass"]:
     | '{' keywords=','.attribute_capture_pattern+ ','? '}' {
@@ -1018,7 +1019,7 @@ positional_pattern:
 
 positional_as_pattern["ast.MatchAs"]:
     | pattern=positional_or_pattern 'as' target=positional_pattern_capture_target_annot {
-        set_type_annotation(ast.MatchAs(pattern=pattern, name=target[0], LOCATIONS), target[1])
+        set_type_annotation(ast.MatchAs(pattern=pattern, name=target[0].id, LOCATIONS), target[1])
      }
     | invalid_as_pattern
 
@@ -1030,12 +1031,12 @@ positional_or_pattern["ast.MatchOr"]:
 positional_pattern_capture_target[str]:
     | !"_" name=NAME !('.' | '(' | '=') { name.string }
 
-positional_pattern_capture_target_annot[tuple[str, ast.expr | None]]:
-    | !"_" name=NAME a=annotation? !('.' | '(' | '=') { (name.string, a) }
+positional_pattern_capture_target_annot[tuple[ast.Name, ast.expr | None]]:
+    | !"_" n=symbol a=annotation? !('.' | '(' | '=') { (n, a) }
 
 positional_capture_pattern:
     | target=positional_pattern_capture_target_annot {
-        set_type_annotation(ast.MatchAs(pattern=None, name=target[0], LOCATIONS), target[1])
+        set_type_annotation(ast.MatchAs(pattern=None, name=target[0].id, **get_pos_attributes(target[0])), target[1])
      }
 
 positional_value_pattern["ast.MatchValue"]:
@@ -1051,11 +1052,11 @@ positional_closed_pattern:
     | mapping_pattern
     | class_pattern
 
-keyword_patterns:
+keyword_patterns[List[Tuple[ast.Name, ast.pattern]]]:
     | ','.keyword_pattern+
 
-keyword_pattern:
-    | arg=NAME '=' value=pattern { (arg.string, value) }
+keyword_pattern[Tuple[ast.Name, ast.pattern]]:
+    | arg=symbol '=' value=pattern { (arg, value) }
 
 # Type statement
 # ---------------

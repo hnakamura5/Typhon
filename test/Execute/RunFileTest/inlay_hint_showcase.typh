@@ -9,3 +9,7 @@ var rec = {|a = 1, b = 2|}
 
 let (c: int, d) = (4, 5)
 
+for (let i in range(0, 10)) {
+    let j = i
+    out = add(out, j)
+}
