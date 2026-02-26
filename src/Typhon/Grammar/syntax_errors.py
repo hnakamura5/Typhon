@@ -27,9 +27,13 @@ class TyphonTransformSyntaxError(SyntaxError):
         self.message = message
         self.pos = PosAttributes(**pos)
         super().__init__(self.message)
+        self.lineno = self.pos["lineno"]
+        self.offset = self.pos["col_offset"]
+        self.end_lineno = self.pos.get("end_lineno", self.lineno)
+        self.end_offset = self.pos.get("end_col_offset", self.offset + 1)
 
     def __str__(self):
-        return f"{self.message} at {self.pos}"
+        return f"{self.message}"
 
 
 def set_syntax_error(node: ast.AST, error_details: list[SyntaxError]):

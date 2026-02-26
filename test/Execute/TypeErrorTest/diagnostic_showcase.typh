@@ -9,7 +9,7 @@ score = "high"
 
 # Function call: argument type mismatch
 def add(x: int, y: int) -> int {
-	return x + y
+    return x + y
 }
 let sum1 = add(1, "2")
 
@@ -18,7 +18,7 @@ let sum2 = add(1)
 
 # Return type mismatch
 def bad_flag(name: str) -> bool {
-	return name
+    return name
 }
 
 # Collection element type mismatch
@@ -32,7 +32,16 @@ let d = double("10")
 # Data record field type mismatch
 let point: {|x: int, y: int|} = {|x = 10, y = "20"|}
 
+# Unreachable code due to type error
+if (let (x, y) = (1, "2")) {
+    print(x)
+    x = x + 1
+    print(y)
+} else {
+    print("This will never be reached")
+}
+
 # Syntax error
 if (len(numbers) > 0 {
-	print(numbers)
+    print(numbers)
 }

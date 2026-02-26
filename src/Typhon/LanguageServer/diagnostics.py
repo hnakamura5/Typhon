@@ -7,7 +7,7 @@ from functools import reduce
 from lsprotocol import types
 from pygls.workspace import TextDocument
 
-from ..Typing.pyright import filter_ignore_message
+from ..Typing.pyright import filter_ignore_message, filter_ignore_position
 from ..Grammar.typhon_ast import is_internal_name
 from ..Grammar.syntax_errors import get_syntax_error_in_module
 from ..Grammar.tokenizer_custom import TokenInfo
@@ -35,7 +35,7 @@ def map_diagnostic(
         )
         mapped_range = Range(
             start=Pos(line=0, column=0),
-            end=Pos(line=0, column=0),
+            end=Pos(line=0, column=1),
         )
     debug_file_write_verbose(
         f"Mapped diagnostic range from {diagnostic.range} to {mapped_range}"
@@ -95,6 +95,15 @@ def map_and_add_diagnostics(
             module=module,
             source_map=source_map,
         )
+        if (
+            # TODO: Ignore diagnostics mapped to (0, 0).
+            filter_ignore_position(lsp_range_to_range(mapped_diagnostic.range))
+            and mapped_diagnostic.severity != types.DiagnosticSeverity.Error
+        ):
+            debug_file_write_verbose(
+                f"Ignoring diagnostic at position (0, 0): {diagnostic}"
+            )
+            continue
         diagnostics.append(mapped_diagnostic)
 
     return types.PublishDiagnosticsParams(

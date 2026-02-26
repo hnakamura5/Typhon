@@ -96,6 +96,17 @@ def test_inlay_hint_response_received_e2e():
             )
             assert isinstance(hints, list) and len(hints) > 0
             _assert_no_mangled_name_in_labels(hints)
+            # Keep this in sync with the final response logged in private/server.log.
+            assert len(hints) == 16
+
+            # def add(x: int, y: int) { ... }
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Type,
+                line=0,
+                character=23,
+                label_contains="-> int",
+            )
             # add(1, 2)
             _assert_hint_exists(
                 hints,
@@ -110,6 +121,13 @@ def test_inlay_hint_response_received_e2e():
                 line=4,
                 character=19,
                 label_contains="y=",
+            )
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Type,
+                line=4,
+                character=9,
+                label_contains=": int",
             )
             # var out = ...
             _assert_hint_exists(
@@ -126,6 +144,84 @@ def test_inlay_hint_response_received_e2e():
                 line=7,
                 character=7,
                 label_contains=": {| a: int, b: int |}",
+            )
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Type,
+                line=7,
+                character=13,
+                label_contains=": int",
+            )
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Type,
+                line=7,
+                character=20,
+                label_contains=": int",
+            )
+
+            # let (c: int, d) = ...
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Type,
+                line=9,
+                character=14,
+                label_contains=": Final",  # TODO: "Final" is not ideal. Should modify backend basedpyright.
+            )
+
+            # for (let i in range(0, 10)) { ... }
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Type,
+                line=11,
+                character=10,
+                label_contains=": Final",  # TODO: "Final" is not ideal. Should modify backend basedpyright.
+            )
+
+            # let j = i
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Type,
+                line=12,
+                character=9,
+                label_contains=": int",
+            )
+
+            # out = add(out, j)
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Type,
+                line=13,
+                character=7,
+                label_contains=": int",
+            )
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Parameter,
+                line=5,
+                character=14,
+                label_contains="x=",
+            )
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Parameter,
+                line=5,
+                character=21,
+                label_contains="y=",
+            )
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Parameter,
+                line=13,
+                character=14,
+                label_contains="x=",
+            )
+            _assert_hint_exists(
+                hints,
+                kind=types.InlayHintKind.Parameter,
+                line=13,
+                character=19,
+                label_contains="y=",
             )
         finally:
             await ensure_exit(client)

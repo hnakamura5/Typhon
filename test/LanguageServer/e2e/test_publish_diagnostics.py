@@ -101,9 +101,9 @@ def assert_diagnostics(diagnostics: Sequence[types.Diagnostic]):
         types.DiagnosticSeverity.Error,
         'is not assignable to return type "bool"',
         start_line=20,
-        start_col=8,
+        start_col=11,
         end_line=20,
-        end_col=12,
+        end_col=15,
     )
     # list element type mismatch
     da.assert_next(
@@ -141,13 +141,40 @@ def assert_diagnostics(diagnostics: Sequence[types.Diagnostic]):
         end_line=32,
         end_col=52,
     )
+    # Immutable variable assignment in if-let destructuring body (x = x + 1)
+    da.assert_next(
+        types.DiagnosticSeverity.Error,
+        "Cannot assign to immutable variable 'x'",
+        start_line=37,
+        start_col=4,
+        end_line=37,
+        end_col=5,
+    )
+    # Pattern incompatibility in if-let
+    da.assert_next(
+        types.DiagnosticSeverity.Error,
+        'Pattern will never be matched for subject type "Never"',
+        start_line=40,
+        start_col=4,
+        end_line=40,
+        end_col=39,
+    )
+    # Unreachable branch hint in if-let
+    da.assert_next(
+        types.DiagnosticSeverity.Hint,
+        "Code is unreachable",
+        start_line=40,
+        start_col=4,
+        end_line=40,
+        end_col=39,
+    )
     # Syntax error
     da.assert_next(
         types.DiagnosticSeverity.Error,
         "expected ')'",
-        start_line=35,
+        start_line=44,
         start_col=20,
-        end_line=35,
+        end_line=44,
         end_col=21,
     )
     da.assert_end()
