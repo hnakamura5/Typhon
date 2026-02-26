@@ -1039,6 +1039,7 @@ def _make_nested_match_for_multiple_let(
     body: list[ast.stmt],
     type_error_on_failure: bool,
     is_let_else: bool,
+    else_pos: PosAttributes | None,
     **kwargs: Unpack[PosAttributes],
 ) -> list[ast.stmt]:
     # Build nested match statements from inside out.
@@ -1046,18 +1047,21 @@ def _make_nested_match_for_multiple_let(
         # Add a wildcard case to handle non-matching case to avoid linter error.
         default_case = ast.match_case(  # case _: pass
             pattern=ast.MatchAs(
-                name=None, pattern=None, **pos_attribute_to_range(kwargs)
+                name=None, pattern=None, **pos_attribute_to_range(else_pos or kwargs)
             ),
             guard=None,
             body=[
+                # raise TypeError in 'unreachable' case. 'cast' and so on can still cause failure even if the pattern is irrefutable after type check.
                 ast.Raise(
-                    ast.Name(id="TypeError", ctx=ast.Load(), **kwargs),
+                    ast.Name(
+                        id="TypeError", ctx=ast.Load(), **get_empty_pos_attributes()
+                    ),
                     None,
                     # **kwargs, # TODO: appropriate position?
                     **get_empty_pos_attributes(),
                 )
                 if type_error_on_failure
-                else ast.Pass(**kwargs)
+                else ast.Pass(**(else_pos or kwargs))
             ],
         )
         if type_error_on_failure:
@@ -1144,6 +1148,7 @@ def _make_if_let_multiple(
                 and (not is_all_pattern_truly_irrefutable)
             ),
             is_let_else=is_let_else,
+            else_pos=get_pos_attributes(orelse[0]) if orelse else None,
             **kwargs,
         ),
         orelse=orelse or [],
@@ -1205,7 +1210,14 @@ def _make_while_let(
     result = ast.While(
         test=ast.Constant(value=True, **kwargs),
         body=_make_nested_match_for_multiple_let(
-            "let", pattern_subjects, cond, body, False, False, **kwargs
+            "let",
+            pattern_subjects,
+            cond,
+            body,
+            False,
+            False,
+            else_pos=get_pos_attributes(orelse[0]) if orelse else None,
+            **kwargs,
         ),
         orelse=orelse or [],
         **kwargs,

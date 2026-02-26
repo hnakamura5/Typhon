@@ -129,6 +129,14 @@ def filter_ignore_message(message: str) -> bool:
     return message in ignore_errors_by_message
 
 
+def filter_ignore_position(pos: Range) -> bool:
+    # Ignore diagnostics at position (0, 0).
+    return pos == Range(
+        start=Pos(line=0, column=0),
+        end=Pos(line=0, column=0),
+    )
+
+
 def _filter_ignore_diagnostics(
     result: TypeCheckResult,
 ) -> TypeCheckResult:
@@ -138,7 +146,10 @@ def _filter_ignore_diagnostics(
     num_info = 0
     for diag in result.diagnostics:
         if filter_ignore_message(diag.message):
-            debug_print(f"Ignoring diagnostic: {diag}")
+            debug_print(f"Ignoring diagnostic by message: {diag}")
+            continue
+        if filter_ignore_position(diag.pos) and diag.severity != Severity.ERROR:
+            debug_print(f"Ignoring diagnostic by position: {diag}")
             continue
         filtered_diagnostics.append(diag)
         if diag.severity == Severity.ERROR:
