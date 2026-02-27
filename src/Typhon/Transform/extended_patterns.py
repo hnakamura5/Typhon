@@ -10,6 +10,7 @@ from ..Grammar.typhon_ast import (
     pos_attribute_to_range,
     get_empty_pos_attributes,
     PosAttributes,
+    set_is_internal_name,
     set_is_var,
     is_record_literal,
     is_record_type,
@@ -63,8 +64,12 @@ class _GatherRecords(TyphonASTVisitor):
                             ctx=ast.Load(),
                             **get_pos_attributes(node.cls),
                         ),
-                        annotation=ast.Name(
-                            id=type_var, ctx=ast.Load(), **get_pos_attributes(node.cls)
+                        annotation=set_is_internal_name(
+                            ast.Name(
+                                id=type_var,
+                                ctx=ast.Load(),
+                                **get_pos_attributes(node.cls),
+                            )
                         ),
                     )
                 )
@@ -95,8 +100,8 @@ class _Transform(TyphonASTTransformer):
         if node in self.class_for_record_pattern:
             class_def = self.class_for_record_pattern[node]
             info = self.info_for_record_pattern[node]
-            return ast.Name(
-                id=class_def.name, ctx=ast.Load(), **get_pos_attributes(node)
+            return set_is_internal_name(
+                ast.Name(id=class_def.name, ctx=ast.Load(), **get_pos_attributes(node))
             )
         return self.generic_visit(node)
 
@@ -107,7 +112,9 @@ class _Transform(TyphonASTTransformer):
             return copy_is_let_var(
                 node,
                 ast.MatchClass(
-                    cls=ast.Name(id="tuple", ctx=ast.Load(), **pos),
+                    cls=set_is_internal_name(
+                        ast.Name(id="tuple", ctx=ast.Load(), **pos)
+                    ),
                     patterns=[
                         ast.MatchSequence(node.patterns, **pos_attribute_to_range(pos))
                     ],

@@ -195,7 +195,6 @@ def map_semantic_tokens(
             if isinstance(mapped_node, ast.Name) and not is_internal_name(mapped_node):
                 if mapped_range := Range.from_ast_node(mapped_node):
                     line = mapped_range.start.line
-                    # TODO Wrong now.
                     debug_file_write_verbose(
                         f"Mapping token to node with range OK: {token}\n --> {ast.dump(mapped_node)} (internal={is_internal_name(mapped_node)})@{mapped_range}"
                     )
@@ -215,7 +214,6 @@ def map_semantic_tokens(
                         )
                     )
                     continue
-    # Sort tokens by position because with statement and so on are out of order in tokens.
     sorted_tokens = list(sorted(mapped_tokens, key=lambda t: (t.line, t.start_col)))
     # Calculate offsets
     prev_line = 0

@@ -192,3 +192,11 @@ def assert_tokens(
     assert_semantic_token(lines, next_token(), "function", "fun", 21, 9)
     assert_semantic_token(lines, next_token(), "variable", "typh_path", 21, 13)
     assert_semantic_token(lines, next_token(), "function", "print", 21, 31)
+
+    assert_semantic_token(lines, next_token(), "variable", "x", 24, 5)
+    assert_semantic_token(lines, next_token(), "variable", "y", 24, 8)
+    assert_semantic_token(lines, next_token(), "variable", "a", 25, 6)
+    assert_semantic_token(lines, next_token(), "variable", "b", 25, 10)
+    assert_semantic_token(lines, next_token(), "selfParameter", "a", 25, 17)
+    assert_semantic_token(lines, next_token(), "selfParameter", "b", 25, 24)
+    assert_next_is_end()

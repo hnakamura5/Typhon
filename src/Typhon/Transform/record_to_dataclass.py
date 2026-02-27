@@ -9,6 +9,7 @@ from ..Grammar.typhon_ast import (
     pos_attribute_to_range,
     get_empty_pos_attributes,
     PosAttributes,
+    set_is_internal_name,
     set_is_var,
     is_record_literal,
     is_record_type,
@@ -84,8 +85,8 @@ class _GatherRecords(TyphonASTVisitor):
             if not annotation:
                 type_var = self.new_typevar_name(name.id)
                 type_vars.append(type_var)
-                annotation = ast.Name(
-                    id=type_var, ctx=ast.Load(), **get_pos_attributes(name)
+                annotation = set_is_internal_name(
+                    ast.Name(id=type_var, ctx=ast.Load(), **get_pos_attributes(name))
                 )
                 is_type_var = True
             field_infos.append(RecordFieldInfo(name, annotation, value, is_type_var))
@@ -245,7 +246,9 @@ class _Transform(TyphonASTTransformer):
                 )
                 if field.is_type_var:
                     type_var_fields.append(field.name)
-            class_name = ast.Name(id=class_def.name, ctx=ast.Load(), **pos)
+            class_name = set_is_internal_name(
+                ast.Name(id=class_def.name, ctx=ast.Load(), **pos)
+            )
             if type_var_fields:
                 set_record_literal_typevar_fields(class_name, type_var_fields)
             return ast.Call(
@@ -265,8 +268,10 @@ class _Transform(TyphonASTTransformer):
             class_def = self.class_for_record_type[node]
             info = self.info_for_record_type[node]
             return ast.Subscript(
-                value=ast.Name(
-                    id=class_def.name, ctx=ast.Load(), **get_pos_attributes(node)
+                value=set_is_internal_name(
+                    ast.Name(
+                        id=class_def.name, ctx=ast.Load(), **get_pos_attributes(node)
+                    )
                 ),
                 slice=ast.Tuple(
                     elts=[field.orig_annotation for field in info.fields],
