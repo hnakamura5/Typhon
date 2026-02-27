@@ -1053,8 +1053,10 @@ def _make_nested_match_for_multiple_let(
             body=[
                 # raise TypeError in 'unreachable' case. 'cast' and so on can still cause failure even if the pattern is irrefutable after type check.
                 ast.Raise(
-                    ast.Name(
-                        id="TypeError", ctx=ast.Load(), **get_empty_pos_attributes()
+                    set_is_internal_name(
+                        ast.Name(
+                            id="TypeError", ctx=ast.Load(), **get_empty_pos_attributes()
+                        )
                     ),
                     None,
                     # **kwargs, # TODO: appropriate position?

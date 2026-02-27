@@ -22,6 +22,10 @@ if (my_dir.exists()) {
     (try fun(typh_path) except print("File not found"))
 }
 
+let (x, y) = (1, 2)
+let {.a, .b} = {|a = 3, b = 4|}
+
+
 """stdout
 match: re
 """

@@ -1,6 +1,7 @@
 from ...Grammar.typhon_ast import (
     get_pos_attributes,
     pos_attribute_to_range,
+    set_is_internal_name,
     set_is_var,
     PosAttributes,
 )
@@ -37,7 +38,9 @@ def _class_contents_for_fields(
         else:
             annotation = final_imported_name
         ann_assign = ast.AnnAssign(
-            target=ast.Name(id=name.id, ctx=ast.Store(), **get_pos_attributes(name)),
+            target=set_is_internal_name(
+                ast.Name(id=name.id, ctx=ast.Store(), **get_pos_attributes(name))
+            ),
             annotation=annotation,
             value=None,
             simple=1,
