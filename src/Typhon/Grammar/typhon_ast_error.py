@@ -418,6 +418,24 @@ def statement_panic_skip(
     return [result]
 
 
+def expression_bracket_recovery(
+    parser: Parser,
+    open: TokenInfo,
+    comp: TokenInfo | None,
+    skip: list[TokenInfo],
+    close: TokenInfo,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.Constant:
+    start_loc = open.start
+    end_loc = close.end
+    if comp:
+        skip.insert(0, comp)
+    error = parser.build_skip_tokens_error(skip, start_loc, end_loc)
+    resul = ast.Constant(value=Ellipsis, **kwargs)
+    add_error_node(resul, [error])
+    return resul
+
+
 class _ErrorGather(TyphonASTRawVisitor):
     errors: list[SyntaxError]
 

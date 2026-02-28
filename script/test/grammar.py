@@ -2,37 +2,34 @@ import subprocess
 import sys
 from pathlib import Path
 
-from script.test._util import get_debug_options
+from script.test._util import except_test_options, get_debug_options
 from .._util import get_project_root, gather_directory
 from ..build import setup
 
 
-def gather_test_in_grammar_test_dir(dir_name: str) -> list[str]:
-    root = get_project_root()
-    dir_path = Path(root) / "test" / "Grammar" / dir_name
-    if not dir_path.exists():
-        return []
-    return gather_directory(dir_path)
+def gather_test_in_grammar_test_dir(filter_paths: list[str]) -> list[str]:
+    dir_path = Path(get_project_root()) / "test" / "Grammar"
+    return gather_directory(dir_path, filter_paths)
 
 
 def gather_tokenizer_tests() -> list[str]:
-    return gather_test_in_grammar_test_dir("Tokenizer")
+    return gather_test_in_grammar_test_dir(["Tokenizer"])
 
 
 def gather_parser_tests() -> list[str]:
-    return gather_test_in_grammar_test_dir("Parser")
+    return gather_test_in_grammar_test_dir(["Parser"])
 
 
 def gather_scope_tests() -> list[str]:
-    return gather_test_in_grammar_test_dir("Scope")
+    return gather_test_in_grammar_test_dir(["Scope"])
 
 
 def gather_utils_tests() -> list[str]:
-    return gather_test_in_grammar_test_dir("Utils")
+    return gather_test_in_grammar_test_dir(["Utils"])
 
 
 def gather_sourcemap_tests() -> list[str]:
-    return gather_test_in_grammar_test_dir("SourceMap")
+    return gather_test_in_grammar_test_dir(["SourceMap"])
 
 
 def run_all_tests() -> int:
@@ -64,19 +61,21 @@ def run_all_tests() -> int:
     return result.returncode
 
 
-def run_single_grammar_test(test_dir_name: str) -> int:
+def run_filtered_grammar_test(test_dir_name: list[str]) -> int:
+    tests = gather_test_in_grammar_test_dir(test_dir_name)
+    if not tests:
+        print("No tests were found to run.")
+        return 1
     result = subprocess.run(
-        [sys.executable, "-m", "pytest"]
-        + get_debug_options(sys.argv[1:])
-        + gather_test_in_grammar_test_dir(test_dir_name),
+        [sys.executable, "-m", "pytest"] + get_debug_options(sys.argv[1:]) + tests
     )
     return result.returncode
 
 
 if __name__ == "__main__":
     setup()
-    if len(sys.argv) > 1:
-        test_dir_name = sys.argv[1]
-        exit(run_single_grammar_test(test_dir_name))
+    if len(except_test_options(sys.argv)) > 1:
+        test_dir_name = except_test_options(sys.argv[1:])
+        exit(run_filtered_grammar_test(test_dir_name))
     else:
         exit(run_all_tests())

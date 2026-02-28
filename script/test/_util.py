@@ -4,7 +4,7 @@ def except_debug_options(args: list[str]) -> list[str]:
 
 # Note "--debug" options is used by pytest itself. We cannot use here.
 def get_debug_options(args: list[str]) -> list[str]:
-    return [arg for arg in args if arg.startswith("--debug-verbose")]
+    return [arg for arg in args if arg.startswith("--debug-")]
 
 
 def except_test_options(args: list[str]) -> list[str]:

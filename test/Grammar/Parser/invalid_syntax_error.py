@@ -143,3 +143,80 @@ def test_panic_inside_block_recovery():
             ("unknown tokens", Range(Pos(3, 6), Pos(3, 14))),
         ],
     )
+
+
+paren_recovery_code = """
+let x = (1 + * 2) * (3 * a// 4 5)
+if (x > 10) {
+    print(x)
+}
+"""
+paren_recovery_recovery = """
+x = ... * ...
+if x > 10:
+    print(x)
+"""
+
+
+def test_paren_recovery():
+    assert_parse_error_recovery(
+        paren_recovery_code,
+        paren_recovery_recovery,
+        [
+            ("unknown tokens", Range(Pos(1, 8), Pos(1, 17))),
+            ("unknown tokens", Range(Pos(1, 20), Pos(1, 33))),
+        ],
+    )
+
+
+bracket_recovery_code = """
+let x = [1, 2, * 3, 4  5 6 +]
+"""
+bracket_recovery_recovery = """
+x = ...
+"""
+
+
+def test_bracket_recovery():
+    assert_parse_error_recovery(
+        bracket_recovery_code,
+        bracket_recovery_recovery,
+        [
+            ("unknown tokens", Range(Pos(1, 8), Pos(1, 29))),
+        ],
+    )
+
+
+brace_recovery_code = """
+let x = {a: 1, b: 2, c: * 3, d: 4 5 6}
+"""
+brace_recovery_recovery = """
+x = ...
+"""
+
+
+def test_brace_recovery():
+    assert_parse_error_recovery(
+        brace_recovery_code,
+        brace_recovery_recovery,
+        [
+            ("unknown tokens", Range(Pos(1, 8), Pos(1, 38))),
+        ],
+    )
+
+
+record_recovery_code = """
+let x = {|a: 1, b: 2, c: * 3, d: 4 5 6|}
+"""
+record_recovery_recovery = """x = ...
+"""
+
+
+def test_record_recovery():
+    assert_parse_error_recovery(
+        record_recovery_code,
+        record_recovery_recovery,
+        [
+            ("unknown tokens", Range(Pos(1, 8), Pos(1, 40))),
+        ],
+    )

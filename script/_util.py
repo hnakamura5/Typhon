@@ -31,7 +31,10 @@ def gather_directory(dir_path: Path, filter_paths: list[str] = []) -> list[str]:
                 for p in filter_paths:
                     p_path = Path(p)
                     sub_part = str(p_path.relative_to(p_path.parent))
-                    if p_path.parent == subdir_relative:
+                    if p_path == subdir_relative:
+                        # Filter for exact match, include whole subdir
+                        skip_subdir = False
+                    elif p_path.parent == subdir_relative:
                         # Filter for subdir, only include paths that are directly under the subdir
                         if sub_part:
                             sub_filter_paths.append(sub_part)

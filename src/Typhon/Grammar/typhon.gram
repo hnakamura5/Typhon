@@ -32,6 +32,7 @@ from .typhon_ast_error import (
     maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, recover_invalid_for, recover_invalid_try, recover_maybe_invalid_function_def_raw,
     recover_maybe_invalid_class_def_raw,
     statement_panic_skip, let_pattern_check,
+    expression_bracket_recovery,
 )
 from .syntax_errors import set_syntax_error
 from .parser_helper import Parser, Load, Store, Del, Target
@@ -1278,11 +1279,6 @@ coalescing (memo):
         set_is_coalescing(ast.Tuple(elts=[a] + b, ctx=Load, LOCATIONS))
      }
     | arrow_single_param
-# coalescing (memo):
-#     | a=disjunction b=('??' c=disjunction { c })+ {
-#         set_is_coalescing(ast.Tuple(elts=[a] + b, ctx=Load, LOCATIONS))
-#      }
-#     | disjunction
 
 arrow_single_param[ast.expr]:
     | !'(' a=disjunction r=('->' a=typing_expression { a })+ {
@@ -1484,10 +1480,10 @@ atom:
         if sys.version_info >= (3, 9) else
         ast.Constant(value=ast.literal_eval(a.string), kind=None, LOCATIONS)
      }
-    | &'(' (function_literal | typing_arrow_type | tuple | group | comprehension_paren)
-    | &'[' (list | listcomp)
-    | &'{' (dict | set | dictcomp | setcomp)
-    | &'{|'(record_type | record_literal)
+    | &'(' (function_literal | typing_arrow_type | tuple | group | comprehension_paren | paren_exp_recovery)
+    | &'[' (list | listcomp | bracket_exp_recovery)
+    | &'{' (dict | set | dictcomp | setcomp | brace_exp_recovery)
+    | &'{|'(record_type | record_literal | record_exp_recovery)
     | '...' {
         ast.Constant(value=Ellipsis, LOCATIONS)
         if sys.version_info >= (3, 9) else
@@ -1501,6 +1497,28 @@ group:
 
 function_literal:
     | '(' p=params ')' a=[typing_arrow_return_type] '=>' ~ b=(block | expression) { make_function_literal(args=p, returns=a, body=b, LOCATIONS) }
+
+
+# Expression Error Recovery
+# =========================
+
+paren_exp_recovery:
+    | a='(' comp=[('if'|'for'|'while'|'try'|"match"|'with')] skip=(!SYNC_STMT (!')' ANY_TOKEN))* b=')' {
+        expression_bracket_recovery(self, comp=comp, open=a, close=b, skip=skip, LOCATIONS)
+     }
+bracket_exp_recovery:
+    | a='[' comp=['for'] skip=(!SYNC_STMT (!']' ANY_TOKEN))* b=']' {
+        expression_bracket_recovery(self, comp=comp, open=a, close=b, skip=skip, LOCATIONS)
+     }
+brace_exp_recovery:
+    | a='{' comp=['for'] skip=(!SYNC_STMT (!'}' ANY_TOKEN))* b='}' {
+        expression_bracket_recovery(self, comp=comp, open=a, close=b, skip=skip, LOCATIONS)
+     }
+record_exp_recovery:
+    | a='{|' skip=(!SYNC_STMT (!'|}' ANY_TOKEN))* b='|}' {
+        expression_bracket_recovery(self, comp=None, open=a, close=b, skip=skip, LOCATIONS)
+     }
+
 
 # LITERALS
 # ========
