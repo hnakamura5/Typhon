@@ -1302,6 +1302,23 @@ def clear_defined_name(node: DefinesName):
         delattr(node, _DEFINED_NAME)
 
 
+_MATCH_CLASS_KEYWORD_NAMES = "_typh_match_class_keyword_names"
+
+
+def get_match_class_keyword_names(node: ast.MatchClass) -> list[ast.Name] | None:
+    return getattr(node, _MATCH_CLASS_KEYWORD_NAMES, None)
+
+
+def set_match_class_keyword_names(node: ast.MatchClass, names: list[ast.Name]):
+    setattr(node, _MATCH_CLASS_KEYWORD_NAMES, names)
+    return node
+
+
+def clear_match_class_keyword_names(node: ast.MatchClass):
+    if hasattr(node, _MATCH_CLASS_KEYWORD_NAMES):
+        delattr(node, _MATCH_CLASS_KEYWORD_NAMES)
+
+
 _RETURN_TYPE_ANNOTATION_ANCHOR = "_typh_return_type_annotation_anchor"
 
 
@@ -1433,6 +1450,24 @@ def make_attribute(
         attr,
         ctx,
     )
+
+
+def make_match_class(
+    cls: ast.expr,
+    patterns: list[ast.pattern],
+    kwd_attrs: list[ast.Name],
+    kwd_patterns: list[ast.pattern],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.MatchClass:
+    result = ast.MatchClass(
+        cls=cls,
+        patterns=patterns,
+        kwd_attrs=[attr.id for attr in kwd_attrs],
+        kwd_patterns=kwd_patterns,
+        **pos_attribute_to_range(kwargs),
+    )
+    set_match_class_keyword_names(result, kwd_attrs)
+    return result
 
 
 _IMPORT_FROM_NAMES = "_typh_import_from_names"

@@ -38,9 +38,7 @@ def _class_contents_for_fields(
         else:
             annotation = final_imported_name
         ann_assign = ast.AnnAssign(
-            target=set_is_internal_name(
-                ast.Name(id=name.id, ctx=ast.Store(), **get_pos_attributes(name))
-            ),
+            target=ast.Name(id=name.id, ctx=ast.Store(), **get_pos_attributes(name)),
             annotation=annotation,
             value=None,
             simple=1,

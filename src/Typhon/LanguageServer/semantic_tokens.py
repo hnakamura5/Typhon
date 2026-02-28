@@ -201,6 +201,11 @@ def map_semantic_tokens(
                     debug_file_write_verbose(
                         f"  line: {line}, start_col: {mapped_range.start.column}, end_col: {mapped_range.end.column}"
                     )
+                    if mapped_range.is_empty():
+                        debug_file_write_verbose(
+                            f"  Skipping token mapping for empty range: {token} mapped to {ast.dump(mapped_node)} at {mapped_range}"
+                        )
+                        continue
                     mapped_tokens.append(
                         SemanticToken(
                             line=line,

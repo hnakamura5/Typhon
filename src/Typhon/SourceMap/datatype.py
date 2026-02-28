@@ -89,6 +89,9 @@ class Range:
     start: Pos
     end: Pos
 
+    def is_empty(self) -> bool:
+        return (self.start == self.end) and (self.start == Pos(0, 0))
+
     def contains(self, pos: Pos) -> bool:
         return self.start <= pos < self.end
 

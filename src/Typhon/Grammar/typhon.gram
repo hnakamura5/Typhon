@@ -25,7 +25,7 @@ from .typhon_ast import (
     make_while_let_comp, make_let_comp,
     make_record_literal, make_record_type, make_attributes_pattern, make_tuple_pattern, make_for_let_pattern, make_with_let_pattern, make_inline_with_let_pattern, make_class_def,
     make_match_case, make_alias, make_import_from, make_arguments, make_attribute,
-    make_arg,
+    make_arg,  make_match_class,
     get_pos_attributes,
 )
 from .typhon_ast_error import (
@@ -968,25 +968,25 @@ double_star_pattern:
 
 class_pattern["ast.MatchClass"]:
     | cls=name_or_attr_pattern '(' ')' {
-        ast.MatchClass(cls=cls, patterns=[], kwd_attrs=[], kwd_patterns=[], LOCATIONS)
+        make_match_class(cls=cls, patterns=[], kwd_attrs=[], kwd_patterns=[], LOCATIONS)
      }
     | cls=name_or_attr_pattern '(' patterns=positional_patterns ','? ')' {
-        ast.MatchClass(cls=cls, patterns=patterns, kwd_attrs=[], kwd_patterns=[], LOCATIONS)
+        make_match_class(cls=cls, patterns=patterns, kwd_attrs=[], kwd_patterns=[], LOCATIONS)
      }
     | cls=name_or_attr_pattern '(' keywords=keyword_patterns ','? ')' {
-        ast.MatchClass(
+        make_match_class(
             cls=cls,
             patterns=[],
-            kwd_attrs=[k.id for k, _ in keywords],
+            kwd_attrs=[k for k, _ in keywords],
             kwd_patterns=[p for _, p in keywords],
             LOCATIONS,
         )
      }
     | cls=name_or_attr_pattern '(' patterns=positional_patterns ',' keywords=keyword_patterns ','? ')' {
-        ast.MatchClass(
+        make_match_class(
             cls=cls,
             patterns=patterns,
-            kwd_attrs=[k.id for k, _ in keywords],
+            kwd_attrs=[k for k, _ in keywords],
             kwd_patterns=[p for _, p in keywords],
             LOCATIONS,
         )

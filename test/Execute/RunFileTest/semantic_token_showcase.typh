@@ -23,7 +23,8 @@ if (my_dir.exists()) {
 }
 
 let (x, y) = (1, 2)
-let {.a, .b} = {|a = 3, b = 4|}
+let ab : {|a: int, b: int|}  = {|a = 3, b = 4|}
+let {.a, .b} = ab
 
 
 """stdout

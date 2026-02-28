@@ -4,6 +4,7 @@ from typing import Protocol, Iterable, Final
 from ..Grammar.typhon_ast import (
     RecordLiteral,
     copy_is_let_var,
+    get_match_class_keyword_names,
     get_record_literal_fields,
     get_record_type_fields,
     get_pos_attributes,
@@ -54,21 +55,34 @@ class _GatherRecords(TyphonASTVisitor):
             type_vars: list[str] = []
             fields: list[AttributePatternFieldInfo] = []
             # Gather the member names from keyword patterns.
-            for kwd_name in node.kwd_attrs:
-                type_var = self.new_typevar_name(kwd_name)
+            kwd_names = get_match_class_keyword_names(node)
+            for i in range(len(node.kwd_attrs)):
+                kwd_attr = node.kwd_attrs[i]
+                kwd_attr_name = (
+                    kwd_names[i] if kwd_names and i < len(kwd_names) else None
+                )
+                type_var = self.new_typevar_name(kwd_attr)
                 type_vars.append(type_var)
+                pos = (
+                    get_pos_attributes(kwd_attr_name)
+                    if kwd_attr_name is not None
+                    else get_empty_pos_attributes()
+                )
                 fields.append(
                     AttributePatternFieldInfo(
-                        name=ast.Name(
-                            id=kwd_name,
-                            ctx=ast.Load(),
-                            **get_pos_attributes(node.cls),
+                        name=set_is_internal_name(
+                            ast.Name(
+                                id=kwd_attr,
+                                ctx=ast.Load(),
+                                **pos,
+                            ),
+                            kwd_attr_name is None,
                         ),
                         annotation=set_is_internal_name(
                             ast.Name(
                                 id=type_var,
                                 ctx=ast.Load(),
-                                **get_pos_attributes(node.cls),
+                                **pos,
                             )
                         ),
                     )
