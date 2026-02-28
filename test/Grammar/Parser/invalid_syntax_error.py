@@ -118,6 +118,24 @@ def test_panic_definition_recovery():
         )
 
 
+panic_unended_code = """
+let x =
+let y = 2
+"""
+panic_unended_recovery = """
+pass
+y = 2
+"""
+
+
+def test_panic_unended_recovery():
+    assert_parse_error_recovery(
+        panic_unended_code,
+        panic_unended_recovery,
+        [("unknown tokens", Range(Pos(1, 0), Pos(1, 7)))],
+    )
+
+
 # Recover the second declaration
 panic_inside_block_code = """
 if (true) {
