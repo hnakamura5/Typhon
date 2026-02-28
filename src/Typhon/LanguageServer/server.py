@@ -68,6 +68,10 @@ from .inlay_hint import (
     map_inlay_hint_request_params,
     map_inlay_hints_result,
 )
+from .completion import (
+    map_completion_request_params,
+    map_completion_result,
+)
 from ._utils.path import (
     canonicalize_uri,
     uri_to_path,
@@ -686,3 +690,27 @@ async def inlay_hint(ls: LanguageServer, params: types.InlayHintParams):
     except Exception as e:
         debug_file_write(f"Error during inlay hint retrieval: {type(e).__name__}: {e}")
         return None
+
+
+@server.feature(
+    types.TEXT_DOCUMENT_COMPLETION,
+    types.CompletionOptions(
+        resolve_provider=False,
+        trigger_characters=["."],
+    ),
+)
+async def completion(ls: LanguageServer, params: types.CompletionParams):
+    uri = canonicalize_uri(params.text_document.uri)
+    try:
+        debug_file_write(f"Completion requested: {params}")
+        mapping = ls.get_mapping(uri)
+        mapped_params = map_completion_request_params(params, mapping)
+        debug_file_write(f"Mapped completion params (dummy): {mapped_params}")
+        return map_completion_result(
+            completion_result=None,
+            mapping=ls.get_mapping,
+            translated_uri_to_original_uri=ls.translated_uri_to_original_uri,
+        )
+    except Exception as e:
+        debug_file_write(f"Error during completion retrieval: {type(e).__name__}: {e}")
+        return types.CompletionList(is_incomplete=False, items=[])
