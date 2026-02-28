@@ -115,8 +115,7 @@ try print("Hello") except (e) { print("Error") }
 try_braceless_recovery = """
 try:
     print('Hello')
-except e:
-    print('Error')
+    pass
 """
 
 _try_braceless_code = """
@@ -136,8 +135,10 @@ def test_stmt_try_braceless_recovery():
         try_braceless_code,
         try_braceless_recovery,
         [
+            ("expected 'except' or 'finally' block", Range(Pos(1, 0), Pos(1, 48))),
             ("expected '{'", Range(Pos(1, 4), Pos(1, 5))),
-            ("expected '}'", Range(Pos(1, 18), Pos(1, 19))),
+            ("unknown tokens", Range(Pos(1, 19), Pos(1, 48))),
+            ("expected '}'", Range(Pos(1, 48), Pos(1, 49))),
         ],
     )
 

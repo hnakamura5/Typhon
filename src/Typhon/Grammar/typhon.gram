@@ -119,14 +119,16 @@ statements[List[ast.stmt]]: NEWLINE* a=statement_or_recovery* { sum(a, []) }
 
 statement_or_recovery[List[ast.stmt]]:
     | statement ~
+    # Note this is called when not invalid. (e.g. end of statement*)
     | !statement statement_panic_recovery ~
 
 # Skip to synchronization point
 statement_panic_recovery[List[ast.stmt]]:
-    # Skip at least one token
-    | one=ANY_TOKEN skips=(!SYNC_STMT ANY_TOKEN)+ sync=statement_panic_synchronize {
+    # Start recovery if the statement is not finished. Skip at least one token.
+    | one=(!SYNC_STMT_CLOSER ANY_TOKEN) skips=(!SYNC_STMT ANY_TOKEN)+ sync=statement_panic_synchronize {
         statement_panic_skip(self, [one] + skips, sync, LOCATIONS)
      }
+
 
 # Note when the rule returns Falsy value, it is regarded as fail. We return dummy string here.
 statement_panic_synchronize:
@@ -692,19 +694,19 @@ try_stmt_with_error[ast.Try]:
     | 'try' b=maybe_block ex=except_block+ ex_s=except_star_block+ el=[else_block] f=[finally_block] {
         recover_invalid_try(self,
             message="cannot have both 'except' and 'except*' on the same 'try'",
-            node=ast.Try(body=b, handlers=(ex + ex_s), orlese=el or [], finalbody=f or [], LOCATIONS)
+            node=ast.Try(body=b, handlers=(ex + ex_s), orelse=el or [], finalbody=f or [], LOCATIONS)
         )
      }
     | 'try' b=maybe_block  ex_s=except_star_block+ ex=except_block+ el=[else_block] f=[finally_block] {
         recover_invalid_try(self,
             message="cannot have both 'except' and 'except*' on the same 'try'",
-            node=ast.Try(body=b, handlers=(ex_s + ex), orlese=el or [], finalbody=f or [], LOCATIONS)
+            node=ast.Try(body=b, handlers=(ex_s + ex), orelse=el or [], finalbody=f or [], LOCATIONS)
         )
      }
     | 'try' b=maybe_block !('except' | 'finally') {
         recover_invalid_try(self,
             message="expected 'except' or 'finally' block",
-            node=ast.Try(body=b, handlers=[], orlese=[], finalbody=[], LOCATIONS)
+            node=ast.Try(body=b, handlers=[], orelse=[], finalbody=[], LOCATIONS)
         )
      }
 
