@@ -393,3 +393,96 @@ def test_match_guard_paren_recovery():
         ],
     )
 
+
+comprehension_close_paren_recovery_code = """
+let xs = (if (True) 1 else 0
+if (xs) {
+    print(xs)
+}
+"""
+comprehension_close_paren_recovery_result = """
+xs = 1 if True else 0
+if xs:
+    print(xs)
+"""
+
+
+def test_comprehension_close_paren_recovery():
+    assert_parse_error_recovery(
+        comprehension_close_paren_recovery_code,
+        comprehension_close_paren_recovery_result,
+        [
+            ("expected ')'", Range(Pos(1, 28), Pos(1, 29))),
+        ],
+    )
+
+
+question_comprehension_close_paren_recovery_code = """
+let xs = f?(if (True) 1 else 0
+if (xs) {
+    print(xs)
+}
+"""
+question_comprehension_close_paren_recovery_result = """
+xs = f(1 if True else 0)
+if xs:
+    print(xs)
+"""
+
+
+def test_question_comprehension_close_paren_recovery():
+    assert_parse_error_recovery(
+        question_comprehension_close_paren_recovery_code,
+        question_comprehension_close_paren_recovery_result,
+        [
+            ("expected ')'", Range(Pos(1, 30), Pos(1, 31))),
+        ],
+    )
+
+
+class_pattern_close_paren_recovery_code = """
+match (x) {
+    case (Point(a, b) {
+        y = 1
+    }
+}
+"""
+class_pattern_close_paren_recovery_result = """
+match x:
+    case Point(a, b):
+        y = 1
+"""
+
+
+def test_class_pattern_close_paren_recovery():
+    assert_parse_error_recovery(
+        class_pattern_close_paren_recovery_code,
+        class_pattern_close_paren_recovery_result,
+        [
+            ("expected ')'", Range(Pos(2, 21), Pos(2, 22))),
+        ],
+    )
+
+
+class_pattern_keyword_close_paren_recovery_code = """
+match (x) {
+    case (Point(a, y=b, z=c) if (a > 0) {
+        y = 1
+    }
+}
+"""
+class_pattern_keyword_close_paren_recovery_result = """
+match x:
+    case Point(a, y=b, z=c) if a > 0:
+        y = 1
+"""
+
+
+def test_class_pattern_keyword_close_paren_recovery():
+    assert_parse_error_recovery(
+        class_pattern_keyword_close_paren_recovery_code,
+        class_pattern_keyword_close_paren_recovery_result,
+        [
+            ("expected ')'", Range(Pos(2, 28), Pos(2, 29))),
+        ],
+    )

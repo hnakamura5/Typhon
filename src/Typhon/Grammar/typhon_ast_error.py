@@ -159,6 +159,21 @@ def maybe_invalid_stmt[T: PosNode](
     return node
 
 
+def maybe_invalid_close_paren[T: PosNode](
+    parser: Parser,
+    close_paren: TokenInfo | None,
+    *,
+    node: T,
+    close_anchor: PosNode | TokenInfo,
+) -> T:
+    if close_paren is None:
+        start_loc, end_loc = _pos_of_anchor(close_anchor)
+        debug_print(f"close paren missing: {start_loc} to {end_loc}")
+        error = parser.build_expected_error("')'", start_loc, end_loc)
+        add_error_node(node, [error])
+    return node
+
+
 def recover_invalid_try(
     parser: Parser,
     message: str,

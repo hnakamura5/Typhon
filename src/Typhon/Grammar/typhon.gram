@@ -32,7 +32,7 @@ from .typhon_ast_error import (
     maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, recover_invalid_for, recover_invalid_try, recover_maybe_invalid_function_def_raw,
     recover_maybe_invalid_class_def_raw,
     statement_panic_skip, let_pattern_check,
-    expression_bracket_recovery,
+    expression_bracket_recovery, maybe_invalid_close_paren,
 )
 from .syntax_errors import set_syntax_error
 from .parser_helper import Parser, Load, Store, Del, Target
@@ -971,31 +971,47 @@ double_star_pattern:
     | '**' target=pattern_capture_target { target }
 
 class_pattern["ast.MatchClass"]:
-    | cls=name_or_attr_pattern '(' ')' {
-        make_match_class(cls=cls, patterns=[], kwd_attrs=[], kwd_patterns=[], LOCATIONS)
-     }
-    | cls=name_or_attr_pattern '(' patterns=positional_patterns ','? ')' {
-        make_match_class(cls=cls, patterns=patterns, kwd_attrs=[], kwd_patterns=[], LOCATIONS)
-     }
-    | cls=name_or_attr_pattern '(' keywords=keyword_patterns ','? ')' {
-        make_match_class(
-            cls=cls,
-            patterns=[],
-            kwd_attrs=[k for k, _ in keywords],
-            kwd_patterns=[p for _, p in keywords],
-            LOCATIONS,
+    | cls=name_or_attr_pattern lp='(' rp=class_pattern_rp {
+        maybe_invalid_close_paren(self, rp,
+            node=make_match_class(cls=cls, patterns=[], kwd_attrs=[], kwd_patterns=[], LOCATIONS),
+            close_anchor=cls,
         )
      }
-    | cls=name_or_attr_pattern '(' patterns=positional_patterns ',' keywords=keyword_patterns ','? ')' {
-        make_match_class(
-            cls=cls,
-            patterns=patterns,
-            kwd_attrs=[k for k, _ in keywords],
-            kwd_patterns=[p for _, p in keywords],
-            LOCATIONS,
+    | cls=name_or_attr_pattern lp='(' patterns=positional_patterns ','? rp=class_pattern_rp {
+        maybe_invalid_close_paren(self, rp,
+            node=make_match_class(cls=cls, patterns=patterns, kwd_attrs=[], kwd_patterns=[], LOCATIONS),
+            close_anchor=patterns[-1],
+        )
+     }
+    | cls=name_or_attr_pattern lp='(' keywords=keyword_patterns ','? rp=class_pattern_rp {
+        maybe_invalid_close_paren(self, rp,
+            node=make_match_class(
+                cls=cls,
+                patterns=[],
+                kwd_attrs=[k for k, _ in keywords],
+                kwd_patterns=[p for _, p in keywords],
+                LOCATIONS,
+            ),
+            close_anchor=keywords[-1][1],
+        )
+     }
+    | cls=name_or_attr_pattern lp='(' patterns=positional_patterns ',' keywords=keyword_patterns ','? rp=class_pattern_rp {
+        maybe_invalid_close_paren(self, rp,
+            node=make_match_class(
+                cls=cls,
+                patterns=patterns,
+                kwd_attrs=[k for k, _ in keywords],
+                kwd_patterns=[p for _, p in keywords],
+                LOCATIONS,
+            ),
+            close_anchor=keywords[-1][1],
         )
      }
     | invalid_class_pattern
+
+class_pattern_rp:
+    | rp=')' { rp }
+    | &('if' | '{' | ')' | ']' | '}' | ',' | '|' | 'as') { None }
 
 attribute_capture_pattern[tuple[ast.Name, ast.pattern | None]]:
     | '.' p=keyword_pattern { p }
@@ -1651,12 +1667,12 @@ genexp_internal[ast.GeneratorExp]:
       }
 
 genexp[ast.GeneratorExp]:
-    | '(' b=genexp_internal ')' { b }
+    | '(' b=genexp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
     | invalid_comprehension
 
 # For optional call.
 question_genexp[ast.GeneratorExp]:
-    | '?(' b=genexp_internal ')' { b }
+    | '?(' b=genexp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
 
 dictcomp[ast.DictComp]:
     | '{' b=for_if_clauses 'yield' ~ a=kvpair '}' { make_dictcomp(key=a[0], value=a[1], generators=b, LOCATIONS) }
@@ -1734,10 +1750,10 @@ if_comp_else[ast.expr]:
     | 'else' NEWLINE* a=expression { a }
 
 if_comp_exp[ast.expr]:
-    | '(' b=if_comp_internal ')' { b }
+    | '(' b=if_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
 
 question_if_comp_exp[ast.expr]:
-    | '?(' b=if_comp_internal ')' { b }
+    | '?(' b=if_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
 
 with_comp_internal[ast.expr]:
     | is_async=['async'] k='with' lp=['('] a=';'.with_item+ [';'] rp=[')'] NEWLINE* b=expression {
@@ -1749,10 +1765,10 @@ with_comp_internal[ast.expr]:
      }
 
 with_comp[ast.expr]:
-    | '(' b=with_comp_internal ')' { b }
+    | '(' b=with_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
 
 question_with_comp[ast.expr]:
-    | '?(' b=with_comp_internal ')' { b }
+    | '?(' b=with_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
 
 try_comp_internal[ast.expr]:
     |'try' NEWLINE* b=expression ex=try_comp_except* {
@@ -1775,10 +1791,10 @@ try_comp_except[ast.Name]:
     | 'except' NEWLINE* b=expression { make_try_comp_except(None, None, b, LOCATIONS) }
 
 try_comp[ast.expr]:
-    | '(' b=try_comp_internal ')' { b }
+    | '(' b=try_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
 
 question_try_comp[ast.expr]:
-    | '?(' b=try_comp_internal ')' { b }
+    | '?(' b=try_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
 
 match_comp_internal[ast.expr]:
     | k="match" lp=['('] subject=subject_expr rp=[')'] NEWLINE* cases=match_comp_case+ {
@@ -1790,10 +1806,10 @@ match_comp_internal[ast.expr]:
     }
 
 match_comp[ast.expr]:
-    | '(' b=match_comp_internal ')' { b }
+    | '(' b=match_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
 
 question_match_comp[ast.expr]:
-    | '?(' b=match_comp_internal ')' { b }
+    | '?(' b=match_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
 
 match_comp_case[ast.Name]:
     | k="case" lp=['('] pattern=patterns rp=[')'] NEWLINE* guard=guard? NEWLINE* body=expression {
@@ -1823,10 +1839,10 @@ while_comp_internal[ast.expr]:
      }
 
 while_comp[ast.expr]:
-    | '(' b=while_comp_internal ')' { b }
+    | '(' b=while_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
 
 question_while_comp[ast.expr]:
-    | '?(' b=while_comp_internal ')' { b }
+    | '?(' b=while_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
 
 let_comp_internal[ast.expr]:
     | 'let' a=','.declaration_single_assignment+ ';' b=expression {
@@ -1834,10 +1850,10 @@ let_comp_internal[ast.expr]:
      }
 
 let_comp[ast.expr]:
-    | '(' b=let_comp_internal ')' { b }
+    | '(' b=let_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
 
 question_let_comp[ast.expr]:
-    | '?(' b=let_comp_internal ')' { b }
+    | '?(' b=let_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
 
 comprehension_paren:
     | genexp
