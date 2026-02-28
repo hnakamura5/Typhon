@@ -367,3 +367,29 @@ def test_while_comp_internal_paren_recovery():
             ("expected ')'", Range(Pos(1, 19), Pos(1, 20))),
         ],
     )
+
+
+match_guard_paren_recovery_code = """
+match (x) {
+    case (1) if y == 1 {
+        z = 1
+    }
+}
+"""
+match_guard_paren_recovery_result = """
+match x:
+    case 1 if y == 1:
+        z = 1
+"""
+
+
+def test_match_guard_paren_recovery():
+    assert_parse_error_recovery(
+        match_guard_paren_recovery_code,
+        match_guard_paren_recovery_result,
+        [
+            ("expected '('", Range(Pos(2, 15), Pos(2, 16))),
+            ("expected ')'", Range(Pos(2, 22), Pos(2, 23))),
+        ],
+    )
+

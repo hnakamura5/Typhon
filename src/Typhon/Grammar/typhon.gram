@@ -781,7 +781,10 @@ case_block["ast.match_case"]:
         )
      }
 
-guard: 'if' '(' guard=named_expression ')' { guard }
+guard[ast.expr]:
+    | k='if' lp=['('] g=named_expression rp=[')'] {
+        maybe_invalid_stmt(self, lp, rp, node=g, open_anchor=k, close_anchor=g)
+     }
 
 patterns:
     | patterns=open_sequence_pattern {
@@ -1503,7 +1506,7 @@ function_literal:
 # =========================
 
 paren_exp_recovery:
-    | a='(' comp=[('if'|'for'|'while'|'try'|"match"|'with')] skip=(!SYNC_STMT (!')' ANY_TOKEN))* b=')' {
+    | a='(' comp=[('if'|'for'|'while'|'try'|"match"|'with'|'let')] skip=(!SYNC_STMT (!')' ANY_TOKEN))* b=')' {
         expression_bracket_recovery(self, comp=comp, open=a, close=b, skip=skip, LOCATIONS)
      }
 bracket_exp_recovery:
