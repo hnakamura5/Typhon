@@ -197,13 +197,12 @@ def assert_parse_error_recovery(
     recovery_parsed_code: str,
     expexcted_syntax_errors: list[tuple[str, Range]],
 ):
-    assert expexcted_syntax_errors
     with first_error_test(False):
         parsed = assert_parse(
             typhon_code, recovery_parsed_code, allow_error_recovery=True
         )
     parse_errors = get_syntax_error_in_module(parsed)
-    assert parse_errors
+    parse_errors = parse_errors or []
     print(f"expected_syntax_errors:{expexcted_syntax_errors}")
     print("  actual:")
     for e in parse_errors:

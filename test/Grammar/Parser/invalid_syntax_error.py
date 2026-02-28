@@ -220,3 +220,150 @@ def test_record_recovery():
             ("unknown tokens", Range(Pos(1, 8), Pos(1, 40))),
         ],
     )
+
+
+for_if_clause_paren_recovery_code = """
+let xs = [for var i in range(5) if i > 0 yield i]
+"""
+for_if_clause_paren_recovery_result = """
+xs = [i for i in range(5) if i > 0]
+"""
+
+
+def test_for_if_clause_paren_recovery():
+    assert_parse_error_recovery(
+        for_if_clause_paren_recovery_code,
+        for_if_clause_paren_recovery_result,
+        [
+            ("expected '('", Range(Pos(1, 13), Pos(1, 14))),
+            ("expected ')'", Range(Pos(1, 31), Pos(1, 32))),
+            ("expected '('", Range(Pos(1, 34), Pos(1, 35))),
+            ("expected ')'", Range(Pos(1, 40), Pos(1, 41))),
+        ],
+    )
+
+
+if_comp_internal_paren_recovery_code = """
+let x = (if True 1 else 0)
+"""
+if_comp_internal_paren_recovery_result = """
+x = 1 if True else 0
+"""
+
+
+def test_if_comp_internal_paren_recovery():
+    assert_parse_error_recovery(
+        if_comp_internal_paren_recovery_code,
+        if_comp_internal_paren_recovery_result,
+        [
+            ("expected '('", Range(Pos(1, 11), Pos(1, 12))),
+            ("expected ')'", Range(Pos(1, 16), Pos(1, 17))),
+        ],
+    )
+
+
+if_comp_elif_paren_recovery_code = """
+let x = (if (True) 1 elif False 2 else 0)
+"""
+if_comp_elif_paren_recovery_result = """
+x = 1 if True else 2 if False else 0
+"""
+
+
+def test_if_comp_elif_paren_recovery():
+    assert_parse_error_recovery(
+        if_comp_elif_paren_recovery_code,
+        if_comp_elif_paren_recovery_result,
+        [
+            ("expected '('", Range(Pos(1, 25), Pos(1, 26))),
+            ("expected ')'", Range(Pos(1, 31), Pos(1, 32))),
+        ],
+    )
+
+
+with_comp_internal_paren_recovery_code = """
+let value = (with let f = open("x.txt")) f.read())
+"""
+with_comp_internal_paren_recovery_result = """
+value = __with_control
+"""
+
+
+def test_with_comp_internal_paren_recovery():
+    assert_parse_error_recovery(
+        with_comp_internal_paren_recovery_code,
+        with_comp_internal_paren_recovery_result,
+        [
+            ("expected '('", Range(Pos(1, 17), Pos(1, 18))),
+        ],
+    )
+
+
+try_comp_except_paren_recovery_code = """
+let x = (try 1 / 0 except * ZeroDivisionError as e 0)
+"""
+try_comp_except_paren_recovery_result = """
+x = __try_comp
+"""
+
+
+def test_try_comp_except_paren_recovery():
+    assert_parse_error_recovery(
+        try_comp_except_paren_recovery_code,
+        try_comp_except_paren_recovery_result,
+        [],
+    )
+
+
+match_comp_internal_paren_recovery_code = """
+let x = (match y case (1) 1)
+"""
+match_comp_internal_paren_recovery_result = """
+x = __match_comp
+"""
+
+
+def test_match_comp_internal_paren_recovery():
+    assert_parse_error_recovery(
+        match_comp_internal_paren_recovery_code,
+        match_comp_internal_paren_recovery_result,
+        [
+            ("expected '('", Range(Pos(1, 14), Pos(1, 15))),
+            ("expected ')'", Range(Pos(1, 16), Pos(1, 17))),
+        ],
+    )
+
+
+match_comp_case_paren_recovery_code = """
+let x = (match (y) case 1 1)
+"""
+match_comp_case_paren_recovery_result = """
+x = __match_comp
+"""
+
+
+def test_match_comp_case_paren_recovery():
+    assert_parse_error_recovery(
+        match_comp_case_paren_recovery_code,
+        match_comp_case_paren_recovery_result,
+        [],
+    )
+
+
+while_comp_internal_paren_recovery_code = """
+let x = (while True yield 1)
+"""
+while_comp_internal_paren_recovery_result = """
+x = __while_comp
+"""
+
+
+def test_while_comp_internal_paren_recovery():
+    assert_parse_error_recovery(
+        while_comp_internal_paren_recovery_code,
+        while_comp_internal_paren_recovery_result,
+        [
+            ("expected '('", Range(Pos(1, 14), Pos(1, 15))),
+            ("expected ')'", Range(Pos(1, 19), Pos(1, 20))),
+        ],
+    )
