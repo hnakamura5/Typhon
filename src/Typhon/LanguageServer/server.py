@@ -72,6 +72,9 @@ from .completion import (
     map_completion_request_params,
     map_completion_result,
 )
+from .did_change import (
+    map_did_change_params,
+)
 from ._utils.path import (
     canonicalize_uri,
     uri_to_path,
@@ -103,6 +106,7 @@ class LanguageServer(PyglsLanguageServer):
         self.translated_uri_to_original_uri: dict[str, str] = {}
         self.preload_task: asyncio.Task[None] | None = None
         self.preloaded_uris: set[str] = set()
+        self.translated_sources: dict[str, str] = {}
 
     def get_module(self, original_uri: str | None) -> ast.Module | None:
         if original_uri is None:
@@ -168,13 +172,13 @@ class LanguageServer(PyglsLanguageServer):
                     f"Writing translated file to {translate_file_path}, length={len(unparsed)}"
                 )
                 f.write(unparsed)
+            self.translated_sources[orignal_uri] = unparsed
             return unparsed
         except Exception as e:
-            self._ast_modules[orignal_uri] = None
-            self.token_infos[orignal_uri] = []
-            self.semantic_tokens[orignal_uri] = []
-            self.semantic_tokens_encoded[orignal_uri] = []
             debug_file_write(f"Error reloading document {orignal_uri}: {e}")
+            debug_file_write(
+                "Keeping last successful parse/mapping state for completion fallback."
+            )
             # dump traceback to debug log
             traceback_str = traceback.format_exc()
             debug_file_write_verbose(f"Traceback:\n{traceback_str}")
@@ -451,9 +455,20 @@ def did_open(ls: LanguageServer, params: types.DidOpenTextDocumentParams):
     try:
         uri = params.text_document.uri
         unparsed = ls.reload(uri)
+        canonical_uri = canonicalize_uri(uri)
+        translated_text = (
+            unparsed
+            if unparsed is not None
+            else ls.translated_sources.get(canonical_uri)
+        )
+        if translated_text is None:
+            debug_file_write(
+                f"Did open called for {uri}, but no translated snapshot is available. Skipping backend sync."
+            )
+            return
         cloned_params = ls.clone_params_map_uri(params)
         cloned_params.text_document.language_id = "python"
-        cloned_params.text_document.text = unparsed if unparsed is not None else ""
+        cloned_params.text_document.text = translated_text
         debug_file_write(f"Did open called for {uri}, translated to {cloned_params}")
         ls.backend_client.text_document_did_open(cloned_params)
     except Exception as e:
@@ -464,9 +479,41 @@ def did_open(ls: LanguageServer, params: types.DidOpenTextDocumentParams):
 def did_change(ls: LanguageServer, params: types.DidChangeTextDocumentParams):
     """Parse each document when it is changed"""
     try:
+        debug_file_write(f"Did change called with params: {params}")
         uri = params.text_document.uri
         unparsed = ls.reload(uri)
+        canonical_uri = canonicalize_uri(uri)
+        # translated_text = (
+        #     unparsed
+        #     if unparsed is not None
+        #     else ls.translated_sources.get(canonical_uri)
+        # )
+        translated_text = unparsed
+        debug_file_write_verbose(
+            f"Did change translated text for {uri}: {translated_text is not None}"
+        )
         translated_uri = ls.get_translated_file_uri(uri)
+        if translated_text is None:
+            mapping = ls.get_mapping(canonical_uri)
+            if mapping is None:
+                debug_file_write(
+                    f"Did change called for {uri}, but no translated snapshot/mapping is available. Skipping backend sync."
+                )
+                return
+            mapped_params = map_did_change_params(params, translated_uri, mapping)
+            if mapped_params is None:
+                debug_file_write(
+                    f"Did change called for {uri}, but no mapped content changes were produced."
+                )
+                return
+            debug_file_write_verbose(
+                f"Did change mapped params for {uri}: {mapped_params}"
+            )
+            ls.backend_client.text_document_did_change(mapped_params)
+            debug_file_write(
+                f"Did change called for {uri}, synced mapped incremental changes."
+            )
+            return
         ls.backend_client.text_document_did_change(
             types.DidChangeTextDocumentParams(
                 text_document=types.VersionedTextDocumentIdentifier(
@@ -475,7 +522,7 @@ def did_change(ls: LanguageServer, params: types.DidChangeTextDocumentParams):
                 ),
                 content_changes=[
                     types.TextDocumentContentChangeWholeDocument(
-                        text=unparsed if unparsed is not None else "",
+                        text=translated_text,
                     )
                 ],
             )
@@ -705,12 +752,29 @@ async def completion(ls: LanguageServer, params: types.CompletionParams):
         debug_file_write(f"Completion requested: {params}")
         mapping = ls.get_mapping(uri)
         mapped_params = map_completion_request_params(params, mapping)
-        debug_file_write(f"Mapped completion params (dummy): {mapped_params}")
-        return map_completion_result(
-            completion_result=None,
-            mapping=ls.get_mapping,
-            translated_uri_to_original_uri=ls.translated_uri_to_original_uri,
+        debug_file_write(f"Mapped completion params: {mapped_params}")
+        if mapped_params is None:
+            debug_file_write(
+                "Completion request mapping failed. Skipping backend call."
+            )
+            return None
+        translated_params = ls.clone_params_map_uri(mapped_params)
+        debug_file_write(
+            f"Forwarding completion request to backend: {translated_params}"
         )
+        completion_result = await ls.backend_client.text_document_completion_async(
+            translated_params
+        )
+        debug_file_write(
+            f"Received completion result from backend: {completion_result}"
+        )
+        mapped_result = map_completion_result(
+            completion_result,
+            uri,
+            ls.get_mapping,
+        )
+        debug_file_write(f"Mapped completion result: {mapped_result}")
+        return mapped_result
     except Exception as e:
         debug_file_write(f"Error during completion retrieval: {type(e).__name__}: {e}")
-        return types.CompletionList(is_incomplete=False, items=[])
+        return None

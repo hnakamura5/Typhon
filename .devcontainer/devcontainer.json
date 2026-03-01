@@ -3,7 +3,8 @@
     "build": {
         "dockerfile": "Dockerfile"
     },
-    "postCreateCommand": "uv sync && uv run -m  script.build",
+    "postCreateCommand": "uv sync && uv run -m script.build",
+    "workspaceFolder": "/workspaces/Typhon",
     "customizations": {
         "vscode": {
             "extensions": [
@@ -19,13 +20,14 @@
                 "hnakamura5.typhon-language-support"
             ],
             "settings": {
-                "typhon.path": "/workspaces/Typhon/.venv/bin/typhon",
+            "python.defaultInterpreterPath": "/workspaces/Typhon/.venv/bin/python",
+            "typhon.path": "/workspaces/Typhon/.venv/bin/typhon",
                 "typhon.args": [
                     "lsp"
                 ],
                 "chat.tools.autoApprove": true,
                 "chat.tools.terminal.autoApprove": true,
-                "chat.agent.maxRequests": 100
+                "chat.agent.maxRequests": 100,
             }
         }
     }
