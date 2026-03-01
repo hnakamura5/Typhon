@@ -1,17 +1,19 @@
 import asyncio
-from pathlib import Path
 from collections.abc import Sequence
 
 from lsprotocol import types
 from pygls.lsp.client import LanguageClient
 
 from Typhon.LanguageServer._utils.path import path_to_uri
-from .utils import start_initialize_open_typhon_connection_client, ensure_exit
+from .utils import (
+    start_initialize_open_typhon_connection_client,
+    ensure_exit,
+    sample_workspace,
+)
 
 
-completion_input_dir = Path(__file__).resolve().parent / "completion_inputs"
-normal_completion_file = completion_input_dir / "normal_completion.typh"
-trigger_completion_broken_file = completion_input_dir / "trigger_completion_broken.typh"
+normal_completion_file = sample_workspace / "normal_completion.typh"
+trigger_completion_file = sample_workspace / "trigger_completion.typh"
 
 
 type CompletionResult = types.CompletionList | Sequence[types.CompletionItem] | None
@@ -37,7 +39,7 @@ async def request_completion(
 def test_completion_normal_invoked_e2e():
     async def run_test() -> None:
         client, _ = await start_initialize_open_typhon_connection_client(
-            root_dir=completion_input_dir,
+            root_dir=sample_workspace,
             open_file=normal_completion_file,
         )
         try:
@@ -54,18 +56,37 @@ def test_completion_normal_invoked_e2e():
     asyncio.run(run_test())
 
 
-def test_completion_trigger_character_broken_source_e2e():
+def test_completion_trigger_character_dot_typed_e2e():
     async def run_test() -> None:
         client, _ = await start_initialize_open_typhon_connection_client(
-            root_dir=completion_input_dir,
-            open_file=trigger_completion_broken_file,
+            root_dir=sample_workspace,
+            open_file=trigger_completion_file,
         )
         try:
+            trigger_uri = path_to_uri(trigger_completion_file)
+            client.text_document_did_change(
+                types.DidChangeTextDocumentParams(
+                    text_document=types.VersionedTextDocumentIdentifier(
+                        version=2,
+                        uri=trigger_uri,
+                    ),
+                    content_changes=[
+                        types.TextDocumentContentChangePartial(
+                            range=types.Range(
+                                start=types.Position(line=3, character=17),
+                                end=types.Position(line=3, character=17),
+                            ),
+                            text=".",
+                            range_length=0,
+                        )
+                    ],
+                )
+            )
             result = await request_completion(
                 client,
-                path_to_uri(trigger_completion_broken_file),
+                trigger_uri,
                 line=3,
-                character=22,
+                character=18,
                 context=types.CompletionContext(
                     trigger_kind=types.CompletionTriggerKind.TriggerCharacter,
                     trigger_character=".",

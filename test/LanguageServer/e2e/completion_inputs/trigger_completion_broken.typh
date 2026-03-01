@@ -1,4 +1,0 @@
-import pkg.math
-
-let value = pkg.math.add(1, 2)
-let broken = pkg.math.
