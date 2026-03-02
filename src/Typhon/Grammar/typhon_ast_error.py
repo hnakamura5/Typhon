@@ -1,8 +1,10 @@
 import ast
+import copy
 from typing import Unpack, cast
 from tokenize import TokenInfo
 from .typhon_ast import (
     PosAttributes,
+    get_empty_pos_attributes,
     unpack_pos_default,
     get_pos_attributes,
     PosNode,
@@ -12,7 +14,7 @@ from .typhon_ast import (
     get_invalid_name,
     unpack_pos_tuple,
 )
-from ..Driver.debugging import debug_print
+from ..Driver.debugging import debug_print, debug_verbose_print
 from .parser_helper import Parser
 from .syntax_errors import set_syntax_error
 from ..Transform.visitor import TyphonASTRawVisitor
@@ -449,6 +451,63 @@ def expression_bracket_recovery(
     resul = ast.Constant(value=Ellipsis, **kwargs)
     add_error_node(resul, [error])
     return resul
+
+
+def attribute_access_recovery(
+    parser: Parser,
+    value: ast.expr,
+    access_dot: TokenInfo,
+    ctx: ast.expr_context,
+    **kwargs: Unpack[PosAttributes],
+):
+    assert access_dot.string in (".", "?.")
+    start_loc, end_loc = unpack_pos_tuple(kwargs)
+    error = parser.build_expected_error(
+        "attribute name after '.'",
+        start_loc,
+        (end_loc[0], end_loc[1] + len(access_dot.string)),
+    )
+    debug_verbose_print(
+        f"Recovering from invalid attribute access: {ast.dump(value)}{access_dot.string} access_dot.string == '.' is {access_dot.string == '.'}"
+    )
+    if access_dot.string == ".":
+        result = copy.deepcopy(value)
+        result = ast.Attribute(
+            value=value,
+            attr="_typh_invalid_attribute",
+            ctx=ast.Load(),
+            **kwargs,
+        )
+        debug_verbose_print(f"Adding error to attribute access: {ast.dump(result)}")
+        add_error_node(result, [error])
+        return result
+    # "?."
+    adjusted_pos = kwargs
+    if adjusted_pos["end_col_offset"] is not None:
+        adjusted_pos["end_col_offset"] += 2
+    access = ast.Attribute(
+        value=value,
+        attr="_typh_invalid_attribute",
+        ctx=ast.Load(),
+        **kwargs,
+    )
+    result = ast.IfExp(
+        test=ast.Compare(
+            left=value,
+            ops=[ast.IsNot()],
+            comparators=[ast.Constant(value=None, **adjusted_pos)],
+            **get_empty_pos_attributes(),
+        ),
+        # body=copy.deepcopy(value),
+        body=access,
+        orelse=ast.Constant(value=None, **adjusted_pos),
+        **get_empty_pos_attributes(),
+    )
+    debug_verbose_print(
+        f"Adding error to optional attribute access: value={ast.dump(value)}@{get_pos_attributes(value)}, access={ast.dump(access)}@{get_pos_attributes(access)}, result={ast.dump(result)}@{get_pos_attributes(result)}"
+    )
+    add_error_node(result, [error])
+    return result
 
 
 class _ErrorGather(TyphonASTRawVisitor):

@@ -17,18 +17,54 @@ from ._utils.mapping import (
 type CompletionResult = types.CompletionList | Sequence[types.CompletionItem] | None
 
 
+def chars_before_trigger_from_source(
+    source_lines: list[str],
+    trigger_character: str | None,
+    position: types.Position,
+    num_chars: int,
+) -> str | None:
+    trigger_character = trigger_character if trigger_character else None
+    trigger_len = len(trigger_character) if trigger_character else 0
+    if trigger_len <= 0:
+        return None
+    line = position.line
+    if line < 0 or line >= len(source_lines):
+        return None
+    target_column = position.character - trigger_len
+    line_text = source_lines[line]
+    if target_column - num_chars < 0 or target_column > len(line_text):
+        return None
+    return line_text[target_column - num_chars : target_column]
+
+
 def map_completion_request_params(
     params: types.CompletionParams,
     source_map: MatchBasedSourceMap | None,
+    source: str | None = None,
 ) -> types.CompletionParams | None:
     if source_map is None:
         debug_file_write("Completion request mapper: source map is not available.")
         return None
 
     trigger_character = params.context.trigger_character if params.context else None
+    # If the character before trigger is '?' and the trigger character is '.', we want to map the position as if the '?' is not there.
+    before_trigger = (
+        chars_before_trigger_from_source(
+            source.splitlines(), trigger_character, params.position, 1
+        )
+        if source is not None
+        else None
+    )
+    # TODO: How to handle the cases systematically?
+    if before_trigger == "?" and trigger_character == ".":
+        trigger_character = "?."
     trigger_len = len(trigger_character) if trigger_character else 0
+    mapped_trigger_len = 1 if trigger_character == "?." else 1
     original_pos = lsp_position_to_pos(params.position)
     probe_col = max(0, original_pos.column - trigger_len)
+    debug_file_write(
+        f"Completion request mapper: original position {params.position} probe_col={probe_col} (trigger={trigger_character}), before_trigger={before_trigger!r}"
+    )
     mapped_probe = source_map.origin_pos_to_unparsed_pos(
         Pos(line=original_pos.line, column=probe_col).col_back(),
         prefer_right=True,
@@ -39,18 +75,21 @@ def map_completion_request_params(
             f"{params.position} probe_col={probe_col} (trigger={trigger_character})."
         )
         return None
-    mapped_column = mapped_probe.column + trigger_len
+    mapped_column = mapped_probe.column + mapped_trigger_len
     mapped_position = pos_to_lsp_position(
         Pos(line=mapped_probe.line, column=mapped_column)
     )
     mapped_params = copy.deepcopy(params)
     mapped_params.position = mapped_position
+
     debug_file_write(
         "Completion request mapper: "
         f"uri={params.text_document.uri}, "
         f"position={params.position} -> {mapped_position}, "
+        f"mapped_position_before_source={chars_before_trigger_from_source(source_map.unparsed_code.splitlines(), '.', mapped_position, 1)!r}, "
         f"context={params.context}, "
-        f"trigger_len={trigger_len}"
+        f"trigger_len={trigger_len}, "
+        f"before_trigger={before_trigger!r}"
     )
     return mapped_params
 

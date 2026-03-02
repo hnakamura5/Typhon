@@ -751,7 +751,8 @@ async def completion(ls: LanguageServer, params: types.CompletionParams):
     try:
         debug_file_write(f"Completion requested: {params}")
         mapping = ls.get_mapping(uri)
-        mapped_params = map_completion_request_params(params, mapping)
+        source = ls.workspace.get_text_document(uri).source
+        mapped_params = map_completion_request_params(params, mapping, source)
         debug_file_write(f"Mapped completion params: {mapped_params}")
         if mapped_params is None:
             debug_file_write(
