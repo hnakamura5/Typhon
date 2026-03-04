@@ -1,5 +1,5 @@
 from pkg import math
 
 let value =math.add(1, 2)
-let member1 = math?
+let member1 = math
 let member2 = math?

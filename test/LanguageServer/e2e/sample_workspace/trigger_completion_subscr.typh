@@ -1,0 +1,18 @@
+from typing import TypedDict
+
+class PosAttributes(TypedDict) {
+    var lineno: int
+    var col_offset: int
+    var end_lineno: int | None
+    var end_col_offset: int | None
+}
+
+let pos = PosAttributes(
+    lineno=1,
+    col_offset=0,
+    end_lineno=None,
+    end_col_offset=None,
+)
+
+let lineno1 = pos
+let lineno2 = pos?
