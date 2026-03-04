@@ -33,7 +33,7 @@ from .typhon_ast_error import (
     recover_maybe_invalid_class_def_raw,
     statement_panic_skip, let_pattern_check,
     expression_bracket_recovery, maybe_invalid_close_paren,
-    attribute_access_recovery,
+    attribute_access_recovery, subscr_recovery,
 )
 from .syntax_errors import set_syntax_error
 from .parser_helper import Parser, Load, Store, Del, Target
@@ -1431,6 +1431,7 @@ primary:
             make_attribute(value=a, attr=b, ctx=Load, LOCATIONS),
             o.string)
      }
+    # Recovery for attribute access, for completion.
     | a=primary o=('.' | '?.') !NAME {
         attribute_access_recovery(self, value=a, access_dot=o, ctx=ast.Load, LOCATIONS)
      }
@@ -1450,8 +1451,14 @@ primary:
      }
     | a=primary o=('['|'?[') b=slices ']' {
         maybe_optional(
-            ast.Subscript(value=a, slice=b, ctx=Load, LOCATIONS),
-            o.string)
+            ast.Subscript(value=a, slice=b, ctx=Load, LOCATIONS), o.string)
+     }
+    # Recovery for subscription, for completion.
+    | a=primary o=('['|'?[') close=']' {
+        subscr_recovery(self, value=a, open_bracket=o, close_bracket=close, ctx=Load, LOCATIONS)
+     }
+    | a=primary o=('['|'?[') !slices {
+        subscr_recovery(self, value=a, open_bracket=o, close_bracket=None, ctx=Load, LOCATIONS)
      }
     | atom
 

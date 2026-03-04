@@ -478,7 +478,6 @@ def attribute_access_recovery(
             ctx=ast.Load(),
             **kwargs,
         )
-        debug_verbose_print(f"Adding error to attribute access: {ast.dump(result)}")
         add_error_node(result, [error])
         return result
     # "?."
@@ -498,13 +497,72 @@ def attribute_access_recovery(
             comparators=[ast.Constant(value=None, **adjusted_pos)],
             **get_empty_pos_attributes(),
         ),
-        # body=copy.deepcopy(value),
         body=access,
         orelse=ast.Constant(value=None, **adjusted_pos),
         **get_empty_pos_attributes(),
     )
     debug_verbose_print(
-        f"Adding error to optional attribute access: value={ast.dump(value)}@{get_pos_attributes(value)}, access={ast.dump(access)}@{get_pos_attributes(access)}, result={ast.dump(result)}@{get_pos_attributes(result)}"
+        f"Adding error to optional attribute access:\n  value={ast.dump(value)}@{get_pos_attributes(value)},\n  access={ast.dump(access)}@{get_pos_attributes(access)},\n  result={ast.dump(result)}@{get_pos_attributes(result)}"
+    )
+    add_error_node(result, [error])
+    return result
+
+
+def subscr_recovery(
+    parser: Parser,
+    value: ast.expr,
+    open_bracket: TokenInfo,
+    close_bracket: TokenInfo | None,
+    ctx: ast.expr_context,
+    **kwargs: Unpack[PosAttributes],
+):
+    assert open_bracket.string in ("[", "?[")
+    start_loc, end_loc = unpack_pos_tuple(kwargs)
+    error = parser.build_expected_error(
+        "subscript expression",
+        start_loc,
+        (end_loc[0], end_loc[1] + len(open_bracket.string)),
+    )
+    debug_verbose_print(
+        f"Recovering from invalid subscript access: {ast.dump(value)}{open_bracket.string}"
+    )
+    if open_bracket.string == "[":
+        result = ast.Subscript(
+            value=value,
+            # Hack to get string key completion.
+            slice=ast.Constant(value="", **get_empty_pos_attributes()),
+            ctx=ctx,
+            **kwargs,
+        )
+        debug_verbose_print(
+            f"Adding error to subscript access:\n  value={ast.dump(value)}@{get_pos_attributes(value)},\n  subscript={ast.dump(result)}@{get_pos_attributes(result)}"
+        )
+        add_error_node(result, [error])
+        return result
+    # "?["
+    adjusted_pos = kwargs
+    if adjusted_pos["end_col_offset"] is not None:
+        adjusted_pos["end_col_offset"] += 2
+    body = ast.Subscript(
+        value=value,
+        # Hack to get string key completion.
+        slice=ast.Constant(value="", **get_empty_pos_attributes()),
+        ctx=ctx,
+        **kwargs,
+    )
+    result = ast.IfExp(
+        test=ast.Compare(
+            left=value,
+            ops=[ast.IsNot()],
+            comparators=[ast.Constant(value=None, **adjusted_pos)],
+            **get_empty_pos_attributes(),
+        ),
+        body=body,
+        orelse=ast.Constant(value=None, **adjusted_pos),
+        **get_empty_pos_attributes(),
+    )
+    debug_verbose_print(
+        f"Adding error to optional subscript access:\n  value={ast.dump(value)}@{get_pos_attributes(value)},\n  subscript={ast.dump(body)}@{get_pos_attributes(body)},\n  result={ast.dump(result)}@{get_pos_attributes(result)}"
     )
     add_error_node(result, [error])
     return result

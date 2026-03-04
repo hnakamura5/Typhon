@@ -743,7 +743,7 @@ async def inlay_hint(ls: LanguageServer, params: types.InlayHintParams):
     types.TEXT_DOCUMENT_COMPLETION,
     types.CompletionOptions(
         resolve_provider=False,
-        trigger_characters=["."],
+        trigger_characters=[".", "[", "'", '"'],
     ),
 )
 async def completion(ls: LanguageServer, params: types.CompletionParams):
