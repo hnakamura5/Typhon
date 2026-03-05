@@ -237,7 +237,7 @@ assignment[ast.stmt]:
     | a=single_target b=augassign ~ c=(yield_expr | star_expressions) {
         ast.AugAssign(target = a, op=b, value=c, LOCATIONS)
      }
-    | invalid_assignment
+  #  | invalid_assignment
 
 
 annotated_rhs: yield_expr | star_expressions
@@ -299,7 +299,7 @@ nonlocal_stmt[ast.Nonlocal]: 'nonlocal' a=','.NAME+ {
 
 del_stmt[ast.Delete]:
     | 'del' a=del_targets &(';' | NEWLINE) { ast.Delete(targets=a, LOCATIONS) }
-    | invalid_del_stmt
+  #  | invalid_del_stmt
 
 yield_stmt[ast.Expr]: y=yield_expr { ast.Expr(value=y, LOCATIONS) }
 
@@ -308,7 +308,7 @@ assert_stmt[ast.Assert]: 'assert' a=expression b=[',' z=expression { z }] {
 }
 
 import_stmt[ast.Import]:
-    | invalid_import
+  #  | invalid_import
     | import_name
     | import_from
 
@@ -335,7 +335,7 @@ import_from_targets[List[ast.alias]]:
     | '(' a=import_from_as_names [','] ')' { a }
     | import_from_as_names !','
     | '*' { [ast.alias(name="*", asname=None, LOCATIONS)] }
-    | invalid_import_from_targets
+  #  | invalid_import_from_targets
 import_from_as_names[List[ast.alias]]:
     | a=','.import_from_as_name+ { a }
 import_from_as_name[ast.alias]:
@@ -444,7 +444,7 @@ function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
 # -------------------
 
 params[ast.arguments]:
-    | invalid_parameters
+  #  | invalid_parameters
     | parameters
 
 parameters[ast.arguments]:
@@ -480,14 +480,14 @@ slash_with_default[List[Tuple[ast.arg, Any]]]:
     | a=param_no_default* b=param_with_default+ '/' &')' { ([(p, None) for p in a] if a else []) + b }
 
 star_etc[Tuple[Optional[ast.arg], List[Tuple[ast.arg, Any]], Optional[ast.arg]]]:
-    | invalid_star_etc
+  #  | invalid_star_etc
     | '*' a=param_no_default b=param_maybe_default* c=[kwds] { (a, b, c) }
     | '*' a=param_no_default_star_annotation b=param_maybe_default* c=[kwds] { (a, b, c) }
     | '*' ',' b=param_maybe_default+ c=[kwds] { (None, b, c) }
     | a=kwds { (None, [], a) }
 
 kwds[ast.arg]:
-    | invalid_kwds
+  #  | invalid_kwds
     | '**' a=param_no_default { a }
 
 # One parameter.  This *includes* a following comma and type comment.
@@ -660,7 +660,7 @@ inline_with_stmt[List[ast.stmt]]:
 
 with_item[List[ast.withitem]]:
     | a=declaration_assignment { list(map(declaration_as_withitem, a)) }
-    | invalid_with_item
+  #  | invalid_with_item
     | exprs=','.expression+ [','] {
         list(map(lambda e: ast.withitem(context_expr=e, optional_vars=None), exprs))
      }
@@ -1288,7 +1288,7 @@ assignment_expression:
 
 named_expression:
     | assignment_expression
-    | invalid_named_expression
+  #  | invalid_named_expression
     | a=expression !':=' { a }
 
 pipe_operator (memo):
@@ -1525,7 +1525,7 @@ atom:
 
 group:
     | '(' a=(yield_expr | named_expression) ')' { a }
-    | invalid_group
+  #  | invalid_group
 
 
 function_literal:
@@ -1665,15 +1665,15 @@ for_if_clause[ast.comprehension]:
             open_anchor=k,
             close_anchor=b,
         ) }
-    | invalid_for_target
+  #  | invalid_for_target
 
 listcomp[ast.ListComp]:
     | '[' b=for_if_clauses 'yield' ~ a=named_expression ']' { make_listcomp(elt=a, generators=b, LOCATIONS) }
-    | invalid_comprehension
+  #  | invalid_comprehension
 
 setcomp[ast.SetComp]:
     | '{' b=for_if_clauses 'yield' ~ a=named_expression '}' { make_setcomp(elt=a, generators=b, LOCATIONS) }
-    | invalid_comprehension
+  #  | invalid_comprehension
 
 genexp_internal[ast.GeneratorExp]:
     | b=for_if_clauses 'yield' ~ a=( assignment_expression | expression !':=')  {
@@ -1682,7 +1682,7 @@ genexp_internal[ast.GeneratorExp]:
 
 genexp[ast.GeneratorExp]:
     | '(' b=genexp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
-    | invalid_comprehension
+  #  | invalid_comprehension
 
 # For optional call.
 question_genexp[ast.GeneratorExp]:
@@ -1690,7 +1690,7 @@ question_genexp[ast.GeneratorExp]:
 
 dictcomp[ast.DictComp]:
     | '{' b=for_if_clauses 'yield' ~ a=kvpair '}' { make_dictcomp(key=a[0], value=a[1], generators=b, LOCATIONS) }
-    | invalid_dict_comprehension
+  #  | invalid_dict_comprehension
 
 if_comp_internal[ast.expr]:
     | k='if' lp=['('] b=pipe_operator rp=[')'] NEWLINE* a=expression c=if_comp_elif {
@@ -1893,7 +1893,7 @@ question_comprehension_paren:
 
 arguments[Tuple[List[ast.expr], List[ast.keyword]]](memo):
     | a=args [','] !'=' { a }
-    | invalid_arguments
+  #  | invalid_arguments
 
 args[Tuple[List[ast.expr], List[ast.keyword]]]:
     | a=','.(starred_expression | ( assignment_expression | expression !':=') !'=')+ b=[',' k=kwargs {k}] {
@@ -1912,17 +1912,17 @@ kwargs[List[ast.keyword | ast.Starred]]:
     | ','.kwarg_or_double_starred+
 
 starred_expression[ast.Starred]:
-    | invalid_starred_expression
+  #  | invalid_starred_expression
     | '*' a=expression { ast.Starred(value=a, ctx=Load, LOCATIONS) }
     | '*' { self.raise_syntax_error("Invalid star expression") }
 
 kwarg_or_starred[ast.keyword | ast.expr]:
-    | invalid_kwarg
+  #  | invalid_kwarg
     | a=NAME '=' b=expression { ast.keyword(arg=a.string, value=b, LOCATIONS) }
     | a=starred_expression { a }
 
 kwarg_or_double_starred[ast.keyword]:
-    | invalid_kwarg
+  #  | invalid_kwarg
     | a=NAME '=' b=expression { ast.keyword(arg=a.string, value=b, LOCATIONS) }   # XXX Unreachable
     | '**' a=expression { ast.keyword(arg=None, value=a, LOCATIONS) }
 
@@ -2040,7 +2040,7 @@ type_expressions[List[ast.expr]]:
 
 func_type_comment:
     | NEWLINE t=TYPE_COMMENT &(NEWLINE INDENT) { t.string }  # Must be followed by indented block
-    | invalid_double_type_comments
+  #  | invalid_double_type_comments
     | TYPE_COMMENT
 
 # ========================= END OF THE GRAMMAR ===========================
