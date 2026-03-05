@@ -23,7 +23,7 @@ class PhaseTimes:
     total_ms: float
 
 
-def _generate_large_typhon_source(target_lines: int) -> str:
+def generate_large_typhon_source(target_lines: int) -> str:
     lines: list[str] = ["# Auto-generated benchmark source."]
     idx = 0
     while len(lines) < target_lines:
@@ -104,7 +104,7 @@ def run_benchmark(
     source_file = output_dir / f"generated_{line_count}_lines.typh"
     translated_file = output_dir / f"generated_{line_count}_lines.py"
 
-    source_text = _generate_large_typhon_source(line_count)
+    source_text = generate_large_typhon_source(line_count)
     source_file.write_text(source_text, encoding="utf-8")
 
     print(f"Generated source: {source_file}")
