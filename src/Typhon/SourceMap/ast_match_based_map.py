@@ -31,14 +31,18 @@ class MatchBasedSourceMap:
             if origin_pos is not None:
                 origin_range = Range.from_pos_attr_may_not_end(origin_pos)
                 debug_verbose_print(
-                    f"Adding to origin interval tree: in {self.source_file}\n    range={origin_range}\n    {ast.dump(origin_node)}\n    pos: {origin_pos}, text:{origin_range.of_string(self.source_code)}"
+                    lambda: (
+                        f"Adding to origin interval tree: in {self.source_file}\n    range={origin_range}\n    {ast.dump(origin_node)}\n    pos: {origin_pos}, text:{origin_range.of_string(self.source_code)}"
+                    )
                 )
                 self.origin_interval_tree.add(origin_range, origin_node)
             unparsed_pos = get_pos_attributes_if_exists(unparsed_node)
             if unparsed_pos is not None:
                 unparsed_range = Range.from_pos_attr_may_not_end(unparsed_pos)
                 debug_verbose_print(
-                    f"  Adding to unparsed interval tree: in {self.source_file}\n    range={unparsed_range}\n    {ast.dump(unparsed_node)}\n    pos: {unparsed_pos}, text:{unparsed_range.of_string(self.unparsed_code)}"
+                    lambda: (
+                        f"  Adding to unparsed interval tree: in {self.source_file}\n    range={unparsed_range}\n    {ast.dump(unparsed_node)}\n    pos: {unparsed_pos}, text:{unparsed_range.of_string(self.unparsed_code)}"
+                    )
                 )
                 self.unparsed_interval_tree.add(unparsed_range, unparsed_node)
 
@@ -59,9 +63,6 @@ class MatchBasedSourceMap:
             return None
         result_range = Range.from_pos_attr_may_not_end(result_pos_attr)
         range_offset = base_range.calc_offset(range)
-        debug_verbose_print(
-            f"Offsetting range:\n  base_range={base_range}\n  range={range}\n  offset={range_offset}\n  result_range={result_range}\n  apply_offset:{result_range.start.apply_offset(range_offset)}"
-        )
         return result_range.start.apply_offset(range_offset)
 
     def _range_to(
@@ -71,14 +72,16 @@ class MatchBasedSourceMap:
         mapping: dict[ast.AST, ast.AST],
     ) -> Range | None:
         nodes = interval_tree.minimal_containers(range)
-        debug_verbose_print(f"Mapping range: {range} nodes: {nodes}")
+        debug_verbose_print(lambda: f"Mapping range: {range} nodes: {nodes}")
         if nodes:
             if len(nodes) == 1:
                 # The canonical node for the range
                 node_range, node = nodes[0]
                 if node in mapping:
                     debug_verbose_print(
-                        f"node is one: {ast.dump(node)}\n  mapping to {ast.dump(mapping[node])}\n  range: {range}\n  node_range: {node_range}"
+                        lambda: (
+                            f"node is one: {ast.dump(node)}\n  mapping to {ast.dump(mapping[node])}\n  range: {range}\n  node_range: {node_range}"
+                        )
                     )
                     if node_range == range:
                         # If the range matches exactly, no need to apply offset
@@ -93,11 +96,10 @@ class MatchBasedSourceMap:
                     for mapped_node in mapped_nodes
                     if (pos_attr := get_pos_attributes_if_exists(mapped_node))
                 )
-                debug_verbose_print(f"Found {len(nodes)} nodes for the given range.")
                 return Range.merge_ranges(
                     Range.from_pos_attr_may_not_end(pos_attr) for pos_attr in pos_attrs
                 )
-        debug_verbose_print("No nodes found for the given range.")
+        debug_verbose_print(lambda: "No nodes found for the given range.")
 
     def _pos_to(
         self,
@@ -180,7 +182,9 @@ class MatchBasedSourceMap:
             self.unparsed_interval_tree.minimal_containers(range_unparsed)
         )
         debug_verbose_print(
-            f"Mapping unparsed range to origin node: {range_unparsed} nodes: {nodes}"
+            lambda: (
+                f"Mapping unparsed range to origin node: {range_unparsed} nodes: {nodes}"
+            )
         )
         if filter_node_type is not None:
             nodes = [
@@ -191,7 +195,7 @@ class MatchBasedSourceMap:
         if nodes and len(nodes) == 1:
             _, node = nodes[0]
             return self.unparsed_to_origin.get(node, None)
-        debug_verbose_print("No nodes found for the given unparsed range.")
+        debug_verbose_print(lambda: "No nodes found for the given unparsed range.")
         return None
 
     def unparsed_pos_to_unparsed_node(
@@ -240,7 +244,7 @@ class MatchBasedSourceMap:
         self,
         range_origin: Range,
     ) -> Range | None:
-        debug_verbose_print(f"Mapping origin range: {range_origin}")
+        debug_verbose_print(lambda: f"Mapping origin range: {range_origin}")
         return self._range_to(
             range_origin,
             self.origin_interval_tree,

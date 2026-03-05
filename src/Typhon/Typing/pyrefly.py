@@ -70,13 +70,15 @@ def write_pyrefly_config(
     config_path = output_dir / "pyreflyconfig.json"
     if not overwrite and config_path.exists():
         debug_print(
-            f"Config file already exists at {config_path}. Use overwrite=True to replace."
+            lambda: (
+                f"Config file already exists at {config_path}. Use overwrite=True to replace."
+            )
         )
         return str(config_path)
     toml_str = toml.dumps(config)
     with open(config_path, "w") as f:
         f.write(toml_str)
-    debug_print(f"Generated pyrefly config at {config_path}")
+    debug_print(lambda: f"Generated pyrefly config at {config_path}")
     return str(config_path)
 
 

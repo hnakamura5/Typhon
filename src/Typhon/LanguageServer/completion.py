@@ -40,7 +40,9 @@ def map_completion_request_params(
     source: str | None = None,
 ) -> types.CompletionParams | None:
     if source_map is None:
-        debug_file_write("Completion request mapper: source map is not available.")
+        debug_file_write(
+            lambda: "Completion request mapper: source map is not available."
+        )
         return None
     trigger_character = params.context.trigger_character if params.context else None
     # If the character before trigger is '?', map the position as if the '?' is not there.
@@ -59,7 +61,9 @@ def map_completion_request_params(
     original_pos = lsp_position_to_pos(params.position)
     probe_col = max(0, original_pos.column - trigger_len)
     debug_file_write(
-        f"Completion request mapper: original position {params.position} probe_col={probe_col} (trigger={trigger_character}), before_trigger={before_trigger!r}"
+        lambda: (
+            f"Completion request mapper: original position {params.position} probe_col={probe_col} (trigger={trigger_character}), before_trigger={before_trigger!r}"
+        )
     )
     mapped_probe = source_map.origin_pos_to_unparsed_pos(
         Pos(line=original_pos.line, column=probe_col).col_back(),
@@ -67,8 +71,10 @@ def map_completion_request_params(
     )
     if mapped_probe is None:
         debug_file_write(
-            "Completion request mapper: failed to map origin position "
-            f"{params.position} probe_col={probe_col} (trigger={trigger_character})."
+            lambda: (
+                "Completion request mapper: failed to map origin position "
+                f"{params.position} probe_col={probe_col} (trigger={trigger_character})."
+            )
         )
         return None
     mapped_column = mapped_probe.column + mapped_trigger_len
@@ -78,13 +84,15 @@ def map_completion_request_params(
     mapped_params = copy.deepcopy(params)
     mapped_params.position = mapped_position
     debug_file_write(
-        "Completion request mapper: "
-        f"uri={params.text_document.uri}, "
-        f"position={params.position} -> {mapped_position}, "
-        f"mapped_position_before_source={chars_before_trigger_from_source(source_map.unparsed_code.splitlines(), trigger_character[-1] if trigger_character else None, mapped_position, 1)!r}, "
-        f"context={params.context}, "
-        f"trigger_len={trigger_len}, "
-        f"before_trigger={before_trigger!r}"
+        lambda: (
+            "Completion request mapper: "
+            f"uri={params.text_document.uri}, "
+            f"position={params.position} -> {mapped_position}, "
+            f"mapped_position_before_source={chars_before_trigger_from_source(source_map.unparsed_code.splitlines(), trigger_character[-1] if trigger_character else None, mapped_position, 1)!r}, "
+            f"context={params.context}, "
+            f"trigger_len={trigger_len}, "
+            f"before_trigger={before_trigger!r}"
+        )
     )
     return mapped_params
 
@@ -146,7 +154,9 @@ def map_completion_result(
 
     if source_map is None:
         debug_file_write(
-            "Completion result mapper: source map unavailable. Returning backend result as-is."
+            lambda: (
+                "Completion result mapper: source map unavailable. Returning backend result as-is."
+            )
         )
         return completion_result
 
@@ -160,8 +170,10 @@ def map_completion_result(
 
     mapped_sequence = [_map_item(item, source_map) for item in completion_result]
     debug_file_write(
-        "Completion result mapper: "
-        f"result={completion_result}, "
-        f"original_uri={original_uri}"
+        lambda: (
+            "Completion result mapper: "
+            f"result={completion_result}, "
+            f"original_uri={original_uri}"
+        )
     )
     return mapped_sequence

@@ -58,7 +58,6 @@ def run_file(source: Path, capture_output: bool, *args: str) -> RunResult:
         sys.executable,
         str(output_file),
     ] + list(args)
-    debug_print(f"Running source file: {source} with args: {subprocess_args}")
     if capture_output:
         result = subprocess.run(
             subprocess_args,
@@ -101,7 +100,9 @@ def run_directory(source_dir: Path, capture_output: bool, *args: str) -> RunResu
         "PYTHONPATH": str(temp_output_dir.as_posix()) + orig_pythonpath,
     }
     debug_print(
-        f"Running source directory: {source_dir} as module {module_output_dir.name} with args: {subprocess_args} env: {subprocess_env}"
+        lambda: (
+            f"Running source directory: {source_dir} as module {module_output_dir.name} with args: {subprocess_args} env: {subprocess_env}"
+        )
     )
     if capture_output:
         result = subprocess.run(
@@ -129,8 +130,6 @@ def run(source: str, *args: str):
         [args]: Additional arguments to pass to the script or module.
     """
     source_path = Path(source)
-
-    debug_print(f"Run source: {source}")
 
     if source_path.is_file():
         if source_path.suffix != TYPHON_EXT:

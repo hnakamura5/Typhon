@@ -37,12 +37,12 @@ class TranslateResult:
 
 
 def translate_file(source: Path, output: Path) -> TranslateResult:
-    debug_print(f"Translating source: {source} to output_dir: {output}")
+    debug_print(lambda: f"Translating source: {source} to output_dir: {output}")
     try:
         ast_tree = parse_file(source.as_posix(), verbose=is_debug_verbose())
         transform(ast_tree)
     except (SyntaxError, TyphonTransformSyntaxError, TyphonSyntaxErrorList) as e:
-        debug_print(f"Error parsing file {source}: {e}")
+        debug_print(lambda: f"Error parsing file {source}: {e}")
         return TranslateResult(
             source_path_canonical=canonicalize_path(source),
             output_path_canonical=canonicalize_path(output),
@@ -98,7 +98,9 @@ def translate_directory(
 ) -> dict[Path, TranslateResult]:
     result: dict[Path, TranslateResult] = {}
     debug_print(
-        f"Translating source directory: {source_dir} to module output_dir: {module_output_dir}"
+        lambda: (
+            f"Translating source directory: {source_dir} to module output_dir: {module_output_dir}"
+        )
     )
     module_output_dir.mkdir(parents=True, exist_ok=True)
     for source in source_dir.glob(f"*{TYPHON_EXT}"):
@@ -171,7 +173,9 @@ def translate(
     )
     output_dir_path = Path(output_dir)
     debug_print(
-        f"Translating source: {source} to output_dir: {output_dir_path.as_posix()}"
+        lambda: (
+            f"Translating source: {source} to output_dir: {output_dir_path.as_posix()}"
+        )
     )
     output_dir_path.mkdir(parents=True, exist_ok=True)
     if source_path.is_file():

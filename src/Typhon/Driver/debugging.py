@@ -1,6 +1,6 @@
 from ..Utils.path import get_project_root
 from ._utils import copy_type
-from typing import BinaryIO, override
+from typing import BinaryIO, Callable, override
 from pathlib import Path
 import logging
 
@@ -66,7 +66,10 @@ _debug_printed_size: int = 0
 _limit_reached_printed: bool = False
 
 
-def _debug_limit_check(*arg) -> bool:
+type LazyMessage = Callable[[], object]
+
+
+def _debug_limit_check(*arg: object) -> bool:
     global _debug_printed
     global _debug_printed_size
     global _limit_reached_printed
@@ -80,48 +83,54 @@ def _debug_limit_check(*arg) -> bool:
     return False
 
 
-@copy_type(print)
-def debug_print(*arg, **kwargs) -> None:  # type: ignore
-    if _debug:
-        if _debug_limit_check(*arg):
-            return
-        if _debug_log_file is not None:
-            with _debug_log_file.open("a", errors="ignore") as log_file:
-                print(*arg, file=log_file, **kwargs)  # type: ignore
-        else:
-            print(*arg, **kwargs)  # type: ignore
+def _evaluate_lazy_messages(*args: LazyMessage) -> tuple[object, ...]:
+    return tuple(arg() for arg in args)
 
 
-@copy_type(print)
-def debug_verbose_print(*arg, **kwargs) -> None:  # type: ignore
-    if _debug_verbose:
-        if _debug_limit_check(*arg):
-            return
-        if _debug_log_file is not None:
-            with _debug_log_file.open("a", errors="ignore") as log_file:
-                print(*arg, file=log_file, **kwargs)  # type: ignore
-        else:
-            print(*arg, **kwargs)  # type: ignore
+def debug_print(*arg: LazyMessage, **kwargs: object) -> None:  # type: ignore
+    if not _debug:
+        return
+    evaluated_args = _evaluate_lazy_messages(*arg)
+    if _debug_limit_check(*evaluated_args):
+        return
+    if _debug_log_file is not None:
+        with _debug_log_file.open("a", errors="ignore") as log_file:
+            print(*evaluated_args, file=log_file, **kwargs)  # type: ignore
+    else:
+        print(*evaluated_args, **kwargs)  # type: ignore
 
 
-@copy_type(print)
-def debug_file_write(*arg, **kwargs) -> None:  # type: ignore
-    if _debug:
-        if _debug_log_file is not None:
-            if _debug_limit_check(*arg):
-                return
-            with _debug_log_file.open("a", errors="ignore") as log_file:
-                print(*arg, file=log_file, **kwargs)  # type: ignore
+def debug_verbose_print(*arg: LazyMessage, **kwargs: object) -> None:  # type: ignore
+    if not _debug_verbose:
+        return
+    evaluated_args = _evaluate_lazy_messages(*arg)
+    if _debug_limit_check(*evaluated_args):
+        return
+    if _debug_log_file is not None:
+        with _debug_log_file.open("a", errors="ignore") as log_file:
+            print(*evaluated_args, file=log_file, **kwargs)  # type: ignore
+    else:
+        print(*evaluated_args, **kwargs)  # type: ignore
 
 
-@copy_type(print)
-def debug_file_write_verbose(*arg, **kwargs) -> None:  # type: ignore
-    if _debug_verbose:
-        if _debug_log_file is not None:
-            if _debug_limit_check(*arg):
-                return
-            with _debug_log_file.open("a", errors="ignore") as log_file:
-                print(*arg, file=log_file, **kwargs)  # type: ignore
+def debug_file_write(*arg: LazyMessage, **kwargs: object) -> None:  # type: ignore
+    if not _debug or _debug_log_file is None:
+        return
+    evaluated_args = _evaluate_lazy_messages(*arg)
+    if _debug_limit_check(*evaluated_args):
+        return
+    with _debug_log_file.open("a", errors="ignore") as log_file:
+        print(*evaluated_args, file=log_file, **kwargs)  # type: ignore
+
+
+def debug_file_write_verbose(*arg: LazyMessage, **kwargs: object) -> None:  # type: ignore
+    if not _debug_verbose or _debug_log_file is None:
+        return
+    evaluated_args = _evaluate_lazy_messages(*arg)
+    if _debug_limit_check(*evaluated_args):
+        return
+    with _debug_log_file.open("a", errors="ignore") as log_file:
+        print(*evaluated_args, file=log_file, **kwargs)  # type: ignore
 
 
 type ReadableBuffer = bytes | bytearray | memoryview
@@ -193,4 +202,4 @@ def debug_setup_logging(
             force=True,
             errors="ignore",
         )
-    debug_file_write("=== Typhon Debug Logging set ===\n")
+    debug_file_write(lambda: "=== Typhon Debug Logging set ===\n")

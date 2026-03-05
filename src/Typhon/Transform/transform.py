@@ -21,29 +21,41 @@ from ..Grammar.unparse_custom import unparse_custom
 def transform(mod: ast.Module, ignore_error: bool = False) -> None:
     check_forbidden_statements(mod)
     record_to_dataclass(mod)
-    debug_verbose_print(f"After record_to_dataclass:\n{unparse_custom(mod)}\n")
+    debug_verbose_print(lambda: f"After record_to_dataclass:\n{unparse_custom(mod)}\n")
     extended_protocol(mod)
-    debug_verbose_print(f"After extended_protocol:\n{unparse_custom(mod)}\n")
+    debug_verbose_print(lambda: f"After extended_protocol:\n{unparse_custom(mod)}\n")
     inline_statement_block_capture(mod)
-    debug_print(f"After inline_statement_block_capture:\n{unparse_custom(mod)}\n")
+    debug_print(
+        lambda: f"After inline_statement_block_capture:\n{unparse_custom(mod)}\n"
+    )
     if_while_let_transform(mod)
-    debug_verbose_print(f"After if_while_let_transform:\n{unparse_custom(mod)}\n")
+    debug_verbose_print(
+        lambda: f"After if_while_let_transform:\n{unparse_custom(mod)}\n"
+    )
     insert_self_to_method(mod)
-    debug_verbose_print(f"After insert_self_to_method:\n{unparse_custom(mod)}\n")
+    debug_verbose_print(
+        lambda: f"After insert_self_to_method:\n{unparse_custom(mod)}\n"
+    )
     comprehension_to_function(mod)
-    debug_verbose_print(f"After comprehension_to_function:\n{unparse_custom(mod)}\n")
+    debug_verbose_print(
+        lambda: f"After comprehension_to_function:\n{unparse_custom(mod)}\n"
+    )
     func_literal_to_def(mod)
-    debug_print(f"After func_literal_to_def:\n{unparse_custom(mod)}\n")
+    debug_print(lambda: f"After func_literal_to_def:\n{unparse_custom(mod)}\n")
     scope_check_rename(mod)
-    debug_print(f"After scope_check_rename:\n{unparse_custom(mod)}\n")
+    debug_print(lambda: f"After scope_check_rename:\n{unparse_custom(mod)}\n")
     placeholder_to_func(mod)
-    debug_print(f"After placeholder_to_func:\n{unparse_custom(mod)}\n")
+    debug_print(lambda: f"After placeholder_to_func:\n{unparse_custom(mod)}\n")
     optional_to_checked(mod)
-    debug_verbose_print(f"After optional_to_checked:\n{unparse_custom(mod)}\n")
+    debug_verbose_print(lambda: f"After optional_to_checked:\n{unparse_custom(mod)}\n")
     type_annotation_check_expand(mod)
-    debug_verbose_print(f"After type_annotation_check_expand:\n{unparse_custom(mod)}\n")
+    debug_verbose_print(
+        lambda: f"After type_annotation_check_expand:\n{unparse_custom(mod)}\n"
+    )
     type_abbrev_desugar(mod)
-    debug_verbose_print(f"After func_type_to_protocol:\n{unparse_custom(mod)}\n")
-    debug_print(f"After transform:\n{unparse_custom(mod)}\n")
+    debug_verbose_print(
+        lambda: f"After func_type_to_protocol:\n{unparse_custom(mod)}\n"
+    )
+    debug_print(lambda: f"After transform:\n{unparse_custom(mod)}\n")
     if not ignore_error:
         raise_from_module_syntax_errors(mod)

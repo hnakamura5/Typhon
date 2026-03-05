@@ -101,7 +101,9 @@ def _add_protocols(
     insert_point = get_insert_point_for_class(mod)
     for func_type, arrow_type_name in func_types:
         debug_print(
-            f"Adding protocol for function type: {func_type.__dict__} as {arrow_type_name}"
+            lambda: (
+                f"Adding protocol for function type: {func_type.__dict__} as {arrow_type_name}"
+            )
         )
         protocol_def = _protocol_for_function_type(mod, func_type, arrow_type_name)
         result[func_type] = protocol_def
@@ -113,7 +115,9 @@ def _add_protocols(
 class _OptionalQuestionTransformer(TyphonASTTransformer):
     def visit_Tuple(self, node: ast.Tuple):
         debug_verbose_print(
-            f"Visiting Tuple: {ast.dump(node)} is_optional_question={is_optional_question(node)}"
+            lambda: (
+                f"Visiting Tuple: {ast.dump(node)} is_optional_question={is_optional_question(node)}"
+            )
         )
         if not is_optional_question(node):
             return self.generic_visit(node)
@@ -162,7 +166,7 @@ class _TupleListTransformer(TyphonASTTransformer):
         if not self.is_inside_typing_expr:
             return self.generic_visit(node)
         pos = get_pos_attributes(node)
-        debug_verbose_print(f"Desugaring Tuple to tuple[]: {ast.dump(node)}")
+        debug_verbose_print(lambda: f"Desugaring Tuple to tuple[]: {ast.dump(node)}")
         return ast.Subscript(
             value=ast.Name(id="tuple", **pos),
             slice=cast(ast.Tuple, self.generic_visit(node)),
@@ -174,7 +178,7 @@ class _TupleListTransformer(TyphonASTTransformer):
         if not self.is_inside_typing_expr:
             return self.generic_visit(node)
         pos = get_pos_attributes(node)
-        debug_verbose_print(f"Desugaring List to list[]: {ast.dump(node)}")
+        debug_verbose_print(lambda: f"Desugaring List to list[]: {ast.dump(node)}")
         if len(node.elts) != 1:
             return self._raise_type_annotation_error_default(
                 self.generic_visit(node),

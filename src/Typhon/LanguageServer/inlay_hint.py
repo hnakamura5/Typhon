@@ -62,7 +62,9 @@ def _map_inlay_hint_position_for_param(
     pos = lsp_position_to_pos(position)
     call_node = source_map.unparsed_pos_to_unparsed_node(pos.col_back(), ast.Call)
     debug_file_write_verbose(
-        f"Mapping inlay hint parameter hint position {position}, got unparsed node {ast.dump(call_node) if call_node is not None else None}"
+        lambda: (
+            f"Mapping inlay hint parameter hint position {position}, got unparsed node {ast.dump(call_node) if call_node is not None else None}"
+        )
     )
     if isinstance(call_node, ast.Call):
         for arg in call_node.args:
@@ -131,7 +133,9 @@ def _adjust_final_type_adhoc_form[TextT: InlayHintLabel | str](
     ):
         # Ad hoc hook for Final type parameter hint for let decl, which should be mapped to the position before the type parameter.
         debug_file_write_verbose(
-            f"Adjusting inlay hint for Final type parameter for name node {ast.dump(name_node)} with label {label} to label {get_final_name() + label} adjusted for Final name"
+            lambda: (
+                f"Adjusting inlay hint for Final type parameter for name node {ast.dump(name_node)} with label {label} to label {get_final_name() + label} adjusted for Final name"
+            )
         )
         if pos := Pos.from_node_end(name_node):
             adjusted_pos = Pos(
@@ -141,7 +145,9 @@ def _adjust_final_type_adhoc_form[TextT: InlayHintLabel | str](
                 adjusted_pos, ast.Name
             )
             debug_file_write_verbose(
-                f"Found declaration name node pos={pos} adjusted_pos={adjusted_pos} decl_name_node={ast.dump(decl_name_node) if decl_name_node is not None else None}@{get_pos_attributes(decl_name_node) if isinstance(decl_name_node, ast.Name) else None} for Final type parameter hint adjustment"
+                lambda: (
+                    f"Found declaration name node pos={pos} adjusted_pos={adjusted_pos} decl_name_node={ast.dump(decl_name_node) if decl_name_node is not None else None}@{get_pos_attributes(decl_name_node) if isinstance(decl_name_node, ast.Name) else None} for Final type parameter hint adjustment"
+                )
             )
             if isinstance(decl_name_node, ast.Name):
                 return decl_name_node, ": " + get_final_name() + label
@@ -160,7 +166,9 @@ def _map_inlay_hint_for_type(
         ast.Name,
     )
     debug_file_write_verbose(
-        f"Mapping inlay hint type hint request position {hint.position}, got node {ast.dump(name_node) if name_node is not None else None}@{Range.from_ast_node(name_node) if name_node is not None else None}"
+        lambda: (
+            f"Mapping inlay hint type hint request position {hint.position}, got node {ast.dump(name_node) if name_node is not None else None}@{Range.from_ast_node(name_node) if name_node is not None else None}"
+        )
     )
     if isinstance(name_node, ast.Name):
         name_node, label = _adjust_final_type_adhoc_form(
@@ -168,7 +176,9 @@ def _map_inlay_hint_for_type(
         )
         name_node = source_map.unparsed_node_to_origin_node(name_node)
         debug_file_write_verbose(
-            f"Mapping inlay hint to origin node {ast.dump(name_node) if name_node is not None else None}@{get_pos_attributes(name_node) if isinstance(name_node, ast.Name) else None} after Final type parameter adjustment with label {label}"
+            lambda: (
+                f"Mapping inlay hint to origin node {ast.dump(name_node) if name_node is not None else None}@{get_pos_attributes(name_node) if isinstance(name_node, ast.Name) else None} after Final type parameter adjustment with label {label}"
+            )
         )
         if name_node is None:
             return None
@@ -178,7 +188,9 @@ def _map_inlay_hint_for_type(
             else:
                 label = _demangle_inlay_hint_label(label, module)
             debug_file_write_verbose(
-                f"Mapped inlay hint type for name node {ast.dump(name_node)} with label '{label}' at last to position {pos} with name node position {name_node_pos}"
+                lambda: (
+                    f"Mapped inlay hint type for name node {ast.dump(name_node)} with label '{label}' at last to position {pos} with name node position {name_node_pos}"
+                )
             )
             return types.InlayHint(
                 position=pos_to_lsp_position(name_node_pos),
@@ -224,7 +236,9 @@ def _map_inlay_hint_demangle_and_position(
             return mapped_hint
     # For safety, remove this hint if we cannot map the position.
     debug_file_write_verbose(
-        f"Mapping inlay hint failed position {hint.position} for hint kind {kind} to original source."
+        lambda: (
+            f"Mapping inlay hint failed position {hint.position} for hint kind {kind} to original source."
+        )
     )
     return None
 
@@ -242,7 +256,9 @@ def _map_inlay_hint_text_edits(
             lsp_range_to_range(edit.range).col_back()
         )
         debug_file_write_verbose(
-            f"Mapping inlay hint text edit {edit}, got node {ast.dump(name_node) if name_node is not None else None}"
+            lambda: (
+                f"Mapping inlay hint text edit {edit}, got node {ast.dump(name_node) if name_node is not None else None}"
+            )
         )
         if isinstance(name_node, ast.Name):
             name_node, new_text = _adjust_final_type_adhoc_form(
@@ -285,7 +301,9 @@ def _map_inlay_hint_for_record_literal(
         ast.Name,
     )
     debug_file_write_verbose(
-        f"Mapping inlay hint for record literal for hint {hint.label} at position {hint.position}, got node {ast.dump(name_node) if name_node is not None else None}"
+        lambda: (
+            f"Mapping inlay hint for record literal for hint {hint.label} at position {hint.position}, got node {ast.dump(name_node) if name_node is not None else None}"
+        )
     )
     if not isinstance(name_node, ast.Name):
         return None
@@ -298,7 +316,9 @@ def _map_inlay_hint_for_record_literal(
     if params is None or len(params) != len(record_fields):
         return None
     debug_file_write_verbose(
-        f"Mapping inlay hint for record literal with fields {[f'{ast.dump(field)}@{get_pos_attributes(field)}' for field in record_fields]} and params {params}"
+        lambda: (
+            f"Mapping inlay hint for record literal with fields {[f'{ast.dump(field)}@{get_pos_attributes(field)}' for field in record_fields]} and params {params}"
+        )
     )
     mapped_hints: list[types.InlayHint] = []
     for field, param in zip(record_fields, params):
@@ -343,7 +363,7 @@ def map_inlay_hints_result(
             continue
         if mapped := _map_inlay_hint(hint, module, source_map):
             debug_file_write_verbose(
-                f"Mapped inlay hint from {hint} to position {mapped.position}"
+                lambda: f"Mapped inlay hint from {hint} to position {mapped.position}"
             )
             mapped_hints.append(mapped)
     return mapped_hints

@@ -49,7 +49,9 @@ def map_name_request_position_to_unparsed(
     )
     if not isinstance(mapped_name, ast.Name):
         debug_file_write_verbose(
-            f"{debug_prefix} request position is not mapped as ast.Name: {position}"
+            lambda: (
+                f"{debug_prefix} request position is not mapped as ast.Name: {position}"
+            )
         )
         return None
     mapped_range = Range.from_ast_node(mapped_name)

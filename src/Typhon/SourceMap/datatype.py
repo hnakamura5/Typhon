@@ -62,17 +62,19 @@ class Pos:
         if offset.end.line == 0:
             end_column_start = new_start_column
         debug_verbose_print(
-            f"Applying offset: pos={self}, offset={offset} -> new_start_column={
-                new_start_column
-            }, end_column_start={end_column_start} = {
-                Range(
-                    Pos(self.line + offset.start.line, new_start_column),
-                    Pos(
-                        self.line + offset.start.line + offset.end.line,
-                        end_column_start + offset.end.column,
-                    ),
-                )
-            }"
+            lambda: (
+                f"Applying offset: pos={self}, offset={offset} -> new_start_column={
+                    new_start_column
+                }, end_column_start={end_column_start} = {
+                    Range(
+                        Pos(self.line + offset.start.line, new_start_column),
+                        Pos(
+                            self.line + offset.start.line + offset.end.line,
+                            end_column_start + offset.end.column,
+                        ),
+                    )
+                }"
+            )
         )
         return Range(
             Pos(self.line + offset.start.line, new_start_column),
@@ -182,11 +184,11 @@ class Range:
     def merge_ranges(ranges: Iterable["Range"]) -> "Range | None":
         if not ranges:
             return None
-        debug_verbose_print("Merging ranges: ", ranges)
+        debug_verbose_print(lambda: "Merging ranges: ", lambda: ranges)
         ranges = list(ranges)
         start = min(r.start for r in ranges)
         end = max([r.end for r in ranges] + [start])
-        debug_verbose_print(f"Merged range: start={start}, end={end}")
+        debug_verbose_print(lambda: f"Merged range: start={start}, end={end}")
         return Range(start=start, end=end)
 
     def of_string(self, source: str) -> str:
@@ -275,7 +277,9 @@ class RangeIntervalTree[T]:
 
     def minimal_containers(self, range: Range) -> list[RangeInterval[T]]:
         containers = self._container_intervals(range)
-        debug_verbose_print(f"Minimal containers for range {range}: {containers}")
+        debug_verbose_print(
+            lambda: f"Minimal containers for range {range}: {containers}"
+        )
         if not containers:
             return []
         result: list[RangeInterval[T]] = []
@@ -291,6 +295,6 @@ class RangeIntervalTree[T]:
                     is_minimal = False
                     break
             if is_minimal:
-                debug_verbose_print(f"  Minimal container: {interval}")
+                debug_verbose_print(lambda: f"  Minimal container: {interval}")
                 result.append((Range.from_interval(interval), interval.data))  # type: ignore[misc]
         return result
