@@ -131,7 +131,9 @@ class LanguageServer(PyglsLanguageServer):
                 self.get_translated_file_uri(orignal_uri), orignal_uri
             )
             debug_file_write(
-                f"Reloading document uri={orignal_uri} translated uri={self.get_translated_file_uri(orignal_uri)} source: {source.strip()[:50]}..."
+                lambda: (
+                    f"Reloading document uri={orignal_uri} translated uri={self.get_translated_file_uri(orignal_uri)} source: {source.strip()[:50]}..."
+                )
             )
             tokenizer = tokenizer_for_string(source)
             self.token_infos[orignal_uri] = tokenizer.read_all_tokens()
@@ -139,7 +141,9 @@ class LanguageServer(PyglsLanguageServer):
             if not isinstance(ast_node, ast.Module):
                 ast_node = None
             debug_file_write(
-                f"Parsed AST for {orignal_uri}: {ast.dump(ast_node) if ast_node else 'None'}"
+                lambda: (
+                    f"Parsed AST for {orignal_uri}: {ast.dump(ast_node) if ast_node else 'None'}"
+                )
             )
             if ast_node:
                 transform(ast_node, ignore_error=True)
@@ -169,19 +173,23 @@ class LanguageServer(PyglsLanguageServer):
             )
             with open(translate_file_path, "w", encoding="utf-8") as f:
                 debug_file_write(
-                    f"Writing translated file to {translate_file_path}, length={len(unparsed)}"
+                    lambda: (
+                        f"Writing translated file to {translate_file_path}, length={len(unparsed)}"
+                    )
                 )
                 f.write(unparsed)
             self.translated_sources[orignal_uri] = unparsed
             return unparsed
         except Exception as e:
-            debug_file_write(f"Error reloading document {orignal_uri}: {e}")
+            debug_file_write(lambda: f"Error reloading document {orignal_uri}: {e}")
             debug_file_write(
-                "Keeping last successful parse/mapping state for completion fallback."
+                lambda: (
+                    "Keeping last successful parse/mapping state for completion fallback."
+                )
             )
             # dump traceback to debug log
             traceback_str = traceback.format_exc()
-            debug_file_write_verbose(f"Traceback:\n{traceback_str}")
+            debug_file_write_verbose(lambda: f"Traceback:\n{traceback_str}")
 
     def on_initialize_backend(self, init_result: types.InitializeResult) -> None:
         if semantic_token_provider := init_result.capabilities.semantic_tokens_provider:
@@ -190,7 +198,7 @@ class LanguageServer(PyglsLanguageServer):
                 legend
             )
             debug_file_write(
-                f"Client semantic token legend: {self.client_semantic_legend}"
+                lambda: f"Client semantic token legend: {self.client_semantic_legend}"
             )
 
     def server_workspace_root(self) -> Path | None:
@@ -259,7 +267,7 @@ class LanguageServer(PyglsLanguageServer):
 
     def schedule_workspace_preload(self) -> None:
         if self.preload_task and not self.preload_task.done():
-            debug_file_write("Workspace preload is already running.")
+            debug_file_write(lambda: "Workspace preload is already running.")
             return
         self.preload_task = asyncio.create_task(self.preload_workspace())
 
@@ -267,10 +275,14 @@ class LanguageServer(PyglsLanguageServer):
         files = self._iter_workspace_typhon_files()
         if not files:
             debug_file_write(
-                f"No Typhon files found for preload in {self.workspace.folders}."
+                lambda: (
+                    f"No Typhon files found for preload in {self.workspace.folders}."
+                )
             )
             return
-        debug_file_write(f"Starting workspace preload for {len(files)} file(s).")
+        debug_file_write(
+            lambda: f"Starting workspace preload for {len(files)} file(s)."
+        )
         for file_path in files:
             await asyncio.sleep(0)
             try:
@@ -283,8 +295,8 @@ class LanguageServer(PyglsLanguageServer):
                 self.reload_from_source(uri, source, file_path)
                 self.preloaded_uris.add(uri)
             except Exception as e:
-                debug_file_write(f"Preload failed for {file_path}: {e}")
-        debug_file_write("Workspace preload completed.")
+                debug_file_write(lambda: f"Preload failed for {file_path}: {e}")
+        debug_file_write(lambda: "Workspace preload completed.")
 
 
 server = LanguageServer("typhon-language-server", "v0.1.4")
@@ -294,47 +306,51 @@ client = server.backend_client
 @server.feature(types.INITIALIZE)
 async def lsp_server_initialize(ls: LanguageServer, params: types.InitializeParams):
     try:
-        debug_file_write(f"Initializing with params: {params}\n")
+        debug_file_write(lambda: f"Initializing with params: {params}\n")
         # await start_pyright_client(ls.backend_client)
         await start_language_client(ls.backend_client)
-        debug_file_write("Backend client started.\n")
+        debug_file_write(lambda: "Backend client started.\n")
         # Clone the params and modify workspace root to server workspace root.
         cloned_params = clone_and_map_initialize_param(params)
-        debug_file_write(f"Initializing backend with cloned params: {cloned_params}\n")
+        debug_file_write(
+            lambda: f"Initializing backend with cloned params: {cloned_params}\n"
+        )
         initialize_result = await ls.backend_client.initialize_async(cloned_params)
-        debug_file_write(f"Backend initialize result: {initialize_result}\n")
+        debug_file_write(lambda: f"Backend initialize result: {initialize_result}\n")
         ls.on_initialize_backend(initialize_result)
         # Helpful for diagnosing why semanticTokens requests hang.
         try:
             caps = getattr(initialize_result, "capabilities", None)
             stp = getattr(caps, "semantic_tokens_provider", None) if caps else None
-            debug_file_write(f"Backend semanticTokensProvider: {stp}")
+            debug_file_write(lambda: f"Backend semanticTokensProvider: {stp}")
         except Exception as e:
-            debug_file_write(f"Failed to inspect backend capabilities: {e}")
+            debug_file_write(lambda: f"Failed to inspect backend capabilities: {e}")
     except Exception as e:
-        debug_file_write(f"Error during initialization: {e}")
+        debug_file_write(lambda: f"Error during initialization: {e}")
 
 
 @server.feature(types.INITIALIZED)
 def lsp_client_initialized(ls: LanguageServer, params: types.InitializedParams):
     try:
-        debug_file_write(f"Sending initialized notification to backend {params}")
+        debug_file_write(
+            lambda: f"Sending initialized notification to backend {params}"
+        )
         ls.backend_client.initialized(params)
         ls.schedule_workspace_preload()
     except Exception as e:
-        debug_file_write(f"Error during initialized notification: {e}")
+        debug_file_write(lambda: f"Error during initialized notification: {e}")
 
 
 @client.feature(types.WORKSPACE_CONFIGURATION)  # type: ignore
 async def on_workspace_configuration(
     ls_client: LanguageClient, params: types.ConfigurationParams
 ):
-    debug_file_write(f"Backend requested configuration: {params}")
+    debug_file_write(lambda: f"Backend requested configuration: {params}")
     try:
         result = await server.workspace_configuration_async(params)
         return result
     except Exception as e:
-        debug_file_write(f"Error fetching configuration: {e}")
+        debug_file_write(lambda: f"Error fetching configuration: {e}")
         # Backends like Pyright expect a list with the same length as params.items.
         return [{}] * len(params.items)
 
@@ -343,7 +359,7 @@ async def on_workspace_configuration(
 async def on_text_document_diagnostic(
     ls: LanguageServer, params: types.DocumentDiagnosticParams
 ):
-    debug_file_write(f"Server requested diagnostics: {params}")
+    debug_file_write(lambda: f"Server requested diagnostics: {params}")
     # Typhon currently focuses on semantic tokens and does not surface backend diagnostics.
     # Forwarding diagnostics can be expensive and may delay semantic token responses.
     return None
@@ -353,7 +369,7 @@ async def on_text_document_diagnostic(
 async def on_register_capability(
     ls_client: LanguageClient, params: types.RegistrationParams
 ):
-    debug_file_write(f"Backend requested registerCapability: {params}")
+    debug_file_write(lambda: f"Backend requested registerCapability: {params}")
     # Basedpyright may dynamically register pull diagnostics.
     # VS Code then immediately starts issuing `textDocument/diagnostic` requests,
     # which can be expensive and can starve other requests (like semanticTokens).
@@ -362,7 +378,9 @@ async def on_register_capability(
         r for r in params.registrations if r.method != "textDocument/diagnostic"
     )
     if len(filtered) != len(params.registrations):
-        debug_file_write("Dropping dynamic registration(s) for textDocument/diagnostic")
+        debug_file_write(
+            lambda: "Dropping dynamic registration(s) for textDocument/diagnostic"
+        )
     if not filtered:
         return None
     return await server.client_register_capability_async(
@@ -374,13 +392,13 @@ async def on_register_capability(
 async def on_unregister_capability(
     ls_client: LanguageClient, params: types.UnregistrationParams
 ):
-    debug_file_write(f"Backend requested unregisterCapability: {params}")
+    debug_file_write(lambda: f"Backend requested unregisterCapability: {params}")
     filtered = tuple(
         u for u in params.unregisterations if u.method != "textDocument/diagnostic"
     )
     if len(filtered) != len(params.unregisterations):
         debug_file_write(
-            "Dropping dynamic unregistration(s) for textDocument/diagnostic"
+            lambda: "Dropping dynamic unregistration(s) for textDocument/diagnostic"
         )
     if not filtered:
         return None
@@ -391,7 +409,7 @@ async def on_unregister_capability(
 
 @client.feature(types.WORKSPACE_WORKSPACE_FOLDERS)  # type: ignore
 async def on_workspace_folders(ls_client: LanguageClient, params: None):
-    debug_file_write("Backend requested workspace folders")
+    debug_file_write(lambda: "Backend requested workspace folders")
     return await server.workspace_workspace_folders_async(None)
 
 
@@ -399,14 +417,14 @@ async def on_workspace_folders(ls_client: LanguageClient, params: None):
 async def on_window_work_done_progress_create(
     ls_client: LanguageClient, params: types.WorkDoneProgressCreateParams
 ):
-    debug_file_write(f"Backend requested workDoneProgress/create: {params}")
+    debug_file_write(lambda: f"Backend requested workDoneProgress/create: {params}")
     # Keep backend requests local. Test clients may not implement this method.
     return None
 
 
 @client.feature(types.PROGRESS)  # type: ignore
 async def on_progress(ls_client: LanguageClient, params: types.ProgressParams):
-    debug_file_write(f"Backend progress notification: {params}")
+    debug_file_write(lambda: f"Backend progress notification: {params}")
     return None
 
 
@@ -417,7 +435,9 @@ async def on_publish_diagnostics(
     original_uri = server.get_original_file_uri(params.uri)
     module = server._ast_modules.get(original_uri) if original_uri else None
     debug_file_write(
-        f"Backend published diagnostics: {params} original_uri={original_uri}   module={module}"
+        lambda: (
+            f"Backend published diagnostics: {params} original_uri={original_uri}   module={module}"
+        )
     )
     server.text_document_publish_diagnostics(
         map_and_add_diagnostics(
@@ -429,14 +449,14 @@ async def on_publish_diagnostics(
 # Define handlers for debug logging from backend
 @client.feature(types.WINDOW_LOG_MESSAGE)  # type: ignore
 async def on_backend_log(ls_client: LanguageClient, log_params: types.LogMessageParams):
-    debug_file_write(f"[Backend Log] {log_params.message}")
+    debug_file_write(lambda: f"[Backend Log] {log_params.message}")
 
 
 @server.feature(types.WORKSPACE_DID_CHANGE_WATCHED_FILES)
 def did_change_watched_files(
     ls: LanguageServer, params: types.DidChangeWatchedFilesParams
 ):
-    debug_file_write(f"Relaying didChangeWatchedFiles to backend: {params}")
+    debug_file_write(lambda: f"Relaying didChangeWatchedFiles to backend: {params}")
     uri_changed_params = types.DidChangeWatchedFilesParams(
         changes=[
             types.FileEvent(
@@ -463,23 +483,27 @@ def did_open(ls: LanguageServer, params: types.DidOpenTextDocumentParams):
         )
         if translated_text is None:
             debug_file_write(
-                f"Did open called for {uri}, but no translated snapshot is available. Skipping backend sync."
+                lambda: (
+                    f"Did open called for {uri}, but no translated snapshot is available. Skipping backend sync."
+                )
             )
             return
         cloned_params = ls.clone_params_map_uri(params)
         cloned_params.text_document.language_id = "python"
         cloned_params.text_document.text = translated_text
-        debug_file_write(f"Did open called for {uri}, translated to {cloned_params}")
+        debug_file_write(
+            lambda: f"Did open called for {uri}, translated to {cloned_params}"
+        )
         ls.backend_client.text_document_did_open(cloned_params)
     except Exception as e:
-        debug_file_write(f"Error during document open: {e}")
+        debug_file_write(lambda: f"Error during document open: {e}")
 
 
 @server.feature(types.TEXT_DOCUMENT_DID_CHANGE)
 def did_change(ls: LanguageServer, params: types.DidChangeTextDocumentParams):
     """Parse each document when it is changed"""
     try:
-        debug_file_write(f"Did change called with params: {params}")
+        debug_file_write(lambda: f"Did change called with params: {params}")
         uri = params.text_document.uri
         unparsed = ls.reload(uri)
         canonical_uri = canonicalize_uri(uri)
@@ -490,28 +514,36 @@ def did_change(ls: LanguageServer, params: types.DidChangeTextDocumentParams):
         # )
         translated_text = unparsed
         debug_file_write_verbose(
-            f"Did change translated text for {uri}: {translated_text is not None}"
+            lambda: (
+                f"Did change translated text for {uri}: {translated_text is not None}"
+            )
         )
         translated_uri = ls.get_translated_file_uri(uri)
         if translated_text is None:
             mapping = ls.get_mapping(canonical_uri)
             if mapping is None:
                 debug_file_write(
-                    f"Did change called for {uri}, but no translated snapshot/mapping is available. Skipping backend sync."
+                    lambda: (
+                        f"Did change called for {uri}, but no translated snapshot/mapping is available. Skipping backend sync."
+                    )
                 )
                 return
             mapped_params = map_did_change_params(params, translated_uri, mapping)
             if mapped_params is None:
                 debug_file_write(
-                    f"Did change called for {uri}, but no mapped content changes were produced."
+                    lambda: (
+                        f"Did change called for {uri}, but no mapped content changes were produced."
+                    )
                 )
                 return
             debug_file_write_verbose(
-                f"Did change mapped params for {uri}: {mapped_params}"
+                lambda: f"Did change mapped params for {uri}: {mapped_params}"
             )
             ls.backend_client.text_document_did_change(mapped_params)
             debug_file_write(
-                f"Did change called for {uri}, synced mapped incremental changes."
+                lambda: (
+                    f"Did change called for {uri}, synced mapped incremental changes."
+                )
             )
             return
         ls.backend_client.text_document_did_change(
@@ -528,25 +560,27 @@ def did_change(ls: LanguageServer, params: types.DidChangeTextDocumentParams):
             )
         )
         debug_file_write(
-            f"Did change called for {uri}, synced translated full-document change."
+            lambda: (
+                f"Did change called for {uri}, synced translated full-document change."
+            )
         )
     except Exception as e:
-        debug_file_write(f"Error during document change: {e}")
+        debug_file_write(lambda: f"Error during document change: {e}")
 
 
 @server.feature(types.TEXT_DOCUMENT_SEMANTIC_TOKENS_FULL, semantic_legend())
 async def semantic_tokens_full(ls: LanguageServer, params: types.SemanticTokensParams):
     uri = canonicalize_uri(params.text_document.uri)
     try:
-        debug_file_write(f"Semantic tokens requested {params}")
+        debug_file_write(lambda: f"Semantic tokens requested {params}")
         cloned_params = ls.clone_params_map_uri(params)
-        debug_file_write(f"Translated URI for semantic tokens: {cloned_params}")
+        debug_file_write(lambda: f"Translated URI for semantic tokens: {cloned_params}")
         semantic_tokens: (
             SemanticTokens | None
         ) = await ls.backend_client.text_document_semantic_tokens_full_async(
             cloned_params,
         )
-        debug_file_write(f"Received semantic tokens: {semantic_tokens}")
+        debug_file_write(lambda: f"Received semantic tokens: {semantic_tokens}")
         if not semantic_tokens:
             return None
         if (mapping := ls.get_mapping(uri)) is None:
@@ -554,20 +588,20 @@ async def semantic_tokens_full(ls: LanguageServer, params: types.SemanticTokensP
         mapped = map_semantic_tokens(
             semantic_tokens, mapping, ls.client_semantic_legend
         )
-        debug_file_write(f"Mapped semantic tokens: {mapped}")
+        debug_file_write(lambda: f"Mapped semantic tokens: {mapped}")
         return mapped
     except Exception as e:
         debug_file_write(
-            f"Error during semantic tokens retrieval: {type(e).__name__}: {e}"
+            lambda: f"Error during semantic tokens retrieval: {type(e).__name__}: {e}"
         )
         # Fall back to precomputed rough semantic tokens (encoded).
         if (mapping := ls.get_mapping(uri)) is not None:
             try:
                 fallback = encode_semantic_tokens(ls.semantic_tokens.get(uri, []))
-                debug_file_write(f"Fallback: {fallback}")
+                debug_file_write(lambda: f"Fallback: {fallback}")
                 return map_semantic_tokens(fallback, mapping, ls.client_semantic_legend)
             except Exception as mapping_error:
-                debug_file_write(f"Fallback mapping failed: {mapping_error}")
+                debug_file_write(lambda: f"Fallback mapping failed: {mapping_error}")
         return encode_semantic_tokens(ls.semantic_tokens.get(uri, []))
 
 
@@ -576,28 +610,32 @@ async def hover(ls: LanguageServer, params: types.HoverParams):
     uri = canonicalize_uri(params.text_document.uri)
     original_uri = ls.get_original_file_uri(uri)
     try:
-        debug_file_write(f"Hover requested: {params}")
+        debug_file_write(lambda: f"Hover requested: {params}")
         cloned_params = ls.clone_params_map_uri(params)
         mapping = ls.get_mapping(uri)
         mapped_position = map_hover_position(params.position, mapping)
         if mapped_position is None:
             debug_file_write(
-                "Hover mapping failed for request position. Skipping hover."
+                lambda: "Hover mapping failed for request position. Skipping hover."
             )
             return None
         cloned_params.position = mapped_position
-        debug_file_write(f"Translated hover params: {cloned_params}")
+        debug_file_write(lambda: f"Translated hover params: {cloned_params}")
         hover_result = await ls.backend_client.text_document_hover_async(cloned_params)
-        debug_file_write(f"Received hover result: {hover_result}")
+        debug_file_write(lambda: f"Received hover result: {hover_result}")
         if hover_result is None:
             return None
         mapped_hover = map_hover(hover_result, mapping)
         if mapped_hover is None:
-            debug_file_write("Hover mapping failed for response range. Skipping hover.")
+            debug_file_write(
+                lambda: "Hover mapping failed for response range. Skipping hover."
+            )
             return None
         return demangle_hover_names(mapped_hover, ls._ast_modules.get(uri))
     except Exception as e:
-        debug_file_write(f"Error during hover retrieval: {type(e).__name__}: {e}")
+        debug_file_write(
+            lambda: f"Error during hover retrieval: {type(e).__name__}: {e}"
+        )
         return None
 
 
@@ -605,26 +643,28 @@ async def hover(ls: LanguageServer, params: types.HoverParams):
 async def definition(ls: LanguageServer, params: types.DefinitionParams):
     uri = canonicalize_uri(params.text_document.uri)
     try:
-        debug_file_write(f"Definition requested: {params}")
+        debug_file_write(lambda: f"Definition requested: {params}")
         cloned_params = ls.clone_params_map_uri(params)
         mapping = ls.get_mapping(uri)
         mapped_position = map_definition_request_position(params.position, mapping)
         if mapped_position is None:
-            debug_file_write("Definition mapping failed for request position.")
+            debug_file_write(lambda: "Definition mapping failed for request position.")
             return None
         cloned_params.position = mapped_position
-        debug_file_write(f"Translated definition params: {cloned_params}")
+        debug_file_write(lambda: f"Translated definition params: {cloned_params}")
         definition_result = await ls.backend_client.text_document_definition_async(
             cloned_params
         )
-        debug_file_write(f"Received definition result: {definition_result}")
+        debug_file_write(lambda: f"Received definition result: {definition_result}")
         return map_definition_result(
             definition_result,
             ls.get_mapping,
             ls.translated_uri_to_original_uri,
         )
     except Exception as e:
-        debug_file_write(f"Error during definition retrieval: {type(e).__name__}: {e}")
+        debug_file_write(
+            lambda: f"Error during definition retrieval: {type(e).__name__}: {e}"
+        )
         return None
 
 
@@ -632,19 +672,23 @@ async def definition(ls: LanguageServer, params: types.DefinitionParams):
 async def type_definition(ls: LanguageServer, params: types.TypeDefinitionParams):
     uri = canonicalize_uri(params.text_document.uri)
     try:
-        debug_file_write(f"Type definition requested: {params}")
+        debug_file_write(lambda: f"Type definition requested: {params}")
         cloned_params = ls.clone_params_map_uri(params)
         mapping = ls.get_mapping(uri)
         mapped_position = map_type_definition_request_position(params.position, mapping)
         if mapped_position is None:
-            debug_file_write("Type definition mapping failed for request position.")
+            debug_file_write(
+                lambda: "Type definition mapping failed for request position."
+            )
             return None
         cloned_params.position = mapped_position
-        debug_file_write(f"Translated type definition params: {cloned_params}")
+        debug_file_write(lambda: f"Translated type definition params: {cloned_params}")
         type_definition_result = (
             await ls.backend_client.text_document_type_definition_async(cloned_params)
         )
-        debug_file_write(f"Received type definition result: {type_definition_result}")
+        debug_file_write(
+            lambda: f"Received type definition result: {type_definition_result}"
+        )
         return map_type_definition_result(
             type_definition_result,
             ls.get_mapping,
@@ -652,7 +696,7 @@ async def type_definition(ls: LanguageServer, params: types.TypeDefinitionParams
         )
     except Exception as e:
         debug_file_write(
-            f"Error during type definition retrieval: {type(e).__name__}: {e}"
+            lambda: f"Error during type definition retrieval: {type(e).__name__}: {e}"
         )
         return None
 
@@ -661,26 +705,28 @@ async def type_definition(ls: LanguageServer, params: types.TypeDefinitionParams
 async def references(ls: LanguageServer, params: types.ReferenceParams):
     uri = canonicalize_uri(params.text_document.uri)
     try:
-        debug_file_write(f"References requested: {params}")
+        debug_file_write(lambda: f"References requested: {params}")
         cloned_params = ls.clone_params_map_uri(params)
         mapping = ls.get_mapping(uri)
         mapped_position = map_reference_request_position(params.position, mapping)
         if mapped_position is None:
-            debug_file_write("References mapping failed for request position.")
+            debug_file_write(lambda: "References mapping failed for request position.")
             return None
         cloned_params.position = mapped_position
-        debug_file_write(f"Translated references params: {cloned_params}")
+        debug_file_write(lambda: f"Translated references params: {cloned_params}")
         reference_result = await ls.backend_client.text_document_references_async(
             cloned_params
         )
-        debug_file_write(f"Received references result: {reference_result}")
+        debug_file_write(lambda: f"Received references result: {reference_result}")
         return map_reference_result(
             reference_result,
             ls.get_mapping,
             ls.translated_uri_to_original_uri,
         )
     except Exception as e:
-        debug_file_write(f"Error during references retrieval: {type(e).__name__}: {e}")
+        debug_file_write(
+            lambda: f"Error during references retrieval: {type(e).__name__}: {e}"
+        )
         return None
 
 
@@ -688,26 +734,28 @@ async def references(ls: LanguageServer, params: types.ReferenceParams):
 async def rename(ls: LanguageServer, params: types.RenameParams):
     uri = canonicalize_uri(params.text_document.uri)
     try:
-        debug_file_write(f"Rename requested: {params}")
+        debug_file_write(lambda: f"Rename requested: {params}")
         cloned_params = ls.clone_params_map_uri(params)
         mapping = ls._mapping.get(uri)
         mapped_position = map_rename_request_position(params.position, mapping)
         if mapped_position is None:
-            debug_file_write("Rename mapping failed for request position.")
+            debug_file_write(lambda: "Rename mapping failed for request position.")
             return None
         cloned_params.position = mapped_position
-        debug_file_write(f"Translated rename params: {cloned_params}")
+        debug_file_write(lambda: f"Translated rename params: {cloned_params}")
         rename_result = await ls.backend_client.text_document_rename_async(
             cloned_params
         )
-        debug_file_write(f"Received rename result: {rename_result}")
+        debug_file_write(lambda: f"Received rename result: {rename_result}")
         return map_rename_result(
             rename_result,
             ls.get_mapping,
             ls.translated_uri_to_original_uri,
         )
     except Exception as e:
-        debug_file_write(f"Error during rename retrieval: {type(e).__name__}: {e}")
+        debug_file_write(
+            lambda: f"Error during rename retrieval: {type(e).__name__}: {e}"
+        )
         return None
 
 
@@ -717,25 +765,27 @@ async def inlay_hint(ls: LanguageServer, params: types.InlayHintParams):
     original_uri = ls.get_original_file_uri(uri)
     module_uri = original_uri if original_uri is not None else uri
     try:
-        debug_file_write(f"Inlay hint requested: {params}")
+        debug_file_write(lambda: f"Inlay hint requested: {params}")
         cloned_params = ls.clone_params_map_uri(params)
         mapping = ls._mapping.get(uri)
         mapped_params = map_inlay_hint_request_params(cloned_params, mapping)
         if mapped_params is None:
-            debug_file_write("Inlay hint request range mapping failed.")
+            debug_file_write(lambda: "Inlay hint request range mapping failed.")
             return None
-        debug_file_write(f"Translated inlay hint params: {mapped_params}")
+        debug_file_write(lambda: f"Translated inlay hint params: {mapped_params}")
         inlay_result = await ls.backend_client.text_document_inlay_hint_async(
             mapped_params
         )
-        debug_file_write(f"Received inlay hint result: {inlay_result}")
+        debug_file_write(lambda: f"Received inlay hint result: {inlay_result}")
         return map_inlay_hints_result(
             inlay_result,
             ls.get_module(module_uri),
             mapping,
         )
     except Exception as e:
-        debug_file_write(f"Error during inlay hint retrieval: {type(e).__name__}: {e}")
+        debug_file_write(
+            lambda: f"Error during inlay hint retrieval: {type(e).__name__}: {e}"
+        )
         return None
 
 
@@ -749,33 +799,35 @@ async def inlay_hint(ls: LanguageServer, params: types.InlayHintParams):
 async def completion(ls: LanguageServer, params: types.CompletionParams):
     uri = canonicalize_uri(params.text_document.uri)
     try:
-        debug_file_write(f"Completion requested: {params}")
+        debug_file_write(lambda: f"Completion requested: {params}")
         mapping = ls.get_mapping(uri)
         source = ls.workspace.get_text_document(uri).source
         mapped_params = map_completion_request_params(params, mapping, source)
-        debug_file_write(f"Mapped completion params: {mapped_params}")
+        debug_file_write(lambda: f"Mapped completion params: {mapped_params}")
         if mapped_params is None:
             debug_file_write(
-                "Completion request mapping failed. Skipping backend call."
+                lambda: "Completion request mapping failed. Skipping backend call."
             )
             return None
         translated_params = ls.clone_params_map_uri(mapped_params)
         debug_file_write(
-            f"Forwarding completion request to backend: {translated_params}"
+            lambda: f"Forwarding completion request to backend: {translated_params}"
         )
         completion_result = await ls.backend_client.text_document_completion_async(
             translated_params
         )
         debug_file_write(
-            f"Received completion result from backend: {completion_result}"
+            lambda: f"Received completion result from backend: {completion_result}"
         )
         mapped_result = map_completion_result(
             completion_result,
             uri,
             ls.get_mapping,
         )
-        debug_file_write(f"Mapped completion result: {mapped_result}")
+        debug_file_write(lambda: f"Mapped completion result: {mapped_result}")
         return mapped_result
     except Exception as e:
-        debug_file_write(f"Error during completion retrieval: {type(e).__name__}: {e}")
+        debug_file_write(
+            lambda: f"Error during completion retrieval: {type(e).__name__}: {e}"
+        )
         return None

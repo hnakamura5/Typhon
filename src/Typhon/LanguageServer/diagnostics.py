@@ -31,14 +31,16 @@ def map_diagnostic(
     )
     if mapped_range is None:
         debug_file_write_verbose(
-            f"Could not map diagnostic range {diagnostic.range}, range={lsp_range_to_range(diagnostic.range)} source_map={source_map}"
+            lambda: (
+                f"Could not map diagnostic range {diagnostic.range}, range={lsp_range_to_range(diagnostic.range)} source_map={source_map}"
+            )
         )
         mapped_range = Range(
             start=Pos(line=0, column=0),
             end=Pos(line=0, column=1),
         )
     debug_file_write_verbose(
-        f"Mapped diagnostic range from {diagnostic.range} to {mapped_range}"
+        lambda: f"Mapped diagnostic range from {diagnostic.range} to {mapped_range}"
     )
     related_information = diagnostic.related_information
     if related_information is not None:
@@ -71,10 +73,14 @@ def map_and_add_diagnostics(
     syntax_errors = get_syntax_error_in_module(module) if module else None
     diagnostics: list[types.Diagnostic] = []
     debug_file_write_verbose(
-        f"Mapping and adding diagnostics for URI {diagnostic_params.uri}, mapped_uri={mapped_uri}, syntax_errors={syntax_errors}, module={module} source_map={source_map}"
+        lambda: (
+            f"Mapping and adding diagnostics for URI {diagnostic_params.uri}, mapped_uri={mapped_uri}, syntax_errors={syntax_errors}, module={module} source_map={source_map}"
+        )
     )
     for syntax_error in syntax_errors if syntax_errors else []:
-        debug_file_write_verbose(f"Adding syntax error diagnostic: {syntax_error}")
+        debug_file_write_verbose(
+            lambda: f"Adding syntax error diagnostic: {syntax_error}"
+        )
         diagnostics.append(
             types.Diagnostic(
                 range=range_to_lsp_range(Range.from_syntax_error(syntax_error)),
@@ -84,10 +90,10 @@ def map_and_add_diagnostics(
             )
         )
     for diagnostic in diagnostic_params.diagnostics:
-        debug_file_write_verbose(f"Mapping backend diagnostic: {diagnostic}")
+        debug_file_write_verbose(lambda: f"Mapping backend diagnostic: {diagnostic}")
         if filter_ignore_message(diagnostic.message):
             debug_file_write_verbose(
-                f"Ignoring diagnostic with message: {diagnostic.message}"
+                lambda: f"Ignoring diagnostic with message: {diagnostic.message}"
             )
             continue
         mapped_diagnostic = map_diagnostic(
@@ -101,7 +107,7 @@ def map_and_add_diagnostics(
             and mapped_diagnostic.severity != types.DiagnosticSeverity.Error
         ):
             debug_file_write_verbose(
-                f"Ignoring diagnostic at position (0, 0): {diagnostic}"
+                lambda: f"Ignoring diagnostic at position (0, 0): {diagnostic}"
             )
             continue
         diagnostics.append(mapped_diagnostic)

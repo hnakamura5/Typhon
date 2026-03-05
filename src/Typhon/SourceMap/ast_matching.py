@@ -31,7 +31,9 @@ class MatchingVisitor(ast.NodeVisitor):
         self.right = old_right
 
     def _commit(self, left: ast.AST, right: ast.AST):
-        debug_verbose_print(f"Matched: {ast.dump(left)}  <->  {ast.dump(right)}")
+        debug_verbose_print(
+            lambda: f"Matched: {ast.dump(left)}  <->  {ast.dump(right)}"
+        )
         self.left_to_right[left] = right
         self.right_to_left[right] = left
 

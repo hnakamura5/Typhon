@@ -181,7 +181,9 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
             return self.generic_visit(node)
         pos = get_pos_attributes(node)
         debug_verbose_print(
-            f"Transforming optional attribute access at line {pos['lineno']}, col {pos['col_offset']} for attribute '{node.attr}' defined name: '{get_defined_name(node)}'"
+            lambda: (
+                f"Transforming optional attribute access at line {pos['lineno']}, col {pos['col_offset']} for attribute '{node.attr}' defined name: '{get_defined_name(node)}'"
+            )
         )
         result = self._optional_check_if_exp(
             node.value,

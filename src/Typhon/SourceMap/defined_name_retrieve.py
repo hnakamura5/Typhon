@@ -24,7 +24,9 @@ class _DefinedNameRetriever(ast.NodeVisitor):
         start_line = pos["lineno"]  # decorator is not included in the original position
         start_col = pos["col_offset"] + column_offset
         debug_verbose_print(
-            f'Retrieving defined name "{node.name}" for node: {ast.dump(node)} at line {start_line}, col {start_col}'
+            lambda: (
+                f'Retrieving defined name "{node.name}" for node: {ast.dump(node)} at line {start_line}, col {start_col}'
+            )
         )
         name = ast.Name(
             id=node.name,
@@ -42,7 +44,9 @@ class _DefinedNameRetriever(ast.NodeVisitor):
         pos = get_pos_attributes(node)
         end_col = len(self.unparsed_source_code_lines[pos["lineno"] - 1]) - 2
         debug_verbose_print(
-            f'Setting return type annotation anchor for function "{node.name}" at line {pos["lineno"]}, col {end_col}'
+            lambda: (
+                f'Setting return type annotation anchor for function "{node.name}" at line {pos["lineno"]}, col {end_col}'
+            )
         )
         set_return_type_annotation_anchor(
             node,
@@ -117,7 +121,9 @@ class _DefinedNameRetriever(ast.NodeVisitor):
             end_col - len(node.attr) - 1 if end_col is not None else pos["col_offset"]
         )
         debug_verbose_print(
-            f'Retrieving defined name for attribute "{node.attr}" of {ast.dump(node.value)} at line {start_line}, col {attr_index}'
+            lambda: (
+                f'Retrieving defined name for attribute "{node.attr}" of {ast.dump(node.value)} at line {start_line}, col {attr_index}'
+            )
         )
         name = ast.Name(
             id=node.attr,

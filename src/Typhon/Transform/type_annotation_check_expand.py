@@ -249,7 +249,9 @@ class _PatternAndAssignTypeAnnotationGather(TyphonASTVisitor):
 
     def visit_Assign(self, node: ast.Assign):
         debug_verbose_print(
-            f"Visiting type_annot_gather Assign: {ast.dump(node)} is_decl_assign={is_decl_assign(node)}"
+            lambda: (
+                f"Visiting type_annot_gather Assign: {ast.dump(node)} is_decl_assign={is_decl_assign(node)}"
+            )
         )
         if not is_decl_assign(node):
             return self.generic_visit(node)
@@ -258,12 +260,16 @@ class _PatternAndAssignTypeAnnotationGather(TyphonASTVisitor):
                 self.visit(target)
         self.visit(node.value)
         debug_verbose_print(
-            f"Finished type_annot_gather Assign: {ast.dump(node)} is_decl_assign={is_decl_assign(node)}"
+            lambda: (
+                f"Finished type_annot_gather Assign: {ast.dump(node)} is_decl_assign={is_decl_assign(node)}"
+            )
         )
 
     def visit_match_case(self, node: ast.match_case):
         debug_verbose_print(
-            f"Visiting type_annot_gather match_case: {ast.dump(node)} is_const={not is_var(node.pattern)}"
+            lambda: (
+                f"Visiting type_annot_gather match_case: {ast.dump(node)} is_const={not is_var(node.pattern)}"
+            )
         )
         with self.decl_context(node, not is_var(node.pattern)):  # Default is const
             self.visit(node.pattern)
@@ -272,12 +278,16 @@ class _PatternAndAssignTypeAnnotationGather(TyphonASTVisitor):
         for stmt in node.body:
             self.visit(stmt)
         debug_verbose_print(
-            f"Finished type_annot_gather match_case: {ast.dump(node)} is_const={is_let(node.pattern)}"
+            lambda: (
+                f"Finished type_annot_gather match_case: {ast.dump(node)} is_const={is_let(node.pattern)}"
+            )
         )
 
     def visit_MatchClass(self, node: ast.MatchClass):
         debug_verbose_print(
-            f"Visiting type_annot_gather MatchClass: {ast.dump(node)} is_class_pattern=True"
+            lambda: (
+                f"Visiting type_annot_gather MatchClass: {ast.dump(node)} is_class_pattern=True"
+            )
         )
         with self.class_pattern_context(True):
             self.visit(node.cls)  # cls is not a declaration pattern
@@ -290,16 +300,16 @@ class _PatternAndAssignTypeAnnotationGather(TyphonASTVisitor):
     def visit_Name(self, node: ast.Name):
         annotation = get_type_annotation(node)
         debug_verbose_print(
-            "visit_Name type_annot_gather:",
-            ast.dump(node),
-            "annot:",
-            ast.dump(annotation) if annotation else "None",
-            "is_const:",
-            self.current_is_const and self.current_is_const[-1],
-            "is_class_pattern:",
-            self.is_class_pattern,
-            "decl_contexts:",
-            self.decl_contexts,
+            lambda: "visit_Name type_annot_gather:",
+            lambda: ast.dump(node),
+            lambda: "annot:",
+            lambda: ast.dump(annotation) if annotation else "None",
+            lambda: "is_const:",
+            lambda: self.current_is_const and self.current_is_const[-1],
+            lambda: "is_class_pattern:",
+            lambda: self.is_class_pattern,
+            lambda: "decl_contexts:",
+            lambda: self.decl_contexts,
         )
         if self.decl_contexts and not self.is_class_pattern:
             if self.current_is_const:
@@ -313,16 +323,16 @@ class _PatternAndAssignTypeAnnotationGather(TyphonASTVisitor):
     def visit_Starred(self, node: ast.Starred):
         annotation = get_type_annotation(node)
         debug_verbose_print(
-            "visit_Starred type_annot_gather:",
-            ast.dump(node),
-            "annot:",
-            ast.dump(annotation) if annotation else "None",
-            "is_const:",
-            self.current_is_const and self.current_is_const[-1],
-            "is_class_pattern:",
-            self.is_class_pattern,
-            "decl_contexts:",
-            self.decl_contexts,
+            lambda: "visit_Starred type_annot_gather:",
+            lambda: ast.dump(node),
+            lambda: "annot:",
+            lambda: ast.dump(annotation) if annotation else "None",
+            lambda: "is_const:",
+            lambda: self.current_is_const and self.current_is_const[-1],
+            lambda: "is_class_pattern:",
+            lambda: self.is_class_pattern,
+            lambda: "decl_contexts:",
+            lambda: self.decl_contexts,
         )
         if self.decl_contexts and not self.is_class_pattern:
             if isinstance(node.value, ast.Name):
@@ -337,16 +347,16 @@ class _PatternAndAssignTypeAnnotationGather(TyphonASTVisitor):
     def visit_PossiblyAnnotatedPattern(self, node: ast.MatchAs | ast.MatchStar):
         annotation = get_type_annotation(node)
         debug_verbose_print(
-            "visit_PossiblyAnnotatedPattern type_annot_gather:",
-            ast.dump(node),
-            "annot:",
-            ast.dump(annotation) if annotation else "None",
-            "is_const:",
-            self.current_is_const[-1],
-            "is_class_pattern:",
-            self.is_class_pattern,
-            "decl_contexts:",
-            self.decl_contexts,
+            lambda: "visit_PossiblyAnnotatedPattern type_annot_gather:",
+            lambda: ast.dump(node),
+            lambda: "annot:",
+            lambda: ast.dump(annotation) if annotation else "None",
+            lambda: "is_const:",
+            lambda: self.current_is_const[-1],
+            lambda: "is_class_pattern:",
+            lambda: self.is_class_pattern,
+            lambda: "decl_contexts:",
+            lambda: self.decl_contexts,
         )
         if self.decl_contexts and not self.is_class_pattern:
             if node.name is not None:
@@ -436,13 +446,15 @@ class _PatternTypeAnnotationExpand(TyphonASTTransformer):
         result: list[ast.stmt] = []
         if node in self.decl_to_names:
             debug_verbose_print(
-                f"Expanding pattern annotations in match_case: {ast.dump(node)}"
+                lambda: f"Expanding pattern annotations in match_case: {ast.dump(node)}"
             )
             for name, annotation, is_const in self.decl_to_names[node]:
                 pos = get_pos_attributes(node)
                 name = ast.Name(id=name.id, ctx=ast.Store(), **get_pos_attributes(name))
                 debug_verbose_print(
-                    f"  name: {ast.dump(name)}, annotation: {ast.dump(annotation) if annotation else 'None'}, is_const: {is_const}"
+                    lambda: (
+                        f"  name: {ast.dump(name)}, annotation: {ast.dump(annotation) if annotation else 'None'}, is_const: {is_const}"
+                    )
                 )
                 if is_const:
                     annotation = get_final_of_type(type_expr=annotation, **pos)

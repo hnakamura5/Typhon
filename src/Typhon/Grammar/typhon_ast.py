@@ -306,7 +306,9 @@ def set_type_annotation[T: PossibleAnnotatedNode](
     node: T, type_node: ast.expr | None
 ) -> T:
     debug_verbose_print(
-        f"set_type_annotation: {ast.dump(node)} to {ast.dump(type_node) if type_node else 'None'}"
+        lambda: (
+            f"set_type_annotation: {ast.dump(node)} to {ast.dump(type_node) if type_node else 'None'}"
+        )
     )
     setattr(node, _TYPE_ANNOTATION, type_node)
     return node
@@ -338,7 +340,7 @@ def clear_is_multi_decl(node: ast.AST) -> None:
 def set_is_typing_expression(node: ast.expr, is_typing: bool = True) -> ast.expr:
     result = copy(node)  # To avoid chached node is contaminated.
     setattr(result, _IS_TYPING_EXPRESSION, is_typing)
-    debug_verbose_print(f"set_is_typing_expression: {ast.dump(result)}")
+    debug_verbose_print(lambda: f"set_is_typing_expression: {ast.dump(result)}")
     return result
 
 
@@ -415,9 +417,6 @@ def _get_list_type_elements(type_node: ast.expr) -> ast.expr | None:
     if isinstance(type_node, ast.List):
         return type_node.elts[0] if len(type_node.elts) == 1 else None
     elif isinstance(type_node, ast.Subscript):
-        debug_verbose_print(
-            f"_get_list_type_elements: {type_node} value: {type_node.value} id: {type_node.value.id if isinstance(type_node.value, ast.Name) else 'N/A'} slice: {type_node.slice}"
-        )
         if (
             isinstance(type_node.value, ast.Name)
             and type_node.value.id == "list"
@@ -442,12 +441,16 @@ def get_annotations_of_declaration_target(
 ) -> list[tuple[ast.Name, ast.expr | None]]:
     if isinstance(target, ast.Name):
         debug_verbose_print(
-            f"get_annotations_of_declaration_target ast.Name: {target}, {type_annotation}"
+            lambda: (
+                f"get_annotations_of_declaration_target ast.Name: {target}, {type_annotation}"
+            )
         )
         return [(target, type_annotation)]
     elif isinstance(target, ast.Tuple):
         debug_verbose_print(
-            f"get_annotations_of_declaration_target ast.Tuple: {target}, {type_annotation}"
+            lambda: (
+                f"get_annotations_of_declaration_target ast.Tuple: {target}, {type_annotation}"
+            )
         )
         type_elts = (
             _get_tuple_type_elements(type_annotation) if type_annotation else None
@@ -465,7 +468,9 @@ def get_annotations_of_declaration_target(
         return names
     elif isinstance(target, ast.List):
         debug_verbose_print(
-            f"get_annotations_of_declaration_target ast.List: {target}, {type_annotation}"
+            lambda: (
+                f"get_annotations_of_declaration_target ast.List: {target}, {type_annotation}"
+            )
         )
         type_elt = _get_list_type_elements(type_annotation) if type_annotation else None
         names: list[tuple[ast.Name, ast.expr | None]] = []
@@ -477,7 +482,9 @@ def get_annotations_of_declaration_target(
         return names
     elif isinstance(target, ast.Starred):
         debug_verbose_print(
-            f"get_annotations_of_declaration_target ast.Starred: {target}, {type_annotation}"
+            lambda: (
+                f"get_annotations_of_declaration_target ast.Starred: {target}, {type_annotation}"
+            )
         )
         return get_annotations_of_declaration_target(
             target.value,
@@ -2304,7 +2311,6 @@ def make_attributes_pattern(
     keywords: list[tuple[ast.Name, ast.pattern | None]],
     **kwargs: Unpack[PosAttributes],
 ) -> ast.MatchClass:
-    debug_verbose_print(f"Creating attributes pattern with keywords: {keywords}")
     kwd_attrs = [k.id for k, _ in keywords]
     kwd_patterns = [
         (
@@ -2329,7 +2335,6 @@ def make_attributes_pattern(
         kwd_patterns=kwd_patterns,
         **pos_attribute_to_range(kwargs),
     )
-    debug_verbose_print(f"Created attributes pattern: {ast.dump(result)}")
     return result
 
 
@@ -2384,7 +2389,6 @@ def get_imports(mod: ast.Module) -> dict[tuple[str, str], ast.alias]:
 
 
 def add_import_alias_top(mod: ast.Module, from_module: str, name: str, as_name: str):
-    debug_verbose_print(f"Adding import: from {from_module} import {name} as {as_name}")
     # Check if already imported.
     imports = get_imports(mod)
     if (from_module, name) in imports and imports[

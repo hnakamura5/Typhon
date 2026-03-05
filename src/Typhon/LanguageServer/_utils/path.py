@@ -37,7 +37,7 @@ def clone_and_map_initialize_param(
     cloned_params = configure_language_client_option(cloned_params)
     # Modify workspace folders to server workspace folders.
     if params.workspace_folders:
-        debug_file_write(f"Workspace folders: {params.workspace_folders}")
+        debug_file_write(lambda: f"Workspace folders: {params.workspace_folders}")
         cloned_params.workspace_folders = [
             types.WorkspaceFolder(
                 uri=path_to_uri(output_dir_for_server_workspace(uri_to_path(f.uri))),

@@ -47,7 +47,9 @@ def map_did_change_content_changes(
             )
         if mapped_range is None:
             debug_file_write(
-                f"Did change range mapping failed for {change.range}, skipping this change."
+                lambda: (
+                    f"Did change range mapping failed for {change.range}, skipping this change."
+                )
             )
             continue
         mapped_content_changes.append(

@@ -183,7 +183,9 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         self.symbols.setdefault(name, []).append(dec)
         if name not in self.builtins_symbols:
             debug_print(
-                f"Declared variable '{name}' (mutable={is_mutable}) scope_level={len(self.parent_python_scopes)} add_to_parent_python_scope={add_to_parent_python_scope}"
+                lambda: (
+                    f"Declared variable '{name}' (mutable={is_mutable}) scope_level={len(self.parent_python_scopes)} add_to_parent_python_scope={add_to_parent_python_scope}"
+                )
             )
         is_top_level = self.now_is_top_level(ignore_current=add_to_parent_python_scope)
         if is_top_level:
@@ -205,14 +207,16 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         )
         if name not in self.builtins_symbols:
             debug_verbose_print(
-                f"Renaming condition of '{name}': {rename_condition} is_shadowed={self.is_shadowed(name, python_scope_to_add)}, is_top_level={is_top_level}, in_scope_non_python_top_level={in_scope_non_python_top_level}, is_force_rename={is_force_rename}) len(scopes)={len(self.scopes)} len(parent_python_scopes)={len(self.parent_python_scopes)} rename_on_demand_to_kind={rename_on_demand_to_kind} "
+                lambda: (
+                    f"Renaming condition of '{name}': {rename_condition} is_shadowed={self.is_shadowed(name, python_scope_to_add)}, is_top_level={is_top_level}, in_scope_non_python_top_level={in_scope_non_python_top_level}, is_force_rename={is_force_rename}) len(scopes)={len(self.scopes)} len(parent_python_scopes)={len(self.parent_python_scopes)} rename_on_demand_to_kind={rename_on_demand_to_kind} "
+                )
             )
         # Rename if required
         if rename_on_demand_to_kind is not None:
             if rename_condition:
                 new_name = self.new_name(rename_on_demand_to_kind, name)
                 dec.renamed_to = new_name
-                debug_print(f"Renamed variable '{dec.name}' to '{new_name}'")
+                debug_print(lambda: f"Renamed variable '{dec.name}' to '{new_name}'")
         return dec
 
     def error_reference_undeclared(self, name: ast.Name) -> ast.Name:
@@ -397,7 +401,9 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         with self.scope():  # for initializer scope
             # Assuming target is a simple variable name for now
             debug_verbose_print(
-                f"Visiting for target: {ast.dump(node.target)} is_var={is_var(node)}"
+                lambda: (
+                    f"Visiting for target: {ast.dump(node.target)} is_var={is_var(node)}"
+                )
             )
             self.visit_declaration(node.target, is_mutable=is_var(node))
             self.visit_list_scoped(node.body)
@@ -486,7 +492,9 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             self.visit_list_scoped(node.body)
 
         debug_verbose_print(
-            f"Visiting match_case: pattern={ast.dump(node)} is_let_else={is_let_else(node)}"
+            lambda: (
+                f"Visiting match_case: pattern={ast.dump(node)} is_let_else={is_let_else(node)}"
+            )
         )
 
         if is_let_else(node):
@@ -650,13 +658,17 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             accessor_python_scope=self.get_parent_python_scope(),
         )
         debug_verbose_print(
-            f" Adding suspended access to temporal dead variable '{name.id}' in top-level scope '{temporally_dead_accessor.name}'"
+            lambda: (
+                f" Adding suspended access to temporal dead variable '{name.id}' in top-level scope '{temporally_dead_accessor.name}'"
+            )
         )
         self.suspended_symbols.add(name.id)
         self.suspended_resolves.setdefault(
             temporally_dead_accessor.name, {}
         ).setdefault(name.id, set()).add(suspended)
-        debug_verbose_print(f"  Current suspended_resolves: {self.suspended_resolves}")
+        debug_verbose_print(
+            lambda: f"  Current suspended_resolves: {self.suspended_resolves}"
+        )
         return suspended
 
     def suspendable_scope(
@@ -694,7 +706,9 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         # Copy the dependencies (not resolved yet) of name to current scope
         for _, suspended_accesses in name_depends_but_unresolved.items():
             debug_verbose_print(
-                f" Copying suspended accesses for '{name.id}': suspends={suspended_accesses}"
+                lambda: (
+                    f" Copying suspended accesses for '{name.id}': suspends={suspended_accesses}"
+                )
             )
             for suspended in suspended_accesses:
                 self.add_suspended_resolve(
@@ -709,7 +723,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
     def resolve_suspended_resolves(self, name: str):
         if name in self.builtins_symbols:
             return
-        debug_verbose_print(f"Resolving suspended accesses to '{name}'")
+        debug_verbose_print(lambda: f"Resolving suspended accesses to '{name}'")
         if name not in self.suspended_symbols:
             return
         self.suspended_symbols.remove(name)
@@ -760,13 +774,15 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             return False
         if anon_id in self.anonymous_names:
             debug_verbose_print(
-                f"Reused anonymous variable for '{node.id}' as '{self.anonymous_names[anon_id]}'"
+                lambda: (
+                    f"Reused anonymous variable for '{node.id}' as '{self.anonymous_names[anon_id]}'"
+                )
             )
             node.id = self.anonymous_names[anon_id]
         else:
             new_name = self.new_name(NameKind.VARIABLE, "")
             debug_verbose_print(
-                f"Renamed anonymous variable '{node.id}' to '{new_name}'"
+                lambda: f"Renamed anonymous variable '{node.id}' to '{new_name}'"
             )
             self.anonymous_names[anon_id] = new_name
             node.id = new_name
@@ -817,20 +833,20 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             if sym.renamed_to:
                 node.id = sym.renamed_to
                 debug_verbose_print(
-                    f"Renamed variable '{sym.name}' to '{sym.renamed_to}'"
+                    lambda: f"Renamed variable '{sym.name}' to '{sym.renamed_to}'"
                 )
             if self.is_temporal_dead(node.id):
                 # Accessing to a temporally dead variable
-                debug_verbose_print(f"Temporal dead access to '{node.id}'")
+                debug_verbose_print(lambda: f"Temporal dead access to '{node.id}'")
                 if not self.access_maybe_temporal_dead(node):
-                    debug_verbose_print(f"TDZ violation to '{node.id}'")
+                    debug_verbose_print(lambda: f"TDZ violation to '{node.id}'")
                     return self.error_tdz_violation(node)
-            debug_verbose_print(f"Accessing variable '{node.id}'")
+            debug_verbose_print(lambda: f"Accessing variable '{node.id}'")
             self.access_to_symbol_non_decl(
                 sym, is_mutation=self.non_declaration_assign_context
             )
         with self.type_annotation_maybe_in_declaration(node):
-            debug_verbose_print(f"Maybe type annotated Name: {ast.dump(node)}")
+            debug_verbose_print(lambda: f"Maybe type annotated Name: {ast.dump(node)}")
             return self.generic_visit(node)
 
     def visit_Starred(self, node: ast.Starred):

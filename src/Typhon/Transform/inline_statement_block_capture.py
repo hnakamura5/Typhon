@@ -122,7 +122,9 @@ class _InlineStatementBlockCaptureGather(TyphonASTVisitor):
             body_capture_into=info.body,
         )
         debug_print(
-            f"Found let else: \n    node:{ast.dump(node)} \n        parent:{ast.dump(parent_block_node)}\n            body:{list(map(ast.dump, info.body))}"
+            lambda: (
+                f"Found let else: \n    node:{ast.dump(node)} \n        parent:{ast.dump(parent_block_node)}\n            body:{list(map(ast.dump, info.body))}"
+            )
         )
         if node.orelse:
             if not is_body_jump_away(node.orelse):
@@ -179,7 +181,9 @@ class _InlineStatementBlockCaptureGather(TyphonASTVisitor):
                 body_capture_into=node.body,
             )
             debug_print(
-                f"Found inline with: {ast.dump(node)} \n    parent:{ast.dump(parent_block_node)}\n        body:{list(map(ast.dump, node.body))}"
+                lambda: (
+                    f"Found inline with: {ast.dump(node)} \n    parent:{ast.dump(parent_block_node)}\n        body:{list(map(ast.dump, node.body))}"
+                )
             )
             # Hack to make parent of the followings to with's body
             self.parent_block_scopes[-1] = (node, node.body)
@@ -216,7 +220,9 @@ def inline_statement_block_capture(module: ast.Module):
         parent_block_body = inline_node.parent_block_body
         body_capture_into = inline_node.body_capture_into
         debug_print(
-            f"Move: node:{ast.dump(node)} \n    inline_node:{ast.dump(inline_node.node)} \n        parent:{list(map(ast.dump, parent_block_body))}\n    body_capture_into:{list(map(ast.dump, body_capture_into))}"
+            lambda: (
+                f"Move: node:{ast.dump(node)} \n    inline_node:{ast.dump(inline_node.node)} \n        parent:{list(map(ast.dump, parent_block_body))}\n    body_capture_into:{list(map(ast.dump, body_capture_into))}"
+            )
         )
         if node not in parent_block_body:
             raise RuntimeError("Parent block not found")  # TODO: proper error handling
@@ -228,5 +234,7 @@ def inline_statement_block_capture(module: ast.Module):
         # Remove the remained stmts from parent block
         del parent_block_body[index + 1 :]
         debug_verbose_print(
-            f"After move: node:{ast.dump(node)}\n    body_capture_into:{list(map(ast.dump, body_capture_into))} \n        parent:{list(map(ast.dump, parent_block_body))}"
+            lambda: (
+                f"After move: node:{ast.dump(node)}\n    body_capture_into:{list(map(ast.dump, body_capture_into))} \n        parent:{list(map(ast.dump, parent_block_body))}"
+            )
         )

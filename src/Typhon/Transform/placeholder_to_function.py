@@ -40,7 +40,9 @@ class _Gather(TyphonASTVisitor):
                 # TODO: better error message
                 raise SyntaxError("Placeholder alone in statement is not allowed")
             debug_print(
-                f"Found placeholder: {node.id} bound_expr: {ast.dump(bound_expr)}"
+                lambda: (
+                    f"Found placeholder: {node.id} bound_expr: {ast.dump(bound_expr)}"
+                )
             )
             self.placeholders.append(
                 PlaceholderInfo(
@@ -75,7 +77,9 @@ class _Transform(TyphonASTTransformer):
             posonlyargs.append(arg)
             self.placeholder_to_args[info.placeholder] = arg
             debug_print(
-                f"Mapping placeholder {info.placeholder.id} to arg {arg.arg} in bound_expr {ast.dump(bound_expr)}"
+                lambda: (
+                    f"Mapping placeholder {info.placeholder.id} to arg {arg.arg} in bound_expr {ast.dump(bound_expr)}"
+                )
             )
         lambda_expr = ast.Lambda(
             args=ast.arguments(
@@ -97,7 +101,9 @@ class _Transform(TyphonASTTransformer):
         if isinstance(node, ast.expr):
             if node in self.bound_exprs_to_placeholders:
                 debug_print(
-                    f"Visiting parent statement with placeholders: {ast.dump(node)}"
+                    lambda: (
+                        f"Visiting parent statement with placeholders: {ast.dump(node)}"
+                    )
                 )
                 lambda_expr = self._placeholder_to_lambda(
                     node,
@@ -110,7 +116,9 @@ class _Transform(TyphonASTTransformer):
     def visit_Name(self, node: ast.Name):
         arg = self.placeholder_to_args.get(node, None)
         if arg:
-            debug_verbose_print(f"Replacing placeholder {node.id} with arg {arg.arg}")
+            debug_verbose_print(
+                lambda: f"Replacing placeholder {node.id} with arg {arg.arg}"
+            )
             return ast.Name(
                 id=arg.arg,
                 ctx=ast.Load(),

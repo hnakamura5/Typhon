@@ -74,12 +74,14 @@ def write_pyright_config(
     config_path = output_dir / "pyrightconfig.json"
     if not overwrite and config_path.exists():
         debug_print(
-            f"Config file already exists at {config_path}. Use overwrite=True to replace."
+            lambda: (
+                f"Config file already exists at {config_path}. Use overwrite=True to replace."
+            )
         )
         return str(config_path)
     with open(config_path, "w") as f:
         json.dump(config, f, indent=4)
-    debug_print(f"Generated pyright config at {config_path}")
+    debug_print(lambda: f"Generated pyright config at {config_path}")
     return str(config_path)
 
 
@@ -146,10 +148,10 @@ def _filter_ignore_diagnostics(
     num_info = 0
     for diag in result.diagnostics:
         if filter_ignore_message(diag.message):
-            debug_print(f"Ignoring diagnostic by message: {diag}")
+            debug_print(lambda: f"Ignoring diagnostic by message: {diag}")
             continue
         if filter_ignore_position(diag.pos) and diag.severity != Severity.ERROR:
-            debug_print(f"Ignoring diagnostic by position: {diag}")
+            debug_print(lambda: f"Ignoring diagnostic by position: {diag}")
             continue
         filtered_diagnostics.append(diag)
         if diag.severity == Severity.ERROR:

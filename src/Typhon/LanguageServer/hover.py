@@ -66,12 +66,12 @@ def map_hover_position(
     )
     if mapped_pos is None:
         debug_file_write_verbose(
-            f"Could not map hover position {position} to translated source."
+            lambda: f"Could not map hover position {position} to translated source."
         )
         return None
     mapped_position = pos_to_lsp_position(mapped_pos)
     debug_file_write_verbose(
-        f"Mapped hover position from {position} to {mapped_position}"
+        lambda: f"Mapped hover position from {position} to {mapped_position}"
     )
     return mapped_position
 
@@ -87,7 +87,7 @@ def map_hover(
         lsp_range_to_range(hover.range)
     )
     if mapped_range is None:
-        debug_file_write_verbose(f"Could not map hover range: {hover.range}")
+        debug_file_write_verbose(lambda: f"Could not map hover range: {hover.range}")
         return None
 
     mapped_hover = copy.copy(hover)

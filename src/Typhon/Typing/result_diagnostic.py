@@ -33,7 +33,9 @@ class Diagnostic:
             if origin_pos is not None:
                 pos = origin_pos
                 debug_print(
-                    f"Mapped diagnostic position from\n    {self.pos}\n  to origin position\n    {pos}"
+                    lambda: (
+                        f"Mapped diagnostic position from\n    {self.pos}\n  to origin position\n    {pos}"
+                    )
                 )
         return diag_error_file_position(
             self.severity.value,
@@ -82,7 +84,9 @@ class TypeCheckResult:
                 )
                 diags.append(diag.to_string(source_map))
                 debug_print(
-                    f"diag file: {canonicalize_path(Path(diag.file_path))} source_map: {source_map is not None}, source_maps keys: {list(source_maps.keys())}"
+                    lambda: (
+                        f"diag file: {canonicalize_path(Path(diag.file_path))} source_map: {source_map is not None}, source_maps keys: {list(source_maps.keys())}"
+                    )
                 )
                 if source_map is not None:
                     position_diag = source_position_diagnostic(diag, source_map)

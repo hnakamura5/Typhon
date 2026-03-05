@@ -147,7 +147,9 @@ def decode_semantic_tokens(
         else:
             offset = delta_offset
         debug_file_write_verbose(
-            f"Decoding semantic token: delta_line={delta_line}, delta_offset={delta_offset}, length={length}, tok_type_index={tok_type_index}, tok_modifiers_bitmask={tok_modifiers_bitmask}, line={line}, offset={offset}"
+            lambda: (
+                f"Decoding semantic token: delta_line={delta_line}, delta_offset={delta_offset}, length={length}, tok_type_index={tok_type_index}, tok_modifiers_bitmask={tok_modifiers_bitmask}, line={line}, offset={offset}"
+            )
         )
         tok_type = client_legend.get(tok_type_index, TOKEN_TYPES[tok_type_index])
         tok_modifiers: list[TokenModifier] = []
@@ -166,7 +168,9 @@ def decode_semantic_tokens(
                 tok_modifiers=tok_modifiers,
             )
         )
-        debug_file_write_verbose(f"  Decoded Semantic Token: {decoded_tokens[-1]}")
+        debug_file_write_verbose(
+            lambda: f"  Decoded Semantic Token: {decoded_tokens[-1]}"
+        )
     return decoded_tokens
 
 
@@ -177,7 +181,7 @@ def map_semantic_tokens(
 ) -> types.SemanticTokens:
     # First decode the tokens into SemanticTokens
     decoded_tokens = decode_semantic_tokens(tokens, client_legend)
-    debug_file_write_verbose(f"Decoded tokens for mapping: {decoded_tokens}")
+    debug_file_write_verbose(lambda: f"Decoded tokens for mapping: {decoded_tokens}")
     # Map each token position
     mapped_tokens: list[SemanticToken] = []
 
@@ -189,21 +193,27 @@ def map_semantic_tokens(
         # For debugging to see text.
         token.text = Range.of_string(token_range, mapping.unparsed_code)
         debug_file_write_verbose(
-            f"Mapping token from decoded: {token} at range: {token_range}"
+            lambda: f"Mapping token from decoded: {token} at range: {token_range}"
         )
         if mapped_node := mapping.unparsed_range_to_origin_node(token_range, ast.Name):
             if isinstance(mapped_node, ast.Name) and not is_internal_name(mapped_node):
                 if mapped_range := Range.from_ast_node(mapped_node):
                     line = mapped_range.start.line
                     debug_file_write_verbose(
-                        f"Mapping token to node with range OK: {token}\n --> {ast.dump(mapped_node)} (internal={is_internal_name(mapped_node)})@{mapped_range}"
+                        lambda: (
+                            f"Mapping token to node with range OK: {token}\n --> {ast.dump(mapped_node)} (internal={is_internal_name(mapped_node)})@{mapped_range}"
+                        )
                     )
                     debug_file_write_verbose(
-                        f"  line: {line}, start_col: {mapped_range.start.column}, end_col: {mapped_range.end.column}"
+                        lambda: (
+                            f"  line: {line}, start_col: {mapped_range.start.column}, end_col: {mapped_range.end.column}"
+                        )
                     )
                     if mapped_range.is_empty():
                         debug_file_write_verbose(
-                            f"  Skipping token mapping for empty range: {token} mapped to {ast.dump(mapped_node)} at {mapped_range}"
+                            lambda: (
+                                f"  Skipping token mapping for empty range: {token} mapped to {ast.dump(mapped_node)} at {mapped_range}"
+                            )
                         )
                         continue
                     mapped_tokens.append(
@@ -230,7 +240,9 @@ def map_semantic_tokens(
             token.offset = token.start_col
             prev_line = token.line
         prev_end_col = token.end_col
-    debug_file_write_verbose(f"Mapped semantic tokens(before encode): {sorted_tokens}")
+    debug_file_write_verbose(
+        lambda: f"Mapped semantic tokens(before encode): {sorted_tokens}"
+    )
     return encode_semantic_tokens(sorted_tokens)
 
 
@@ -315,7 +327,9 @@ def ast_tokens_to_semantic_tokens(
         if line == 0:
             offset -= prev_end_offset  # Offset is from previous token in the same line
         debug_file_write_verbose(
-            f"Semantic token encode Token: {tok}, Line: {line}, Offset: {offset} prev_line: {prev_line}, prev_end_offset: {prev_end_offset}"
+            lambda: (
+                f"Semantic token encode Token: {tok}, Line: {line}, Offset: {offset} prev_line: {prev_line}, prev_end_offset: {prev_end_offset}"
+            )
         )
         prev_line = tok.end[0] - 1
         prev_end_offset = tok.start[1]
@@ -331,7 +345,9 @@ def ast_tokens_to_semantic_tokens(
             )
         )
         debug_file_write_verbose(
-            f"  Added Semantic Token: {semantic_tokens[-1]}, {encode_semantic_tokens([semantic_tokens[-1]]).data}"
+            lambda: (
+                f"  Added Semantic Token: {semantic_tokens[-1]}, {encode_semantic_tokens([semantic_tokens[-1]]).data}"
+            )
         )
     return semantic_tokens, encode_semantic_tokens(semantic_tokens).data
 

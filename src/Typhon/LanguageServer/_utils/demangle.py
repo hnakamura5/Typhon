@@ -102,7 +102,7 @@ def replace_mangled_names(text: str, mapping: dict[str, str]) -> str:
     result: list[str] = []
     last_index = 0
     debug_verbose_print(
-        f"Replacing mangled names in text: '{text}' with mapping: {mapping}"
+        lambda: f"Replacing mangled names in text: '{text}' with mapping: {mapping}"
     )
     for match in _MANGLED_NAME_PATTERN.finditer(text):
         start, end = match.span("name")
@@ -119,7 +119,9 @@ def replace_mangled_names(text: str, mapping: dict[str, str]) -> str:
         suffix_type_param, suffix_end = _extract_type_param_suffix(text, end)
         replacement: str = original_name
         debug_verbose_print(
-            f"Demangling name '{name}' with original name '{original_name}' and type args suffix '{suffix_type_param}', has placeholders: {has_pretty_print_type_arg_placeholders(original_name)}"
+            lambda: (
+                f"Demangling name '{name}' with original name '{original_name}' and type args suffix '{suffix_type_param}', has placeholders: {has_pretty_print_type_arg_placeholders(original_name)}"
+            )
         )
         if suffix_type_param is not None:
             last_index = suffix_end

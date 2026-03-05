@@ -304,12 +304,12 @@ class TokenizerCustom(PegenTokenizer):
     def read_all_tokens(self) -> list[TokenInfo]:
         """Return all tokens including comments."""
         # Force to consume all tokens
-        debug_verbose_print("Reading all tokens for tokenizer.")
+        debug_verbose_print(lambda: "Reading all tokens for tokenizer.")
         while tok := self.getnext():
-            debug_verbose_print(f"  Token: {tok}")
+            debug_verbose_print(lambda: f"  Token: {tok}")
             if tok.type == token.ENDMARKER:
                 break
-        debug_verbose_print("Finished reading all tokens.")
+        debug_verbose_print(lambda: "Finished reading all tokens.")
         self.reset(0)
         return sorted(self._all_tokens, key=lambda t: t.start)
 

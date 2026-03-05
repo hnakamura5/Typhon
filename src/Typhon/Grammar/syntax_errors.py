@@ -81,7 +81,7 @@ def handle_syntax_error(
     module: ast.Module, syntax_error: TyphonTransformSyntaxError
 ) -> None:
     if is_debug_first_error():
-        debug_print(f"Raising syntax error: {syntax_error}")
+        debug_print(lambda: f"Raising syntax error: {syntax_error}")
         raise syntax_error
     # Otherwise, record the syntax error in the module
     add_syntax_error_in_module(module, syntax_error)
@@ -161,7 +161,7 @@ def _get_message_of_error(
 
 def raise_must_have_resolved(msg: str):
     if is_debug_first_error():
-        debug_print("Raising error: AST must have been resolved at this point")
+        debug_print(lambda: "Raising error: AST must have been resolved at this point")
         raise NotImplementedError(msg)
 
 

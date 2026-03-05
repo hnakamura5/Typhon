@@ -167,7 +167,9 @@ class _LineParser:
         elif self.str_context and self.str_context[-1].is_fstring() and ch == "{":
             # Start of f-string interpolation
             debug_verbose_print(
-                f"Starting f-string interpolation at column={self._get_char_column()}"
+                lambda: (
+                    f"Starting f-string interpolation at column={self._get_char_column()}"
+                )
             )
             self.interpolation_stack.append("{")
             self.bracket_stack_in_interpolation.append("{")
@@ -186,7 +188,9 @@ class _LineParser:
             else:
                 break
         debug_verbose_print(
-            f"Determined string prefix {list(reversed(self._passed()[:-1]))[0:2]} is_raw={is_raw} is_fstring={is_fstring} at column={self._get_char_column()}"
+            lambda: (
+                f"Determined string prefix {list(reversed(self._passed()[:-1]))[0:2]} is_raw={is_raw} is_fstring={is_fstring} at column={self._get_char_column()}"
+            )
         )
         return _StrPrefix(is_raw=is_raw, is_fstring=is_fstring)
 
@@ -197,7 +201,9 @@ class _LineParser:
             prefix = self.str_context[-1].prefix
             kind = self.str_context[-1].kind
             debug_verbose_print(
-                f"Handling string may end delim: {ch!r} kind={kind} prefix={prefix} column={self._get_char_column()}"
+                lambda: (
+                    f"Handling string may end delim: {ch!r} kind={kind} prefix={prefix} column={self._get_char_column()}"
+                )
             )
             if kind == _StrKind.SINGLE_QUOTE and ch == "'":
                 self.str_context.pop()
@@ -230,7 +236,9 @@ class _LineParser:
             prefix = self._get_str_prefix()
             next_ch = self._peek_char()
             debug_verbose_print(
-                f"Handling string start delim: {ch!r} next_ch={next_ch!r} prefix={prefix} passed={self._passed()} column={self._get_char_column()}"
+                lambda: (
+                    f"Handling string start delim: {ch!r} next_ch={next_ch!r} prefix={prefix} passed={self._passed()} column={self._get_char_column()}"
+                )
             )
             self.in_string = True
             if next_ch == ch:
@@ -258,7 +266,9 @@ class _LineParser:
     def _handle_comment(self) -> None:
         first_sharp_column = self._get_char_column()
         debug_verbose_print(
-            f"Handling comment at line {self.line_num} col {first_sharp_column} in line: {self.line!r}"
+            lambda: (
+                f"Handling comment at line {self.line_num} col {first_sharp_column} in line: {self.line!r}"
+            )
         )
         # Block comment begin in front
         while self._peek_char() == "#":
@@ -272,7 +282,9 @@ class _LineParser:
                 first_sharp_column : self._get_char_column() + 1
             ]
             debug_verbose_print(
-                f"Block comment begin detected at col {first_sharp_column} in line comment_starter={comment_starter}: {self.line!r}"
+                lambda: (
+                    f"Block comment begin detected at col {first_sharp_column} in line comment_starter={comment_starter}: {self.line!r}"
+                )
             )
             self.block_comment_begin_stack.append(
                 _BlockComment(
@@ -301,7 +313,9 @@ class _LineParser:
             while self._peek_char() == "#":
                 self._commit(self._next_char())
             debug_verbose_print(
-                f"Block comment end detected at col {self._column} in line: {self.line!r} "
+                lambda: (
+                    f"Block comment end detected at col {self._column} in line: {self.line!r} "
+                )
             )
             if len(self.block_comment_begin_stack) == 1:
                 block_comment = self.block_comment_begin_stack[-1]
@@ -310,8 +324,10 @@ class _LineParser:
                 self.outermost_block_comments.append(block_comment)
                 self.in_comment = False
                 debug_verbose_print(
-                    f"block comment from line {block_comment.start_line} col {block_comment.start_col} "
-                    f"to line {block_comment.end_line} col {block_comment.end_col}"
+                    lambda: (
+                        f"block comment from line {block_comment.start_line} col {block_comment.start_col} "
+                        f"to line {block_comment.end_line} col {block_comment.end_col}"
+                    )
                 )
                 self.result_line += " "  # Replace block comment with space
             # Pop the block comment begin
@@ -382,7 +398,7 @@ class _LineParser:
             self.result_line, line_head_in_string_or_comment
         )
         self.result_line = ""
-        debug_verbose_print(f"Parsed line {self.line_num} result: {result!r}")
+        debug_verbose_print(lambda: f"Parsed line {self.line_num} result: {result!r}")
         return result
 
 
@@ -397,7 +413,9 @@ def _generate_and_postprocess_tokens(
     # Adjust token positions from generated tokens, and mix in block comment tokens.
     for tok in generate_tokens_ignore_error(readline):
         debug_verbose_print(
-            f"Generated token: {tok.string!r} type={tok.type} start={tok.start} end={tok.end}"
+            lambda: (
+                f"Generated token: {tok.string!r} type={tok.type} start={tok.start} end={tok.end}"
+            )
         )
         # Retrieve the line head spaces for this line.
         start = (
@@ -422,7 +440,9 @@ def _generate_and_postprocess_tokens(
             )
         ):
             debug_verbose_print(
-                f"pop block comment token: {block_comment.comment!r} start=({block_comment.start_line}, {block_comment.start_col}) end=({block_comment.end_line}, {block_comment.end_col})"
+                lambda: (
+                    f"pop block comment token: {block_comment.comment!r} start=({block_comment.start_line}, {block_comment.start_col}) end=({block_comment.end_line}, {block_comment.end_col})"
+                )
             )
             # Pop away comments that will never affect to remaining tokens.
             # Remove already passed block comments.
@@ -445,8 +465,10 @@ def _generate_and_postprocess_tokens(
             if block_comment not in block_comment_already_output:
                 block_comment_already_output.add(block_comment)
                 debug_verbose_print(
-                    f"Yielding block comment at start=({block_comment.start_line}, {block_comment.start_col}) "
-                    f"end=({block_comment.end_line}, {block_comment.end_col})"
+                    lambda: (
+                        f"Yielding block comment at start=({block_comment.start_line}, {block_comment.start_col}) "
+                        f"end=({block_comment.end_line}, {block_comment.end_col})"
+                    )
                 )
                 yield TokenInfo(
                     type=tokenize.COMMENT,
@@ -463,7 +485,9 @@ def _generate_and_postprocess_tokens(
             )
             # Adjust start position
             debug_verbose_print(
-                f"Adjusting token start {tok.string!r} adjusted_start: {(adjusted_start_line, adjusted_start_col)} adjusted_end:{(adjusted_end_col, adjusted_end_col)} block_comment.start_col: {block_comment.start_col} block_comment.end_col:{block_comment.end_col} block_comment_last_line_len: {block_comment_last_line_len}  block_comment.start_line: {block_comment.start_line} block_comment.end_line: {block_comment.end_line}"
+                lambda: (
+                    f"Adjusting token start {tok.string!r} adjusted_start: {(adjusted_start_line, adjusted_start_col)} adjusted_end:{(adjusted_end_col, adjusted_end_col)} block_comment.start_col: {block_comment.start_col} block_comment.end_col:{block_comment.end_col} block_comment_last_line_len: {block_comment_last_line_len}  block_comment.start_line: {block_comment.start_line} block_comment.end_line: {block_comment.end_line}"
+                )
             )
             # Line start adjustment: shift down by number of lines in block comment.
             adjusted_start_line = adjusted_start_line + (
@@ -501,12 +525,16 @@ def _generate_and_postprocess_tokens(
                 else adjusted_end_col
             )
             debug_verbose_print(
-                f"Block Comment Adjusting token {tok.string!r} to start=({adjusted_start_line}, {adjusted_start_col}) "
-                f"end=({adjusted_end_line}, {adjusted_end_col}) due to block comment"
+                lambda: (
+                    f"Block Comment Adjusting token {tok.string!r} to start=({adjusted_start_line}, {adjusted_start_col}) "
+                    f"end=({adjusted_end_line}, {adjusted_end_col}) due to block comment"
+                )
             )
         debug_verbose_print(
-            f"Yielding token {tok.string!r} at adjusted start=({adjusted_start_line}, {adjusted_start_col}) "
-            f"end=({adjusted_end_line}, {adjusted_end_col})"
+            lambda: (
+                f"Yielding token {tok.string!r} at adjusted start=({adjusted_start_line}, {adjusted_start_col}) "
+                f"end=({adjusted_end_line}, {adjusted_end_col})"
+            )
         )
         yield TokenInfo(
             type=_regularize_token_type(tok.type),
@@ -519,8 +547,10 @@ def _generate_and_postprocess_tokens(
         # Yield remaining unconsumed block comments at the end.
         if block_comment not in block_comment_already_output:
             debug_verbose_print(
-                f"Yielding remaining block comment at end: start=({block_comment.start_line}, {block_comment.start_col}) "
-                f"end=({block_comment.end_line}, {block_comment.end_col})"
+                lambda: (
+                    f"Yielding remaining block comment at end: start=({block_comment.start_line}, {block_comment.start_col}) "
+                    f"end=({block_comment.end_line}, {block_comment.end_col})"
+                )
             )
             yield TokenInfo(
                 type=tokenize.COMMENT,

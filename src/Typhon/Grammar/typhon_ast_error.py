@@ -147,14 +147,18 @@ def maybe_invalid_stmt[T: PosNode](
     if open_paren is None:
         start_loc, end_loc = _pos_of_anchor(open_anchor)
         debug_print(
-            f"open paren missing: {start_loc} to {end_loc} open anchor: {open_anchor}"
+            lambda: (
+                f"open paren missing: {start_loc} to {end_loc} open anchor: {open_anchor}"
+            )
         )
         error = parser.build_expected_error("'('", start_loc, end_loc)
         add_error_node(node, [error])
     if close_paren is None:
         start_loc, end_loc = _pos_of_anchor(close_anchor)
         debug_print(
-            f"close paren missing: {start_loc} to {end_loc} close anchor: {close_anchor}"
+            lambda: (
+                f"close paren missing: {start_loc} to {end_loc} close anchor: {close_anchor}"
+            )
         )
         error = parser.build_expected_error("')'", start_loc, end_loc)
         add_error_node(node, [error])
@@ -170,7 +174,7 @@ def maybe_invalid_close_paren[T: PosNode](
 ) -> T:
     if close_paren is None:
         start_loc, end_loc = _pos_of_anchor(close_anchor)
-        debug_print(f"close paren missing: {start_loc} to {end_loc}")
+        debug_print(lambda: f"close paren missing: {start_loc} to {end_loc}")
         error = parser.build_expected_error("')'", start_loc, end_loc)
         add_error_node(node, [error])
     return node
@@ -468,7 +472,9 @@ def attribute_access_recovery(
         (end_loc[0], end_loc[1] + len(access_dot.string)),
     )
     debug_verbose_print(
-        f"Recovering from invalid attribute access: {ast.dump(value)}{access_dot.string} access_dot.string == '.' is {access_dot.string == '.'}"
+        lambda: (
+            f"Recovering from invalid attribute access: {ast.dump(value)}{access_dot.string} access_dot.string == '.' is {access_dot.string == '.'}"
+        )
     )
     if access_dot.string == ".":
         result = copy.deepcopy(value)
@@ -502,7 +508,9 @@ def attribute_access_recovery(
         **get_empty_pos_attributes(),
     )
     debug_verbose_print(
-        f"Adding error to optional attribute access:\n  value={ast.dump(value)}@{get_pos_attributes(value)},\n  access={ast.dump(access)}@{get_pos_attributes(access)},\n  result={ast.dump(result)}@{get_pos_attributes(result)}"
+        lambda: (
+            f"Adding error to optional attribute access:\n  value={ast.dump(value)}@{get_pos_attributes(value)},\n  access={ast.dump(access)}@{get_pos_attributes(access)},\n  result={ast.dump(result)}@{get_pos_attributes(result)}"
+        )
     )
     add_error_node(result, [error])
     return result
@@ -524,7 +532,9 @@ def subscr_recovery(
         (end_loc[0], end_loc[1] + len(open_bracket.string)),
     )
     debug_verbose_print(
-        f"Recovering from invalid subscript access: {ast.dump(value)}{open_bracket.string}"
+        lambda: (
+            f"Recovering from invalid subscript access: {ast.dump(value)}{open_bracket.string}"
+        )
     )
     if open_bracket.string == "[":
         result = ast.Subscript(
@@ -535,7 +545,9 @@ def subscr_recovery(
             **kwargs,
         )
         debug_verbose_print(
-            f"Adding error to subscript access:\n  value={ast.dump(value)}@{get_pos_attributes(value)},\n  subscript={ast.dump(result)}@{get_pos_attributes(result)}"
+            lambda: (
+                f"Adding error to subscript access:\n  value={ast.dump(value)}@{get_pos_attributes(value)},\n  subscript={ast.dump(result)}@{get_pos_attributes(result)}"
+            )
         )
         add_error_node(result, [error])
         return result
@@ -562,7 +574,9 @@ def subscr_recovery(
         **get_empty_pos_attributes(),
     )
     debug_verbose_print(
-        f"Adding error to optional subscript access:\n  value={ast.dump(value)}@{get_pos_attributes(value)},\n  subscript={ast.dump(body)}@{get_pos_attributes(body)},\n  result={ast.dump(result)}@{get_pos_attributes(result)}"
+        lambda: (
+            f"Adding error to optional subscript access:\n  value={ast.dump(value)}@{get_pos_attributes(value)},\n  subscript={ast.dump(body)}@{get_pos_attributes(body)},\n  result={ast.dump(result)}@{get_pos_attributes(result)}"
+        )
     )
     add_error_node(result, [error])
     return result
