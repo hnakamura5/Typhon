@@ -142,7 +142,6 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-
     if args.lines <= 0:
         print("--lines must be > 0")
         return 2
@@ -172,9 +171,9 @@ def main() -> int:
     _run_phase(args.phase, source_file, source_text)
     profile.disable()
 
-    print("\n=== cProfile (cumtime) ===")
+    print("\n=== cProfile (sort by cumtime) ===")
     _print_stats(profile, sort_key="cumtime", limit=args.limit)
-    print("\n=== cProfile (tottime) ===")
+    print("\n=== cProfile (sort by tottime) ===")
     _print_stats(profile, sort_key="tottime", limit=args.limit)
 
     return 0

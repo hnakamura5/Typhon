@@ -21,10 +21,12 @@ from typing import (
     Protocol,
     cast,
     Type,
+    overload,
+    override,
 )
 
 from pegen.tokenizer import Tokenizer
-from pegen.parser import P, memoize, memoize_left_rec, logger, Parser as PegenParser
+from pegen.parser import Parser as PegenParser
 from ..Driver.debugging import is_debug_first_error
 from .typhon_ast import (
     set_anonymous_name_id,
@@ -33,6 +35,7 @@ from .typhon_ast import (
     get_anonymous_base_name,
 )
 from .syntax_errors import SkipTokensError, ExpectedTokenError
+
 
 EXPR_NAME_MAPPING: dict[type, str] = {
     ast.Attribute: "attribute",

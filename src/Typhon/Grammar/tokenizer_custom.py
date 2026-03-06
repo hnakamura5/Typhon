@@ -301,6 +301,17 @@ class TokenizerCustom(PegenTokenizer):
             self._commit_token(tok)
         return self._tokens[self._index]
 
+    # Override get_last_non_whitespace_token for better performance.
+    @override
+    def get_last_non_whitespace_token(self) -> tokenize.TokenInfo:
+        if len(self._tokens) > 0:
+            tok = self._tokens[self._index - 1]
+            if tok.type != tokenize.ENDMARKER and (
+                tok.type < tokenize.NEWLINE or tok.type > tokenize.DEDENT
+            ):
+                return tok  # Fast path for common case.
+        return super().get_last_non_whitespace_token()
+
     def read_all_tokens(self) -> list[TokenInfo]:
         """Return all tokens including comments."""
         # Force to consume all tokens

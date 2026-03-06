@@ -1,22 +1,42 @@
 import ast
-from pathlib import Path
+import importlib
 import sys
-import tokenize
-import os
 import io
+from pathlib import Path
 
-from typing import (
-    Literal,
-    Union,
-    Optional,
-)
+from typing import Literal, Union, Optional
+
 
 from ..Driver.debugging import is_debug_verbose
 
 from .tokenizer_custom import TokenizerCustom, show_token
 from .token_factory_custom import token_stream_factory
-from ._typhon_parser import parse
 from .typhon_ast_error import gather_errors
+
+# We need to patch to the pegen parser to optimize memorization functions.
+import pegen.parser as pegen_parser
+from . import parser_patch
+
+
+# Monkey patching mechanism.
+def _load_typhon_parser_module():
+    # import or reload the generated parser module
+    module_name = f"{__package__}._typhon_parser"
+    if module_name in sys.modules:
+        return importlib.reload(sys.modules[module_name])
+    return importlib.import_module("._typhon_parser", package=__package__)
+
+
+def _install_parser_patch():
+    pegen_parser.memoize = parser_patch.memoize
+    pegen_parser.memoize_left_rec = parser_patch.memoize_left_rec
+    parser_patch.redecorate_pegen_parser_base_methods()
+    return _load_typhon_parser_module()
+
+
+# Semantically equal to,
+# from . import _typhon_parser as _TYPHON_PARSER_MODULE
+_TYPHON_PARSER_MODULE = _install_parser_patch()
 
 
 def parse_file(
@@ -46,7 +66,7 @@ def parse_tokenizer(
     verbose: bool = False,
 ) -> ast.AST:
     """Parse using a tokenizer."""
-    parsed = parse(
+    parsed = _TYPHON_PARSER_MODULE.parse(
         filename="<tokenizer>",
         tokenizer=tokenizer,
         mode="file",
@@ -68,7 +88,7 @@ def parse_string(
     """Parse a string."""
     tok_stream = token_stream_factory(io.StringIO(source).readline)
     tokenizer = TokenizerCustom(tok_stream, verbose=verbose)
-    parsed = parse(
+    parsed = _TYPHON_PARSER_MODULE.parse(
         filename="<string>",
         tokenizer=tokenizer,
         mode=mode if mode == "eval" else "file",
@@ -104,7 +124,7 @@ def parse_type(
     """Parse a typing expression string and return expression node."""
     tok_stream = token_stream_factory(io.StringIO(source).readline)
     tokenizer = TokenizerCustom(tok_stream, verbose=verbose)
-    parsed = parse(
+    parsed = _TYPHON_PARSER_MODULE.parse(
         filename="<typing_expr>",
         tokenizer=tokenizer,
         mode="typing_expr",

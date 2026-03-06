@@ -36,6 +36,11 @@ Use these script entry points as the default workflow.
 - Command: `uv run -m script.benchmark.parse_large_file`
 - Use to benchmark parse/transform/unparse (and optional source-map build) with an auto-generated large Typhon file.
 
+### Run Profiling
+
+- Command: `uv run -m script.benchmark.profile_parse`
+- Use to collect profiling data for parse processing.
+
 ### Upload Package (Forbidden)
 
 - Command: `uv run -m script.upload`
