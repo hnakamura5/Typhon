@@ -25,6 +25,7 @@ from ..Grammar.syntax_errors import (
 )
 from .visitor import (
     TyphonASTTransformer,
+    TyphonASTRawTransformer,
     TyphonASTVisitor,
     TyphonParentASTVisitor,
     flat_append,
@@ -70,7 +71,7 @@ def _expand_target_annotation(
         return []
 
 
-class _StmtTypeAnnotationCheckExpand(TyphonASTTransformer):
+class _StmtTypeAnnotationCheckExpand(TyphonASTRawTransformer):
     # Expand type annotations in declaration by decl_star_target.
     # For example,
     #    let (a, b): (int, str) = (1, "")
@@ -113,12 +114,6 @@ class _StmtTypeAnnotationCheckExpand(TyphonASTTransformer):
         self.generic_visit(node)
         node.body = [*annotations, *node.body]
         return node
-        # return [
-        #     *_expand_target_annotation(
-        #         self.module, node.target, annotation, node, get_pos_attributes(node)
-        #     ),
-        #     self.generic_visit(node),
-        # ]
 
     @override
     def visit_With(self, node: ast.With):
@@ -304,18 +299,6 @@ class _PatternAndAssignTypeAnnotationGather(TyphonASTVisitor):
 
     def visit_Name(self, node: ast.Name):
         annotation = get_type_annotation(node)
-        debug_verbose_print(
-            lambda: "visit_Name type_annot_gather:",
-            lambda: ast.dump(node),
-            lambda: "annot:",
-            lambda: ast.dump(annotation) if annotation else "None",
-            lambda: "is_const:",
-            lambda: self.current_is_const and self.current_is_const[-1],
-            lambda: "is_class_pattern:",
-            lambda: self.is_class_pattern,
-            lambda: "decl_contexts:",
-            lambda: self.decl_contexts,
-        )
         if self.decl_contexts and not self.is_class_pattern:
             if self.current_is_const:
                 if annotation is not None or self.current_is_const[-1]:
@@ -327,18 +310,6 @@ class _PatternAndAssignTypeAnnotationGather(TyphonASTVisitor):
 
     def visit_Starred(self, node: ast.Starred):
         annotation = get_type_annotation(node)
-        debug_verbose_print(
-            lambda: "visit_Starred type_annot_gather:",
-            lambda: ast.dump(node),
-            lambda: "annot:",
-            lambda: ast.dump(annotation) if annotation else "None",
-            lambda: "is_const:",
-            lambda: self.current_is_const and self.current_is_const[-1],
-            lambda: "is_class_pattern:",
-            lambda: self.is_class_pattern,
-            lambda: "decl_contexts:",
-            lambda: self.decl_contexts,
-        )
         if self.decl_contexts and not self.is_class_pattern:
             if isinstance(node.value, ast.Name):
                 if self.current_is_const:
@@ -351,18 +322,6 @@ class _PatternAndAssignTypeAnnotationGather(TyphonASTVisitor):
 
     def visit_PossiblyAnnotatedPattern(self, node: ast.MatchAs | ast.MatchStar):
         annotation = get_type_annotation(node)
-        debug_verbose_print(
-            lambda: "visit_PossiblyAnnotatedPattern type_annot_gather:",
-            lambda: ast.dump(node),
-            lambda: "annot:",
-            lambda: ast.dump(annotation) if annotation else "None",
-            lambda: "is_const:",
-            lambda: self.current_is_const[-1],
-            lambda: "is_class_pattern:",
-            lambda: self.is_class_pattern,
-            lambda: "decl_contexts:",
-            lambda: self.decl_contexts,
-        )
         if self.decl_contexts and not self.is_class_pattern:
             if node.name is not None:
                 if self.current_is_const:
@@ -390,7 +349,7 @@ class _PatternAndAssignTypeAnnotationGather(TyphonASTVisitor):
         self.visit_PossiblyAnnotatedPattern(node)
 
 
-class _PatternTypeAnnotationExpand(TyphonASTTransformer):
+class _PatternTypeAnnotationExpand(TyphonASTRawTransformer):
     # Expand type annotations in match case patterns.
     # For example,
     #    match x:

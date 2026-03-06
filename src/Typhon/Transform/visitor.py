@@ -1,4 +1,4 @@
-from typing import TypeGuard, override, Callable, cast
+from typing import TypeGuard, override, Callable, cast, Any
 from contextlib import contextmanager
 import ast
 from ..Grammar.typhon_ast import (
@@ -25,13 +25,10 @@ from ..Grammar.syntax_errors import (
 
 
 class _ScopeManagerMixin:
-    parent_functions: list[ast.FunctionDef | ast.AsyncFunctionDef]
     name_gen: UniqueNameGenerator
     parent_python_scopes: list[PythonScope]
 
     def __init__(self, module: ast.Module):
-        self.parent_stmts = []
-        self.parent_exprs = []
         self.name_gen = UniqueNameGenerator(module)
         self.parent_python_scopes = []
 
@@ -45,11 +42,6 @@ class _ScopeManagerMixin:
 
     def is_python_scope(self, node: ast.AST) -> TypeGuard[PythonScope]:
         return isinstance(node, PythonScope)
-
-    def get_parent_function(self) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
-        if self.parent_functions:
-            return self.parent_functions[-1]
-        return None
 
     def get_parent_python_scope(self, ignore_top: bool = False) -> PythonScope:
         if not self.parent_python_scopes:
@@ -230,6 +222,21 @@ class _TyphonExtendedNodeTransformerMixin:
                 return visit(node)
         return otherwise(node)
 
+    def _generic_visit(
+        self,
+        node: ast.AST,
+        visitor: ast.NodeVisitor | ast.NodeTransformer,
+        otherwise: Callable[[ast.AST], Any],
+    ) -> ast.AST:
+        if isinstance(node, ast.Name):
+            if is_function_literal(node):
+                return self._visit_FunctionLiteral(node, visitor, False)
+            elif is_function_type(node):
+                return self._visit_FunctionType(node, visitor, False)
+            elif is_control_comprehension(node):
+                return self._visit_ControlComprehension(node, visitor, False)
+        return otherwise(node)
+
 
 class _ErrorHandlingMixin:
     module: ast.Module
@@ -254,6 +261,9 @@ class TyphonASTRawVisitor(
     def visit_PossiblyAnnotatedNode(self, node: ast.AST):
         self._visit_Possibly_Annotated_Node(node, self, False)
 
+    def run(self, module: ast.Module):
+        self.visit(module)
+
     @override
     def visit(self, node: ast.AST):
         return self._visit(node, self, super().visit)
@@ -261,15 +271,9 @@ class TyphonASTRawVisitor(
     @override
     def generic_visit(self, node: ast.AST):
         # visit() calls _visit() but generic_visit() does not. So we need to dispatch here too.
-        if isinstance(node, ast.Name):
-            if is_function_literal(node):
-                return self._visit_FunctionLiteral(node, self, False)
-            elif is_function_type(node):
-                return self._visit_FunctionType(node, self, False)
-            elif is_control_comprehension(node):
-                return self._visit_ControlComprehension(node, self, False)
-        self.visit_PossiblyAnnotatedNode(node)
-        return super().generic_visit(node)
+        return _TyphonExtendedNodeTransformerMixin._generic_visit(
+            self, node, self, super().generic_visit
+        )
 
 
 class TyphonASTVisitor(
@@ -303,16 +307,9 @@ class TyphonASTVisitor(
 
     @override
     def generic_visit(self, node: ast.AST):
-        # visit() calls _visit() but generic_visit() does not. So we need to dispatch here too.
-        if isinstance(node, ast.Name):
-            if is_function_literal(node):
-                return self._visit_FunctionLiteral(node, self, False)
-            elif is_function_type(node):
-                return self._visit_FunctionType(node, self, False)
-            elif is_control_comprehension(node):
-                return self._visit_ControlComprehension(node, self, False)
-        self.visit_PossiblyAnnotatedNode(node)
-        return super().generic_visit(node)
+        return _TyphonExtendedNodeTransformerMixin._generic_visit(
+            self, node, self, super().generic_visit
+        )
 
 
 class TyphonParentASTVisitor(
@@ -327,6 +324,7 @@ class TyphonParentASTVisitor(
         _ScopeManagerMixin.__init__(self, module)
         _TyphonExtendedNodeTransformerMixin.__init__(self)
         _ErrorHandlingMixin.__init__(self, module)
+        _ParentStmtExprMixin.__init__(self)
         self.module = module
 
     def run(self):
@@ -348,16 +346,36 @@ class TyphonParentASTVisitor(
 
     @override
     def generic_visit(self, node: ast.AST):
+        return _TyphonExtendedNodeTransformerMixin._generic_visit(
+            self, node, self, super().generic_visit
+        )
+
+
+class TyphonASTRawTransformer(
+    ast.NodeTransformer,
+    _TyphonExtendedNodeTransformerMixin,
+):
+    def __init__(self, module: ast.Module):
+        ast.NodeTransformer.__init__(self)
+        _TyphonExtendedNodeTransformerMixin.__init__(self)
+        self.module = module
+
+    def run(self):
+        return self.visit(self.module)
+
+    def visit_PossiblyAnnotatedNode(self, node: ast.AST):
+        self._visit_Possibly_Annotated_Node(node, self, False)
+
+    @override
+    def visit(self, node: ast.AST):
+        return self._visit(node, self, super().visit)
+
+    @override
+    def generic_visit(self, node: ast.AST) -> ast.AST:
         # visit() calls _visit() but generic_visit() does not. So we need to dispatch here too.
-        if isinstance(node, ast.Name):
-            if is_function_literal(node):
-                return self._visit_FunctionLiteral(node, self, False)
-            elif is_function_type(node):
-                return self._visit_FunctionType(node, self, False)
-            elif is_control_comprehension(node):
-                return self._visit_ControlComprehension(node, self, False)
-        self.visit_PossiblyAnnotatedNode(node)
-        return super().generic_visit(node)
+        return _TyphonExtendedNodeTransformerMixin._generic_visit(
+            self, node, self, super().generic_visit
+        )
 
 
 class TyphonASTTransformer(
@@ -391,12 +409,6 @@ class TyphonASTTransformer(
 
     @override
     def generic_visit(self, node: ast.AST) -> ast.AST:
-        if isinstance(node, ast.Name):
-            if is_function_literal(node):
-                return self._visit_FunctionLiteral(node, self, True)
-            elif is_function_type(node):
-                return self._visit_FunctionType(node, self, True)
-            elif is_control_comprehension(node):
-                return self._visit_ControlComprehension(node, self, True)
-        self.visit_PossiblyAnnotatedNode(node)
-        return super().generic_visit(node)
+        return _TyphonExtendedNodeTransformerMixin._generic_visit(
+            self, node, self, super().generic_visit
+        )
