@@ -289,7 +289,7 @@ def copy_is_let_var[T: DeclarableStmt](src: DeclarableStmt, dest: T) -> T:
     return dest
 
 
-type PossibleAnnotatedNode = (
+PossibleAnnotatedNode = (
     ast.Name
     | ast.withitem
     | ast.For
@@ -1532,8 +1532,8 @@ type ControlComprehension = ast.Name
 
 def get_control_comprehension_def(
     node: ControlComprehension,
-) -> ast.FunctionDef | ast.AsyncFunctionDef:
-    return getattr(node, _CONTROL_COMPREHENSION)
+) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+    return getattr(node, _CONTROL_COMPREHENSION, None)
 
 
 def is_control_comprehension(node: ControlComprehension) -> bool:

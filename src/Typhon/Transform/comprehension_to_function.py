@@ -5,7 +5,7 @@ from ..Grammar.typhon_ast import (
     get_pos_attributes,
     ControlComprehension,
 )
-from .visitor import TyphonASTVisitor, TyphonASTTransformer, flat_append
+from .visitor import TyphonParentASTVisitor, TyphonASTTransformer, flat_append
 from dataclasses import dataclass
 from typing import override
 from ..Driver.debugging import debug_print
@@ -16,7 +16,7 @@ class Comprehension:
     comprehension: ast.expr
 
 
-class _Gather(TyphonASTVisitor):
+class _Gather(TyphonParentASTVisitor):
     comprehensions_to_process: list[tuple[ControlComprehension, ast.stmt]]
 
     def __init__(self, module: ast.Module):
@@ -27,7 +27,7 @@ class _Gather(TyphonASTVisitor):
         debug_print(
             lambda: f"comprehension_to_function _Gather visit: {node} {node.__dict__}"
         )
-        self.comprehensions_to_process.append((node, self.parent_stmts[-1]))
+        self.comprehensions_to_process.append((node, self.get_parent_stmt()))
         return self.generic_visit(node)
 
 

@@ -675,12 +675,10 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         self,
     ) -> SuspendableScope | None:
         if (
-            self.get_parent_function() is not None
-            and len(self.parent_python_scopes) > 1
-            and isinstance(  # Check redundant but safe
-                self.parent_python_scopes[1],
-                ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef,
-            )
+            len(self.parent_python_scopes) > 1
+        ) and isinstance(  # Check redundant but safe
+            self.parent_python_scopes[1],
+            ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef,
         ):
             return self.parent_python_scopes[1]
         return None

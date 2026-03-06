@@ -4,11 +4,11 @@ from ..Grammar.typhon_ast import (
     get_function_literal_def,
     clear_function_literal_def,
 )
-from .visitor import TyphonASTVisitor, TyphonASTTransformer, flat_append
+from .visitor import TyphonParentASTVisitor, TyphonASTTransformer, flat_append
 from ..Driver.debugging import debug_print
 
 
-class _Gather(TyphonASTVisitor):
+class _Gather(TyphonParentASTVisitor):
     func_literals: list[tuple[FunctionLiteral, ast.stmt]]
 
     def __init__(self, module: ast.Module):
@@ -19,7 +19,8 @@ class _Gather(TyphonASTVisitor):
         debug_print(
             lambda: f"func_literal_to_def _Gather visit: {node} {node.__dict__}"
         )
-        self.func_literals.append((node, self.parent_stmts[-1]))
+        parent = self.get_parent_stmt()
+        self.func_literals.append((node, parent))
         return self.generic_visit(node)
 
 

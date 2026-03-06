@@ -1,7 +1,8 @@
-from typing import override, Callable, cast
+from typing import TypeGuard, override, Callable, cast
 from contextlib import contextmanager
 import ast
 from ..Grammar.typhon_ast import (
+    PossibleAnnotatedNode,
     is_function_literal,
     is_function_type,
     get_function_literal_def,
@@ -24,86 +25,26 @@ from ..Grammar.syntax_errors import (
 
 
 class _ScopeManagerMixin:
-    parent_classes: list[ast.ClassDef]
     parent_functions: list[ast.FunctionDef | ast.AsyncFunctionDef]
-    parent_stmts: list[ast.stmt]
-    parent_exprs: list[ast.expr]
     name_gen: UniqueNameGenerator
     parent_python_scopes: list[PythonScope]
 
     def __init__(self, module: ast.Module):
         self.parent_stmts = []
         self.parent_exprs = []
-        self.parent_classes = []
-        self.parent_functions = []
         self.name_gen = UniqueNameGenerator(module)
         self.parent_python_scopes = []
 
-    @contextmanager
-    def _parent_class(self, node: ast.AST):
-        if isinstance(node, ast.ClassDef):
-            class_def = node
-            self.parent_classes.append(class_def)
-            yield
-            self.parent_classes.pop()
-        else:
-            yield
+    def enter_scope(self, node: PythonScope):
+        self.name_gen.enter_scope(node)
+        self.parent_python_scopes.append(node)
 
-    @contextmanager
-    def _parent_stmt(self, node: ast.AST):
-        if isinstance(node, ast.stmt):
-            self.parent_stmts.append(node)
-            yield
-            self.parent_stmts.pop()
-        else:
-            yield
+    def exit_scope(self, node: PythonScope):
+        self.name_gen.exit_scope(node)
+        self.parent_python_scopes.pop()
 
-    @contextmanager
-    def _parent_expr(self, node: ast.AST):
-        if isinstance(node, ast.expr):
-            self.parent_exprs.append(node)
-            yield
-            self.parent_exprs.pop()
-        else:
-            yield
-
-    @contextmanager
-    def _parent_function(self, node: ast.AST):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            func_def = node
-            self.parent_functions.append(func_def)
-            yield
-            self.parent_functions.pop()
-        else:
-            yield
-
-    @contextmanager
-    def _name_scope(self, node: ast.AST):
-        if isinstance(node, PythonScope):
-            self.name_gen.enter_scope(node)
-            yield
-            self.name_gen.exit_scope(node)
-        else:
-            yield
-
-    @contextmanager
-    def _parent_python_scope(self, node: ast.AST):
-        if isinstance(node, PythonScope):
-            self.parent_python_scopes.append(node)
-            yield
-            self.parent_python_scopes.pop()
-        else:
-            yield
-
-    @contextmanager
-    def _visit_scope(self, node: ast.AST):
-        with self._parent_stmt(node):
-            with self._parent_class(node):
-                with self._parent_expr(node):
-                    with self._parent_function(node):
-                        with self._name_scope(node):
-                            with self._parent_python_scope(node):
-                                yield
+    def is_python_scope(self, node: ast.AST) -> TypeGuard[PythonScope]:
+        return isinstance(node, PythonScope)
 
     def get_parent_function(self) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
         if self.parent_functions:
@@ -154,6 +95,35 @@ class _ScopeManagerMixin:
 
     def new_class_name(self, original_name: str) -> str:
         return self.name_gen.new_name(NameKind.CLASS, original_name)
+
+
+class _ParentStmtExprMixin:
+    parent_stmts: list[ast.stmt]
+    parent_exprs: list[ast.expr]
+
+    def __init__(self):
+        self.parent_stmts = []
+        self.parent_exprs = []
+
+    def get_parent_stmt(self) -> ast.stmt:
+        if self.parent_stmts:
+            return self.parent_stmts[-1]
+        raise RuntimeError(
+            "get_parent_stmt should only be called when there is a parent statement."
+        )
+
+    @contextmanager
+    def _visit_stmt_expr(self, node: ast.AST):
+        if isinstance(node, ast.stmt):
+            self.parent_stmts.append(node)
+            yield
+            self.parent_stmts.pop()
+        elif isinstance(node, ast.expr):
+            self.parent_exprs.append(node)
+            yield
+            self.parent_exprs.pop()
+        else:
+            yield
 
 
 def flat_map[T](f: Callable[[T], T | list[T] | None], v: list[T]) -> list[T]:
@@ -232,11 +202,12 @@ class _TyphonExtendedNodeTransformerMixin:
         visitor: ast.NodeVisitor | ast.NodeTransformer,
         transform: bool,
     ):
-        type_annotation = get_type_annotation(node)
-        if type_annotation is not None:
-            new_annotation = visitor.visit(type_annotation)
-            if transform:
-                set_type_annotation(node, new_annotation)
+        if isinstance(node, PossibleAnnotatedNode):
+            type_annotation = get_type_annotation(node)
+            if type_annotation is not None:
+                new_annotation = visitor.visit(type_annotation)
+                if transform:
+                    set_type_annotation(node, new_annotation)
         return node
 
     def _visit(
@@ -322,8 +293,58 @@ class TyphonASTVisitor(
 
     @override
     def visit(self, node: ast.AST):
-        with self._visit_scope(node):
+        if self.is_python_scope(node):
+            self.enter_scope(node)
+            result = self._visit(node, self, super().visit)
+            self.exit_scope(node)
+            return result
+        else:
             return self._visit(node, self, super().visit)
+
+    @override
+    def generic_visit(self, node: ast.AST):
+        # visit() calls _visit() but generic_visit() does not. So we need to dispatch here too.
+        if isinstance(node, ast.Name):
+            if is_function_literal(node):
+                return self._visit_FunctionLiteral(node, self, False)
+            elif is_function_type(node):
+                return self._visit_FunctionType(node, self, False)
+            elif is_control_comprehension(node):
+                return self._visit_ControlComprehension(node, self, False)
+        self.visit_PossiblyAnnotatedNode(node)
+        return super().generic_visit(node)
+
+
+class TyphonParentASTVisitor(
+    ast.NodeVisitor,
+    _ScopeManagerMixin,
+    _TyphonExtendedNodeTransformerMixin,
+    _ParentStmtExprMixin,
+    _ErrorHandlingMixin,
+):
+    def __init__(self, module: ast.Module):
+        ast.NodeVisitor.__init__(self)
+        _ScopeManagerMixin.__init__(self, module)
+        _TyphonExtendedNodeTransformerMixin.__init__(self)
+        _ErrorHandlingMixin.__init__(self, module)
+        self.module = module
+
+    def run(self):
+        self.visit(self.module)
+
+    def visit_PossiblyAnnotatedNode(self, node: ast.AST):
+        self._visit_Possibly_Annotated_Node(node, self, False)
+
+    @override
+    def visit(self, node: ast.AST):
+        with self._visit_stmt_expr(node):
+            if self.is_python_scope(node):
+                self.enter_scope(node)
+                result = self._visit(node, self, super().visit)
+                self.exit_scope(node)
+                return result
+            else:
+                return self._visit(node, self, super().visit)
 
     @override
     def generic_visit(self, node: ast.AST):
@@ -359,8 +380,13 @@ class TyphonASTTransformer(
         self._visit_Possibly_Annotated_Node(node, self, True)
 
     @override
-    def visit(self, node: ast.AST) -> ast.AST | list[ast.AST] | None:
-        with self._visit_scope(node):
+    def visit(self, node: ast.AST):
+        if self.is_python_scope(node):
+            self.enter_scope(node)
+            result = self._visit(node, self, super().visit)
+            self.exit_scope(node)
+            return result
+        else:
             return self._visit(node, self, super().visit)
 
     @override
