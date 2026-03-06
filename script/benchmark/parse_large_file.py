@@ -161,13 +161,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--lines",
         type=int,
-        default=10_000,
+        default=1_000,
         help="Number of lines for generated Typhon source.",
     )
     parser.add_argument(
         "--iterations",
         type=int,
-        default=5,
+        default=3,
         help="Number of measured benchmark iterations.",
     )
     parser.add_argument(
