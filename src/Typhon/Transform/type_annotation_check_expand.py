@@ -23,7 +23,12 @@ from ..Grammar.syntax_errors import (
     handle_syntax_error,
     TyphonTransformSyntaxError,
 )
-from .visitor import TyphonASTTransformer, TyphonASTVisitor, flat_append
+from .visitor import (
+    TyphonASTTransformer,
+    TyphonASTVisitor,
+    TyphonParentASTVisitor,
+    flat_append,
+)
 from ..Driver.debugging import debug_print, debug_verbose_print
 
 
@@ -162,7 +167,7 @@ class _StmtTypeAnnotationCheckExpand(TyphonASTTransformer):
         return self.generic_visit(node)
 
 
-class _GatherComprehensionAnnotations(TyphonASTVisitor):
+class _GatherComprehensionAnnotations(TyphonParentASTVisitor):
     parent_to_clause_annotated: dict[ast.stmt, list[ast.comprehension]]
 
     def __init__(self, module: ast.Module):
@@ -174,7 +179,7 @@ class _GatherComprehensionAnnotations(TyphonASTVisitor):
         self.generic_visit(node)
         annotation = get_type_annotation(node)
         if annotation is not None:
-            parent_stmt = self.parent_stmts[-1]
+            parent_stmt = self.get_parent_stmt()
             # TODO If let support?
             self.parent_to_clause_annotated.setdefault(parent_stmt, []).append(node)
 

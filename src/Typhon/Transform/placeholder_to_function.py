@@ -6,7 +6,7 @@ from ..Grammar.typhon_ast import (
     get_pos_attributes,
     is_placeholder,
 )
-from .visitor import TyphonASTVisitor, TyphonASTTransformer, flat_append
+from .visitor import TyphonParentASTVisitor, TyphonASTTransformer, flat_append
 from dataclasses import dataclass
 from ..Driver.debugging import debug_print, debug_verbose_print
 
@@ -18,7 +18,7 @@ class PlaceholderInfo:
     bound_expr: ast.expr
 
 
-class _Gather(TyphonASTVisitor):
+class _Gather(TyphonParentASTVisitor):
     placeholders: list[PlaceholderInfo]
 
     def __init__(self, module: ast.Module):
@@ -27,7 +27,7 @@ class _Gather(TyphonASTVisitor):
 
     def visit_Name(self, node: ast.Name):
         if is_placeholder(node):
-            parent_stmt = self.parent_stmts[-1]
+            parent_stmt = self.get_parent_stmt()
             bound_expr: ast.expr = node
             for parent_expr in reversed(self.parent_exprs):
                 if bound_expr is not node:  # Placeholder alone is NOT the target.
