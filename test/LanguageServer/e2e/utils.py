@@ -1,6 +1,7 @@
 import sys
 import asyncio
 import shutil
+import tempfile
 from dataclasses import dataclass
 from typing import Callable
 from lsprotocol import types
@@ -52,10 +53,11 @@ def sample_workspace_files(root: Path) -> SampleWorkspaceFiles:
 
 def copy_sample_workspace_to_temp() -> SampleWorkspaceFiles:
     temp_root = e2e_dir / "temp"
-    temp_sample_workspace = temp_root / "sample_workspace"
-    if temp_sample_workspace.exists():
-        shutil.rmtree(temp_sample_workspace)
     temp_root.mkdir(parents=True, exist_ok=True)
+    temp_workspace_parent = Path(
+        tempfile.mkdtemp(prefix="sample_workspace_", dir=temp_root)
+    )
+    temp_sample_workspace = temp_workspace_parent / "sample_workspace"
     shutil.copytree(sample_workspace, temp_sample_workspace)
     return sample_workspace_files(temp_sample_workspace)
 
@@ -88,11 +90,11 @@ async def start_initialize_open_typhon_connection_client(
 
     @client.feature(types.CLIENT_REGISTER_CAPABILITY)  # type: ignore
     def on_register_capability(params: types.RegistrationParams):
-        debug_verbose_print(f"Received registration request: {params}")
+        debug_verbose_print(lambda: f"Received registration request: {params}")
 
     @client.feature(types.WORKSPACE_CONFIGURATION)  # type: ignore
     def on_configuration(params: types.ConfigurationParams):
-        debug_verbose_print(f"Received configuration request: {params}")
+        debug_verbose_print(lambda: f"Received configuration request: {params}")
         # BasedPyright-specific configuration to enable inlay hints for generic types
         result: list[dict[str, object]] = []
         for item in params.items:

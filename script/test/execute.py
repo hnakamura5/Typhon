@@ -2,7 +2,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ._util import except_test_options, get_debug_options
+from ._util import except_test_options, get_test_options
 from .._util import cleanup_temp_dirs, gather_directory, get_project_root
 from ..build import setup
 
@@ -20,7 +20,7 @@ def run_all_tests() -> int:
         return 1
 
     return subprocess.run(
-        [sys.executable, "-m", "pytest"] + get_debug_options(sys.argv[1:]) + test_files
+        [sys.executable, "-m", "pytest"] + get_test_options(sys.argv[1:]) + test_files
     ).returncode
 
 

@@ -15,7 +15,7 @@ RUN_FILE_TESTS = sorted((Path(__file__).parent / "RunFileTest").glob("*.typh"))
 @pytest.mark.parametrize("test_file", RUN_FILE_TESTS, ids=lambda p: p.name)
 def test_typh_files(test_file: Path):
     result = run_file(test_file, capture_output=True)
-    debug_print(f"Test file: {test_file} result:\n{result}")
+    debug_print(lambda: f"Test file: {test_file} result:\n{result}")
     assert result.returncode == 0
     assert_file_stdout(test_file, result.stdout)
     assert_file_stderr(test_file, result.stderr)

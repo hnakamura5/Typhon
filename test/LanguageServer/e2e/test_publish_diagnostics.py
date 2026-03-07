@@ -29,7 +29,9 @@ class DiagnosticsAssertion:
     ):
         diagnostic = self.diagnostics[self.current_diagnostic_index]
         debug_verbose_print(
-            f"Asserting diagnostic expecting {self.current_diagnostic_index} with message '{diagnostic.message}' contains '{expected_message_substring}' at ({(start_line, start_col)}-{(end_line, end_col)}) with severity {diagnostic.severity},\n  got message '{diagnostic.message}' with severity {diagnostic.severity} at range {diagnostic.range}"
+            lambda: (
+                f"Asserting diagnostic expecting {self.current_diagnostic_index} with message '{diagnostic.message}' contains '{expected_message_substring}' at ({(start_line, start_col)}-{(end_line, end_col)}) with severity {diagnostic.severity},\n  got message '{diagnostic.message}' with severity {diagnostic.severity} at range {diagnostic.range}"
+            )
         )
         assert diagnostic.severity == severity, (
             f"Expected diagnostic severity to be '{severity}', got '{diagnostic.severity}'"
@@ -178,7 +180,7 @@ def assert_diagnostics(diagnostics: Sequence[types.Diagnostic]):
         end_col=21,
     )
     da.assert_end()
-    debug_verbose_print("All diagnostics assertions passed.")
+    debug_verbose_print(lambda: "All diagnostics assertions passed.")
 
 
 def test_publish_diagnostics_for_type_errors():
@@ -188,7 +190,7 @@ def test_publish_diagnostics_for_type_errors():
         @client.feature(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)  # type: ignore
         def on_publish_diagnostics(params: types.PublishDiagnosticsParams):
             debug_file_write_verbose(
-                f"Received diagnostics for {params.uri}: {params.diagnostics}"
+                lambda: f"Received diagnostics for {params.uri}: {params.diagnostics}"
             )
             try:
                 assert canonicalize_uri(params.uri) == path_to_uri(diag_file)

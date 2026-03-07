@@ -79,7 +79,7 @@ async def request_rename(
                 new_name=new_name,
             )
         )
-    debug_verbose_print(f"Received rename result: {result}")
+    debug_verbose_print(lambda: f"Received rename result: {result}")
     return result
 
 

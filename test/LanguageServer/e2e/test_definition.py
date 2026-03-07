@@ -57,7 +57,7 @@ async def request_definition(
                 position=types.Position(line=line, character=character),
             )
         )
-    debug_verbose_print(f"Received definition result: {result}")
+    debug_verbose_print(lambda: f"Received definition result: {result}")
     return normalize_locations(result)
 
 
@@ -74,7 +74,7 @@ async def request_type_definition(
                 position=types.Position(line=line, character=character),
             )
         )
-    debug_verbose_print(f"Received type definition result: {result}")
+    debug_verbose_print(lambda: f"Received type definition result: {result}")
     return normalize_locations(result)
 
 
