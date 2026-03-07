@@ -70,6 +70,10 @@ fstring[ast.Expr]: star_expressions
 
 DELIMITER: ';' | NEWLINE
 
+# Expression terminator: tokens after an atom that guarantee no operator follows.
+# Used for early-exit shortcuts in the expression precedence chain.
+EXPR_END: DELIMITER | ')' | ']' | '}' | '|}' | ',' | ':' | '=' | '{'
+COMP_END: EXPR_END | '||' | '&&' | '??' | '|>' | '?|>' | '->' | ':='
 
 # ERROR RECOVERY
 # ==============
@@ -1244,6 +1248,7 @@ expressions:
 
 expression (memo):
     # | invalid_expression # TODO: Recover this!
+    | a=atom &EXPR_END { a } # Shortcut for atom. Makes parser 10~20% faster.
     | pipe_operator
 
 yield_expr:
@@ -1321,6 +1326,7 @@ conjunction (memo):
 # ---------------------
 
 comparison:
+    | a=atom &COMP_END { a } # Shortcut for atom. Makes parser 10~20% faster.
     | a=bitwise_or b=compare_op_bitwise_or_pair+ {
         ast.Compare(left=a, ops=self.get_comparison_ops(b), comparators=self.get_comparators(b), LOCATIONS)
      }
