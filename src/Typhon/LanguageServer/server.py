@@ -69,6 +69,7 @@ from .inlay_hint import (
     map_inlay_hints_result,
 )
 from .completion import (
+    COMPLETION_TRIGGER_CHARS,
     map_completion_request_params,
     map_completion_result,
 )
@@ -107,6 +108,82 @@ class LanguageServer(PyglsLanguageServer):
         self.preload_task: asyncio.Task[None] | None = None
         self.preloaded_uris: set[str] = set()
         self.translated_sources: dict[str, str] = {}
+        self._deferred_reload_tasks: dict[str, asyncio.Task[None]] = {}
+        self._DEFERRED_RELOAD_DELAY: float = 0.3
+
+    @staticmethod
+    def is_change_small_enough(
+        params: types.DidChangeTextDocumentParams,
+        max_text_len: int = 3,
+    ) -> bool:
+        """Return True when every content change is a small partial edit
+        that does not contain a completion trigger character."""
+        for change in params.content_changes:
+            if isinstance(change, types.TextDocumentContentChangeWholeDocument):
+                return False
+            if len(change.text) > max_text_len:
+                return False
+            # Reject edits that contain completion trigger characters;
+            # these need a full reload so the source map is fresh when
+            # the editor immediately requests completion.
+            if any(c in COMPLETION_TRIGGER_CHARS for c in change.text):
+                return False
+            # Allow small deletions too (range covers a few characters)
+            span_lines = change.range.end.line - change.range.start.line
+            if span_lines > 0:
+                return False
+            span_chars = change.range.end.character - change.range.start.character
+            if span_chars > max_text_len:
+                return False
+        return True
+
+    def schedule_deferred_reload(self, uri: str) -> None:
+        """Cancel any pending deferred reload for *uri* and schedule a new one."""
+        canonical = canonicalize_uri(uri)
+        existing = self._deferred_reload_tasks.get(canonical)
+        if existing is not None and not existing.done():
+            existing.cancel()
+
+        async def _deferred() -> None:
+            try:
+                await asyncio.sleep(self._DEFERRED_RELOAD_DELAY)
+                debug_file_write(lambda: f"Deferred reload starting for {canonical}")
+                unparsed = self.reload(uri)
+                if unparsed is None:
+                    debug_file_write(
+                        lambda: (
+                            f"Deferred reload for {canonical} produced no output. "
+                            "Keeping previous mapping."
+                        )
+                    )
+                    return
+                translated_uri = self.get_translated_file_uri(uri)
+                self.backend_client.text_document_did_change(
+                    types.DidChangeTextDocumentParams(
+                        text_document=types.VersionedTextDocumentIdentifier(
+                            uri=translated_uri,
+                            version=-1,
+                        ),
+                        content_changes=[
+                            types.TextDocumentContentChangeWholeDocument(
+                                text=unparsed,
+                            )
+                        ],
+                    )
+                )
+                debug_file_write(lambda: f"Deferred reload completed for {canonical}")
+            except asyncio.CancelledError:
+                debug_file_write(lambda: f"Deferred reload cancelled for {canonical}")
+            except Exception as e:
+                debug_file_write(lambda: f"Deferred reload error for {canonical}: {e}")
+
+        self._deferred_reload_tasks[canonical] = asyncio.create_task(_deferred())
+
+    def cancel_deferred_reload(self, uri: str) -> None:
+        # Cancel any pending deferred reload since we are doing a fresh one now.
+        pending = self._deferred_reload_tasks.pop(uri, None)
+        if pending is not None and not pending.done():
+            pending.cancel()
 
     def get_module(self, original_uri: str | None) -> ast.Module | None:
         if original_uri is None:
@@ -505,20 +582,35 @@ def did_change(ls: LanguageServer, params: types.DidChangeTextDocumentParams):
     try:
         debug_file_write(lambda: f"Did change called with params: {params}")
         uri = params.text_document.uri
-        unparsed = ls.reload(uri)
         canonical_uri = canonicalize_uri(uri)
-        # translated_text = (
-        #     unparsed
-        #     if unparsed is not None
-        #     else ls.translated_sources.get(canonical_uri)
-        # )
+        translated_uri = ls.get_translated_file_uri(uri)
+        # Fast path: small edits reuse the cached source map
+        if ls.is_change_small_enough(params):
+            debug_file_write(
+                lambda: f"Did change is small enough for fast path {params}"
+            )
+            if mapping := ls.get_mapping(canonical_uri):
+                if mapped_params := map_did_change_params(
+                    params, translated_uri, mapping
+                ):
+                    ls.backend_client.text_document_did_change(mapped_params)
+                    ls.schedule_deferred_reload(uri)
+                    debug_file_write(
+                        lambda: (
+                            f"Did change called {params}, "
+                            "used fast path + scheduled deferred reload."
+                        )
+                    )
+                    return None
+        # Normal path: full reload.
+        ls.cancel_deferred_reload(canonical_uri)
+        unparsed = ls.reload(uri)
         translated_text = unparsed
         debug_file_write_verbose(
             lambda: (
-                f"Did change translated text for {uri}: {translated_text is not None}"
+                f"Did change not small translated text for {uri}: {translated_text is not None}"
             )
         )
-        translated_uri = ls.get_translated_file_uri(uri)
         if translated_text is None:
             mapping = ls.get_mapping(canonical_uri)
             if mapping is None:
@@ -600,8 +692,8 @@ async def semantic_tokens_full(ls: LanguageServer, params: types.SemanticTokensP
                 fallback = encode_semantic_tokens(ls.semantic_tokens.get(uri, []))
                 debug_file_write(lambda: f"Fallback: {fallback}")
                 return map_semantic_tokens(fallback, mapping, ls.client_semantic_legend)
-            except Exception as mapping_error:
-                debug_file_write(lambda: f"Fallback mapping failed: {mapping_error}")
+            except Exception as e:
+                debug_file_write(lambda: f"Fallback mapping failed: {e}")
         return encode_semantic_tokens(ls.semantic_tokens.get(uri, []))
 
 
@@ -793,7 +885,7 @@ async def inlay_hint(ls: LanguageServer, params: types.InlayHintParams):
     types.TEXT_DOCUMENT_COMPLETION,
     types.CompletionOptions(
         resolve_provider=False,
-        trigger_characters=[".", "[", "'", '"'],
+        trigger_characters=COMPLETION_TRIGGER_CHARS,
     ),
 )
 async def completion(ls: LanguageServer, params: types.CompletionParams):
