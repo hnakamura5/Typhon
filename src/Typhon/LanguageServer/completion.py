@@ -16,6 +16,8 @@ from ._utils.mapping import (
 
 type CompletionResult = types.CompletionList | Sequence[types.CompletionItem] | None
 
+COMPLETION_TRIGGER_CHARS = [".", "[", "'", '"']
+
 
 def chars_before_trigger_from_source(
     source_lines: list[str],
