@@ -32,6 +32,7 @@ from ..Utils.path import (
 from ..Driver.type_check import write_config
 from ..SourceMap.ast_match_based_map import map_from_translated
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
+from ..SourceMap.source_ast_cache import SourceAstCache
 from .client import create_language_client, start_language_client
 from .semantic_tokens import (
     SemanticToken,
@@ -97,7 +98,9 @@ class LanguageServer(PyglsLanguageServer):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         PyglsLanguageServer.__init__(self, *args, **kwargs)  # type: ignore
         # Key URIs is original typhon document URI.
+        self._parsed_ast_modules: dict[str, ast.Module | None] = {}
         self._ast_modules: dict[str, ast.Module | None] = {}
+        self._source_ast_caches: dict[str, SourceAstCache] = {}
         self.token_infos: dict[str, list[TokenInfo]] = {}
         self.semantic_tokens: dict[str, list[SemanticToken]] = {}
         self.semantic_tokens_encoded: dict[str, Sequence[int]] = {}
@@ -190,6 +193,16 @@ class LanguageServer(PyglsLanguageServer):
             return None
         return self._ast_modules.get(original_uri, None)
 
+    def get_parsed_module(self, original_uri: str | None) -> ast.Module | None:
+        if original_uri is None:
+            return None
+        return self._parsed_ast_modules.get(original_uri, None)
+
+    def get_source_ast_cache(self, original_uri: str | None) -> SourceAstCache | None:
+        if original_uri is None:
+            return None
+        return self._source_ast_caches.get(original_uri, None)
+
     def get_mapping(self, original_uri: str | None) -> MatchBasedSourceMap | None:
         if original_uri is None:
             return None
@@ -217,6 +230,14 @@ class LanguageServer(PyglsLanguageServer):
             ast_node = parse_tokenizer(tokenizer)
             if not isinstance(ast_node, ast.Module):
                 ast_node = None
+            if ast_node is not None:
+                parsed_ast = copy.deepcopy(ast_node)
+                self._parsed_ast_modules[orignal_uri] = parsed_ast
+                self._source_ast_caches[orignal_uri] = SourceAstCache(
+                    parsed_ast,
+                    source,
+                    doc_path.as_posix(),
+                )
             debug_file_write(
                 lambda: (
                     f"Parsed AST for {orignal_uri}: {ast.dump(ast_node) if ast_node else 'None'}"
