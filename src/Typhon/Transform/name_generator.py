@@ -5,13 +5,12 @@ from contextlib import contextmanager
 from ..Grammar.typhon_ast import (
     get_generated_name_original_map,
     add_generated_name_original,
+    PythonScope,
 )
 
 
 typhon_prefix = "_typh_"
 typhon_builtin_prefix = f"{typhon_prefix}bi_"
-
-PythonScope = Union[ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef]
 
 
 # TODO Namekind Enum

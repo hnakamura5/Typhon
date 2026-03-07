@@ -71,6 +71,9 @@ def pos_attribute_to_range(pos: PosAttributes) -> PosRange:
     return result
 
 
+PythonScope = ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+
+
 type PosNode = (
     ast.stmt
     | ast.expr

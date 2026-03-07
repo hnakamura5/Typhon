@@ -1,7 +1,7 @@
 import ast
 
 from ..Driver.debugging import debug_verbose_print
-from ..Grammar.typhon_ast import get_pos_attributes_if_exists
+from ..Grammar.typhon_ast import get_pos_attributes_if_exists, PythonScope
 from .datatype import Pos, Range, RangeIntervalTree
 
 
@@ -16,10 +16,17 @@ class SourceAstCache:
         self.source_code = source_code
         self.source_file = source_file
         self.source_code_lines = source_code.splitlines()
+        self.parent_map: dict[ast.AST, ast.AST | None] = {module: None}
         self.node_interval_tree = RangeIntervalTree[ast.AST]()
         self.stmt_interval_tree = RangeIntervalTree[ast.stmt]()
         self.expr_interval_tree = RangeIntervalTree[ast.expr]()
+        self._setup_parent_map()
         self._setup_interval_trees()
+
+    def _setup_parent_map(self) -> None:
+        for parent in ast.walk(self.module):
+            for child in ast.iter_child_nodes(parent):
+                self.parent_map[child] = parent
 
     def _setup_interval_trees(self) -> None:
         for node in ast.walk(self.module):
@@ -107,6 +114,30 @@ class SourceAstCache:
         range: Range,
     ) -> ast.expr | None:
         return self._range_to_node(range, self.expr_interval_tree)
+
+    def parent_of(self, node: ast.AST) -> ast.AST | None:
+        return self.parent_map.get(node, None)
+
+    def ancestors_of(self, node: ast.AST) -> list[ast.AST]:
+        result: list[ast.AST] = []
+        current = self.parent_of(node)
+        while current is not None:
+            result.append(current)
+            current = self.parent_of(current)
+        return result
+
+    def enclosing_scope(self, node: ast.AST | None) -> PythonScope | None:
+        if node is None:
+            return None
+        current: ast.AST | None = node
+        while current is not None:
+            if isinstance(
+                current,
+                (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
+            ):
+                return current
+            current = self.parent_of(current)
+        return None
 
     def source_range_to_source_code(
         self,
