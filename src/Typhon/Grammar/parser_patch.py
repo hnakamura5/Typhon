@@ -135,17 +135,28 @@ def memoize_left_rec(method: Callable[[P], Optional[T]]) -> Callable[[P], Option
     return memoize_left_rec_wrapper
 
 
+# Methods that should not be re-decorated with memoize because
+# the overhead of memoization exceeds the cost of re-execution.
+_SKIP_MEMOIZE_METHODS = frozenset({"start", "expect", "op"})
+
+
 # Re decorate the base methods of pegen.parser.Parser with our memoization decorators.
+# Methods listed in _SKIP_MEMOIZE_METHODS have their original @memoize stripped entirely.
 def redecorate_pegen_parser_base_methods() -> None:
     parser_cls = pegen_parser.Parser
     for name, attr in list(parser_cls.__dict__.items()):
-        if name == "start" or not callable(attr):
+        if not callable(attr):
             continue
         wrapped = getattr(attr, "__wrapped__", None)
         if wrapped is None:
             continue
         if getattr(attr, "__typhon_patched__", False):
             continue
-        patched = pegen_parser.memoize(wrapped)
-        setattr(patched, "__typhon_patched__", True)
-        setattr(parser_cls, name, patched)
+        if name in _SKIP_MEMOIZE_METHODS:
+            # Strip memoize entirely: restore the unwrapped original method.
+            setattr(wrapped, "__typhon_patched__", True)
+            setattr(parser_cls, name, wrapped)
+        else:
+            patched = pegen_parser.memoize(wrapped)
+            setattr(patched, "__typhon_patched__", True)
+            setattr(parser_cls, name, patched)
