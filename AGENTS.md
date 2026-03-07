@@ -6,34 +6,47 @@ This file defines the shared, tool-agnostic rules for automated coding agents in
 
 ## Repository Rules
 
-1. Keep changes minimal and focused on the requested task.
-2. Do not refactor unrelated files.
-3. Do not manually edit generated parser output:
-   - `src/Typhon/Grammar/_typhon_parser.py`
-   - Regenerate it through the build script instead.
-4. Prefer project scripts for routine operations (build, test, run, upload).
-5. Run quality checks when relevant to the change, and always run tests when it seems the work is done:
-   - formatting (`uv run -m ruff format`)
-   - type checking (`basedpyright`) (Type error still exists, but try to minimize new ones)
-   - tests (`uv run -m script.test.all`)
-   - before reporting task completion, always run `uv run -m script.test.all` as the final test gate.
-6. Never run release/upload operations unless the user explicitly asks.
-7. For large changes such as feature implementations, always create a brief implementation overview first, get it reviewed, and start coding only after the review is completed.
-8. When changing existing tests, summarize the planned test changes and explain the reason in advance, then get a review before applying the changes.
-9. Keep documentation updates in sync with code changes. If behavior, commands, structure, or developer workflow changes, update the relevant docs in the same task.
-10. Standardize script execution with `uv run -m ...` as the default. Use script under `script` directory as far as possible. Use ad-hoc or direct alternatives only when explicitly required.
-11. When implementing logic with utility code, explicitly consider whether it should be added as a reusable utility API.
-12. Utility commonization should be selective: prefer extraction only when used in 2+ places or clearly expected to be reused soon.
-13. Naming and placement rules:
-   - Private/internal helper module: `_utils.py`
-   - Private/internal helper package: `_utils/`
-   - Cross-directory shared/public utility API: `src/Typhon/Utils/<domain>.py`
-14. Avoid introducing new `utils.py` or `utils/` names for internal helpers.
-15. If a private `_utils` API needs to be imported across directories under `src/`, promote it to a public module under `src/Typhon/Utils/` and update call sites.
-16. Test code under `test/` may import private `_utils` APIs when needed for white-box tests.
-17. During refactoring, do not keep compatibility layers unless explicitly requested. Update all affected imports to the new paths in the same task.
-18. For type annotations, prefer `typing` imports over `collections.abc`.
-19. For generics, prefer Python's generic syntax (e.g., `class Box[T]: ...`, `def f[T](x: T) -> T: ...`) over introducing `TypeVar` unless explicitly required.
+### General
+
+- Keep changes minimal and focused on the requested task.
+- Do not refactor unrelated files.
+- Keep documentation updates in sync with code changes.
+- For large feature work, create a brief implementation overview, get review, then implement.
+- When changing existing tests, summarize planned test changes and reasons, then get review before applying.
+
+### Testing
+
+- Run quality checks when relevant:
+  - formatting: `uv run -m ruff format`
+  - type checking: `basedpyright` (existing type errors may exist; avoid adding new ones)
+  - tests (default): `uv run -m script.test.all`
+- `script.test.all` supports `--parallel` and `--debug-verbose` (combinable).
+- Before reporting task completion, always run `uv run -m script.test.all --parallel` as the final test gate.
+- For command recipes and examples, use `SKILLS.md` as the operational reference.
+
+### Script and Build
+
+- Prefer project scripts for routine operations (build, test, run, upload).
+- Standardize script execution with `uv run -m ...`.
+- Do not manually edit generated parser output `src/Typhon/Grammar/_typhon_parser.py`; regenerate via build scripts.
+
+### Naming and Utility Placement
+
+- Consider reusable utility API design when introducing utility logic.
+- Extract common utilities selectively (typically when used in 2+ places or clearly expected to be reused soon).
+- Internal helper naming:
+  - module: `_utils.py`
+  - package: `_utils/`
+- Cross-directory shared/public utility API: `src/Typhon/Utils/<domain>.py`.
+- Do not introduce new internal `utils.py` or `utils/` names.
+- If private `_utils` APIs need cross-directory imports under `src/`, promote them to `src/Typhon/Utils/` and update call sites.
+- Tests under `test/` may import private `_utils` APIs for white-box testing.
+
+### Coding Conventions
+
+- During refactoring, do not keep compatibility layers unless explicitly requested; update affected imports in the same task.
+- For type annotations, prefer `typing` imports over `collections.abc`.
+- For generics, prefer Python generic syntax (e.g., `class Box[T]: ...`, `def f[T](x: T) -> T: ...`) over introducing `TypeVar` unless explicitly required.
 
 ## Language and Comment Policy
 
@@ -48,6 +61,7 @@ This file defines the shared, tool-agnostic rules for automated coding agents in
 
 - Avoid destructive file operations unless explicitly requested.
 - For high-impact actions (publishing, deleting artifacts, changing packaging metadata), ask for confirmation first.
+- Never run release/upload operations.
 
 ## Project description
 

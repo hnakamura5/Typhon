@@ -36,7 +36,7 @@ async def request_references(
                 ),
             )
         )
-    debug_verbose_print(f"Received references result: {result}")
+    debug_verbose_print(lambda: f"Received references result: {result}")
     return list(result) if result else []
 
 

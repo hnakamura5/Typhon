@@ -16,6 +16,7 @@ dependencies = [
     "pygls>=2.0.0",
     "pyrefly>=0.47.0",
     "pytest>=9.0.2",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.14.11",
 ]
 

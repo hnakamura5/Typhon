@@ -137,7 +137,14 @@ def memoize_left_rec(method: Callable[[P], Optional[T]]) -> Callable[[P], Option
 
 # Methods that should not be re-decorated with memoize because
 # the overhead of memoization exceeds the cost of re-execution.
-_SKIP_MEMOIZE_METHODS = frozenset({"start", "expect", "op"})
+_SKIP_MEMOIZE_METHODS = {
+    "start",
+    "expect",
+    "op",
+    "number",
+    "string",
+    "name",
+}
 
 
 # Re decorate the base methods of pegen.parser.Parser with our memoization decorators.

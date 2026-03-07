@@ -23,5 +23,5 @@ def test_typh_syntax_errors(test_file: Path):
         source=test_file,
         source_code=test_file.read_text(encoding="utf-8"),
     )
-    debug_print(f"Test file: {test_file} result:\n{result}")
+    debug_print(lambda: f"Test file: {test_file} result:\n{result}")
     assert_file_stderr(test_file, stderr_output)

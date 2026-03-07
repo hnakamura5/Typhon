@@ -32,7 +32,9 @@ def assert_semantic_token(
 ) -> None:
     token_text = get_semantic_token_text(token, lines)
     debug_verbose_print(
-        f"Asserting semantic token: {token} with text '{token_text}', where expected text is '{expected_text}', line {expected_line}, start_col {expected_start_col}, token_type {expected_token_type}"
+        lambda: (
+            f"Asserting semantic token: {token} with text '{token_text}', where expected text is '{expected_text}', line {expected_line}, start_col {expected_start_col}, token_type {expected_token_type}"
+        )
     )
     assert token_text == expected_text, (
         f"Expected text '{expected_text}', got '{token_text}'"
@@ -91,7 +93,7 @@ def test_semantic_tokens_small():
         )
         assert len(response.data) == 5 * 2
         assert_tokens_small(lines, tokens)
-        debug_file_write("Semantic token test completed successfully.\n")
+        debug_file_write(lambda: "Semantic token test completed successfully.\n")
         await client.shutdown_async(None)
 
     asyncio.run(run_test())
@@ -124,7 +126,7 @@ def test_semantic_tokens():
             f"  texts:\n  {[get_semantic_token_text(token, lines) for token in tokens]}"
         )
         assert_tokens(lines, tokens)
-        debug_file_write("Semantic token test completed successfully.\n")
+        debug_file_write(lambda: "Semantic token test completed successfully.\n")
         await client.shutdown_async(None)
 
     asyncio.run(run_test())
@@ -147,10 +149,12 @@ def assert_tokens(
             f"Expected all tokens to be consumed, but {len(tokens) - i} remain."
         )
 
-    debug_verbose_print(f"Total tokens: {len(tokens)}")
+    debug_verbose_print(lambda: f"Total tokens: {len(tokens)}")
     for t in tokens:
         debug_verbose_print(
-            f'"{t.tok_type}", "{get_semantic_token_text(t, lines)}", {t.line}, {t.start_col}'
+            lambda: (
+                f'"{t.tok_type}", "{get_semantic_token_text(t, lines)}", {t.line}, {t.start_col}'
+            )
         )
 
     assert_semantic_token(lines, next_token(), "namespace", "re", 0, 7)

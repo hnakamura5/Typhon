@@ -26,6 +26,8 @@ def test_typh_type_errors(test_file: Path):
         return
 
     type_check_result = run_type_check(output_file)
-    debug_print(f"Type check result for {test_file}: {type_check_result.summary()}")
+    debug_print(
+        lambda: f"Type check result for {test_file}: {type_check_result.summary()}"
+    )
     assert not type_check_result.is_successful()
     assert type_check_result.num_errors > 0

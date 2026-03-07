@@ -31,7 +31,7 @@ async def request_inlay_hints(
                 ),
             )
         )
-    debug_verbose_print(f"Received inlay hint result: {result}")
+    debug_verbose_print(lambda: f"Received inlay hint result: {result}")
     assert result is not None
     return list(result)
 
