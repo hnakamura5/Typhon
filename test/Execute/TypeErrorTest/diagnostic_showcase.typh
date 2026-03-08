@@ -45,3 +45,104 @@ if (let (x, y) = (1, "2")) {
 if (len(numbers) > 0 {
     print(numbers)
 }
+
+
+"""stderr
+
+error: $FILE:4:20 (reportAssignmentType)
+  Type "Literal['A']" is not assignable to declared type "int"
+  "Literal['A']" is not assignable to "int"
+
+    4 |  let user_id: int = "A"
+                            ^^^
+
+error: $FILE:8:9 (reportAssignmentType)
+  Type "Literal['high']" is not assignable to declared type "int"
+  "Literal['high']" is not assignable to "int"
+
+    8 |  score = "high"
+                 ^^^^^^
+
+error: $FILE:14:19 (reportArgumentType)
+  Argument of type "Literal['2']" cannot be assigned to parameter "y" of type "int" in function "add"
+  "Literal['2']" is not assignable to "int"
+
+    14 |  let sum1 = add(1, "2")
+                            ^^^
+
+error: $FILE:17:5 (reportUnknownVariableType)
+  Type of "sum2" is unknown
+
+    17 |  let sum2 = add(1)
+              ^^^^
+
+error: $FILE:17:12 (reportCallIssue)
+  Argument missing for parameter "y"
+
+    17 |  let sum2 = add(1)
+                     ^^^^^^
+
+error: $FILE:21:12 (reportReturnType)
+  Type "str" is not assignable to return type "bool"
+  "str" is not assignable to "bool"
+
+    21 |      return name
+                     ^^^^
+
+error: $FILE:25:29 (reportAssignmentType)
+  Type "list[int | str]" is not assignable to declared type "list[int]"
+  "Literal['3']" is not assignable to "int"
+
+    25 |  let numbers: [int] = [1, 2, "3"]
+                                      ^^^
+
+error: $FILE:29:28 (reportAssignmentType)
+  Type "(s: str) -> int" is not assignable to declared type "(int) -> int"
+  Type "(s: str) -> int" is not assignable to type "(a0: int, /) -> int"
+    Parameter 1: type "int" is incompatible with type "str"
+      "int" is not assignable to "str"
+
+    29 |  let broken: (int) -> int = (s: str) -> int => len(s)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: $FILE:30:16 (reportArgumentType)
+  Argument of type "Literal['10']" cannot be assigned to parameter "n" of type "int" in function "<anonymous>"
+  "Literal['10']" is not assignable to "int"
+
+    30 |  let d = double("10")
+                         ^^^^
+
+error: $FILE:33:33 (reportAssignmentType)
+  Type "{| x: int, y: str |}" is not assignable to declared type "{| x: int, y: int |}"
+  "{| x: int, y: str |}" is incompatible with protocol "{| x: int, y: int |}"
+    "y" is an incompatible type
+      Type "int | str" is not assignable to type "int"
+        Type "int | str" is not assignable to type "int"
+          "str" is not assignable to "int"
+    "__init__" is an incompatible type
+      Type "(*, x: int, y: str) -> None" is not assignable to type "(*, x: x@<anonymous>, y: y@<anonymous>) -> None"
+        Keyword parameter "y" of type "int" is incompatible with type "str"
+  ...
+
+    33 |  let point: {|x: int, y: int|} = {|x = 10, y = "20"|}
+                                          ^^^^^^^^^^^^^^^^^^^^
+
+error: $FILE:38:5
+  Cannot assign to immutable variable 'x'
+
+    38 |      x = x + 1
+              ^
+
+error: $FILE:41:5 (reportUnnecessaryComparison)
+  Pattern will never be matched for subject type "Never"
+
+    41 |      print("This will never be reached")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: $FILE:45:21
+  expected ')'
+
+    45 |  if (len(numbers) > 0 {
+                              ^
+
+"""

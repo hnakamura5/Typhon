@@ -50,6 +50,8 @@ def assert_file_stdout(source_code: Path, stdout: str):
     normalized_expected = expand_variables_in_result(
         source_code, "\n".join(expected_output.splitlines())
     )
+    if normalized_expected != normalized_stdout:
+        print_diff_lines(normalized_expected, normalized_stdout)
     assert normalized_expected == normalized_stdout, (
         f"{source_code.name}: stdout does not match expected.\n"
         f"Expected:\n{normalized_expected}\n\n"
@@ -57,8 +59,6 @@ def assert_file_stdout(source_code: Path, stdout: str):
         f"Got:\n{normalized_stdout}\n\n"
         f"Got(repr):\n{repr(stdout)}"
     )
-    if normalized_expected != normalized_stdout:
-        print_diff_lines(normalized_expected, normalized_stdout)
 
 
 def assert_file_stderr(source_code: Path, stderr: str):
@@ -67,6 +67,8 @@ def assert_file_stderr(source_code: Path, stderr: str):
     normalized_expected = expand_variables_in_result(
         source_code, "\n".join(expected_output.splitlines())
     )
+    if normalized_expected != normalized_stderr:
+        print_diff_lines(normalized_expected, normalized_stderr)
     assert normalized_expected == normalized_stderr, (
         f"{source_code.name}: stderr does not match expected.\n"
         f"Expected:\n{normalized_expected}\n\n"
@@ -74,5 +76,3 @@ def assert_file_stderr(source_code: Path, stderr: str):
         f"Got:\n{normalized_stderr}\n\n"
         f"Got(repr):\n{repr(stderr)}"
     )
-    if normalized_expected != normalized_stderr:
-        print_diff_lines(normalized_expected, normalized_stderr)

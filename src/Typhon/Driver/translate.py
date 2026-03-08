@@ -282,11 +282,6 @@ def translate_and_run_type_check_file(
             _print_type_check_result(result, source_maps={})
             return result
     type_check_result = run_type_check(output)
-    debug_print(
-        lambda: (
-            f"Type check result for file {output}: {type_check_result.make_output_message()}"
-        )
-    )
     type_check_result = _merge_translate_result_errors(
         type_check_result,
         [translate_result],
