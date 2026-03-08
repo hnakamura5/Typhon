@@ -62,8 +62,7 @@ class MatchingVisitor(ast.NodeVisitor):
             left_name = get_defined_name(node)
             right_name = get_defined_name(cast(DefinesName, right))
             if left_name is not None and right_name is not None:
-                with self._with_right(right_name):
-                    self.visit(left_name)
+                self._commit(left_name, right_name)
             # Allow defined name not matching
         # Check import from module names
         if isinstance(node, ast.ImportFrom):
