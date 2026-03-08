@@ -1,0 +1,60 @@
+class Maker {
+    def render() -> str {
+        return "global-class"
+    }
+}
+
+
+def make_value() -> str {
+    return "global-fn"
+}
+
+
+def run() {
+    class Maker {
+        def render() -> str {
+            return "function-class"
+        }
+    }
+
+    def make_value() -> str {
+        return "function-fn"
+    }
+
+    print(Maker().render())
+    print(make_value())
+
+    if (True) {
+        class Maker {
+            def render() -> str {
+                return "block-class"
+            }
+        }
+
+        def make_value() -> str {
+            return "block-fn"
+        }
+
+        print(Maker().render())
+        print(make_value())
+    }
+
+    print(Maker().render())
+    print(make_value())
+}
+
+
+run()
+print(Maker().render())
+print(make_value())
+
+"""stdout
+function-class
+function-fn
+block-class
+block-fn
+function-class
+function-fn
+global-class
+global-fn
+"""

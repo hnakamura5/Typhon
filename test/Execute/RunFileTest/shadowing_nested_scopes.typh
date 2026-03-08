@@ -1,0 +1,46 @@
+let label = "global-var"
+
+def describe() -> str {
+    return f"describe capture global-var={label}"
+}
+
+def run() {
+    let label = "outer-var"
+    print(f"outer-var={label}")
+
+    if (True) {
+        let label = "inner-var"
+        print(f"inner-var={label}")
+    }
+
+    print(f"outer-var again={label}")
+    def describe() -> str {
+        return f"describe capture outer-var={label}"
+    }
+
+    print(describe())
+
+    if (True) {
+        let label = "inner-var-2"
+        print(f"inner-var-2={label}")
+        print(describe())
+    }
+
+    print(describe())
+}
+
+run()
+print(f"global-var again={label}")
+print(describe())
+
+"""stdout
+outer-var=outer-var
+inner-var=inner-var
+outer-var again=outer-var
+describe capture outer-var=outer-var
+inner-var-2=inner-var-2
+describe capture outer-var=outer-var
+describe capture outer-var=outer-var
+global-var again=global-var
+describe capture global-var=global-var
+"""

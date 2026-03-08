@@ -1,0 +1,44 @@
+def item() -> str {
+    return "global-fn"
+}
+
+
+def run() {
+    let item = "outer-var"
+    print(f"outer-var={item}")
+
+    if (True) {
+        class item {
+            def kind() -> str {
+                return "inner-class"
+            }
+        }
+
+        print(f"inner-class={item().kind()}")
+
+        if (True) {
+            def item() -> str {
+                return "deep-fn"
+            }
+
+            print(f"deep-fn={item()}")
+        }
+
+        print(f"inner-class again={item().kind()}")
+    }
+
+    print(f"outer-var again={item}")
+}
+
+
+run()
+print(f"global_fn={item()}")
+
+"""stdout
+outer-var=outer-var
+inner-class=inner-class
+deep-fn=deep-fn
+inner-class again=inner-class
+outer-var again=outer-var
+global_fn=global-fn
+"""
