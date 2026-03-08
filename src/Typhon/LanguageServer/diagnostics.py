@@ -9,12 +9,12 @@ from pygls.workspace import TextDocument
 
 from ..Typing.pyright import filter_ignore_message, filter_ignore_position
 from ..Grammar.typhon_ast import is_internal_name
-from ..Grammar.syntax_errors import get_syntax_error_in_module
+from ..Grammar.syntax_errors import get_syntax_error_in_module, syntax_error_message
 from ..Grammar.tokenizer_custom import TokenInfo
+from ..Grammar.demangle import demangle_text
 from ..Driver.debugging import debug_file_write_verbose
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
 from ..SourceMap.datatype import Range, Pos
-from ._utils.demangle import demangle_text
 from ._utils.mapping import range_to_lsp_range, lsp_range_to_range
 
 
@@ -85,7 +85,7 @@ def map_and_add_diagnostics(
             types.Diagnostic(
                 range=range_to_lsp_range(Range.from_syntax_error(syntax_error)),
                 severity=types.DiagnosticSeverity.Error,
-                message=demangle_text(str(syntax_error), module),
+                message=demangle_text(syntax_error_message(syntax_error), module),
                 source="Typhon Language Server (Syntax Error)",
             )
         )

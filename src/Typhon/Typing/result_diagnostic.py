@@ -1,5 +1,9 @@
 from dataclasses import dataclass
+import ast
 from enum import Enum
+from sys import orig_argv
+
+from Typhon.Grammar.demangle import demangle_text
 from ..SourceMap.datatype import Range
 from ..SourceMap import SourceMap
 from pathlib import Path
@@ -21,29 +25,46 @@ class Diagnostic:
     message: str
     pos: Range
     rule: str
+    source_lines: list[str] | None
 
-    def to_string(self, source_map: SourceMap | None = None) -> str:
+    def to_string(self) -> str:
         message = self.message.replace("\xa0", " ")
         rule = f" ({self.rule})" if self.rule else ""
-        file_path = self.file_path
-        pos = self.pos
-        if source_map is not None:
-            file_path = source_map.source_file
-            origin_pos = source_map.unparsed_range_to_origin(self.pos)
-            if origin_pos is not None:
-                pos = origin_pos
-                debug_print(
-                    lambda: (
-                        f"Mapped diagnostic position from\n    {self.pos}\n  to origin position\n    {pos}"
-                    )
-                )
-        return diag_error_file_position(
+        result = diag_error_file_position(
             self.severity.value,
-            file_path,
-            pos,
+            self.file_path,
+            self.pos,
             source_lines=None,
             rule=rule,
             message=message,
+        )
+        if self.source_lines is not None:
+            position_diag = positioned_source_code(self.source_lines, self.pos)
+            if position_diag:
+                result += "\n\n" + position_diag
+        return result
+
+    def demangle(
+        self, module: ast.Module | None, source_map: SourceMap | None
+    ) -> "Diagnostic":
+        file_path = self.file_path
+        pos = self.pos
+        source_lines = self.source_lines
+        if source_map:
+            file_path = source_map.source_file
+            if origin_pos := source_map.unparsed_range_to_origin_range(self.pos):
+                pos = origin_pos
+            source_lines = source_map.source_code.splitlines()
+        return Diagnostic(
+            file_path=file_path,
+            severity=self.severity,
+            message=demangle_text(
+                self.message,
+                module,
+            ),
+            pos=pos,
+            rule=self.rule,
+            source_lines=source_lines,
         )
 
 
@@ -82,14 +103,19 @@ class TypeCheckResult:
                 source_map = source_maps.get(
                     canonicalize_path(Path(diag.file_path)), None
                 )
-                diags.append(diag.to_string(source_map))
+                diags.append(diag.to_string())
                 debug_print(
                     lambda: (
                         f"diag file: {canonicalize_path(Path(diag.file_path))} source_map: {source_map is not None}, source_maps keys: {list(source_maps.keys())}"
                     )
                 )
-                if source_map is not None:
+                if source_map is not None and diag.source_lines is None:
                     position_diag = source_position_diagnostic(diag, source_map)
+                    debug_print(
+                        lambda: (
+                            f"Position diagnostic for diag at {diag.pos} with source map: {position_diag}"
+                        )
+                    )
                     if position_diag:
                         diags.append("")
                         diags.append(position_diag)
@@ -99,12 +125,25 @@ class TypeCheckResult:
         lines = diags + [summary] if output_summary_even_no_diag else diags
         return "\n".join(lines)
 
+    @staticmethod
+    def merge(results: list["TypeCheckResult"]) -> "TypeCheckResult":
+        return TypeCheckResult(
+            returncode=max(result.returncode for result in results),
+            stderr="\n".join(result.stderr for result in results),
+            files_analyzed=sum(result.files_analyzed for result in results),
+            num_errors=sum(result.num_errors for result in results),
+            num_warnings=sum(result.num_warnings for result in results),
+            num_info=sum(result.num_info for result in results),
+            time_in_sec=sum(result.time_in_sec for result in results),
+            diagnostics=[diag for result in results for diag in result.diagnostics],
+        )
+
 
 def source_position_diagnostic(
     diag: Diagnostic,
     source_map: SourceMap,
 ) -> str:
-    range_in_source = source_map.unparsed_range_to_origin(diag.pos)
+    range_in_source = source_map.unparsed_range_to_origin_range(diag.pos)
     if range_in_source is None:
         return ""
     source_lines = source_map.source_code.splitlines()

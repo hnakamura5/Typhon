@@ -30,7 +30,6 @@ def set_error_node[T: ast.AST](node: T, errors: list[SyntaxError]) -> T:
 
 def add_error_node[T: ast.AST](node: T, errors: list[SyntaxError]) -> T:
     new_errors = get_error_node(node) + errors
-    print(f"Adding errors to node {type(node).__name__}: {new_errors}")
     return set_error_node(node, new_errors)
 
 
@@ -591,7 +590,6 @@ class _ErrorGather(TyphonASTRawVisitor):
 
     def visit(self, node: ast.AST):
         if errors := get_error_node(node):
-            print(f"Gathered errors from node {type(node).__name__}: {errors}")
             self.errors.extend(errors)
         self.generic_visit(node)
 

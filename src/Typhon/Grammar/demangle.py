@@ -1,17 +1,13 @@
 import ast
 import re
 
-from Typhon.Driver.debugging import debug_verbose_print
-
-from ...Grammar.parser import parse_type
-from ...Grammar.pretty_printer import (
+from ..Driver.debugging import debug_verbose_print
+from .pretty_printer import (
     has_pretty_print_type_arg_placeholders,
     apply_pretty_print_arg_placeholders,
     pretty_print_expr,
 )
-from ...Grammar.typhon_ast import (
-    get_generated_name_original_map,
-)
+from .typhon_ast import get_generated_name_original_map
 
 
 _MANGLED_NAME_PATTERN = re.compile(r"\b(?P<name>_typh_[A-Za-z0-9_]+)\b")
@@ -62,7 +58,6 @@ def _parse_type_args_suffix(
     suffix: str,
 ) -> list[ast.expr] | None:
     try:
-        # Still is python syntax.
         parsed = ast.parse(suffix, mode="eval").body
     except Exception:
         return None
@@ -77,7 +72,7 @@ def _pretty_print_and_demangle_type_args_suffix(
     mapping: dict[str, str],
 ) -> list[str]:
     inner = suffix[1:-1].strip()
-    if not inner:  # Fast path for empty type args.
+    if not inner:
         return []
     if parsed_args := _parse_type_args_suffix(suffix):
         return [
@@ -115,7 +110,6 @@ def replace_mangled_names(text: str, mapping: dict[str, str]) -> str:
         if not original_name:
             fallback = _fallback_demangle_generated_name(name)
             original_name = fallback if fallback else name
-        # Check for type params like "[int, str]" after the mangled name.
         suffix_type_param, suffix_end = _extract_type_param_suffix(text, end)
         replacement: str = original_name
         debug_verbose_print(
@@ -128,16 +122,22 @@ def replace_mangled_names(text: str, mapping: dict[str, str]) -> str:
             pretty_args = _pretty_print_and_demangle_type_args_suffix(
                 suffix_type_param, mapping
             )
-            # If the original contains placeholders, replace them with the pretty-printed args.
-
             if has_pretty_print_type_arg_placeholders(original_name):
                 replacement = apply_pretty_print_arg_placeholders(
                     original_name, pretty_args
                 )
             else:
                 replacement = original_name + "[" + ", ".join(pretty_args) + "]"
+        elif has_pretty_print_type_arg_placeholders(original_name):
+            debug_verbose_print(
+                lambda: (
+                    f"Original name '{original_name}' has placeholders but no type args suffix found in text '{text}' at index {end}"
+                )
+            )
+            # TODO: temporal fallback of unresolved placeholders
+            replacement = _fallback_demangle_generated_name(name) or original_name
         result.append(replacement)
-    result.append(text[last_index:])  # Save the remaining text after the last match.
+    result.append(text[last_index:])
     return "".join(result)
 
 
