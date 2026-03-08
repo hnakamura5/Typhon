@@ -21,7 +21,7 @@ def generate_tokens_ignore_error(readline: Callable[[], str]) -> Iterator[TokenI
         offset: int
         message, (lineno, offset) = e.args
         pos = (lineno, offset)
-        print(f"Tokenization error ignored at {pos}: {e}")
+        debug_verbose_print(lambda: f"Tokenization error ignored at {pos}: {e}")
         yield TokenInfo(token.ENDMARKER, "", pos, pos, "")
 
 

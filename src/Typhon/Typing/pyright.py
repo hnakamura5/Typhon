@@ -106,6 +106,7 @@ def _parse_diagnostic(diag: Any) -> Diagnostic:
         message=_try_read_attr(diag, "message", ""),
         pos=_parse_pos_range(diag["range"]),
         rule=_try_read_attr(diag, "rule", ""),
+        source_lines=None,
     )
 
 

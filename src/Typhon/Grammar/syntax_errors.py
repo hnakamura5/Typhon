@@ -68,7 +68,7 @@ class TyphonSyntaxErrorList(Exception):
         super().__init__(self.errors)
 
     def __str__(self):
-        return "\n".join(str(error) for error in self.errors)
+        return "\n".join(syntax_error_message(error) for error in self.errors)
 
 
 def raise_from_module_syntax_errors(module: ast.Module):
@@ -150,7 +150,7 @@ def _get_range_of_error(
         return Range.from_syntax_error(syntax_error)
 
 
-def _get_message_of_error(
+def syntax_error_message(
     syntax_error: SyntaxError | TyphonTransformSyntaxError,
 ) -> str:
     if isinstance(syntax_error, TyphonTransformSyntaxError):
@@ -176,9 +176,9 @@ def diag_error(
         position=_get_range_of_error(syntax_error),
         rule=None,
         source_lines=source_code.splitlines(),
-        message=_get_message_of_error(syntax_error),
+        message=syntax_error_message(syntax_error),
     )
-    result += "\n"
+    result += "\n\n"
     result += positioned_source_code(
         source_lines=source_code.splitlines(),
         range_in_source=_get_range_of_error(syntax_error),

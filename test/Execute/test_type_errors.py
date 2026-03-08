@@ -24,7 +24,6 @@ def test_typh_type_errors(test_file: Path):
         )
         assert stderr_output
         return
-
     type_check_result = run_type_check(output_file)
     debug_print(
         lambda: f"Type check result for {test_file}: {type_check_result.summary()}"

@@ -222,28 +222,28 @@ class SymbolScopeVisitor(TyphonASTVisitor):
     def error_reference_undeclared(self, name: ast.Name) -> ast.Name:
         # TODO: Raise error or keep for TDZ handling
         self.scope_error(
-            f"Symbol '{name.id}' is referenced before declaration.",
+            f"Symbol '{name.id}' is referenced before declaration",
             **get_pos_attributes(name),
         )
         return name
 
     def error_assign_to_immutable(self, name: ast.Name) -> ast.Name:
         self.scope_error(
-            f"Cannot assign to immutable variable '{name.id}'.",
+            f"Cannot assign to immutable variable '{name.id}'",
             **get_pos_attributes(name),
         )
         return name
 
     def error_assign_to_undeclared(self, name: ast.Name) -> ast.Name:
         self.scope_error(
-            f"Cannot assign to undeclared symbol '{name.id}'.",
+            f"Cannot assign to undeclared symbol '{name.id}'",
             **get_pos_attributes(name),
         )
         return name
 
     def error_duplicate_declaration(self, name: ast.Name) -> ast.Name:
         self.scope_error(
-            f"Symbol '{name.id}' is already declared in this scope.",
+            f"Symbol '{name.id}' is already declared in this scope",
             **get_pos_attributes(name),
         )
         return name
@@ -259,7 +259,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
                 else:
                     suspended_message += f"  Violates suspended reference to '{suspend.name.id} at {get_pos_attributes(name)}'\n"
         self.scope_error(
-            f"Symbol '{name.id}' is accessed in its temporal dead zone (TDZ).\n{suspended_message}",
+            f"Symbol '{name.id}' is accessed in its temporal dead zone (TDZ)\n{suspended_message}",
             **get_pos_attributes(name),
         )
         return name

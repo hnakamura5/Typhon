@@ -4,9 +4,9 @@ from collections.abc import Sequence
 
 from lsprotocol import types
 
+from ..Grammar.demangle import demangle_text
 from ..Driver.debugging import debug_file_write_verbose
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
-from ._utils.demangle import demangle_text
 from ._utils.mapping import (
     lsp_range_to_range,
     range_to_lsp_range,

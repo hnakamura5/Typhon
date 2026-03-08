@@ -5,7 +5,7 @@ from Typhon.Grammar.typhon_ast import (
     get_generated_name_original_map,
     make_record_type,
 )
-from Typhon.LanguageServer._utils.demangle import replace_mangled_names
+from Typhon.Grammar.demangle import replace_mangled_names
 from Typhon.Transform.record_to_dataclass import record_to_dataclass
 
 
