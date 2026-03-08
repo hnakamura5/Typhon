@@ -50,7 +50,7 @@ def run_file(source: Path, capture_output: bool, *args: str) -> RunResult:
     if not type_check_result.is_successful():
         return RunResult(
             stdout="",
-            stderr="",
+            stderr=type_check_result.make_output_message(),
             returncode=1,
         )
     # Run translated output file as script once type checking is successful.
@@ -82,7 +82,7 @@ def run_directory(source_dir: Path, capture_output: bool, *args: str) -> RunResu
     if not type_check_result.is_successful():
         return RunResult(
             stdout="",
-            stderr="",
+            stderr=type_check_result.make_output_message(),
             returncode=1,
         )
     subprocess_args = [
