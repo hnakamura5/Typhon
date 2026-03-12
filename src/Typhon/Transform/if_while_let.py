@@ -4,12 +4,9 @@ from ..Grammar.typhon_ast import (
     get_pos_attributes,
     is_let_else,
     set_is_var,
-    set_is_let_else,
     LetPatternInfo,
 )
-from .visitor import TyphonASTTransformer, flat_append
-from contextlib import contextmanager
-from dataclasses import dataclass
+from .visitor import TyphonASTTransformer
 from ._utils.jump_away import is_body_jump_away
 from ..Grammar.syntax_errors import raise_let_missing_else_error
 
@@ -83,13 +80,13 @@ class IfMultipleLetTransformer(TyphonASTTransformer):
         # When jump away, does not need flag control.
         jump_away = is_body_jump_away(body)
         if jump_away:
-            result: list[ast.stmt] = node.body  # Inside if True
+            direct_result: list[ast.stmt] = node.body  # Inside if True
             if node.orelse:
-                result.extend(node.orelse)
-            return result
+                direct_result.extend(node.orelse)
+            return direct_result
         # Need flag control.
         # <else_flag> = True
-        else_flag_name = self.new_temp_variable_name()
+        else_flag_name = self.new_temp_variable_name(node)
         else_flag_assign = ast.Assign(
             targets=[ast.Name(id=else_flag_name, ctx=ast.Store(), **pos)],
             value=ast.Constant(value=True),
@@ -265,7 +262,7 @@ class WhileLetTransformer(TyphonASTTransformer):
             return node
         pos = get_pos_attributes(node)
         # <continue_flag> = True
-        continue_flag_name = self.new_temp_variable_name()
+        continue_flag_name = self.new_temp_variable_name(node)
         continue_flag_assign_true = ast.Assign(
             targets=[ast.Name(id=continue_flag_name, ctx=ast.Store(), **pos)],
             value=ast.Constant(value=True),

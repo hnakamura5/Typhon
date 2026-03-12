@@ -50,7 +50,8 @@ class _Transform(TyphonASTTransformer):
         if node in self.parent_stmt_to_comprehensions:
             for comp in self.parent_stmt_to_comprehensions[node]:
                 func_def = get_control_comprehension_def(comp)
-                func_def.name = self.new_control_comprehension_name()
+                assert func_def is not None
+                func_def.name = self.new_control_comprehension_name(comp)
                 comp.id = func_def.name
                 flat_append(result, self.visit(func_def))
         node_result = super().visit(node)

@@ -1,6 +1,5 @@
 import ast
-from typing import cast, Callable
-from contextlib import contextmanager
+from typing import Callable
 from ..Grammar.typhon_ast import (
     PosAttributes,
     get_empty_pos_attributes,
@@ -9,7 +8,6 @@ from ..Grammar.typhon_ast import (
     is_coalescing,
     is_optional,
     is_optional_pipe,
-    clear_is_optional,
     get_defined_name,
     maybe_copy_defined_name,
 )
@@ -42,12 +40,13 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
 
     def _optional_check_if_exp(
         self,
+        origin_node: ast.AST,
         maybe_none_val: ast.expr,
         then_val: Callable[[str], ast.expr],
         orelse_val: ast.expr,
         pos: PosAttributes,
     ) -> ast.IfExp:
-        tmp_name = self.new_temp_variable_name()
+        tmp_name = self.new_temp_variable_name(origin_node)
         return ast.IfExp(
             # (_tmp := a) is not None
             test=ast.Compare(
@@ -99,6 +98,7 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
         right = node.elts[1]
         # Transform a ?? b to (_tmp if (_tmp := a) is not None else b)
         result = self._optional_check_if_exp(
+            node,
             left,
             (lambda tmp_name: ast.Name(id=tmp_name, ctx=ast.Load())),
             right,
@@ -124,6 +124,7 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
         pos = get_pos_attributes(node)
         if is_optional(node):
             result = self._optional_check_if_exp(
+                node,
                 node.func,
                 lambda tmp_name: ast.Call(
                     func=ast.Name(id=tmp_name, ctx=ast.Load()),
@@ -143,6 +144,7 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
                 )
             arg = node.args[0]
             result = self._optional_check_if_exp(
+                node,
                 arg,
                 lambda tmp_name: ast.Call(
                     func=node.func,
@@ -162,6 +164,7 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
             return self.generic_visit(node)
         pos = get_pos_attributes(node)
         result = self._optional_check_if_exp(
+            node,
             node.value,
             lambda tmp_name: ast.Subscript(
                 value=ast.Name(id=tmp_name, ctx=ast.Load()),
@@ -186,6 +189,7 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
             )
         )
         result = self._optional_check_if_exp(
+            node,
             node.value,
             lambda tmp_name: maybe_copy_defined_name(
                 node,

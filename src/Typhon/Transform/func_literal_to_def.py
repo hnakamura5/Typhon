@@ -49,7 +49,7 @@ class _Transform(TyphonASTTransformer):
         if node in self.parent_stmts_for_literals:
             for func_literal in self.parent_stmts_for_literals[node]:
                 func_def = get_function_literal_def(func_literal)
-                func_def.name = self.new_func_literal_name()
+                func_def.name = self.new_func_literal_name(func_literal)
                 func_literal.id = func_def.name
                 flat_append(result, self.visit(func_def))
                 clear_function_literal_def(func_literal)
@@ -64,8 +64,8 @@ def func_literal_to_def(mod: ast.Module):
     # First, gather all function literals with their parent statements.
     gatherer.run()
     # Do transform to the literals and the parent statements.
-    func_literals = {}
-    parent_stmts_for_literals = {}
+    func_literals: dict[FunctionLiteral, ast.stmt] = {}
+    parent_stmts_for_literals: dict[ast.stmt, list[FunctionLiteral]] = {}
     for func_literal, parent_stmt in gatherer.func_literals:
         func_literals[func_literal] = parent_stmt
         parent_stmts_for_literals.setdefault(parent_stmt, []).append(func_literal)

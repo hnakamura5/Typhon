@@ -71,7 +71,7 @@ class _Transform(TyphonASTTransformer):
         posonlyargs: list[ast.arg] = []
         for i, info in enumerate(placeholders_inside):
             arg = ast.arg(
-                arg=self.new_arg_name(str(i)),
+                arg=self.new_arg_name(str(i), info.placeholder),
                 **get_pos_attributes(info.placeholder),
             )
             posonlyargs.append(arg)

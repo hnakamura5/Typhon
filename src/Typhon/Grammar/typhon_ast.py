@@ -114,6 +114,14 @@ def get_pos_attributes_if_exists(node: ast.AST) -> PosAttributes | None:
     return None
 
 
+def get_lineno_col_offset(node: ast.AST) -> Tuple[int, int]:
+    pos = get_pos_attributes_if_exists(node)
+    if pos is not None:
+        return (pos["lineno"], pos["col_offset"])
+    else:
+        return (0, 0)
+
+
 def get_empty_pos_attributes() -> PosAttributes:
     # Python ast position is 1-based for line, 0-based for column
     return PosAttributes(
@@ -2377,6 +2385,13 @@ def add_generated_name_original(
     generated_name: str,
     original_name: str,
 ) -> None:
+    if original_name == "":
+        return
+    debug_verbose_print(
+        lambda: (
+            f"Mapping generated name '{generated_name}' to original name '{original_name}'"
+        )
+    )
     get_generated_name_original_map(mod)[generated_name] = original_name
 
 
