@@ -2,7 +2,7 @@ import ast
 import tokenize
 import traceback
 import io
-import contextlib
+import re
 from typing import Type, Union, Any, Callable
 from Typhon.Grammar.typhon_ast import get_pos_attributes_if_exists
 from Typhon.Grammar.parser import parse_string
@@ -145,24 +145,82 @@ def assert_parse(
     return parsed
 
 
-def assert_transform_ast(typhon_ast: ast.Module, python_code: str):
+def assert_transform_ast(
+    typhon_ast: ast.Module, python_code: str, use_meta_variable: bool = True
+):
     assert isinstance(typhon_ast, ast.Module)
     transform(typhon_ast)
     print(f"Typhon AST:\n\n{unparse_custom(typhon_ast)}")
     print(f"\nTransform result:\n\n{unparse_custom(typhon_ast)}")
     print(f"\nExpected Python code:\n\n{python_code.strip()}")
-    assert unparse_custom(typhon_ast).strip() == python_code.strip()
+    if use_meta_variable:
+        assert_equal_with_meta_variable(
+            unparse_custom(typhon_ast).strip(), python_code.strip()
+        )
+    else:
+        assert unparse_custom(typhon_ast).strip() == python_code.strip()
 
 
-def assert_transform(typhon_code: str, python_code: str):
+def assert_transform(
+    typhon_code: str, python_code: str, use_meta_variable: bool = True
+):
     parsed = parse_string(typhon_code, mode="exec", verbose=_parser_verbose)
     assert isinstance(parsed, ast.Module)
     transform(parsed)
     print(f"Typhon code:\n{typhon_code}")
     print(f"Transform result:\n\n{unparse_custom(parsed)}")
     print(f"\nExpected Python code:\n\n{python_code.strip()}")
-    assert unparse_custom(parsed).strip() == python_code.strip()
+    if use_meta_variable:
+        assert_equal_with_meta_variable(
+            unparse_custom(parsed).strip(), python_code.strip()
+        )
+    else:
+        assert unparse_custom(parsed).strip() == python_code.strip()
     return parsed
+
+
+VARIABLE_PATTERN = r"[a-zA-Z_][a-zA-Z0-9_]*"
+META_VARIABLE_PATTERN = r"\$" + VARIABLE_PATTERN
+
+
+# Equality assertion where meta variables is allowed in expected code.:
+# $<name> is treated as wildcard that matches any symbol, and the same meta variable name matches the same code.
+def assert_equal_with_meta_variable(target_code: str, expected_code: str):
+    meta_varialbes: list[str] = []
+    replaced_expected_code_parts: list[str] = []
+    last_index = 0
+    for meta in re.finditer(META_VARIABLE_PATTERN, expected_code):
+        replaced_expected_code_parts.append(
+            re.escape(expected_code[last_index : meta.start()])
+        )
+        meta_name = meta.group()
+        meta_varialbes.append(meta_name)
+        # Replace the occurrence of meta variable with variable pattern.
+        replaced_expected_code_parts.append(f"({VARIABLE_PATTERN})")
+        last_index = meta.end()
+    replaced_expected_code_parts.append(re.escape(expected_code[last_index:]))
+    if len(meta_varialbes) == 0:
+        assert target_code == expected_code, (
+            f"Expected '{expected_code}', got '{target_code}'"
+        )
+        return
+    replaced_expected_code = "".join(replaced_expected_code_parts)
+    print(f"\nMeta variable expanded expected code:\n\n{replaced_expected_code}")
+    match = re.fullmatch(replaced_expected_code, target_code)
+    assert match is not None, (
+        f"Expected code pattern '{replaced_expected_code}' does not match target code '{target_code}'"
+    )
+    assert len(meta_varialbes) == len(match.groups()), (
+        f"Expected {len(meta_varialbes)} meta variables, but regex has {len(match.groups())} groups"
+    )
+    meta_variable_to_value: dict[str, str] = {}
+    for meta_name, value in zip(meta_varialbes, match.groups()):
+        if meta_name in meta_variable_to_value:
+            assert meta_variable_to_value[meta_name] == value, (
+                f"Meta variable {meta_name} expected to match '{meta_variable_to_value[meta_name]}', but got '{value}'"
+            )
+        else:
+            meta_variable_to_value[meta_name] = value
 
 
 def _assert_exception(e: Exception, exception: type, error_message: str):
