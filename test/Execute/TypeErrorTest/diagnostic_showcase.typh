@@ -98,7 +98,7 @@ error: $FILE:25:29 (reportAssignmentType)
 
 error: $FILE:29:28 (reportAssignmentType)
   Type "(s: str) -> int" is not assignable to declared type "(int) -> int"
-  Type "(s: str) -> int" is not assignable to type "(a0: int, /) -> int"
+  Type "(s: str) -> int" is not assignable to type "(<arg 0>: int, /) -> int"
     Parameter 1: type "int" is incompatible with type "str"
       "int" is not assignable to "str"
 

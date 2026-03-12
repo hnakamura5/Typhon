@@ -61,7 +61,10 @@ class _GatherRecords(TyphonASTVisitor):
                 kwd_attr_name = (
                     kwd_names[i] if kwd_names and i < len(kwd_names) else None
                 )
-                type_var = self.new_typevar_name(kwd_attr)
+                type_var = self.new_typevar_name(
+                    kwd_attr,
+                    kwd_attr_name if kwd_attr_name is not None else node,
+                )
                 type_vars.append(type_var)
                 pos = (
                     get_pos_attributes(kwd_attr_name)
@@ -89,7 +92,7 @@ class _GatherRecords(TyphonASTVisitor):
                 )
             self.record_patterns.append(
                 AttributePatternInfo(
-                    self.new_class_name(""),
+                    self.new_class_name("", node),
                     node,
                     record_cls,
                     type_vars,

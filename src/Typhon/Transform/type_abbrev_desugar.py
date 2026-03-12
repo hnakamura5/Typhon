@@ -22,28 +22,40 @@ from ..Driver.debugging import debug_print, debug_verbose_print
 
 
 class _GatherArrowType(TyphonASTVisitor):
-    func_types: list[tuple[FunctionType, str]]
+    func_types: list[tuple[FunctionType, str, dict[ast.arg, str]]]
 
     def __init__(self, module: ast.Module):
         super().__init__(module)
         self.func_types = []
 
     def visit_FunctionType(self, node: FunctionType):
+        args = get_args_of_function_type(node)
+        anonymous_args_name: dict[ast.arg, str] = {}
+        for i, arg in enumerate(args):
+            if len(arg.arg) == 0:
+                anonymous_args_name[arg] = self.new_anonymous_arg_name(node, i)
         self.func_types.append(
-            (node, self.new_arrow_type_name(pretty_print_expr(node)))
+            (
+                node,
+                self.new_arrow_type_name(pretty_print_expr(node), node),
+                anonymous_args_name,
+            )
         )
         return self.generic_visit(node)
 
 
 def _protocol_for_function_type(
-    mod: ast.Module, func_type: FunctionType, arrow_type_name: str
+    mod: ast.Module,
+    func_type: FunctionType,
+    arrow_type_name: str,
+    anonymous_args_name: dict[ast.arg, str],
 ) -> ast.ClassDef:
     func_type.id = arrow_type_name
     args = get_args_of_function_type(func_type)
     posonlyargs: list[ast.arg] = []
     for arg in args:
         if len(arg.arg) == 0:
-            arg.arg = f"{arrow_type_name}_a{len(posonlyargs)}"
+            arg.arg = anonymous_args_name[arg]
             posonlyargs.append(arg)
         else:
             break
@@ -92,20 +104,22 @@ def _protocol_for_function_type(
 
 
 def _add_protocols(
-    mod: ast.Module, func_types: list[tuple[FunctionType, str]]
+    mod: ast.Module, func_types: list[tuple[FunctionType, str, dict[ast.arg, str]]]
 ) -> dict[FunctionType, ast.ClassDef]:
     result: dict[FunctionType, ast.ClassDef] = {}
     # Ensure protocol is imported before classes.
     get_protocol(mod, ctx=ast.Load(), **get_empty_pos_attributes())
     # Insert after imports.
     insert_point = get_insert_point_for_class(mod)
-    for func_type, arrow_type_name in func_types:
+    for func_type, arrow_type_name, anonymous_args_name in func_types:
         debug_print(
             lambda: (
                 f"Adding protocol for function type: {func_type.__dict__} as {arrow_type_name}"
             )
         )
-        protocol_def = _protocol_for_function_type(mod, func_type, arrow_type_name)
+        protocol_def = _protocol_for_function_type(
+            mod, func_type, arrow_type_name, anonymous_args_name
+        )
         result[func_type] = protocol_def
         mod.body.insert(insert_point, protocol_def)
         insert_point += 1

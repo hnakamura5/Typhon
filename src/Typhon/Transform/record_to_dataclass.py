@@ -83,14 +83,14 @@ class _GatherRecords(TyphonASTVisitor):
         for name, annotation, value in fields:
             is_type_var = False
             if not annotation:
-                type_var = self.new_typevar_name(name.id)
+                type_var = self.new_typevar_name(name.id, name)
                 type_vars.append(type_var)
                 annotation = set_is_internal_name(
                     ast.Name(id=type_var, ctx=ast.Load(), **get_pos_attributes(name))
                 )
                 is_type_var = True
             field_infos.append(RecordFieldInfo(name, annotation, value, is_type_var))
-        class_name = self.new_class_name("")
+        class_name = self.new_class_name("", node)
         self.records.append(
             RecordInfo(
                 node,
@@ -124,7 +124,7 @@ class _GatherRecords(TyphonASTVisitor):
         for name, annotation in type_fields:
             # Always create a new type variable for each field so that scoped type
             # variables are handled correctly.
-            type_var = self.new_typevar_name(name.id)
+            type_var = self.new_typevar_name(name.id, name)
             type_vars.append(type_var)
             field_infos.append(
                 RecordTypeFieldInfo(
@@ -137,7 +137,7 @@ class _GatherRecords(TyphonASTVisitor):
                     annotation,
                 )
             )
-        class_name = self.new_class_name("")
+        class_name = self.new_class_name("", node)
         self.record_types.append(
             RecordTypeInfo(
                 node,

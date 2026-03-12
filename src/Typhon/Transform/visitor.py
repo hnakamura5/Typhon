@@ -58,35 +58,75 @@ class _ScopeManagerMixin:
             return len(self.parent_python_scopes) == 2
         return len(self.parent_python_scopes) == 1
 
-    def new_func_literal_name(self) -> str:
-        return self.name_gen.new_name(NameKind.FUNCTION_LITERAL)
+    def new_func_literal_name(self, origin_node: ast.AST) -> str:
+        return self.name_gen.new_name_anonymous(
+            NameKind.FUNCTION_LITERAL,
+            anchored_node=origin_node,
+        )
 
-    def new_control_comprehension_name(self) -> str:
-        return self.name_gen.new_name(NameKind.CONTROL_COMPREHENSION)
+    def new_control_comprehension_name(self, origin_node: ast.AST) -> str:
+        return self.name_gen.new_name_anonymous(
+            NameKind.CONTROL_COMPREHENSION,
+            anchored_node=origin_node,
+        )
 
-    def new_variable_rename_name(self, original_name: str) -> str:
-        return self.name_gen.new_name(NameKind.VARIABLE, original_name)
+    def new_anonymous_arg_name(self, origin_node: ast.AST, pos: int) -> str:
+        return self.name_gen.new_name_anonymous(
+            NameKind.ARGUMENT,
+            anchored_node=origin_node,
+            pretty_name=f"<arg {pos}>",
+        )
 
-    def new_temp_variable_name(self) -> str:
-        return self.name_gen.new_name(NameKind.VARIABLE, "")
+    def new_variable_rename_name(self, original_name: str, anchor_node: ast.AST) -> str:
+        return self.name_gen.new_name_decl(
+            NameKind.VARIABLE,
+            anchored_node=anchor_node,
+            original_name=original_name,
+        )
 
-    def new_const_rename_name(self, original_name: str) -> str:
-        return self.name_gen.new_name(NameKind.CONST, original_name)
+    def new_temp_variable_name(
+        self,
+        origin_node: ast.AST,
+    ) -> str:
+        return self.name_gen.new_name_decl(
+            NameKind.VARIABLE,
+            anchored_node=origin_node,
+        )
 
-    def new_arrow_type_name(self, original_name: str = "") -> str:
-        return self.name_gen.new_name(NameKind.ARROW_TYPE, original_name)
+    def new_const_rename_name(self, original_name: str, anchor_node: ast.AST) -> str:
+        return self.name_gen.new_name_decl(
+            NameKind.CONST,
+            anchored_node=anchor_node,
+            original_name=original_name,
+        )
 
-    def new_name(self, kind: NameKind, original_name: str = "") -> str:
-        return self.name_gen.new_name(kind, original_name)
+    def new_arrow_type_name(self, original_name: str, anchor_node: ast.AST) -> str:
+        return self.name_gen.new_name_anonymous(
+            NameKind.ARROW_TYPE,
+            anchored_node=anchor_node,
+            pretty_name=original_name,
+        )
 
-    def new_arg_name(self, original_name: str) -> str:
-        return self.name_gen.new_name(NameKind.ARGUMENT, original_name)
+    def new_arg_name(self, original_name: str, anchor_node: ast.AST) -> str:
+        return self.name_gen.new_name_decl(
+            NameKind.ARGUMENT,
+            anchored_node=anchor_node,
+            original_name=original_name,
+        )
 
-    def new_typevar_name(self, original_name: str) -> str:
-        return self.name_gen.new_name(NameKind.TYPEVAR, original_name)
+    def new_typevar_name(self, original_name: str, anchor_node: ast.AST) -> str:
+        return self.name_gen.new_name_decl(
+            NameKind.TYPEVAR,
+            anchored_node=anchor_node,
+            original_name=original_name,
+        )
 
-    def new_class_name(self, original_name: str) -> str:
-        return self.name_gen.new_name(NameKind.CLASS, original_name)
+    def new_class_name(self, original_name: str, anchor_node: ast.AST) -> str:
+        return self.name_gen.new_name_decl(
+            NameKind.CLASS,
+            anchored_node=anchor_node,
+            original_name=original_name,
+        )
 
 
 class _ParentStmtExprMixin:

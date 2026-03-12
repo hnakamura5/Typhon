@@ -13,7 +13,6 @@ from ..Grammar.typhon_ast import (
     is_inline_with,
     set_is_placeholder,
     get_type_annotation,
-    is_anonymous_name,
     get_anonymous_name_id,
     is_let_else,
 )
@@ -164,6 +163,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         name: str,
         is_mutable: bool,
         pos: PosAttributes,
+        anchored_node: ast.AST | None = None,
         is_force_rename: bool = False,
         add_to_parent_python_scope: bool = False,  # For function/class name
         rename_on_demand_to_kind: NameKind | None = None,  # Rename if needed
@@ -214,7 +214,20 @@ class SymbolScopeVisitor(TyphonASTVisitor):
         # Rename if required
         if rename_on_demand_to_kind is not None:
             if rename_condition:
-                new_name = self.new_name(rename_on_demand_to_kind, name)
+                if anchored_node is not None:
+                    new_name = self.name_gen.new_name_decl(
+                        rename_on_demand_to_kind,
+                        anchored_node=anchored_node,
+                        original_name=name,
+                        scope=python_scope_to_add,
+                    )
+                else:
+                    new_name = self.name_gen.new_name_decl(
+                        rename_on_demand_to_kind,
+                        anchored_node=ast.Name(id=name, ctx=ast.Store(), **pos),
+                        original_name=name,
+                        scope=python_scope_to_add,
+                    )
                 dec.renamed_to = new_name
                 debug_print(lambda: f"Renamed variable '{dec.name}' to '{new_name}'")
         return dec
@@ -284,6 +297,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
                 alias.asname or alias.name,
                 is_mutable=False,
                 pos=get_pos_attributes(alias),
+                anchored_node=alias,
                 rename_on_demand_to_kind=NameKind.IMPORT,
             )
             if sym.renamed_to:
@@ -300,6 +314,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
                 alias.asname or alias.name,
                 is_mutable=False,
                 pos=get_pos_attributes(alias),
+                anchored_node=alias,
                 rename_on_demand_to_kind=NameKind.IMPORT,
             )
             if sym.renamed_to:
@@ -325,6 +340,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             node.name,
             is_mutable=False,
             pos=pos,
+            anchored_node=node,
             add_to_parent_python_scope=True,
             rename_on_demand_to_kind=NameKind.CLASS,
         )
@@ -346,6 +362,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             node.name,
             is_mutable=False,
             pos=get_pos_attributes(node),
+            anchored_node=node,
             add_to_parent_python_scope=True,
             rename_on_demand_to_kind=NameKind.FUNCTION,
         )
@@ -778,7 +795,11 @@ class SymbolScopeVisitor(TyphonASTVisitor):
             )
             node.id = self.anonymous_names[anon_id]
         else:
-            new_name = self.new_name(NameKind.VARIABLE, "")
+            new_name = self.name_gen.new_name_decl(
+                NameKind.VARIABLE,
+                anchored_node=node,
+                original_name=node.id,
+            )
             debug_verbose_print(
                 lambda: f"Renamed anonymous variable '{node.id}' to '{new_name}'"
             )
@@ -798,6 +819,7 @@ class SymbolScopeVisitor(TyphonASTVisitor):
                 node.id,
                 is_mutable=self.declaration_context.is_mutable,
                 pos=get_pos_attributes(node),
+                anchored_node=node,
                 is_force_rename=self.declaration_context.is_force_rename
                 and not is_anon,
                 rename_on_demand_to_kind=(
