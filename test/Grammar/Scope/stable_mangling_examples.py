@@ -19,9 +19,9 @@ block_if_stable_mangling_result = """
 x = 10
 if x > 5:
     print(x)
-    _typh_v_7dfcujdv_x = 20
-    print(_typh_v_7dfcujdv_x + 1)
-    _typh_v_7dfcujdv_x = 30
+    $x1 = 20
+    print($x1 + 1)
+    $x1 = 30
 else:
     _typh_v_5xhqwzpt_x = 5
     print(_typh_v_5xhqwzpt_x)
