@@ -19,13 +19,13 @@ from typing import Final as _typh_bi_Final
 from dataclasses import dataclass as _typh_bi_dataclass
 
 @_typh_bi_dataclass(frozen=True, repr=False, unsafe_hash=True, kw_only=True)
-class _typh_cl_m0_2_[_typh_tv_m0_0_x, _typh_tv_m0_1_y]:
-    x: _typh_bi_Final[_typh_tv_m0_0_x]
-    y: _typh_bi_Final[_typh_tv_m0_1_y]
+class $record1[$x1, $y1]:
+    x: _typh_bi_Final[$x1]
+    y: _typh_bi_Final[$y1]
 
     def __repr__(self):
         return f'{{|x={self.x!r}, y={self.y!r}|}}'
-_typh_cl_m0_2_(x=1, y='2')
+$record1(x=1, y='2')
 """
 
 
@@ -57,14 +57,14 @@ from typing import Final as _typh_bi_Final
 from dataclasses import dataclass as _typh_bi_dataclass
 
 @_typh_bi_dataclass(frozen=True, repr=False, unsafe_hash=True, kw_only=True)
-class _typh_cl_m0_2_[_typh_tv_m0_0_x, _typh_tv_m0_1_z]:
-    x: _typh_bi_Final[_typh_tv_m0_0_x]
+class $record1[$x1, $z1]:
+    x: _typh_bi_Final[$x1]
     y: _typh_bi_Final[str]
-    z: _typh_bi_Final[_typh_tv_m0_1_z]
+    z: _typh_bi_Final[$z1]
 
     def __repr__(self):
         return f'{{|x={self.x!r}, y={self.y!r}, z={self.z!r}|}}'
-_typh_cl_m0_2_(x=1, y='2', z=3)
+$record1(x=1, y='2', z=3)
 """
 
 
@@ -93,11 +93,11 @@ from dataclasses import dataclass as _typh_bi_dataclass
 
 @_typh_bi_runtime_checkable
 @_typh_bi_dataclass(frozen=True, repr=True, unsafe_hash=True, kw_only=True)
-class _typh_cl_f1_2_[_typh_tv_f1_0_x, _typh_tv_f1_1_y](_typh_bi_Protocol):
-    x: _typh_bi_Final[_typh_tv_f1_0_x]
-    y: _typh_bi_Final[_typh_tv_f1_1_y]
+class $record_type1[$x2, $y2](_typh_bi_Protocol):
+    x: _typh_bi_Final[$x2]
+    y: _typh_bi_Final[$y2]
 
-def func(r: _typh_cl_f1_2_[int, str]) -> None:
+def func(r: $record_type1[int, str]) -> None:
     print(r.x, r.y)
 """
 
@@ -141,13 +141,13 @@ from typing import runtime_checkable as _typh_bi_runtime_checkable
 from typing import Protocol as _typh_bi_Protocol
 
 @_typh_bi_runtime_checkable
-class _typh_cl_f1_2_[_typh_tv_f1_0_x, _typh_tv_f1_1_y](_typh_bi_Protocol):
-    x: _typh_bi_Final[_typh_tv_f1_0_x]
-    y: _typh_bi_Final[_typh_tv_f1_1_y]
+class $record_type1[$x2, $y2](_typh_bi_Protocol):
+    x: _typh_bi_Final[$x2]
+    y: _typh_bi_Final[$y2]
 
 def f(r):
     match r:
-        case _typh_cl_f1_2_(x=a, y=b):
+        case $record_type1(x=a, y=b):
             a: _typh_bi_Final
             b: _typh_bi_Final
             print(a, b)
@@ -193,48 +193,48 @@ from typing import Final as _typh_bi_Final
 from dataclasses import dataclass as _typh_bi_dataclass
 
 @_typh_bi_runtime_checkable
-class _typh_cl_f1_7_[_typh_tv_f1_6_x](_typh_bi_Protocol):
-    x: _typh_bi_Final[_typh_tv_f1_6_x]
+class $record_type2[$x3](_typh_bi_Protocol):
+    x: _typh_bi_Final[$x3]
 
 @_typh_bi_runtime_checkable
-class _typh_cl_f1_5_[_typh_tv_f1_3_x, _typh_tv_f1_4_y](_typh_bi_Protocol):
-    x: _typh_bi_Final[_typh_tv_f1_3_x]
-    y: _typh_bi_Final[_typh_tv_f1_4_y]
+class $record_type3[$x4, $y4](_typh_bi_Protocol):
+    x: _typh_bi_Final[$x4]
+    y: _typh_bi_Final[$y4]
 
 @_typh_bi_runtime_checkable
 @_typh_bi_dataclass(frozen=True, repr=True, unsafe_hash=True, kw_only=True)
-class _typh_cl_f1_2_[_typh_tv_f1_0_x, _typh_tv_f1_1_y](_typh_bi_Protocol):
-    x: _typh_bi_Final[_typh_tv_f1_0_x]
-    y: _typh_bi_Final[_typh_tv_f1_1_y]
+class $record_type1[$x2, $y2](_typh_bi_Protocol):
+    x: _typh_bi_Final[$x2]
+    y: _typh_bi_Final[$y2]
 
 @_typh_bi_dataclass(frozen=True, repr=False, unsafe_hash=True, kw_only=True)
-class _typh_cl_m0_2_[_typh_tv_m0_0_x, _typh_tv_m0_1_y]:
-    x: _typh_bi_Final[_typh_tv_m0_0_x]
-    y: _typh_bi_Final[_typh_tv_m0_1_y]
+class $record1[$x1, $y1]:
+    x: _typh_bi_Final[$x1]
+    y: _typh_bi_Final[$y1]
 
     def __repr__(self):
         return f'{{|x={self.x!r}, y={self.y!r}|}}'
 
-def f(r: _typh_cl_f1_2_[int, tuple[int, str]]) -> None:
-    _typh_vr_f1_9_ = True
+def f(r: $record_type1[int, tuple[int, str]]) -> None:
+    $anonymous1 = True
     match r:
-        case _typh_cl_f1_5_(x=a, y=tuple([0, c])):
+        case $record_type3(x=a, y=tuple([0, c])):
             a: _typh_bi_Final
             c: _typh_bi_Final
-            _typh_vr_f1_9_ = False
+            $anonymous1 = False
             print(a, c)
         case _:
             pass
-    if _typh_vr_f1_9_:
-        _typh_vr_f1_8_ = True
+    if $anonymous1:
+        $anonymous2 = True
         match r:
-            case _typh_cl_f1_7_(x=a):
+            case $record_type2(x=a):
                 a: _typh_bi_Final
-                _typh_vr_f1_8_ = False
+                $anonymous2 = False
                 print(a)
             case _:
                 pass
-f(_typh_cl_m0_2_(x=1, y=(2, 'example')))
+f($record1(x=1, y=(2, 'example')))
 """
 
 
@@ -267,13 +267,13 @@ from typing import runtime_checkable as _typh_bi_runtime_checkable
 from typing import Protocol as _typh_bi_Protocol
 
 @_typh_bi_runtime_checkable
-class _typh_cl_f1_2_[_typh_tv_f1_0_x, _typh_tv_f1_1_y](_typh_bi_Protocol):
-    x: _typh_bi_Final[_typh_tv_f1_0_x]
-    y: _typh_bi_Final[_typh_tv_f1_1_y]
+class $record_type1[$x2, $y2](_typh_bi_Protocol):
+    x: _typh_bi_Final[$x2]
+    y: _typh_bi_Final[$y2]
 
 def f(r):
     match r:
-        case _typh_cl_f1_2_(x=x, y=a):
+        case $record_type1(x=x, y=a):
             x: _typh_bi_Final
             a: _typh_bi_Final
             print(x, a)

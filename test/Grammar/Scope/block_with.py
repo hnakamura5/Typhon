@@ -14,12 +14,12 @@ print(x);
 block_with_result = """
 from typing import Final as _typh_bi_Final
 x: _typh_bi_Final = 10
-with open('file.txt') as _typh_cn_m0_0_x:
-    _typh_cn_m0_0_x: _typh_bi_Final
-    print(_typh_cn_m0_0_x)
-    _typh_vr_m0_1_x = 20
-    _typh_vr_m0_1_x = _typh_vr_m0_1_x * 2
-    print(_typh_vr_m0_1_x)
+with open('file.txt') as $x1:
+    $x1: _typh_bi_Final
+    print($x1)
+    $x2 = 20
+    $x2 = $x2 * 2
+    print($x2)
 print(x)
 """
 
@@ -51,11 +51,11 @@ with (let x = open('file.txt')) {
 """
 block_with_top_level_rename_result = """
 from typing import Final as _typh_bi_Final
-with open('file.txt') as _typh_cn_m0_0_x:
-    _typh_cn_m0_0_x: _typh_bi_Final
+with open('file.txt') as $x:
+    $x: _typh_bi_Final
 
-    def _typh_df_f1_0_f():
-        print(_typh_cn_m0_0_x)
+    def $f1():
+        print($x)
 """
 
 
@@ -72,9 +72,9 @@ with (let f: TextIO = open('file.txt')) {
 """
 block_with_annotation_result = """
 from typing import Final as _typh_bi_Final
-with open('file.txt') as _typh_cn_m0_0_f:
-    _typh_cn_m0_0_f: _typh_bi_Final[TextIO]
-    _typh_cn_m0_1_line: _typh_bi_Final = _typh_cn_m0_0_f.readline()
+with open('file.txt') as $f:
+    $f: _typh_bi_Final[TextIO]
+    $line: _typh_bi_Final = $f.readline()
 """
 
 
@@ -90,11 +90,11 @@ with (let f1: TextIO = open('file.txt'), f2: TextIO = open('file2.txt')) {
 """
 block_with_multi_annotation_result = """
 from typing import Final as _typh_bi_Final
-with open('file.txt') as _typh_cn_m0_0_f1, open('file2.txt') as _typh_cn_m0_1_f2:
-    _typh_cn_m0_0_f1: _typh_bi_Final[TextIO]
-    _typh_cn_m0_1_f2: _typh_bi_Final[TextIO]
-    _typh_cn_m0_2_line1: _typh_bi_Final = _typh_cn_m0_0_f1.readline()
-    _typh_cn_m0_3_line2: _typh_bi_Final = _typh_cn_m0_1_f2.readline()
+with open('file.txt') as $f1, open('file2.txt') as $f2:
+    $f1: _typh_bi_Final[TextIO]
+    $f2: _typh_bi_Final[TextIO]
+    $line1: _typh_bi_Final = $f1.readline()
+    $line2: _typh_bi_Final = $f2.readline()
 """
 
 
@@ -118,14 +118,14 @@ from typing import Final as _typh_bi_Final
 
 def f():
     ...
-with f() as _typh_vr_m0_0_:
-    _typh_vr_m0_0_: _typh_bi_Final
-    match _typh_vr_m0_0_:
-        case tuple([_typh_cn_m0_1_f1, _typh_cn_m0_2_f2]):
-            _typh_cn_m0_1_f1: _typh_bi_Final[TextIO]
-            _typh_cn_m0_2_f2: _typh_bi_Final[TextIO]
-            _typh_cn_m0_3_line1: _typh_bi_Final = _typh_cn_m0_1_f1.readline()
-            _typh_cn_m0_4_line2: _typh_bi_Final = _typh_cn_m0_2_f2.readline()
+with f() as $anonymous1:
+    $anonymous1: _typh_bi_Final
+    match $anonymous1:
+        case tuple([$f1, $f2]):
+            $f1: _typh_bi_Final[TextIO]
+            $f2: _typh_bi_Final[TextIO]
+            $line1: _typh_bi_Final = $f1.readline()
+            $line2: _typh_bi_Final = $f2.readline()
         case _:# type: ignore[all]
             raise TypeError
 """
@@ -152,9 +152,9 @@ def f():
     ...
 
 def g():
-    with f() as _typh_vr_f2_0_:
-        _typh_vr_f2_0_: _typh_bi_Final
-        match _typh_vr_f2_0_:
+    with f() as $anonymous1:
+        $anonymous1: _typh_bi_Final
+        match $anonymous1:
             case tuple([f1, f2]):
                 f1: _typh_bi_Final
                 f2: _typh_bi_Final

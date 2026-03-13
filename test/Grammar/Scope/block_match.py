@@ -34,29 +34,29 @@ block_match_result = """
 from typing import Final as _typh_bi_Final
 x: _typh_bi_Final = 10
 match x:
-    case tuple([_typh_cn_m0_0_x, _typh_cn_m0_1_y]) if _typh_cn_m0_0_x > 5:
-        _typh_cn_m0_0_x: _typh_bi_Final
-        _typh_cn_m0_1_y: _typh_bi_Final
-        print(_typh_cn_m0_0_x)
-        _typh_vr_m0_2_x = 20
-        _typh_vr_m0_2_x = _typh_vr_m0_2_x + _typh_cn_m0_1_y
-        print(_typh_vr_m0_2_x)
-    case tuple([_typh_cn_m0_3_y, *_typh_cn_m0_4_x]) if len(_typh_cn_m0_4_x) > 2:
-        _typh_cn_m0_3_y: _typh_bi_Final
-        _typh_cn_m0_4_x: _typh_bi_Final
-        print(_typh_cn_m0_4_x)
-        _typh_vr_m0_5_x = 5
-        print(_typh_vr_m0_5_x)
-        _typh_vr_m0_5_x = _typh_vr_m0_5_x * 2
-    case _typh_cn_m0_6_x:
-        _typh_cn_m0_6_x: _typh_bi_Final
-        print(_typh_cn_m0_6_x)
-        _typh_cn_m0_7_x: _typh_bi_Final = 100
-        print(_typh_cn_m0_7_x)
+    case tuple([$x1, $y1]) if $x1 > 5:
+        $x1: _typh_bi_Final
+        $y1: _typh_bi_Final
+        print($x1)
+        $x2 = 20
+        $x2 = $x2 + $y1
+        print($x2)
+    case tuple([$y2, *$x3]) if len($x3) > 2:
+        $y2: _typh_bi_Final
+        $x3: _typh_bi_Final
+        print($x3)
+        $x4 = 5
+        print($x4)
+        $x4 = $x4 * 2
+    case $x5:
+        $x5: _typh_bi_Final
+        print($x5)
+        $x6: _typh_bi_Final = 100
+        print($x6)
     case _:
         print(x)
-        _typh_cn_m0_8_x: _typh_bi_Final = 100
-        print(_typh_cn_m0_8_x)
+        $x7: _typh_bi_Final = 100
+        print($x7)
 print(x)
 """
 

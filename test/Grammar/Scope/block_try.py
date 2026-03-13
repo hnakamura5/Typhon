@@ -22,15 +22,15 @@ from typing import Final as _typh_bi_Final
 x = 10
 try:
     print(x)
-    _typh_vr_m0_0_x = 20
-    _typh_vr_m0_0_x = _typh_vr_m0_0_x + 5
-    print(_typh_vr_m0_0_x)
-except Exception as _typh_cn_m0_1_x:
-    _typh_cn_m0_1_x: _typh_bi_Final
-    print(_typh_cn_m0_1_x)
-    _typh_vr_m0_2_x = 5
-    print(_typh_vr_m0_2_x)
-    _typh_vr_m0_2_x = _typh_vr_m0_2_x * 2
+    $x1 = 20
+    $x1 = $x1 + 5
+    print($x1)
+except Exception as $x2:
+    $x2: _typh_bi_Final
+    print($x2)
+    $x3 = 5
+    print($x3)
+    $x3 = $x3 * 2
 print(x)
 
 
@@ -67,21 +67,21 @@ from typing import Final as _typh_bi_Final
 x: _typh_bi_Final = 10
 try:
     print(x)
-    _typh_cn_m0_0_x: _typh_bi_Final = 20
-    print(_typh_cn_m0_0_x)
-except Exception as _typh_cn_m0_1_x:
-    _typh_cn_m0_1_x: _typh_bi_Final
-    print(_typh_cn_m0_1_x)
-    _typh_cn_m0_2_x: _typh_bi_Final = 5
-    print(_typh_cn_m0_2_x)
+    $x1: _typh_bi_Final = 20
+    print($x1)
+except Exception as $x2:
+    $x2: _typh_bi_Final
+    print($x2)
+    $x3: _typh_bi_Final = 5
+    print($x3)
 else:
     print(x)
-    _typh_cn_m0_3_x: _typh_bi_Final = 15
-    print(_typh_cn_m0_3_x)
+    $x4: _typh_bi_Final = 15
+    print($x4)
 finally:
     print(x)
-    _typh_cn_m0_4_x: _typh_bi_Final = 100
-    print(_typh_cn_m0_4_x)
+    $x5: _typh_bi_Final = 100
+    print($x5)
 print(x)
 """
 

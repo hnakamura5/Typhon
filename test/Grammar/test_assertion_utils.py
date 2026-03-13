@@ -15,3 +15,8 @@ def test_assert_equal_with_meta_variable():
         assert False, "Expected an assertion error"
     except AssertionError:
         pass
+    try:
+        assert_equal_with_meta_variable("x + x", "$a + $b")
+        assert False, "Expected an assertion error"
+    except AssertionError:
+        pass

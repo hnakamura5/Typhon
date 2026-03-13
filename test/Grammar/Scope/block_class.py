@@ -14,8 +14,8 @@ block_class_result = """
 class A:
 
     def f(self):
-        _typh_vr_f2_0_A = 10
-        print(_typh_vr_f2_0_A)
+        $A1 = 10
+        print($A1)
 a = A()
 """
 
@@ -47,13 +47,13 @@ class A:
     class B:
 
         def f(self):
-            _typh_vr_f3_0_A = 10
-            print(_typh_vr_f3_0_A)
+            $A1 = 10
+            print($A1)
 
     def g(self):
         b = B()
-        _typh_vr_f4_0_B = 20
-        print(_typh_vr_f4_0_B)
+        $B1 = 20
+        print($B1)
 a = A()
 a.g()
 """

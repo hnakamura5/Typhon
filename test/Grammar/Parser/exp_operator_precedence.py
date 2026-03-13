@@ -83,7 +83,7 @@ from typing import Final as _typh_bi_Final
 
 def func(x: int | None, y: int | None) -> int | None:
     f: _typh_bi_Final = lambda z: z
-    return f(_typh_vr_f1_0_ if (_typh_vr_f1_0_ := x) is not None else y)
+    return f($x1 if ($x1 := x) is not None else y)
 """
 
 

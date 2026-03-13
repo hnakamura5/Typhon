@@ -56,9 +56,9 @@ for i in range(10):
     print(i)
 """
 transformed_for_typed = """
-for _typh_vr_m0_0_i in range(10):
-    _typh_vr_m0_0_i: int
-    print(_typh_vr_m0_0_i)
+for $i in range(10):
+    $i: int
+    print($i)
 """
 
 
@@ -76,9 +76,9 @@ for (let (a, b) in [(1, 1.0), (2, 2.0)]) {
 }
 """
 result_for_unpack = """
-for _typh_anonymous_0 in [(1, 1.0), (2, 2.0)]:
+for $anonymous1 in [(1, 1.0), (2, 2.0)]:
     if True:
-        match _typh_anonymous_0:
+        match $anonymous1:
             case [a, b]:
                 print(a)
                 print(b)
@@ -101,14 +101,14 @@ for (let (a:int, b:float) in [(1, 1.0), (2, 2.0)]) {
 """
 result_for_unpack_annot = """
 from typing import Final as _typh_bi_Final
-for _typh_vr_m0_0_ in [(1, 1.0), (2, 2.0)]:
-    _typh_vr_m0_0_: _typh_bi_Final
-    match _typh_vr_m0_0_:
-        case tuple([_typh_cn_m0_1_a, _typh_cn_m0_2_b]):
-            _typh_cn_m0_1_a: _typh_bi_Final[int]
-            _typh_cn_m0_2_b: _typh_bi_Final[float]
-            print(_typh_cn_m0_1_a)
-            print(_typh_cn_m0_2_b)
+for $anonymous2 in [(1, 1.0), (2, 2.0)]:
+    $anonymous2: _typh_bi_Final
+    match $anonymous2:
+        case tuple([$a, $b]):
+            $a: _typh_bi_Final[int]
+            $b: _typh_bi_Final[float]
+            print($a)
+            print($b)
         case _:# type: ignore[all]
             raise TypeError
 """
@@ -125,9 +125,9 @@ for let (a, b) in [(1, 1.0), (2, 2.0)] {
 }
 """
 result_for_parenless = """
-for _typh_anonymous_0 in [(1, 1.0), (2, 2.0)]:
+for $anonymous1 in [(1, 1.0), (2, 2.0)]:
     if True:
-        match _typh_anonymous_0:
+        match $anonymous1:
             case [a, b]:
                 print(a)
                 print(b)
@@ -153,9 +153,9 @@ for range(10) {
 }
 """
 result_for_lack = """
-for _typh_anonymous_0 in ...:
+for $anonymous1 in ...:
     if True:
-        match _typh_anonymous_0:
+        match $anonymous1:
             case range(10):
                 print(i)
             case _:# type: ignore[all]

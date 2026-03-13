@@ -138,7 +138,7 @@ def assert_parse(
     print(ast.dump(parsed))
     assert isinstance(parsed, ast.Module)
     print(unparse_custom(parsed))
-    assert unparse_custom(parsed).strip() == python_code.strip()
+    assert_equal_with_meta_variable(unparse_custom(parsed).strip(), python_code.strip())
     if not allow_error_recovery:
         errors = get_syntax_error_in_module(parsed)
         assert not errors, f"Expected no syntax errors, got: {errors}"
@@ -185,6 +185,7 @@ META_VARIABLE_PATTERN = r"\$" + VARIABLE_PATTERN
 
 # Equality assertion where meta variables is allowed in expected code.:
 # $<name> is treated as wildcard that matches any symbol, and the same meta variable name matches the same code.
+# Matching does not allow several different meta value to match the same meta variable and vice versa.
 def assert_equal_with_meta_variable(target_code: str, expected_code: str):
     meta_varialbes: list[str] = []
     replaced_expected_code_parts: list[str] = []
@@ -214,13 +215,19 @@ def assert_equal_with_meta_variable(target_code: str, expected_code: str):
         f"Expected {len(meta_varialbes)} meta variables, but regex has {len(match.groups())} groups"
     )
     meta_variable_to_value: dict[str, str] = {}
+    value_to_meta_variable: dict[str, str] = {}
     for meta_name, value in zip(meta_varialbes, match.groups()):
         if meta_name in meta_variable_to_value:
             assert meta_variable_to_value[meta_name] == value, (
                 f"Meta variable {meta_name} expected to match '{meta_variable_to_value[meta_name]}', but got '{value}'"
             )
+        elif value in value_to_meta_variable:
+            assert value_to_meta_variable[value] == meta_name, (
+                f"Value '{value}' already matched meta variable {value_to_meta_variable[value]}, but collapsed got {meta_name}"
+            )
         else:
             meta_variable_to_value[meta_name] = value
+            value_to_meta_variable[value] = meta_name
 
 
 def _assert_exception(e: Exception, exception: type, error_message: str):

@@ -14,7 +14,7 @@ comp_gen_result = """
 gen = (i * i for i in range(100000000) for i in range(i) if i % 2 == 1)
 """
 comp_gen_transformed = """
-gen = (_typh_vr_m0_1_i * _typh_vr_m0_1_i for _typh_vr_m0_0_i in range(100000000) for _typh_vr_m0_1_i in range(_typh_vr_m0_0_i) if _typh_vr_m0_1_i % 2 == 1)
+gen = ($i1 * $i1 for $i in range(100000000) for $i1 in range($i) if $i1 % 2 == 1)
 """
 
 
@@ -31,7 +31,7 @@ comp_list_result = """
 odd_sq = [i * i for i in range(10) if i % 2 == 1]
 """
 comp_list_transformed = """
-odd_sq = [_typh_vr_m0_0_i * _typh_vr_m0_0_i for _typh_vr_m0_0_i in range(10) if _typh_vr_m0_0_i % 2 == 1]
+odd_sq = [$i * $i for $i in range(10) if $i % 2 == 1]
 """
 
 
@@ -48,8 +48,8 @@ comp_list_annotated_result = """
 odd_sq = [i * i for i in range(10) if i % 2 == 1]
 """
 comp_list_annotated_transformed = """
-_typh_vr_m0_0_i: int
-odd_sq = [_typh_vr_m0_0_i * _typh_vr_m0_0_i for _typh_vr_m0_0_i in range(10) if _typh_vr_m0_0_i % 2 == 1]
+$i: int
+odd_sq = [$i * $i for $i in range(10) if $i % 2 == 1]
 """
 
 
@@ -70,7 +70,7 @@ comp_set_result = """
 mul_odd = {i * j for i in range(10) if i % 2 == 1 for j in range(10) if j % 2 == 1}
 """
 comp_set_transformed = """
-mul_odd = {_typh_vr_m0_0_i * _typh_vr_m0_1_j for _typh_vr_m0_0_i in range(10) if _typh_vr_m0_0_i % 2 == 1 for _typh_vr_m0_1_j in range(10) if _typh_vr_m0_1_j % 2 == 1}
+mul_odd = {$i * $j for $i in range(10) if $i % 2 == 1 for $j in range(10) if $j % 2 == 1}
 """
 
 
@@ -91,9 +91,9 @@ comp_set_annotated_result = """
 mul_odd = {i * j for i in range(10) if i % 2 == 1 for j in range(10) if j % 2 == 1}
 """
 comp_set_annotated_transformed = """
-_typh_vr_m0_0_i: int
-_typh_vr_m0_1_j: int
-mul_odd = {_typh_vr_m0_0_i * _typh_vr_m0_1_j for _typh_vr_m0_0_i in range(10) if _typh_vr_m0_0_i % 2 == 1 for _typh_vr_m0_1_j in range(10) if _typh_vr_m0_1_j % 2 == 1}
+$i: int
+$j: int
+mul_odd = {$i * $j for $i in range(10) if $i % 2 == 1 for $j in range(10) if $j % 2 == 1}
 """
 
 
@@ -113,7 +113,7 @@ comp_dict_result = """
 square_dict = {i: i * i for i in range(10) if i % 2 == 1}
 """
 comp_dict_transformed = """
-square_dict = {_typh_vr_m0_0_i: _typh_vr_m0_0_i * _typh_vr_m0_0_i for _typh_vr_m0_0_i in range(10) if _typh_vr_m0_0_i % 2 == 1}
+square_dict = {$i: $i * $i for $i in range(10) if $i % 2 == 1}
 """
 
 
@@ -139,15 +139,15 @@ def comp_gen_noinline():
 comp_gen_noinline_transformed = """
 def comp_gen_noinline():
 
-    def _typh_cc_f1_0():
+    def $anonymous1():
         for i in range(100000000):
-            for _typh_vr_f2_1_i in range(i):
-                if _typh_vr_f2_1_i % 2 == 1:
+            for $i1 in range(i):
+                if $i1 % 2 == 1:
 
-                    def _typh_fn_f2_0(x: int):
-                        return x * _typh_vr_f2_1_i
-                    yield _typh_fn_f2_0
-    gen = _typh_cc_f1_0()
+                    def $anonymous2(x: int):
+                        return x * $i1
+                    yield $anonymous2
+    gen = $anonymous1()
     return gen
 """
 
@@ -172,14 +172,14 @@ def comp_list_noinline():
 comp_list_noinline_transformed = """
 def comp_list_noinline():
 
-    def _typh_cc_f1_0():
+    def $anonymous1():
         for i in range(10):
             if i % 2 == 1:
 
-                def _typh_fn_f2_0(x: int):
+                def $anonymous2(x: int):
                     return x * i
-                yield _typh_fn_f2_0
-    odd_sq = [__listcomp_temp for __listcomp_temp in _typh_cc_f1_0()]
+                yield $anonymous2
+    odd_sq = [__listcomp_temp for __listcomp_temp in $anonymous1()]
     return odd_sq
 """
 
@@ -200,14 +200,14 @@ comp_dict_noinline_result = """
 square_dict = {__dictcomp_temp_key: __dictcomp_temp_val for __dictcomp_temp_key, __dictcomp_temp_val in __genexp_control}
 """
 comp_dict_noinline_transformed = """
-def _typh_cc_m0_0():
+def $anonymous1():
     for i in range(10):
         if i % 2 == 1:
 
-            def _typh_fn_f1_0(x: int):
+            def $anonymous2(x: int):
                 return x * i
-            yield (i, _typh_fn_f1_0)
-square_dict = {_typh_vr_m0_1___dictcomp_temp_key: _typh_vr_m0_2___dictcomp_temp_val for _typh_vr_m0_1___dictcomp_temp_key, _typh_vr_m0_2___dictcomp_temp_val in _typh_cc_m0_0()}
+            yield (i, $anonymous2)
+square_dict = {$key: $val for $key, $val in $anonymous1()}
 """
 
 

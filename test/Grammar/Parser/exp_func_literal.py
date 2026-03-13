@@ -29,9 +29,9 @@ func_literal_exp_typed_result = """
 f = __function_literal
 """
 func_literal_exp_typed_transformed = """
-def _typh_fn_m0_0(x: int) -> int:
+def $anonymous1(x: int) -> int:
     return x + 1
-f = _typh_fn_m0_0
+f = $anonymous1
 """
 
 
@@ -50,9 +50,9 @@ func_literal_block_result = """
 __function_literal
 """
 func_literal_block_transformed = """
-def _typh_fn_m0_0(x):
+def $anonymous1(x):
     return x + 1
-_typh_fn_m0_0
+$anonymous1
 """
 
 
@@ -71,9 +71,9 @@ func_literal_block_typed_result = """
 f = __function_literal
 """
 func_literal_block_typed_transformed = """
-def _typh_fn_m0_0(x: int) -> int:
+def $anonymous1(x: int) -> int:
     return x + 1
-f = _typh_fn_m0_0
+f = $anonymous1
 """
 
 
@@ -111,29 +111,29 @@ def test_exp_func_literal_nested():
 func_literal_nested_transformed = """
 from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_f2_2(_typh_bi_Protocol):
+class $func_type1(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f2_2_a0: int, /) -> int:
+    def __call__(self, $a0: int, /) -> int:
         ...
 
 def test_exp_func_literal_nested():
 
-    def _typh_fn_f1_0(x: int) -> _typh_ar_f2_2:
+    def $anonymous2(x: int) -> $func_type1:
         if x > 0:
 
-            def _typh_fn_f2_0(x: int) -> int:
+            def $anonymous3(x: int) -> int:
                 return x + 1
-            return _typh_fn_f2_0
+            return $anonymous3
         else:
 
-            def _typh_fn_f2_1(x: int) -> int:
+            def $anonymous4(x: int) -> int:
                 return x - 1
-            return _typh_fn_f2_1
-    f = _typh_fn_f1_0
+            return $anonymous4
+    f = $anonymous2
 
-    def _typh_fn_f1_1(x: int) -> int:
+    def $anonymous5(x: int) -> int:
         return x * 2
-    g = _typh_fn_f1_1
+    g = $anonymous5
 """
 
 

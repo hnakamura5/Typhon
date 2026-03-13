@@ -83,9 +83,9 @@ class Point:
     z: int
 
 def func(point1: Point, point2: Point) -> int | None:
-    _typh_vr_f2_0_ = True
-    while _typh_vr_f2_0_:
-        _typh_vr_f2_0_ = False
+    $anonymous1 = True
+    while $anonymous1:
+        $anonymous1 = False
         match point1:
             case Point(x=a, y=b, z=c):
                 a: _typh_bi_Final
@@ -97,7 +97,7 @@ def func(point1: Point, point2: Point) -> int | None:
                         e: _typh_bi_Final
                         f: _typh_bi_Final
                         print(a + b + c + d + e + f)
-                        _typh_vr_f2_0_ = True
+                        $anonymous1 = True
                     case _:
                         pass
             case _:

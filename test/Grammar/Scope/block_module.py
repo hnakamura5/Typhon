@@ -22,11 +22,11 @@ from typing import Final as _typh_bi_Final
 def f(x):
     print(x)
 if True:
-    _typh_cn_m0_0_x: _typh_bi_Final = 10
+    $x: _typh_bi_Final = 10
 
-    def _typh_df_f2_0_g():
-        f(_typh_cn_m0_0_x)
-    _typh_df_f2_0_g()
+    def $g():
+        f($x)
+    $g()
 y: _typh_bi_Final = 20
 """
 
@@ -60,17 +60,17 @@ block_module_import_result = """
 import math as mt
 print(mt.pi)
 if True:
-    import math as _typh_im_m0_0_math
-    print(_typh_im_m0_0_math.pi)
+    import math as $math1
+    print($math1.pi)
 if True:
-    from math import pi as _typh_im_m0_1_pi
-    print(_typh_im_m0_1_pi)
+    from math import pi as $pi1
+    print($pi1)
 if False:
-    import contextlib as _typh_im_m0_2_mt
-    print(_typh_im_m0_2_mt.pi)
+    import contextlib as $mt1
+    print($mt1.pi)
 if False:
-    import mt as _typh_im_m0_3_mt
-    print(_typh_im_m0_3_mt.pi)
+    import mt as $mt2
+    print($mt2.pi)
 """
 
 
