@@ -17,13 +17,13 @@ block_if_result = """
 x = 10
 if x > 5:
     print(x)
-    _typh_vr_m0_0_x = 20
-    print(_typh_vr_m0_0_x + 1)
-    _typh_vr_m0_0_x = 30
+    $x1 = 20
+    print($x1 + 1)
+    $x1 = 30
 else:
-    _typh_vr_m0_1_x = 5
-    print(_typh_vr_m0_1_x)
-    _typh_vr_m0_1_x = 40
+    $x2 = 5
+    print($x2)
+    $x2 = 40
 """
 
 
@@ -48,12 +48,12 @@ block_if_nested_result = """
 x = 10
 if x >= 10:
     print(x)
-    _typh_vr_m0_0_x = 20
-    if _typh_vr_m0_0_x <= 20:
-        print(_typh_vr_m0_0_x)
-        _typh_vr_m0_0_x = 15
-        _typh_vr_m0_1_x = 5
-        print(_typh_vr_m0_1_x)
+    $x1 = 20
+    if $x1 <= 20:
+        print($x1)
+        $x1 = 15
+        $x2 = 5
+        print($x2)
 """
 
 
@@ -68,7 +68,7 @@ if (True) {
 """
 block_if_top_level_rename_result = """
 if True:
-    _typh_vr_m0_0_x = 10
+    $x = 10
 """
 
 

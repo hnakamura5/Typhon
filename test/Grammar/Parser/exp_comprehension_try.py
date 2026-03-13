@@ -15,13 +15,13 @@ val = __try_comp
 comp_try_transformed = """
 from typing import Final as _typh_bi_Final
 
-def _typh_cc_m0_0():
+def $anonymous1():
     try:
         return 1 / 0
     except ZeroDivisionError as e:
         e: _typh_bi_Final
         return 0
-val = _typh_cc_m0_0()
+val = $anonymous1()
 """
 
 
@@ -44,12 +44,12 @@ def f(x, y):
 comp_try_none_transformed = """
 def f(x, y):
 
-    def _typh_cc_f1_0():
+    def $anonymous1():
         try:
             return x / y
         except:
             return None
-    return _typh_cc_f1_0()
+    return $anonymous1()
 """
 
 
@@ -79,7 +79,7 @@ from typing import Final as _typh_bi_Final
 
 def f(x, y):
 
-    def _typh_cc_f1_0():
+    def $anonymous1():
         try:
             return x / y
         except ZeroDivisionError as e:
@@ -90,7 +90,7 @@ def f(x, y):
             return -1
         except:
             return 42
-    return _typh_cc_f1_0()
+    return $anonymous1()
 """
 
 

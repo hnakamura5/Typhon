@@ -157,8 +157,8 @@ tdz_shadow_result = """
 def f():
     global x
     x = x + 1
-    _typh_vr_f1_0_x = x + 1
-    return _typh_vr_f1_0_x
+    $x1 = x + 1
+    return $x1
 x = 10
 f()
 """

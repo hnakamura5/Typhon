@@ -39,14 +39,14 @@ class Point:
 
 def func(point: Point) -> int | None:
 
-    def _typh_cc_f2_0():
+    def $anonymous1():
         match point:
             case Point(a, b):
                 a: _typh_bi_Final
                 b: _typh_bi_Final
                 return a + b
         return None
-    return _typh_cc_f2_0()
+    return $anonymous1()
 """
 
 
@@ -92,7 +92,7 @@ class Point:
 
 def func(point: Point) -> int | None:
 
-    def _typh_cc_f2_0():
+    def $anonymous1():
         match point:
             case Point(a, b) if a > 0:
                 a: _typh_bi_Final
@@ -103,7 +103,7 @@ def func(point: Point) -> int | None:
                 b: _typh_bi_Final
                 return a - b
         return None
-    return _typh_cc_f2_0()
+    return $anonymous1()
 """
 
 

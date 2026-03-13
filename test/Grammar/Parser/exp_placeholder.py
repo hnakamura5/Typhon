@@ -18,18 +18,18 @@ def apply_func(f: __arrow_type, x: int) -> __arrow_type:
 placeholder_func_literal_transformed = """
 from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_f1_1(_typh_bi_Protocol):
+class $func_type1(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f1_1_a0: int, _typh_ar_f1_1_a1: int, /) -> int:
+    def __call__(self, $arg1: int, $arg2: int, /) -> int:
         ...
 
-class _typh_ar_f1_2(_typh_bi_Protocol):
+class $func_type2(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f1_2_a0: int, /) -> int:
+    def __call__(self, $arg3: int, /) -> int:
         ...
 
-def apply_func(f: _typh_ar_f1_1, x: int) -> _typh_ar_f1_2:
-    return lambda _typh_ag_f1_0_0, /: f(x, _typh_ag_f1_0_0)
+def apply_func(f: $func_type1, x: int) -> $func_type2:
+    return lambda $x0, /: f(x, $x0)
 """
 
 
@@ -48,7 +48,7 @@ placeholder_multiple_result = """
 f = _ * _ + _
 """
 placeholder_multiple_transformed = """
-f = lambda _typh_ag_m0_0_0, _typh_ag_m0_1_1, _typh_ag_m0_2_2, /: _typh_ag_m0_0_0 * _typh_ag_m0_1_1 + _typh_ag_m0_2_2
+f = lambda $x0, $x1, $x2, /: $x0 * $x1 + $x2
 """
 
 
@@ -70,18 +70,18 @@ def apply_func(f: __arrow_type, x: int) -> __arrow_type:
 placeholder_func_literal_kw_transformed = """
 from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_f1_3(_typh_bi_Protocol):
+class $func_type3(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f1_3_a0: int, _typh_ar_f1_3_a1: int, _typh_ar_f1_3_a2: int, /, kw: int) -> int:
+    def __call__(self, $arg1: int, $arg2: int, $arg3: int, /, kw: int) -> int:
         ...
 
-class _typh_ar_f1_4(_typh_bi_Protocol):
+class $func_type4(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f1_4_a0: int, _typh_ar_f1_4_a1: int, _typh_ar_f1_4_a2: int, /) -> int:
+    def __call__(self, $arg4: int, $arg5: int, $arg6: int, /) -> int:
         ...
 
-def apply_func(f: _typh_ar_f1_3, x: int) -> _typh_ar_f1_4:
-    return lambda _typh_ag_f1_0_0, _typh_ag_f1_1_1, _typh_ag_f1_2_2, /: f(_typh_ag_f1_0_0, x, _typh_ag_f1_1_1, kw=_typh_ag_f1_2_2)
+def apply_func(f: $func_type3, x: int) -> $func_type4:
+    return lambda $x0, $x1, $x2, /: f($x0, x, $x1, kw=$x2)
 """
 
 
@@ -104,7 +104,7 @@ def func(x: [int]) -> [int]:
 """
 placeholder_nested_transformed = """
 def func(x: list[int]) -> list[int]:
-    return (lambda _typh_ag_f1_0_0, /: map(lambda _typh_ag_f1_1_0, /: _typh_ag_f1_1_0 + 1, _typh_ag_f1_0_0))(x)
+    return (lambda $x0, /: map(lambda $x1, /: $x1 + 1, $x0))(x)
 """
 
 

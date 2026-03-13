@@ -15,9 +15,9 @@ block_while_result = """
 x = 10
 while x > 0:
     print(x)
-    _typh_vr_m0_0_x = x - 1
-    print(_typh_vr_m0_0_x)
-    _typh_vr_m0_0_x = _typh_vr_m0_0_x - 2
+    $x1 = x - 1
+    print($x1)
+    $x1 = $x1 - 2
 """
 
 

@@ -23,9 +23,9 @@ if x > 5:
     print($x1 + 1)
     $x1 = 30
 else:
-    _typh_v_5xhqwzpt_x = 5
-    print(_typh_v_5xhqwzpt_x)
-    _typh_v_5xhqwzpt_x = 40
+    $x2 = 5
+    print($x2)
+    $x2 = 40
 """
 
 
@@ -41,12 +41,12 @@ var x = f?(1);
 optional_temp_stable_mangling_result = """
 from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_w2oip4s3(_typh_bi_Protocol):
+class $f_type(_typh_bi_Protocol):
 
-    def __call__(self, _typh_a_77ez2osh: int, /) -> int:
+    def __call__(self, $arg: int, /) -> int:
         ...
-f: _typh_ar_w2oip4s3 | None = None
-x = _typh_v_fimh5dnn(1) if (_typh_v_fimh5dnn := f) is not None else None
+f: $f_type | None = None
+x = $f_temp(1) if ($f_temp := f) is not None else None
 """
 
 
@@ -62,9 +62,9 @@ var f = (x: int) => x + 1;
 """
 
 func_literal_stable_mangling_result = """
-def _typh_lf_5tgziudd(x: int):
+def $f_impl(x: int):
     return x + 1
-f = _typh_lf_5tgziudd
+f = $f_impl
 """
 
 
@@ -87,15 +87,15 @@ if (let x = value) {
 if_let_flag_stable_mangling_result = """
 from typing import Final as _typh_bi_Final
 value = 1
-_typh_v_fimh5dnn = True
+$flag = True
 match value:
-    case _typh_c_wyy7weq4_x if _typh_c_wyy7weq4_x is not None:
-        _typh_c_wyy7weq4_x: _typh_bi_Final
-        _typh_v_fimh5dnn = False
-        print(_typh_c_wyy7weq4_x)
+    case $x if $x is not None:
+        $x: _typh_bi_Final
+        $flag = False
+        print($x)
     case _:
         pass
-if _typh_v_fimh5dnn:
+if $flag:
     print(0)
 """
 

@@ -13,11 +13,11 @@ result = __with_control
 code_with_comp_transformed = """
 from typing import Final as _typh_bi_Final
 
-def _typh_cc_m0_0():
+def $anonymous1():
     with open('file.txt') as f:
         f: _typh_bi_Final
         return f.read()
-result = _typh_cc_m0_0()
+result = $anonymous1()
 """
 
 
@@ -44,19 +44,19 @@ code_with_call_comp_transformed = """
 from typing import Protocol as _typh_bi_Protocol
 from typing import Final as _typh_bi_Final
 
-class _typh_ar_f1_1(_typh_bi_Protocol):
+class $func_type1(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f1_1_a0: str, /) -> str:
+    def __call__(self, $a0: str, /) -> str:
         ...
 
-def func(f: _typh_ar_f1_1):
+def func(f: $func_type1):
     name = 'file.txt'
 
-    def _typh_cc_f1_0():
+    def $anonymous2():
         with open(name) as file:
             file: _typh_bi_Final
             return file.read()
-    result = f(_typh_cc_f1_0())
+    result = f($anonymous2())
     return result
 """
 

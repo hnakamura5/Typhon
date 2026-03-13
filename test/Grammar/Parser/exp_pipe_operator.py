@@ -63,7 +63,7 @@ def func(x: (int,)) -> (int,):
 
 optional_pipe_operator_transformed = """
 def func(x: int | None) -> int | None:
-    return (lambda x: (lambda x: x + 1)(_typh_vr_f1_1_) if (_typh_vr_f1_1_ := (x * 2)) is not None else None)(_typh_vr_f1_0_) if (_typh_vr_f1_0_ := x) is not None else None
+    return (lambda x: (lambda x: x + 1)($x2) if ($x2 := (x * 2)) is not None else None)($x1) if ($x1 := x) is not None else None
 """
 
 
@@ -84,7 +84,7 @@ def func(x: [int]) -> [int]:
 """
 pipe_placeholder_transformed = """
 def func(x: list[int]) -> list[int]:
-    return list((lambda _typh_ag_f1_0_0, /: filter(lambda y: y > 0, _typh_ag_f1_0_0))((lambda _typh_ag_f1_1_0, /: map(lambda y: y * 2, _typh_ag_f1_1_0))(x)))
+    return list((lambda $x0, /: filter(lambda y: y > 0, $x0))((lambda $y0, /: map(lambda y: y * 2, $y0))(x)))
 """
 
 

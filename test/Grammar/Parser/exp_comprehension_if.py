@@ -58,15 +58,15 @@ from typing import Final as _typh_bi_Final
 
 def func(a: int | None) -> int | None:
 
-    def _typh_cc_f1_0():
+    def $anonymous1():
         match a:
-            case _typh_cn_f2_0_a if _typh_cn_f2_0_a is not None:
-                _typh_cn_f2_0_a: _typh_bi_Final
-                return _typh_cn_f2_0_a
+            case $a if $a is not None:
+                $a: _typh_bi_Final
+                return $a
             case _:
                 pass
         return None
-    return _typh_cc_f1_0()
+    return $anonymous1()
 """
 
 
@@ -117,7 +117,7 @@ class Point:
 
 def func(point1: Point, point2: Point) -> int | None:
 
-    def _typh_cc_f2_0():
+    def $anonymous1():
         match point1:
             case Point(x=a, y=b, z=c):
                 a: _typh_bi_Final
@@ -134,7 +134,7 @@ def func(point1: Point, point2: Point) -> int | None:
             case _:
                 pass
 
-        def _typh_cc_f3_0():
+        def $anonymous2():
             match point1:
                 case Point(a, b, c):
                     a: _typh_bi_Final
@@ -150,8 +150,8 @@ def func(point1: Point, point2: Point) -> int | None:
                             pass
                 case _:
                     pass
-        return _typh_cc_f3_0()
-    return _typh_cc_f2_0()
+        return $anonymous2()
+    return $anonymous1()
 """
 
 

@@ -13,10 +13,10 @@ val = __let_comp
 comp_let_transformed = """
 from typing import Final as _typh_bi_Final
 
-def _typh_cc_m0_0():
+def $anonymous1():
     x: _typh_bi_Final = 3
     return x * x
-val: _typh_bi_Final = _typh_cc_m0_0()
+val: _typh_bi_Final = $anonymous1()
 """
 
 
@@ -35,11 +35,11 @@ val = __let_comp
 comp_let_multi_transformed = """
 from typing import Final as _typh_bi_Final
 
-def _typh_cc_m0_0():
+def $anonymous1():
     x: _typh_bi_Final = 3
     y: _typh_bi_Final = 4
     return x + y
-val: _typh_bi_Final = _typh_cc_m0_0()
+val: _typh_bi_Final = $anonymous1()
 """
 
 

@@ -65,7 +65,7 @@ def func(x: (list[int],)) -> (int,):
 """
 optional_chain_transformed = """
 def func(x: list[int] | None) -> int | None:
-    return (_typh_vr_f1_0_.count if (_typh_vr_f1_0_ := x) is not None else None)(42)
+    return ($x1.count if ($x1 := x) is not None else None)(42)
 """
 
 
@@ -86,7 +86,7 @@ def func(x: (int,)) -> int:
 """
 optional_coalesce_transformed = """
 def func(x: int | None) -> int:
-    return _typh_vr_f1_0_ if (_typh_vr_f1_0_ := x) is not None else 0
+    return $x1 if ($x1 := x) is not None else 0
 """
 
 
@@ -108,13 +108,13 @@ def func(f: (__arrow_type,)) -> (int,):
 optional_call_transformed = """
 from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_f1_1(_typh_bi_Protocol):
+class $func_type1(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f1_1_a0: int, /) -> int | None:
+    def __call__(self, $a0: int, /) -> int | None:
         ...
 
-def func(f: _typh_ar_f1_1 | None) -> int | None:
-    return _typh_vr_f1_0_(42) if (_typh_vr_f1_0_ := f) is not None else None
+def func(f: $func_type1 | None) -> int | None:
+    return $f1(42) if ($f1 := f) is not None else None
 """
 
 
@@ -135,7 +135,7 @@ def func(a: (list[int],)) -> (int,):
 """
 optional_subscript_transformed = """
 def func(a: list[int] | None) -> int | None:
-    return _typh_vr_f1_0_[0] if (_typh_vr_f1_0_ := a) is not None else None
+    return $a1[0] if ($a1 := a) is not None else None
 """
 
 
@@ -158,13 +158,13 @@ def func(f: (__arrow_type,), a: (list[int,],)) -> int:
 optional_nested_transformed = """
 from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_f1_3(_typh_bi_Protocol):
+class $func_type2(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f1_3_a0: int | None, /) -> int | None:
+    def __call__(self, $a0: int | None, /) -> int | None:
         ...
 
-def func(f: _typh_ar_f1_3 | None, a: list[int | None] | None) -> int:
-    return _typh_vr_f1_0_ if (_typh_vr_f1_0_ := (_typh_vr_f1_1_(_typh_vr_f1_2_[0] if (_typh_vr_f1_2_ := a) is not None else None) if (_typh_vr_f1_1_ := f) is not None else None)) is not None else 0
+def func(f: $func_type2 | None, a: list[int | None] | None) -> int:
+    return $value if ($value := ($f2($a2[0] if ($a2 := a) is not None else None) if ($f2 := f) is not None else None)) is not None else 0
 """
 
 

@@ -12,10 +12,10 @@ result_while_comp = """
 inf = __while_comp
 """
 transformed_while_comp = """
-def _typh_cc_m0_0():
+def $anonymous1():
     while True:
         yield 1
-inf = _typh_cc_m0_0()
+inf = $anonymous1()
 """
 
 
@@ -36,24 +36,24 @@ parsed = __with_control
 transformed_while_let_comp = """
 from typing import Final as _typh_bi_Final
 
-def _typh_cc_m0_0():
+def $anonymous1():
     with open('file.txt') as f:
         f: _typh_bi_Final
 
-        def _typh_cc_f1_0():
-            _typh_vr_f2_0_ = True
-            while _typh_vr_f2_0_:
-                _typh_vr_f2_0_ = False
+        def $anonymous2():
+            $anonymous3 = True
+            while $anonymous3:
+                $anonymous3 = False
                 match f.readline().split():
                     case [x, y]:
                         x: _typh_bi_Final
                         y: _typh_bi_Final
                         yield (x, y)
-                        _typh_vr_f2_0_ = True
+                        $anonymous3 = True
                     case _:
                         pass
-        return _typh_cc_f1_0()
-parsed = _typh_cc_m0_0()
+        return $anonymous2()
+parsed = $anonymous1()
 """
 
 

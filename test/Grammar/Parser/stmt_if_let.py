@@ -28,12 +28,12 @@ if True:
 if_let_none_check_transformed = """
 from typing import Final as _typh_bi_Final
 y: int | None = None
-_typh_vr_m0_0_ = True
+$anonymous1 = True
 match y:
-    case _typh_cn_m0_1_x if _typh_cn_m0_1_x is not None:
-        _typh_cn_m0_1_x: _typh_bi_Final
-        _typh_vr_m0_0_ = False
-        print(_typh_cn_m0_1_x)
+    case $x if $x is not None:
+        $x: _typh_bi_Final
+        $anonymous1 = False
+        print($x)
     case _:
         pass
 """
@@ -228,7 +228,7 @@ class Point:
     z: int
 
 def func(point1: Point, point2: Point) -> int | None:
-    _typh_vr_f2_0_ = True
+    $anonymous2 = True
     match point1:
         case Point(x=a, y=b, z=c):
             a: _typh_bi_Final
@@ -239,13 +239,13 @@ def func(point1: Point, point2: Point) -> int | None:
                     d: _typh_bi_Final
                     e: _typh_bi_Final
                     f: _typh_bi_Final
-                    _typh_vr_f2_0_ = False
+                    $anonymous2 = False
                     print(a + b + c + d + e + f)
                 case _:
                     pass
         case _:
             pass
-    if _typh_vr_f2_0_:
+    if $anonymous2:
         match point1:
             case Point(a, b, c):
                 a: _typh_bi_Final
@@ -352,12 +352,12 @@ from typing import Final as _typh_bi_Final
 
 def func(x: int) -> int:
 
-    def _typh_cc_f1_0():
+    def $anonymous3():
         try:
             return 2 // x
         except:
             return None
-    match _typh_cc_f1_0():
+    match $anonymous3():
         case i if i is not None:
             i: _typh_bi_Final
             with open('file.txt') as f:
@@ -400,9 +400,9 @@ from typing import Final as _typh_bi_Final
 
 def func(x: int | None) -> int:
     match x:
-        case _typh_cn_f1_0_y if _typh_cn_f1_0_y is not None:
-            _typh_cn_f1_0_y: _typh_bi_Final[int]
-            return _typh_cn_f1_0_y
+        case $y if $y is not None:
+            $y: _typh_bi_Final[int]
+            return $y
         case _:
             pass
     return 0

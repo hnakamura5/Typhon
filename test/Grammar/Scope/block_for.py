@@ -12,12 +12,12 @@ for (let x in x) {
 block_for_result = """
 from typing import Final as _typh_bi_Final
 x = range(5)
-for _typh_cn_m0_0_x in x:
-    _typh_cn_m0_0_x: _typh_bi_Final
-    print(_typh_cn_m0_0_x)
-    _typh_vr_m0_1_x = _typh_cn_m0_0_x + 1
-    print(_typh_vr_m0_1_x)
-    _typh_vr_m0_1_x = _typh_vr_m0_1_x + 2
+for $x1 in x:
+    $x1: _typh_bi_Final
+    print($x1)
+    $x2 = $x1 + 1
+    print($x2)
+    $x2 = $x2 + 2
 """
 
 
@@ -33,14 +33,14 @@ for (let (a: int, b: float) in [(1, 1.0), (2, 2.0)]) {
 """
 for_unpack_typed_result = """
 from typing import Final as _typh_bi_Final
-for _typh_vr_m0_0_ in [(1, 1.0), (2, 2.0)]:
-    _typh_vr_m0_0_: _typh_bi_Final
-    match _typh_vr_m0_0_:
-        case tuple([_typh_cn_m0_1_a, _typh_cn_m0_2_b]):
-            _typh_cn_m0_1_a: _typh_bi_Final[int]
-            _typh_cn_m0_2_b: _typh_bi_Final[float]
-            print(_typh_cn_m0_1_a)
-            print(_typh_cn_m0_2_b)
+for $anonymous1 in [(1, 1.0), (2, 2.0)]:
+    $anonymous1: _typh_bi_Final
+    match $anonymous1:
+        case tuple([$a, $b]):
+            $a: _typh_bi_Final[int]
+            $b: _typh_bi_Final[float]
+            print($a)
+            print($b)
         case _:# type: ignore[all]
             raise TypeError
 """
@@ -60,29 +60,29 @@ def func(fs: list[int -> str -> float]) -> None {
 result_for_typed_arrow = """
 from typing import Protocol as _typh_bi_Protocol
 
-class _typh_ar_f1_0(_typh_bi_Protocol):
+class $func_type1(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f1_0_a0: int, /) -> _typh_ar_f1_1:
+    def __call__(self, $a0_1: int, /) -> $func_type2:
         ...
 
-class _typh_ar_f1_1(_typh_bi_Protocol):
+class $func_type2(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f1_1_a0: str, /) -> float:
+    def __call__(self, $a0_2: str, /) -> float:
         ...
 
-class _typh_ar_f1_2(_typh_bi_Protocol):
+class $func_type3(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f1_2_a0: int, /) -> _typh_ar_f1_3:
+    def __call__(self, $a0_3: int, /) -> $func_type4:
         ...
 
-class _typh_ar_f1_3(_typh_bi_Protocol):
+class $func_type4(_typh_bi_Protocol):
 
-    def __call__(self, _typh_ar_f1_3_a0: str, /) -> float:
+    def __call__(self, $a0_4: str, /) -> float:
         ...
 
-def func(fs: list[_typh_ar_f1_0]) -> None:
+def func(fs: list[$func_type1]) -> None:
     for f in fs:
-        f: _typh_ar_f1_2
+        f: $func_type3
         print(f(10)('test'))
 """
 

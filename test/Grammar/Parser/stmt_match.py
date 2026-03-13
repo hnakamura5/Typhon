@@ -213,13 +213,13 @@ from typing import Final as _typh_bi_Final
 
 def func(x: tuple[int, str]) -> int:
     match x:
-        case tuple([_typh_cn_f1_0_a, _typh_cn_f1_1_b]):
-            _typh_cn_f1_0_a: _typh_bi_Final[int]
-            _typh_cn_f1_1_b: _typh_bi_Final[str]
-            return _typh_cn_f1_0_a + len(_typh_cn_f1_1_b)
-        case _typh_cn_f1_2_a:
-            _typh_cn_f1_2_a: _typh_bi_Final[str]
-            return _typh_cn_f1_2_a
+        case tuple([$a1, $b1]):
+            $a1: _typh_bi_Final[int]
+            $b1: _typh_bi_Final[str]
+            return $a1 + len($b1)
+        case $a2:
+            $a2: _typh_bi_Final[str]
+            return $a2
     return 0
 """
 
@@ -256,16 +256,16 @@ from typing import Final as _typh_bi_Final
 
 def func(x: list[int]) -> int:
     match x:
-        case [_typh_cn_f1_0_a, _typh_cn_f1_1_b]:
-            _typh_cn_f1_0_a: _typh_bi_Final[int]
-            _typh_cn_f1_1_b: _typh_bi_Final[int]
-            return _typh_cn_f1_0_a + _typh_cn_f1_1_b
-        case [_typh_cn_f1_2_a, _typh_cn_f1_3_b, _typh_cn_f1_4_c, *_typh_cn_f1_5_rest]:
-            _typh_cn_f1_2_a: _typh_bi_Final[int]
-            _typh_cn_f1_3_b: _typh_bi_Final[int]
-            _typh_cn_f1_4_c: _typh_bi_Final[int]
-            _typh_cn_f1_5_rest: _typh_bi_Final[list[int]]
-            return _typh_cn_f1_2_a + _typh_cn_f1_3_b + _typh_cn_f1_4_c + sum(_typh_cn_f1_5_rest)
+        case [$a1, $b1]:
+            $a1: _typh_bi_Final[int]
+            $b1: _typh_bi_Final[int]
+            return $a1 + $b1
+        case [$a2, $b2, $c, *$rest]:
+            $a2: _typh_bi_Final[int]
+            $b2: _typh_bi_Final[int]
+            $c: _typh_bi_Final[int]
+            $rest: _typh_bi_Final[list[int]]
+            return $a2 + $b2 + $c + sum($rest)
     return 0
 """
 
