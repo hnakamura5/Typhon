@@ -1,4 +1,5 @@
 import ast
+from typing import cast
 
 from ..Driver.debugging import debug_verbose_print
 from ..Grammar.typhon_ast import get_pos_attributes_if_exists, PythonScope
@@ -18,8 +19,6 @@ class SourceAstCache:
         self.source_code_lines = source_code.splitlines()
         self.parent_map: dict[ast.AST, ast.AST | None] = {module: None}
         self.node_interval_tree = RangeIntervalTree[ast.AST]()
-        self.stmt_interval_tree = RangeIntervalTree[ast.stmt]()
-        self.expr_interval_tree = RangeIntervalTree[ast.expr]()
         self._setup_parent_map()
         self._setup_interval_trees()
 
@@ -43,17 +42,15 @@ class SourceAstCache:
                 )
             )
             self.node_interval_tree.add(node_range, node)
-            if isinstance(node, ast.stmt):
-                self.stmt_interval_tree.add(node_range, node)
-            if isinstance(node, ast.expr):
-                self.expr_interval_tree.add(node_range, node)
 
-    def _pos_to_node[T: ast.AST](
+    def _pos_to_node(
         self,
         pos: Pos,
-        interval_tree: RangeIntervalTree[T],
-    ) -> T | None:
-        nodes = interval_tree.at(pos)
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None:
+        nodes = self.node_interval_tree.at(pos)
+        if filter_node_type is not None:
+            nodes = [(r, n) for r, n in nodes if isinstance(n, filter_node_type)]
         if not nodes:
             return None
         _, node = min(
@@ -65,12 +62,14 @@ class SourceAstCache:
         )
         return node
 
-    def _range_to_node[T: ast.AST](
+    def _range_to_node(
         self,
         range: Range,
-        interval_tree: RangeIntervalTree[T],
-    ) -> T | None:
-        nodes = interval_tree.minimal_containers(range)
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None:
+        nodes = self.node_interval_tree.minimal_containers(range)
+        if filter_node_type is not None:
+            nodes = [(r, n) for r, n in nodes if isinstance(n, filter_node_type)]
         debug_verbose_print(
             lambda: f"Source AST minimal containers for range {range}: {nodes}"
         )
@@ -82,38 +81,16 @@ class SourceAstCache:
     def source_pos_to_node(
         self,
         pos: Pos,
+        filter_node_type: type[ast.AST] | None = None,
     ) -> ast.AST | None:
-        return self._pos_to_node(pos, self.node_interval_tree)
+        return self._pos_to_node(pos, filter_node_type)
 
     def source_range_to_node(
         self,
         range: Range,
+        filter_node_type: type[ast.AST] | None = None,
     ) -> ast.AST | None:
-        return self._range_to_node(range, self.node_interval_tree)
-
-    def source_pos_to_stmt(
-        self,
-        pos: Pos,
-    ) -> ast.stmt | None:
-        return self._pos_to_node(pos, self.stmt_interval_tree)
-
-    def source_range_to_stmt(
-        self,
-        range: Range,
-    ) -> ast.stmt | None:
-        return self._range_to_node(range, self.stmt_interval_tree)
-
-    def source_pos_to_expr(
-        self,
-        pos: Pos,
-    ) -> ast.expr | None:
-        return self._pos_to_node(pos, self.expr_interval_tree)
-
-    def source_range_to_expr(
-        self,
-        range: Range,
-    ) -> ast.expr | None:
-        return self._range_to_node(range, self.expr_interval_tree)
+        return self._range_to_node(range, filter_node_type)
 
     def parent_of(self, node: ast.AST) -> ast.AST | None:
         return self.parent_map.get(node, None)
@@ -126,18 +103,37 @@ class SourceAstCache:
             current = self.parent_of(current)
         return result
 
-    def enclosing_scope(self, node: ast.AST | None) -> PythonScope | None:
-        if node is None:
-            return None
-        current: ast.AST | None = node
+    def innermost_enclosing(
+        self,
+        node: ast.AST | None,
+        node_type: type[ast.AST] | tuple[type[ast.AST], ...],
+    ) -> ast.AST | None:
+        current = node
         while current is not None:
-            if isinstance(
-                current,
-                (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
-            ):
+            if isinstance(current, node_type):
                 return current
             current = self.parent_of(current)
         return None
+
+    def outermost_enclosing(
+        self,
+        node: ast.AST | None,
+        node_type: type[ast.AST] | tuple[type[ast.AST], ...],
+    ) -> ast.AST | None:
+        current = node
+        enclosing: ast.AST | None = None
+        while current is not None:
+            if isinstance(current, node_type):
+                enclosing = current
+            current = self.parent_of(current)
+        return enclosing
+
+    def enclosing_scope(self, node: ast.AST | None) -> PythonScope | None:
+        scope = self.innermost_enclosing(
+            node,
+            (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
+        )
+        return cast(PythonScope | None, scope)
 
     def source_range_to_source_code(
         self,
