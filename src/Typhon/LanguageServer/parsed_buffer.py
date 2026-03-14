@@ -8,15 +8,11 @@ from .semantic_tokens import SemanticToken
 
 
 class LanguageServerParsedBuffer:
-    """Container for per-document parse and mapping artifacts."""
-
     def __init__(self) -> None:
         self.parsed_ast_modules: dict[str, ast.Module | None] = {}
         self.ast_modules: dict[str, ast.Module | None] = {}
         self.source_ast_caches: dict[str, SourceAstCache] = {}
         self.token_infos: dict[str, list[TokenInfo]] = {}
-        self.semantic_tokens: dict[str, list[SemanticToken]] = {}
-        self.semantic_tokens_encoded: dict[str, Sequence[int]] = {}
         self.mappings: dict[str, MatchBasedSourceMap] = {}
         self.translated_sources: dict[str, str] = {}
 
@@ -61,20 +57,6 @@ class LanguageServerParsedBuffer:
         if original_uri is None:
             return []
         return self.token_infos.get(original_uri, [])
-
-    def set_semantic_tokens(
-        self,
-        original_uri: str,
-        semantic_tokens: list[SemanticToken],
-        semantic_tokens_encoded: Sequence[int],
-    ) -> None:
-        self.semantic_tokens[original_uri] = semantic_tokens
-        self.semantic_tokens_encoded[original_uri] = semantic_tokens_encoded
-
-    def get_semantic_tokens(self, original_uri: str | None) -> list[SemanticToken]:
-        if original_uri is None:
-            return []
-        return self.semantic_tokens.get(original_uri, [])
 
     def set_mapping(self, original_uri: str, mapping: MatchBasedSourceMap) -> None:
         self.mappings[original_uri] = mapping

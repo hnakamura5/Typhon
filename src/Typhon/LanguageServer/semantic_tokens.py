@@ -1,21 +1,9 @@
-from typing import Sequence
 import attrs
 import enum
 import operator
 import ast
 from functools import reduce
-from tokenize import (
-    OP,
-    NAME,
-    STRING,
-    COMMENT,
-    NUMBER,
-    FSTRING_START,
-    FSTRING_MIDDLE,
-    FSTRING_END,
-)
 from lsprotocol import types
-from pygls.workspace import TextDocument
 
 from ..Grammar.typhon_ast import is_internal_name
 from ..Grammar.tokenizer_custom import TokenInfo
@@ -246,6 +234,7 @@ def map_semantic_tokens(
     return encode_semantic_tokens(sorted_tokens)
 
 
+# Mainly for testing
 def get_semantic_token_text(token: SemanticToken, lines: list[str]) -> str:
     """Retrieve the text of a semantic token from the document."""
     if token.line < 0 or token.line >= len(lines):
@@ -260,96 +249,6 @@ def semantic_legends_of_initialized_response(
     legend: types.SemanticTokensLegend,
 ) -> dict[int, str]:
     return {i: tok_type for i, tok_type in enumerate(legend.token_types)}
-
-
-# Fallback case that semantic tokens are not provided by the language server.
-def token_to_type(tok: TokenInfo) -> str:
-    if tok.string in (
-        "def",
-        "class",
-        "let",
-        "var",
-        "import",
-        "from",
-        "as",
-        "if",
-        "else",
-        "elif",
-        "while",
-        "for",
-        "try",
-        "except",
-        "finally",
-        "with",
-        "match",
-        "case",
-        "return",
-        "raise",
-        "yield",
-        "break",
-        "continue",
-        "async",
-        "static",
-        "in",
-        "is",
-        "not",
-    ):
-        return "keyword"
-    elif tok.type == NAME:
-        return "variable"
-    elif tok.type == OP:
-        return "operator"
-    elif tok.type == STRING:
-        return "string"
-    elif tok.type == COMMENT:
-        return "comment"
-    elif tok.type == NUMBER:
-        return "number"
-    elif tok.type in (FSTRING_START, FSTRING_MIDDLE, FSTRING_END):
-        return "string"
-    else:
-        return "operator"
-
-
-# Fallback implementation that makes semantic tokens from tokens only.
-def ast_tokens_to_semantic_tokens(
-    node: ast.AST | None,
-    tokens: list[TokenInfo],
-    doc: TextDocument | None = None,
-) -> tuple[list[SemanticToken], Sequence[int]]:
-    semantic_tokens: list[SemanticToken] = []
-    prev_line = 0
-    prev_end_offset = 0
-    for tok in tokens:
-        # Offset encoding
-        line = tok.start[0] - 1 - prev_line
-        offset = tok.start[1]
-        if line == 0:
-            offset -= prev_end_offset  # Offset is from previous token in the same line
-        debug_file_write_verbose(
-            lambda: (
-                f"Semantic token encode Token: {tok}, Line: {line}, Offset: {offset} prev_line: {prev_line}, prev_end_offset: {prev_end_offset}"
-            )
-        )
-        prev_line = tok.end[0] - 1
-        prev_end_offset = tok.start[1]
-        semantic_tokens.append(
-            SemanticToken(
-                line=line,
-                offset=offset,
-                start_col=tok.start[1],
-                end_col=tok.end[1],
-                length=len(tok.string),
-                text=tok.string,
-                tok_type=token_to_type(tok),
-            )
-        )
-        debug_file_write_verbose(
-            lambda: (
-                f"  Added Semantic Token: {semantic_tokens[-1]}, {encode_semantic_tokens([semantic_tokens[-1]]).data}"
-            )
-        )
-    return semantic_tokens, encode_semantic_tokens(semantic_tokens).data
 
 
 # Mainly for testing

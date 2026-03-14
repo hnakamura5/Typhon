@@ -35,12 +35,9 @@ from ..SourceMap.source_ast_cache import SourceAstCache
 from .client import create_language_client, start_language_client
 from .parsed_buffer import LanguageServerParsedBuffer
 from .semantic_tokens import (
-    ast_tokens_to_semantic_tokens,
-    encode_semantic_tokens,
     semantic_legend,
     map_semantic_tokens,
     semantic_legends_of_initialized_response,
-    semantic_token_capabilities,
 )
 from .diagnostics import (
     map_and_add_diagnostics,
@@ -222,12 +219,6 @@ class LanguageServer(PyglsLanguageServer):
             if ast_node:
                 transform(ast_node, ignore_error=True)
             self.parsed_buffer.set_module(orignal_uri, ast_node)
-            semantic_tokens, encoded = ast_tokens_to_semantic_tokens(
-                ast_node, self.parsed_buffer.get_token_infos(orignal_uri)
-            )
-            self.parsed_buffer.set_semantic_tokens(
-                orignal_uri, semantic_tokens, encoded
-            )
             if not ast_node:
                 return None
             # Write translated file to server temporal directory
@@ -396,8 +387,7 @@ async def lsp_server_initialize(ls: LanguageServer, params: types.InitializePara
         # Helpful for diagnosing why semanticTokens requests hang.
         try:
             caps = getattr(initialize_result, "capabilities", None)
-            stp = getattr(caps, "semantic_tokens_provider", None) if caps else None
-            debug_file_write(lambda: f"Backend semanticTokensProvider: {stp}")
+            debug_file_write_verbose(lambda: f"Backend semanticTokensProvider: {caps}")
         except Exception as e:
             debug_file_write(lambda: f"Failed to inspect backend capabilities: {e}")
     except Exception as e:
@@ -687,17 +677,7 @@ async def semantic_tokens_full(ls: LanguageServer, params: types.SemanticTokensP
         debug_file_write(
             lambda: f"Error during semantic tokens retrieval: {type(e).__name__}: {e}"
         )
-        # Fall back to precomputed rough semantic tokens (encoded).
-        if (mapping := ls.parsed_buffer.get_mapping(uri)) is not None:
-            try:
-                fallback = encode_semantic_tokens(
-                    ls.parsed_buffer.get_semantic_tokens(uri)
-                )
-                debug_file_write(lambda: f"Fallback: {fallback}")
-                return map_semantic_tokens(fallback, mapping, ls.client_semantic_legend)
-            except Exception as e:
-                debug_file_write(lambda: f"Fallback mapping failed: {e}")
-        return encode_semantic_tokens(ls.parsed_buffer.get_semantic_tokens(uri))
+        return None
 
 
 @server.feature(types.TEXT_DOCUMENT_HOVER)
