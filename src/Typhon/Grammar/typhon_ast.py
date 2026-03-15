@@ -22,6 +22,29 @@ if TYPE_CHECKING:
     from .parser_helper import Parser
 
 
+_REPARSE_THREASHOLD_TOKEN_SIZE = 256  # string length threshold to trigger reparsing.
+
+
+def is_reparse_target_token_size(source_code_token_size: int) -> bool:
+    return source_code_token_size >= _REPARSE_THREASHOLD_TOKEN_SIZE
+
+
+_IS_REPARSE_TARGET = "_typh_is_reparse_target"
+
+
+def set_is_reparse_target(node: ast.AST, is_target: bool = True) -> None:
+    setattr(node, _IS_REPARSE_TARGET, is_target)
+
+
+def clear_is_reparse_target(module: ast.Module) -> None:
+    if hasattr(module, _IS_REPARSE_TARGET):
+        delattr(module, _IS_REPARSE_TARGET)
+
+
+def is_reparse_target(module: ast.Module) -> bool:
+    return getattr(module, _IS_REPARSE_TARGET, False)
+
+
 # Same as ast module's position attributes
 class PosAttributes(TypedDict):
     lineno: int

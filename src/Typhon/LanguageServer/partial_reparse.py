@@ -189,7 +189,7 @@ def _reparce_range_and_replace(
         )
     )
     _adjust_positions_of_reparsed_unit(reparsed_result, reparse_unit_range)
-    # TODO: Adjust positions in ast_cache and source map (nodes after changed position)
+    # TODO: Adjust positions in ast_cache and source map (nodes after changed position). To make it faster, should we split the source map's interval tree per top level statement?
     # TODO: Adjust name binding with around? No need?
     return _replace_to_reparsed_unit(
         original_transformed, reparsed_result, replace_target

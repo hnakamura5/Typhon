@@ -13,7 +13,7 @@ import ast
 from typing import Unpack
 
 
-def _add_import_for_protocol(mod: ast.Module):
+def add_import_for_protocol(mod: ast.Module):
     name = get_protocol_name()
     add_import_alias_top(mod, "typing", "Protocol", name)
     return name
@@ -22,7 +22,7 @@ def _add_import_for_protocol(mod: ast.Module):
 def get_protocol(
     mod: ast.Module, ctx: ast.expr_context, **kwargs: Unpack[PosAttributes]
 ) -> ast.Name:
-    protocol_name = _add_import_for_protocol(mod)
+    protocol_name = add_import_for_protocol(mod)
     return set_is_internal_name(ast.Name(id=protocol_name, ctx=ctx, **kwargs))
 
 
@@ -58,7 +58,7 @@ def add_import_get_final(
     return set_is_internal_name(ast.Name(id=final_name, ctx=ctx, **kwargs))
 
 
-def _add_import_for_dataclass(mod: ast.Module):
+def add_import_for_dataclass(mod: ast.Module):
     name = get_dataclass_name()
     add_import_alias_top(mod, "dataclasses", "dataclass", name)
     return name
@@ -67,11 +67,11 @@ def _add_import_for_dataclass(mod: ast.Module):
 def get_dataclass(
     mod: ast.Module, ctx: ast.expr_context, **kwargs: Unpack[PosAttributes]
 ) -> ast.Name:
-    dataclass_name = _add_import_for_dataclass(mod)
+    dataclass_name = add_import_for_dataclass(mod)
     return set_is_internal_name(ast.Name(id=dataclass_name, ctx=ctx, **kwargs))
 
 
-def _add_import_for_runtime_checkable(mod: ast.Module):
+def add_import_for_runtime_checkable(mod: ast.Module):
     name = get_runtime_checkable_name()
     add_import_alias_top(mod, "typing", "runtime_checkable", name)
     return name
@@ -80,7 +80,7 @@ def _add_import_for_runtime_checkable(mod: ast.Module):
 def get_runtime_checkable(
     mod: ast.Module, ctx: ast.expr_context, **kwargs: Unpack[PosAttributes]
 ) -> ast.Name:
-    runtime_checkable_name = _add_import_for_runtime_checkable(mod)
+    runtime_checkable_name = add_import_for_runtime_checkable(mod)
     return set_is_internal_name(ast.Name(id=runtime_checkable_name, ctx=ctx, **kwargs))
 
 

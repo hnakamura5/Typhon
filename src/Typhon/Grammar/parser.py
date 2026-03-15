@@ -6,6 +6,11 @@ from pathlib import Path
 
 from typing import Literal, Union, Optional
 
+from Typhon.Grammar.typhon_ast import (
+    is_reparse_target_token_size,
+    set_is_reparse_target,
+)
+
 
 from ..Driver.debugging import is_debug_verbose
 
@@ -76,6 +81,9 @@ def parse_tokenizer(
     # Must be successful parse
     assert isinstance(parsed, ast.AST), f"Parsing failed: {parsed}"
     gather_errors(parsed)
+    set_is_reparse_target(
+        parsed, is_reparse_target_token_size(len(tokenizer.read_all_tokens()))
+    )
     return parsed
 
 
