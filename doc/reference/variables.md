@@ -113,7 +113,9 @@ print(x) # Prints 1
 
 ### Temporal Dead Zone (TDZ)
 
-In general, variables must be declared before use. There is **no** temporal dead zone in local scopes: referencing a name before declaration is an error.
+Variables must be declared before use.
+
+In local scopes, there is no deferred binding phase: using a name before declaration is a compile-time error.
 
 ```typhon
 # Error: x is not declared yet
@@ -121,45 +123,40 @@ print(x)
 let x = 10
 ```
 
-#### Module Top-Level: Static TDZ for Recursion
+#### Module Top-Level is special: Static TDZ for Recursion
 
-The **only** TDZ-like mechanism is at module top level, to support mutual recursion between function definitions.
+At module top level only, Typhon allows forward references between functions for mutual recursion.
+During analysis, a function with unresolved references is marked **DEAD** (not callable from top-level executable code yet).
 
-At module top level, functions may reference symbols declared later. Such functions are temporarily marked as **DEAD** until all referenced symbols are defined. This is a compile-time mechanism.
+| Scope | Forward reference allowed? | Notes |
+| --- | --- | --- |
+| Local / block scope | No | Use before declaration is an error. |
+| Module top-level function definitions | Yes | Function may be temporarily marked `DEAD`. |
 
-**Rules:**
+Rules:
 
-1. **Functions can reference forward-declared symbols**: A function at module top-level can call another function defined later.
+1. Module-level functions may refer to later-declared symbols.
+2. `DEAD` propagates through references (`A refers to B`, and `B` is `DEAD`, then `A` is also `DEAD`).
+3. Top-level executable code cannot refer to `DEAD` symbols at that point.
 
-   ```typhon
-   def foo() -> int {
-       return bar() # bar not yet defined - foo becomes DEAD
-   }
+```typhon
+let x = baz() # Error: baz is DEAD here
 
-   def bar() -> int {
-       return 42
-   }
-   # Now foo is no longer DEAD
-   ```
+def baz() -> int {
+    return 1
+}
+```
 
-2. **DEAD propagates**: If function `A` references DEAD function `B`, `A` also becomes DEAD.
+```typhon
+def foo() -> int {
+    return bar() # bar is not yet defined, so foo is temporarily DEAD
+}
+let y = foo # Error: foo is DEAD here
 
-   ```typhon
-   def a() { return b() } # DEAD (b is DEAD)
-   def b() { return c() } # DEAD (c not defined)
-   def c() { return 1 }   # Not DEAD
-   ```
+def bar() -> int {
+    return 42
+}
+let y = foo() # OK here, after bar is defined, foo is no longer DEAD
+```
 
-3. **DEAD symbols cannot be called at top-level**: You cannot call a DEAD function in top-level executable code.
-
-   ```typhon
-   let x = foo() # Error: foo is DEAD
-
-   def foo() -> int {
-       return 42
-   }
-   ```
-
-This mechanism allows module-level mutual recursion while preventing premature execution.
-
-**Important**: This behavior applies **only** at module top level. In all other scopes, declarations must appear before use.
+See also [Modules](definitions/modules.md#static-temporal-dead-zone-tdz).

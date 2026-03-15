@@ -58,7 +58,18 @@ Typhon uses braces and line breaks, with stricter continuation rules than Python
 
 ### Line Break Rules
 
-A line break is treated as **whitespace** (continuation) when it appears:
+A line break is either:
+
+- **white space**, or
+- **terminator** (treated as semicolon).
+
+Simple checklist:
+
+1. If the newline is after `return`, `yield`, `raise`, `break`, or `continue`, it is always a **terminator**.
+2. Otherwise, if the newline is in one of the continuation positions below, it is **white space**.
+3. In all other cases, it is a **terminator**.
+
+A line break is **white space** when it appears:
 
 1. **Just after**:
    - Operators (e.g., `+`, `-`, `.`, `=`, `?`, `:`, `=>`, `->`, `,`).
@@ -72,11 +83,11 @@ A line break is treated as **whitespace** (continuation) when it appears:
    - Closing brackets (`}`, `]`, `)`).
    - Keywords that continue a statement (`elif`, `else`, `except`, `finally`, `case`).
 
-In all other cases, a line break is treated as a **semicolon** (statement terminator).
+In all other cases, a line break is treated as a **terminator**.
 
 Note: `class` and `def` headers use continuation behavior, but decorator lines (`@...`) do not.
 
-Line breaks immediately after scope-exiting keywords (`return`, `yield`, `raise`, `break`, `continue`) are always **delimiters**, not continuation.
+Be aware again that newlines immediately after `return`, `yield`, `raise`, `break`, or `continue` are always delimiters.
 
 ```typhon
 let x = 1
@@ -91,6 +102,15 @@ def f() {
     yield
     g() # Parsed as yield; g();
 }
+```
+
+```typhon
+if (x > 0)
+{ print(x) } # Header newline continues
+
+@dec
+def f() {}
+# Decorator newline does not continue expression parsing
 ```
 
 ### Dead Code

@@ -28,6 +28,7 @@ Returns `None` if an exception occurs and is not handled in the expression.
 
 `try` comprehension supports the same clauses as statement `try`, except `else` is not allowed.
 
+
 ## Let Comprehension
 
 ```typhon
@@ -59,3 +60,13 @@ Typhon also allows using `while` in comprehensions.
 List/dict/set/generator comprehension forms are supported.
 
 `for` and `while` comprehensions follow statement forms, except `else` is not allowed.
+
+##  Fallback behavior summary
+
+| Form | Fallback when no branch/handler matches |
+| --- | --- |
+| `if` expression | `None` when `else` is omitted and all conditions are false |
+| `match` expression | `None` when no `case` matches |
+| `try` expression | `None` when an exception is raised and no `except` handles it |
+| `for`/`while` comprehension | No values produced when loop body is not entered, `else` block is not allowed |
+

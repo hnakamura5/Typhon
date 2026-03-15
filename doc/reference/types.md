@@ -47,7 +47,7 @@ let adder: (int, int) -> int = (x, y) => x + y
 
 ### Translation
 
-This is syntactic sugar over `Protocol`.
+For type checking, this is modeled as a callable `Protocol` shape.
 
 ```python
 class MyProtocol(Protocol):
@@ -64,12 +64,23 @@ let point: {|x: int, y: str|} = {|x = 10, y = "20"|}
 
 ### Translation
 
-This is translated to a dataclass shape expressed as a `Protocol`.
+Typhon uses two complementary views:
+
+- Record type: a `Protocol` of dataclass describing the fields.
+- Record literal value: an instance of an anonymous immutable dataclass.
 
 ```python
-@dataclass(frozen=True, repr=False, unsafe_hash=True)
-class AnonRecord(Protocol):
+# {|x: int, y: str|}
+@dataclass(frozen=True, repr=False, unsafe_hash=True, kw_only=True)
+class AnonRecordProtocol(Protocol):
     x: int
     y: str
-```
 
+@dataclass(frozen=True, repr=False, unsafe_hash=True, kw_only=True)
+class AnonRecord:
+    x: int
+    y: str
+
+# {|x = 10, y = "20"|}
+point: AnonRecordProtocol = AnonRecord(x=10, y="20")
+```

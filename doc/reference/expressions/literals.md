@@ -97,6 +97,7 @@ Their type form is `{|x: int, y: str|}`.
 ### Translation
 
 The literal `{|x = 10, y = "20"|}` is translated into an instantiation of an anonymous immutable dataclass.
+For the type-level view, see [Types / Data Record Types](../types.md#data-record-types).
 
 ```python
 @dataclass(frozen=True, repr=False, unsafe_hash=True, kw_only=True)

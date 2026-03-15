@@ -44,6 +44,19 @@ let typed_add = (x: int, y: int) -> int => x + y
 - **Varargs**: `*args`
 - **Kwargs**: `**kwargs`
 
+Example signature using all forms:
+
+```typhon
+def configure(a, b, /, mode="safe", *extras, timeout: int = 30, **opts) {
+    ...
+}
+```
+
+```typhon
+configure(1, 2, "fast", "x", "y", timeout=10, retries=3) # OK
+configure(a=1, b=2) # Error: positional-only parameters cannot be passed by keyword
+```
+
 Parameters are immutable by default. Shadow them if mutation is needed.
 
 ```typhon
@@ -52,3 +65,5 @@ def f(x) {
     let x = 1 # OK (shadowing)
 }
 ```
+
+See also [Variables](../variables.md#immutable-variables-let).
