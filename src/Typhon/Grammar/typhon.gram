@@ -426,7 +426,7 @@ function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
             is_static=(st is not None),
             maybe_name=n,
             open_paren=lp,
-            args=params or make_arguments(None, [], None, [], None, LOCATIONS),
+            args=params,
             close_paren=rp,
             returns=a,
             body=b,

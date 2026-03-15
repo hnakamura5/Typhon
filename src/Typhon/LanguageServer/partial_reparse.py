@@ -1,6 +1,8 @@
 import ast
 from lsprotocol import types
 
+from ..Driver.debugging import debug_verbose_print
+
 from ._utils.mapping import lsp_range_to_range
 
 from ..Transform.name_generator import is_builtin_name
@@ -14,7 +16,12 @@ from ..SourceMap.source_ast_cache import SourceAstCache
 def _get_reparse_unit(
     changed_range: Range, ast_cache: SourceAstCache
 ) -> ast.AST | None:
-    node = ast_cache.source_range_to_node(changed_range)
+    node = ast_cache.source_range_to_node(changed_range, filter_node_type=ast.stmt)
+    debug_verbose_print(
+        lambda: (
+            f"Node at changed range {changed_range}: {ast.dump(node) if node else None}"
+        )
+    )
     if node is None:
         return None
     # The most simple way. This does not require most of renaming.
@@ -94,6 +101,9 @@ class NodeReplacer(ast.NodeTransformer):
         self.replaced = False
 
     def visit(self, node: ast.AST):
+        debug_verbose_print(
+            lambda: f"  Visiting node {ast.dump(node)} is_target={node is self.target}"
+        )
         if node is self.target:
             self.replaced = True
             return self.replacement
@@ -115,11 +125,9 @@ def _filter_remove_builtin_import(body: list[ast.stmt]) -> list[ast.stmt]:
 
 def _replace_to_reparsed_unit(
     original_ast: ast.Module,
-    reparsed_result: ast.AST | None,
-    replace_target: ast.AST | None,
+    reparsed_result: ast.AST,
+    replace_target: ast.AST,
 ) -> ast.Module | None:
-    if replace_target is None:
-        return None
     if not isinstance(reparsed_result, ast.Module):
         return None
     filtered_body = _filter_remove_builtin_import(reparsed_result.body)
@@ -134,44 +142,84 @@ def _replace_to_reparsed_unit(
 
 
 def _reparce_range_and_replace(
+    original_transformed: ast.Module,
+    changed_source_code: str,
     changed_range: Range,
     ast_cache: SourceAstCache,
     ast_mapping: SourceMap,
 ) -> ast.Module | None:
+    debug_verbose_print(
+        lambda: (
+            f"Starting reparsing for changed range {changed_range}, source code: {changed_range.of_string(changed_source_code)}"
+        )
+    )
     reparse_unit_and_range = _get_reparse_unit_range_adjusted(changed_range, ast_cache)
     if reparse_unit_and_range is None:
         return None
+    debug_verbose_print(
+        lambda: (
+            f"Reparse unit range for changed range {changed_range}: {reparse_unit_and_range[0]}"
+        )
+    )
     reparse_unit_range, reparse_unit = reparse_unit_and_range
-    origin_source_reparse_part = reparse_unit_range.of_string(ast_cache.source_code)
+    origin_source_reparse_part = reparse_unit_range.of_string(changed_source_code)
     if not origin_source_reparse_part:
         return None
+    debug_verbose_print(
+        lambda: (
+            f"Origin source code for reparse unit range {reparse_unit_range}:\n {origin_source_reparse_part}"
+        )
+    )
     replace_target = _get_reparse_replace_target(
         reparse_unit_range, ast_mapping, type(reparse_unit)
     )
     if replace_target is None:
         return None
+    debug_verbose_print(
+        lambda: (
+            f"Replace target for reparse unit range {reparse_unit_range}: {replace_target}"
+        )
+    )
     reparsed_result = parse_string(origin_source_reparse_part, "exec")
     if reparsed_result is None:
         return None
+    debug_verbose_print(
+        lambda: (
+            f"Reparsed AST for reparse unit range {reparse_unit_range}: {ast.dump(reparsed_result)}"
+        )
+    )
     _adjust_positions_of_reparsed_unit(reparsed_result, reparse_unit_range)
-    # TODO: Adjust name binding with around?
-    return _replace_to_reparsed_unit(ast_cache.module, reparsed_result, replace_target)
+    # TODO: Adjust positions in ast_cache and source map (nodes after changed position)
+    # TODO: Adjust name binding with around? No need?
+    return _replace_to_reparsed_unit(
+        original_transformed, reparsed_result, replace_target
+    )
 
 
 def try_reparse_range(
     parsed_buffer: LanguageServerParsedBuffer,
     original_uri: str,
+    changed_source_code: str,
     changed_lsp_range: types.Range,
 ) -> ast.AST | None:
+    original_transformed_module = parsed_buffer.get_module(original_uri)
+    if original_transformed_module is None:
+        return None
     changed_range = lsp_range_to_range(changed_lsp_range)
     ast_cache = parsed_buffer.get_source_ast_cache(original_uri)
     mapping = parsed_buffer.get_mapping(original_uri)
     if ast_cache is None or mapping is None:
         return None
-    result = _reparce_range_and_replace(changed_range, ast_cache, mapping)
+    result = _reparce_range_and_replace(
+        original_transformed_module,
+        changed_source_code,
+        changed_range,
+        ast_cache,
+        mapping,
+    )
     if result is None:
         return None
     parsed_buffer.reload_from_parsed_module(
-        original_uri, result, ast_cache.source_code, ast_cache.source_file_path
+        original_uri, result, changed_source_code, ast_cache.source_file_path
     )
     return result

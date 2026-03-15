@@ -5,6 +5,7 @@ from tokenize import TokenInfo
 from .typhon_ast import (
     PosAttributes,
     get_empty_pos_attributes,
+    make_arguments,
     unpack_pos_default,
     get_pos_attributes,
     PosNode,
@@ -278,7 +279,7 @@ def recover_maybe_invalid_function_def_raw(
     is_static: bool,
     maybe_name: tuple[TokenInfo, bool] | None,
     open_paren: TokenInfo | None,
-    args: ast.arguments,
+    args: ast.arguments | None,
     close_paren: TokenInfo | None,
     returns: ast.expr | None,
     body: list[ast.stmt],
@@ -303,6 +304,8 @@ def recover_maybe_invalid_function_def_raw(
                 name.end,
             )
             name = get_invalid_name()
+    if args is None:
+        args = make_arguments(None, [], None, [], None, **get_empty_pos_attributes())
     result = maybe_invalid_stmt(
         parser,
         open_paren,

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from ..Grammar.typhon_ast import PosAttributes, PosRange, get_pos_attributes_if_exists
 from ..Driver.debugging import debug_verbose_print
 from intervaltree import IntervalTree, Interval  # type: ignore[import]
-from typing import Iterable
+from typing import Callable, Iterable
 import ast
 
 
@@ -212,7 +212,7 @@ class Range:
         else:
             result_lines: list[str] = []
             result_lines.append(lines[start_line][start_column:])
-            for line_num in range(start_line, end_line):
+            for line_num in range(start_line + 1, end_line):
                 result_lines.append(lines[line_num])
             result_lines.append(get_in_line(lines[end_line], 0, end_column))
             return "\n".join(result_lines)
@@ -275,13 +275,21 @@ class RangeIntervalTree[T]:
             result.append((Range.from_interval(interval), interval.data))  # type: ignore[misc]
         return result
 
-    def minimal_containers(self, range: Range) -> list[RangeInterval[T]]:
+    def minimal_containers(
+        self, range: Range, filter_container: Callable[[T], bool] | None = None
+    ) -> list[RangeInterval[T]]:
         containers = self._container_intervals(range)
         debug_verbose_print(
             lambda: f"Minimal containers for range {range}: {containers}"
         )
         if not containers:
             return []
+        if filter_container is not None:
+            containers = [
+                interval  # type: ignore[misc]
+                for interval in containers  # type: ignore[misc]
+                if filter_container(interval.data)  # type: ignore[misc]
+            ]
         result: list[RangeInterval[T]] = []
         interval: Interval
         for i, interval in enumerate(containers):

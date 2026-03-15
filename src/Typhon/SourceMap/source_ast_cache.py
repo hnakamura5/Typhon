@@ -67,9 +67,12 @@ class SourceAstCache:
         range: Range,
         filter_node_type: type[ast.AST] | None = None,
     ) -> ast.AST | None:
-        nodes = self.node_interval_tree.minimal_containers(range)
-        if filter_node_type is not None:
-            nodes = [(r, n) for r, n in nodes if isinstance(n, filter_node_type)]
+        def _filter_node(node: ast.AST) -> bool:
+            if filter_node_type is None:
+                return True
+            return isinstance(node, filter_node_type)
+
+        nodes = self.node_interval_tree.minimal_containers(range, _filter_node)
         debug_verbose_print(
             lambda: f"Source AST minimal containers for range {range}: {nodes}"
         )
