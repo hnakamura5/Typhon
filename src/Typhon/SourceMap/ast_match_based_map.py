@@ -297,6 +297,27 @@ class MatchBasedSourceMap:
             filter_node_type,
         )
 
+    def origin_range_to_origin_node(
+        self,
+        range_origin: Range,
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None:
+        nodes: list[RangeInterval[ast.AST]] = (
+            self.origin_interval_tree.minimal_containers(range_origin)
+        )
+        debug_verbose_print(
+            lambda: (
+                f"Mapping origin range to origin node: {range_origin} nodes: {nodes}"
+            )
+        )
+        if filter_node_type is not None:
+            nodes = [(r, n) for r, n in nodes if isinstance(n, filter_node_type)]
+        if nodes and len(nodes) == 1:
+            _, node = nodes[0]
+            return node
+        debug_verbose_print(lambda: "No nodes found for the given origin range.")
+        return None
+
     def unparsed_code_end_pos(self) -> Pos:
         if self.unparsed_code_lines:
             return Pos(

@@ -57,6 +57,10 @@ def _kind_code(kind: NameKind) -> str:
         raise ValueError(f"Unknown NameKind: {kind}")
 
 
+def is_builtin_name(name: str) -> bool:
+    return name.startswith(_TYPHON_BUILTIN_PREFIX)
+
+
 def get_protocol_name() -> str:
     return f"{_TYPHON_BUILTIN_PREFIX}Protocol"
 

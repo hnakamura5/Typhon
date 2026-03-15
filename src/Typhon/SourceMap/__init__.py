@@ -50,6 +50,18 @@ class SourceMap(Protocol):
         filter_node_type: type[ast.AST] | None = None,
     ) -> ast.AST | None: ...
 
+    def origin_pos_to_origin_node(
+        self,
+        pos_origin: Pos,
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None: ...
+
+    def origin_range_to_origin_node(
+        self,
+        range_origin: Range,
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None: ...
+
     def unparsed_pos_to_origin_node(
         self,
         pos_unparsed: Pos,

@@ -196,47 +196,34 @@ class LanguageServer(PyglsLanguageServer):
                 )
             )
             tokenizer = tokenizer_for_string(source)
-            self.parsed_buffer.set_token_infos(orignal_uri, tokenizer.read_all_tokens())
             ast_node = parse_tokenizer(tokenizer)
             if not isinstance(ast_node, ast.Module):
-                ast_node = None
-            if ast_node is not None:
-                parsed_ast = copy.deepcopy(ast_node)
-                self.parsed_buffer.set_parsed_module(orignal_uri, parsed_ast)
-                self.parsed_buffer.set_source_ast_cache(
-                    orignal_uri,
-                    SourceAstCache(
-                        parsed_ast,
-                        source,
-                        doc_path.as_posix(),
-                    ),
-                )
-            debug_file_write(
-                lambda: (
-                    f"Parsed AST for {orignal_uri}: {ast.dump(ast_node) if ast_node else 'None'}"
-                )
-            )
-            if ast_node:
-                transform(ast_node, ignore_error=True)
-            self.parsed_buffer.set_module(orignal_uri, ast_node)
-            if not ast_node:
-                return None
-            # Write translated file to server temporal directory
-            translate_file_path, root = self.get_translated_file_path_and_root(doc_path)
-            unparsed = unparse_custom(ast_node)
-            mapping = map_from_translated(
-                ast_node, source, doc_path.as_posix(), unparsed
-            )
-            if mapping:
-                self.parsed_buffer.set_mapping(orignal_uri, mapping)
-            self.setup_container_directories(translate_file_path, root)
+                return None  # Do not update on parse failure.
             # Setup the server directory
+            reload_result = self.parsed_buffer.reload_from_parsed_module(
+                orignal_uri,
+                ast_node,
+                source,
+                doc_path.as_posix(),
+            )
+            if reload_result is None:
+                debug_file_write(
+                    lambda: (
+                        f"Reload failed for {orignal_uri}, keeping previous mapping if exists."
+                    )
+                )
+                return None
+            transformed_module, unparsed = reload_result
+            translate_file_path, root = self.get_translated_file_path_and_root(doc_path)
             server_temp_dir = output_dir_for_server_workspace(root) if root else None
-            write_config(
+            self.setup_container_directories(translate_file_path, root)
+            config_output_dir = (
                 server_temp_dir
-                if server_temp_dir
+                if server_temp_dir is not None
                 else default_server_output_dir(doc_path.as_posix())
             )
+            config_output_dir.mkdir(parents=True, exist_ok=True)
+            write_config(config_output_dir)
             with open(translate_file_path, "w", encoding="utf-8") as f:
                 debug_file_write(
                     lambda: (
@@ -244,7 +231,6 @@ class LanguageServer(PyglsLanguageServer):
                     )
                 )
                 f.write(unparsed)
-            self.parsed_buffer.set_translated_source(orignal_uri, unparsed)
             return unparsed
         except Exception as e:
             debug_file_write(lambda: f"Error reloading document {orignal_uri}: {e}")

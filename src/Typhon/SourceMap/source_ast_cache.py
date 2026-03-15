@@ -11,11 +11,11 @@ class SourceAstCache:
         self,
         module: ast.Module,
         source_code: str,
-        source_file: str,
+        source_file_path: str,
     ):
         self.module = module
         self.source_code = source_code
-        self.source_file = source_file
+        self.source_file_path = source_file_path
         self.source_code_lines = source_code.splitlines()
         self.parent_map: dict[ast.AST, ast.AST | None] = {module: None}
         self.node_interval_tree = RangeIntervalTree[ast.AST]()
@@ -35,7 +35,7 @@ class SourceAstCache:
             node_range = Range.from_pos_attr_may_not_end(pos)
             debug_verbose_print(
                 lambda: (
-                    f"Adding to source AST interval tree: in {self.source_file}\n"
+                    f"Adding to source AST interval tree: in {self.source_file_path}\n"
                     f"    range={node_range}\n"
                     f"    {ast.dump(node)}\n"
                     f"    text={node_range.of_string(self.source_code)}"
