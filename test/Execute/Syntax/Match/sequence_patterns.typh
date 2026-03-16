@@ -1,0 +1,23 @@
+def describe(seq: [int]) {
+    match (seq) {
+        case ([head: int, *tail: [int]]) {
+            print(f"head={head}")
+            print(f"tail_len={len(tail)}")
+        }
+        case (_) {
+            print("empty")
+        }
+    }
+}
+
+describe([])
+describe([1])
+describe([1, 2, 3])
+
+"""stdout
+empty
+head=1
+tail_len=0
+head=1
+tail_len=2
+"""

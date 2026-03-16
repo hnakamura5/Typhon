@@ -1,0 +1,42 @@
+class Point {
+    let x: int
+    let y: int
+
+    def __init__(x: int, y: int) {
+        self.x = x
+        self.y = y
+    }
+}
+
+
+def classify(v: Point | [int] | int) {
+    match (v) {
+        case (0 | 1) {
+            print("small")
+        }
+        case (Point(x=2, y=y)) {
+            print(f"class:{y}")
+        }
+        case ([a: int, b: int] as pair) {
+            print(f"as:{a + b} pair:{pair}")
+        }
+        case (_) {
+            print("other")
+        }
+    }
+}
+
+
+classify(0)
+classify(1)
+classify(Point(2, 5))
+classify([3, 4])
+classify(Point(3, 4))
+
+"""stdout
+small
+small
+class:5
+as:7 pair:[3, 4]
+other
+"""

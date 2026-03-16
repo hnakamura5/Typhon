@@ -1,0 +1,26 @@
+let add: (int, int) -> int = (x: int, y: int) -> int => x + y
+let inc: (int) -> int = (n: int) -> int => n + 1
+let chooser: (bool, int, int) -> int = (flag: bool, a: int, b: int) -> int => (if (flag) a else b)
+let chooser2 = (flag: bool, a: int, b: int) -> int => {
+    if (flag) {
+        return a
+    } else {
+        return b
+    }
+}
+
+print(add(2, 3))
+print(inc(9))
+print(chooser(True, 10, 20))
+print(chooser(False, 10, 20))
+print(chooser2(True, 100, 200))
+print(chooser2(False, 100, 200))
+
+"""stdout
+5
+10
+10
+20
+100
+200
+"""

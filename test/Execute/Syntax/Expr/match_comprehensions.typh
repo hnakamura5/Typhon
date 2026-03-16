@@ -1,0 +1,20 @@
+def match_pair(v: (int, int)) -> int {
+    return (match (v)
+        case ((1, x: int)) 100
+        case ((a: int, b: int)) a + b)
+}
+
+def maybe_one(v: int) -> str | None {
+    return (match (v)
+        case (1) "one")
+}
+
+print(match_pair((2, 3)))
+print(maybe_one(1))
+print(maybe_one(99))
+
+"""stdout
+5
+one
+None
+"""

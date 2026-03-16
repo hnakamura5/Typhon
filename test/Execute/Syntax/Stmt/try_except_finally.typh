@@ -1,0 +1,19 @@
+def div_print(a: int, b: int) {
+    try {
+        print(a // b)
+    } except (ZeroDivisionError) {
+        print("zero")
+    } finally {
+        print("done")
+    }
+}
+
+div_print(4, 2)
+div_print(4, 0)
+
+"""stdout
+2
+done
+zero
+done
+"""

@@ -1,0 +1,31 @@
+class Counter {
+    var i: int;
+
+    def __init__(seed: int) {
+        self.i = seed
+    }
+
+    def lt(limit: int) -> bool {
+        return self.i < limit
+    }
+
+    def take() -> int {
+        let out = self.i
+        self.i += 1
+        return out
+    }
+}
+
+let c = Counter(0)
+let from_while = (while (c.lt(4)) yield c.take())
+
+for (let v in from_while) {
+    print(f"w={v}")
+}
+
+"""stdout
+w=0
+w=1
+w=2
+w=3
+"""

@@ -1,0 +1,27 @@
+def show_optional(v: int | None) {
+    if (let x = v) {
+        print(f"some:{x}")
+    } else {
+        print("none")
+    }
+}
+
+def show_sequence(v: [int]) {
+    if (let [1, second: int, *rest: [int]] = v) {
+        print(f"hit:{second}:{len(rest)}")
+    } else {
+        print("miss")
+    }
+}
+
+show_optional(10)
+show_optional(None)
+show_sequence([1, 9])
+show_sequence([0, 9, 8])
+
+"""stdout
+some:10
+none
+hit:9:0
+miss
+"""

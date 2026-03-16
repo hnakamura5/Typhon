@@ -1,0 +1,27 @@
+class Counter {
+    var n: int;
+
+    def __init__(seed: int) {
+        self.n = seed
+    }
+
+    def inc(step: int = 1) -> int {
+        self.n = self.n + step
+        return self.n
+    }
+
+    def value() -> int {
+        return self.n
+    }
+}
+
+let c = Counter(5)
+print(c.value())
+print(c.inc())
+print(c.inc(3))
+
+"""stdout
+5
+6
+9
+"""

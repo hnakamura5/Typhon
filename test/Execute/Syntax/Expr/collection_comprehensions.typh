@@ -1,0 +1,13 @@
+let squares = {for (let x in range(0, 4)) yield x: x * x}
+let odds = {for (let x in range(0, 6)) if (x % 2 == 1) yield x}
+let doubles = [for (let x in range(0, 4)) yield x * 2]
+
+print(squares)
+print(sorted(odds))
+print(doubles)
+
+"""stdout
+{0: 0, 1: 1, 2: 4, 3: 9}
+[1, 3, 5]
+[0, 2, 4, 6]
+"""

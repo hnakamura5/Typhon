@@ -1,0 +1,32 @@
+class Ctx {
+    let name: str;
+
+    def __init__(name: str) {
+        self.name = name
+    }
+
+    def __enter__() -> "Ctx" {
+        print(f"enter:{self.name}")
+        return self
+    }
+
+    def __exit__(exc_type: BaseException, exc_value: BaseException, traceback: BaseException) {
+        print(f"exit:{self.name}")
+    }
+}
+
+
+def run_inline() {
+    with let c = Ctx("A")
+    print(f"in:{c.name}")
+    print("work")
+}
+
+run_inline()
+
+"""stdout
+enter:A
+in:A
+work
+exit:A
+"""

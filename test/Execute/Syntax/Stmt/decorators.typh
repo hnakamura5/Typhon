@@ -1,0 +1,22 @@
+def trace(fn: (int) -> int) -> (int) -> int {
+    def wrapped(x: int) -> int {
+        print("before")
+        let out = fn(x)
+        print("after")
+        return out
+    }
+    return wrapped
+}
+
+@trace
+def square(x: int) -> int {
+    return x * x
+}
+
+print(square(5))
+
+"""stdout
+before
+after
+25
+"""

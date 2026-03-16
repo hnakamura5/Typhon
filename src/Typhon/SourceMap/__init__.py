@@ -12,7 +12,7 @@ class SourceMap(Protocol):
         unparsed_node: ast.AST,
     ) -> ast.AST | None: ...
 
-    def unparsed_range_to_origin(
+    def unparsed_range_to_origin_range(
         self,
         range_unparsed: Range,
     ) -> Range | None: ...

@@ -1,0 +1,26 @@
+let t = (1, "a", True)
+let l = [10, 20, 30]
+let r: {|x: int, y: str|} = {|x = 7, y = "ok"|}
+
+print(t)
+print(l)
+print(r)
+
+let (a, b, c) = t
+let x = l[0]
+let y = l[1]
+let z = l[2]
+let {.x = rx, .y = ry} = r
+
+print(f"{a},{b},{c}")
+print(f"{x + y + z}")
+print(f"{rx}:{ry} vs {r.x}:{r.y}")
+
+"""stdout
+(1, 'a', True)
+[10, 20, 30]
+{|x=7, y='ok'|}
+1,a,True
+60
+7:ok vs 7:ok
+"""

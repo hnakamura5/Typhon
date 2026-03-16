@@ -1,0 +1,22 @@
+let a = (if (1 < 0) 10 else 20)
+let b = (if (False) 1)
+let c = (try 10 // 2 except (ZeroDivisionError) -1)
+let d = (try 1 // 0 except (ZeroDivisionError) -1)
+let e = [for (let i in range(0, 5)) if (i % 2 == 0) yield i * i]
+let f = (let x = 7; x + 3)
+
+print(a)
+print(b)
+print(c)
+print(d)
+print(e)
+print(f)
+
+"""stdout
+20
+None
+5
+-1
+[0, 4, 16]
+10
+"""

@@ -1,0 +1,23 @@
+def kind(v: object) {
+    match (v) {
+        case ((1, 2)) {
+            print("tuple12")
+        }
+        case ([3, 4]) {
+            print("seq34")
+        }
+        case (_) {
+            print("other")
+        }
+    }
+}
+
+kind((1, 2))
+kind([3, 4])
+kind([1, 2, 3])
+
+"""stdout
+tuple12
+seq34
+other
+"""

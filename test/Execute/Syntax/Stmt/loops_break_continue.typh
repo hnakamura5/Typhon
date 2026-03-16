@@ -1,0 +1,25 @@
+for (let i in range(0, 6)) {
+    if (i == 2) {
+        continue
+    }
+    if (i == 5) {
+        break
+    }
+    print(i)
+}
+
+var w = 0
+while (w < 3) {
+    print(f"w={w}")
+    w += 1
+}
+
+"""stdout
+0
+1
+3
+4
+w=0
+w=1
+w=2
+"""

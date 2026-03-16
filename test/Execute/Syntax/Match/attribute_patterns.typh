@@ -1,0 +1,35 @@
+def via_if_let(r: {|x: int, y: int|}) {
+    if (let {.x = 1, .y = y: int} = r) {
+        print(f"if:{y}")
+    } else {
+        print("if:no")
+    }
+}
+
+def via_match(r: {|x: int, y: int|}) {
+    match (r) {
+        case ({.x = 0, .y = y: int}) {
+            print(f"match0:{y}")
+        }
+        case ({.x = 1, .y = y: int}) {
+            print(f"match1:{y}")
+        }
+        case (_) {
+            print("match:no")
+        }
+    }
+}
+
+via_if_let({|x = 1, y = 7|})
+via_if_let({|x = 2, y = 8|})
+via_match({|x = 0, y = 5|})
+via_match({|x = 1, y = 9|})
+via_match({|x = 3, y = 4|})
+
+"""stdout
+if:7
+if:no
+match0:5
+match1:9
+match:no
+"""

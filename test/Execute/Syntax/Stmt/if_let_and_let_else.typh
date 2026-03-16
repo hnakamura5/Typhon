@@ -1,0 +1,36 @@
+def maybe_text(flag: bool) -> str | None {
+    if (flag) {
+        return "ok"
+    }
+    return None
+}
+
+if (let x = maybe_text(True)) {
+    print(f"some:{x}")
+} else {
+    print("none")
+}
+
+if (let y = maybe_text(False)) {
+    print(f"some:{y}")
+} else {
+    print("none")
+}
+
+def pick_second(xs: [int]) {
+    let [_, second: int, *_] = xs else {
+        print("short")
+        return
+    }
+    print(second)
+}
+
+pick_second([1])
+pick_second([1, 2, 3])
+
+"""stdout
+some:ok
+none
+short
+2
+"""

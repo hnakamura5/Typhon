@@ -1,0 +1,21 @@
+def maybe_text(flag: bool) -> str | None {
+	if (flag) {
+		return "typhon"
+	}
+	return None
+}
+
+let a = maybe_text(True)
+let b = maybe_text(False)
+
+print(a ?? "fallback")
+print(b ?? "fallback")
+print((b ?? "none").upper())
+print((a ?? "none").upper())
+
+"""stdout
+typhon
+fallback
+NONE
+TYPHON
+"""

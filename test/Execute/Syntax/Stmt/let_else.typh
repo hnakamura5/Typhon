@@ -1,0 +1,18 @@
+def second_or(xs: [int], fallback: int) -> int {
+    let [_, second: int, *_] = xs else {
+        print("too_short")
+        return fallback
+    }
+    print(f"second={second}")
+    return second
+}
+
+print(second_or([9], -1))
+print(second_or([9, 8, 7], -1))
+
+"""stdout
+too_short
+-1
+second=8
+8
+"""

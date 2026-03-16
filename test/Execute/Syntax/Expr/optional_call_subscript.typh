@@ -1,0 +1,23 @@
+def apply_or_default(f: ((int) -> int) | None, x: int) -> int {
+	return f?(x) ?? -1
+}
+
+def print_second_or_default(xs: [int] | None) {
+	print(xs?[1] ?? -1)
+}
+
+print(apply_or_default((x: int) -> int => x * 2, 7))
+print(apply_or_default(None, 7))
+print_second_or_default([10, 20, 30])
+print_second_or_default(None)
+print(!False)
+print(!True || (False && True))
+
+"""stdout
+14
+-1
+20
+-1
+True
+False
+"""

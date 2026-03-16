@@ -1,0 +1,19 @@
+def classify(x: int) {
+    if (x > 0) {
+        print("pos")
+    } elif (x < 0) {
+        print("neg")
+    } else {
+        print("zero")
+    }
+}
+
+classify(3)
+classify(0)
+classify(-2)
+
+"""stdout
+pos
+zero
+neg
+"""

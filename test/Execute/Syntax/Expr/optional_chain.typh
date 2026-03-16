@@ -1,0 +1,14 @@
+import re
+
+let m1 = re.match(r"(?P<name>\w+)", "typhon")
+let m2 = re.match(r"(?P<name>\w+)", "!!!")
+
+print(m1?.group?("name") ?? "none")
+print(m2?.group?("name") ?? "none")
+print(m1?.group?(0) ?? "none")
+
+"""stdout
+typhon
+none
+typhon
+"""

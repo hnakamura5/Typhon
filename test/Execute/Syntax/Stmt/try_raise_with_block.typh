@@ -1,0 +1,49 @@
+class Ctx {
+    let name: str;
+
+    def __init__(name: str) {
+        self.name = name
+    }
+
+    def __enter__() -> "Ctx" {
+        print(f"enter:{self.name}")
+        return self
+    }
+
+    def __exit__(exc_type: BaseException, exc_value: BaseException, traceback: BaseException) {
+        print(f"exit:{self.name}")
+    }
+}
+
+with (let c = Ctx("B")) {
+    print(f"in:{c.name}")
+}
+
+
+def wrap_error() {
+    try {
+        raise ValueError("inner")
+    } except (ValueError as e) {
+        raise RuntimeError("outer") from e
+    }
+}
+
+try {
+    wrap_error()
+} except (RuntimeError as e) {
+    print(f"cause:{e.__cause__.__class__.__name__}")
+}
+
+try {
+    raise Exception("x")
+} except (Exception) {
+    print("bare")
+}
+
+"""stdout
+enter:B
+in:B
+exit:B
+cause:ValueError
+bare
+"""

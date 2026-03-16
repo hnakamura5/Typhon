@@ -1,0 +1,23 @@
+def classify(x: int) {
+    match (x) {
+        case (0) {
+            print("zero")
+        }
+        case (n) if (n > 0) {
+            print("pos")
+        }
+        case (_) {
+            print("neg")
+        }
+    }
+}
+
+classify(0)
+classify(7)
+classify(-3)
+
+"""stdout
+zero
+pos
+neg
+"""

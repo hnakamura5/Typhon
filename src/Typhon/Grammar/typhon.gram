@@ -931,7 +931,7 @@ star_pattern:
     | '*' target=pattern_capture_target_annot {
         set_type_annotation(ast.MatchStar(name=target[0].id, **get_pos_attributes(target[0])), target[1])
      }
-    | '*' wildcard_pattern { ast.MatchStar(target=None, LOCATIONS) }
+    | '*' wildcard_pattern { ast.MatchStar(name=None, LOCATIONS) }
 
 mapping_pattern:
     | '{' '}' { ast.MatchMapping(keys=[], patterns=[], rest=None, LOCATIONS) }

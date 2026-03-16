@@ -29,7 +29,7 @@ class Diagnostic:
         pos = self.pos
         if source_map is not None:
             file_path = source_map.source_file
-            origin_pos = source_map.unparsed_range_to_origin(self.pos)
+            origin_pos = source_map.unparsed_range_to_origin_range(self.pos)
             if origin_pos is not None:
                 pos = origin_pos
                 debug_print(
@@ -100,7 +100,7 @@ def source_position_diagnostic(
     diag: Diagnostic,
     source_map: SourceMap,
 ) -> str:
-    range_in_source = source_map.unparsed_range_to_origin(diag.pos)
+    range_in_source = source_map.unparsed_range_to_origin_range(diag.pos)
     if range_in_source is None:
         return ""
     source_lines = source_map.source_code.splitlines()

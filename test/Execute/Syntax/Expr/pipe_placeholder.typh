@@ -1,0 +1,29 @@
+let doubled_odds = range(0, 6)
+    |> filter(_ % 2 == 1, _)
+    |> map(_ * 2, _)
+
+for (let v in doubled_odds) {
+    print(v)
+}
+
+let values = [1, 2, 3, 4, 5]
+
+let even = values |> filter(_ % 2 == 0, _)
+let squared = even |> map(_ * 2, _)
+
+for (let v in squared) {
+    print(v)
+}
+
+print((10 |> (_ + 5)))
+print(None ?|> (x: int) -> int => x * 2)
+
+"""stdout
+2
+6
+10
+4
+8
+15
+None
+"""
