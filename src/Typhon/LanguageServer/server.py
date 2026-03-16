@@ -1,5 +1,4 @@
 import copy
-from os import path
 from lsprotocol.types import SemanticTokens
 from typing import Any, override, Protocol, Final
 import ast
@@ -12,11 +11,9 @@ from pygls.lsp.client import LanguageClient
 from pygls.workspace import TextDocument
 from lsprotocol import types
 
-
+from ..Grammar.typhon_ast import is_reparse_target
 from ..Grammar.tokenizer_custom import tokenizer_for_string
 from ..Grammar.parser import parse_tokenizer
-from ..Grammar.unparse_custom import unparse_custom
-from ..Transform.transform import transform
 from ..Driver.debugging import (
     debug_file_write,
     debug_file_write_verbose,
@@ -30,8 +27,6 @@ from ..Utils.path import (
     mkdir_and_setup_init_py,
 )
 from ..Driver.type_check import write_config
-from ..SourceMap.ast_match_based_map import map_from_translated
-from ..SourceMap.source_ast_cache import SourceAstCache
 from .client import create_language_client, start_language_client
 from .parsed_buffer import LanguageServerParsedBuffer
 from .semantic_tokens import (
@@ -561,7 +556,7 @@ def did_change(ls: LanguageServer, params: types.DidChangeTextDocumentParams):
         uri = params.text_document.uri
         canonical_uri = canonicalize_uri(uri)
         translated_uri = ls.get_translated_file_uri(uri)
-        # Fast path: small edits reuse the cached source map
+        # Fast path: small edits reuse the cached source map.
         if ls.is_change_small_enough(params):
             debug_file_write(
                 lambda: f"Did change is small enough for fast path {params}"
@@ -579,6 +574,11 @@ def did_change(ls: LanguageServer, params: types.DidChangeTextDocumentParams):
                         )
                     )
                     return None
+        # Rescue path: partial reparse and reload.
+        module = ls.parsed_buffer.get_module(canonical_uri)
+        if module and is_reparse_target(module):
+            pass  # TODO: Implement partial reparse path for modules with reparsing support.
+
         # Normal path: full reload.
         ls.cancel_deferred_reload(canonical_uri)
         unparsed = ls.reload(uri)
@@ -589,6 +589,7 @@ def did_change(ls: LanguageServer, params: types.DidChangeTextDocumentParams):
             )
         )
         if translated_text is None:
+            # TODO: Does this path really work? Or no need?
             mapping = ls.parsed_buffer.get_mapping(canonical_uri)
             if mapping is None:
                 debug_file_write(
