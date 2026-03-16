@@ -1,0 +1,9 @@
+def addx(x: int {
+}
+
+"""stderr
+syntax error: $FILE:1:16
+  expected ')'
+    1 |  def addx(x: int {
+                        ^
+"""

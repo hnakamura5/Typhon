@@ -1,0 +1,8 @@
+let y = 1 |> )
+
+"""stderr
+syntax error: $FILE:1:11
+  unknown tokens
+    1 |  let y = 1 |> )
+                   ^^^^^
+"""

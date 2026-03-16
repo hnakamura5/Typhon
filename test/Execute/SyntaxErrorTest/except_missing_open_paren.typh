@@ -1,0 +1,10 @@
+try {
+} except ValueError as e) {
+}
+
+"""stderr
+syntax error: $FILE:2:9
+  expected '('
+    2 |  } except ValueError as e) {
+                 ^
+"""

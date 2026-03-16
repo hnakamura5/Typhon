@@ -1,0 +1,17 @@
+if (True {
+}
+
+if False) {
+}
+
+"""stderr
+syntax error: $FILE:1:9
+  expected ')'
+    1 |  if (True {
+                 ^
+
+syntax error: $FILE:4:3
+  expected '('
+    4 |  if False) {
+           ^
+"""

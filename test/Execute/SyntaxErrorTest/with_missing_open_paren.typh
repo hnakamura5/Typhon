@@ -1,0 +1,14 @@
+with let f = open('x') {
+}
+
+"""stderr
+syntax error: $FILE:1:5
+  expected '('
+    1 |  with let f = open('x') {
+             ^
+
+syntax error: $FILE:1:23
+  expected ')'
+    1 |  with let f = open('x') {
+                               ^
+"""

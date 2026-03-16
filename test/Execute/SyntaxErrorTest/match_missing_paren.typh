@@ -1,0 +1,25 @@
+match (1) {
+    case 1) { }
+}
+
+match x) {
+    case (1) { }
+}
+
+
+"""stderr
+syntax error: $FILE:2:9
+  expected '('
+    2 |      case 1) { }
+                 ^
+
+syntax error: $FILE:5:6
+  expected '('
+    5 |  match x) {
+              ^
+
+syntax error: $FILE:5:7
+  Symbol 'x' is referenced before declaration.
+    5 |  match x) {
+               ^
+"""

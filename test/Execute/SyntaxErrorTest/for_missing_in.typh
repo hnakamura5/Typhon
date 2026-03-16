@@ -1,0 +1,9 @@
+for (let ii range(3)) {
+}
+
+"""stderr
+syntax error: $FILE:1:12
+  expected 'in'
+    1 |  for (let ii range(3)) {
+                    ^
+"""
