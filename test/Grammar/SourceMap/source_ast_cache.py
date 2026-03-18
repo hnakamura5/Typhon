@@ -56,6 +56,22 @@ def test_source_ast_cache_range_expr_and_stmt():
     assert stmt_range.of_string(code_stmt_if) == "return y"
 
 
+def test_source_ast_cache_line_expr_and_stmt():
+    cache = _build_cache(code_stmt_if)
+
+    stmt = cache.source_line_to_node(5, ast.stmt)
+    assert isinstance(stmt, ast.AugAssign)
+    stmt_range = Range.from_ast_node(stmt)
+    assert stmt_range is not None
+    assert stmt_range.of_string(code_stmt_if) == "y += i"
+
+    expr = cache.source_line_to_node(4, ast.Compare)
+    assert isinstance(expr, ast.Compare)
+    expr_range = Range.from_ast_node(expr)
+    assert expr_range is not None
+    assert expr_range.of_string(code_stmt_if) == "i % 2 == 0"
+
+
 code_nested_access = """
 def left_func(value: A?) {
     return value?.field[0]

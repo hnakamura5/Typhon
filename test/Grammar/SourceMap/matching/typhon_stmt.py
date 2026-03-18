@@ -1,10 +1,11 @@
+import ast
+
 from ...assertion_utils import (
     assert_typh_code_match_unparse,
     assert_transform,
     SourceMapAsserter,
 )
 from Typhon.SourceMap.datatype import Range, Pos
-from Typhon.Driver.debugging import set_debug_verbose
 
 
 code_stmt_if = """
@@ -166,6 +167,25 @@ def left_func(opt_x: int?, opt_y: int?) -> int {
 
 def test_match_typhon_stmt_if_let():
     assert_typh_code_match_unparse(code_stmt_if_let)
+
+
+def test_match_typhon_stmt_line_to_node():
+    sa = SourceMapAsserter(code_stmt_if)
+    source_map = sa.source_map
+    # origin line lookup
+    origin_node = source_map.origin_line_to_origin_node(5, ast.AugAssign)
+    assert isinstance(origin_node, ast.AugAssign)
+    origin_range = Range.from_ast_node(origin_node)
+    assert origin_range is not None
+    assert origin_range.start == Pos(5, 12)
+    assert origin_range.end == Pos(5, 18)
+    # unparsed line lookup
+    unparsed_node = source_map.unparsed_line_to_unparsed_node(7, ast.AugAssign)
+    assert isinstance(unparsed_node, ast.AugAssign)
+    unparsed_range = Range.from_ast_node(unparsed_node)
+    assert unparsed_range is not None
+    assert unparsed_range.start == Pos(7, 12)
+    assert unparsed_range.end == Pos(7, 18)
 
 
 code_stmt_let_else = """

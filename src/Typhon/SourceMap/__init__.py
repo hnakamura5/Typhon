@@ -56,6 +56,12 @@ class SourceMap(Protocol):
         filter_node_type: type[ast.AST] | None = None,
     ) -> ast.AST | None: ...
 
+    def origin_line_to_origin_node(
+        self,
+        line_origin: int,
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None: ...
+
     def origin_range_to_origin_node(
         self,
         range_origin: Range,
@@ -65,6 +71,12 @@ class SourceMap(Protocol):
     def unparsed_pos_to_origin_node(
         self,
         pos_unparsed: Pos,
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None: ...
+
+    def unparsed_line_to_unparsed_node(
+        self,
+        line_unparsed: int,
         filter_node_type: type[ast.AST] | None = None,
     ) -> ast.AST | None: ...
 

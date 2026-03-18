@@ -3,6 +3,7 @@ import fire
 from .Driver.translate import translate, tr
 from .Driver.debugging import (
     set_debug_mode,
+    set_testing_reparser,
     set_debug_verbose,
     set_debug_first_error,
     set_debug_log_file,
@@ -24,6 +25,9 @@ def _setup_debug_mode():
         set_debug_mode(True)
         set_debug_first_error(True)
         sys.argv.remove("--debug-first-error")
+    if "--testing-reparser" in sys.argv:
+        set_testing_reparser(True)
+        sys.argv.remove("--testing-reparser")
     if "--debug-log-file" in sys.argv:
         index = sys.argv.index("--debug-log-file")
         if index + 1 < len(sys.argv):

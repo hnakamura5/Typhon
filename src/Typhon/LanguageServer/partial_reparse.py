@@ -16,26 +16,23 @@ from ..SourceMap.source_ast_cache import SourceAstCache
 def _get_reparse_unit(
     changed_range: Range, ast_cache: SourceAstCache
 ) -> ast.AST | None:
-    node = ast_cache.source_range_to_node(changed_range, filter_node_type=ast.stmt)
+    # TODO: How to specify the reparce position? Changed position is not parsed and cached yet. Use line information?
+    node = ast_cache.source_range_to_node(
+        changed_range.col_back(), filter_node_type=ast.stmt
+    )
     debug_verbose_print(
         lambda: (
             f"Node at changed range {changed_range}: {ast.dump(node) if node else None}"
         )
     )
     if node is None:
+        node = ast_cache.source_line_to_node(
+            changed_range.start.line, filter_node_type=ast.stmt
+        )
+    if node is None:
         return None
     # The most simple way. This does not require most of renaming.
     return ast_cache.outermost_enclosing(node, ast.stmt)
-    # Find the innermost statement or expression containing the position
-    if enclosing_function := ast_cache.innermost_enclosing(
-        node, (ast.FunctionDef, ast.AsyncFunctionDef)
-    ):
-        return enclosing_function
-    # Prefer function than class. Because function body itself is a scope.
-    if enclosing_class := ast_cache.innermost_enclosing(node, ast.ClassDef):
-        return enclosing_class
-    top_level_stmt = ast_cache.outermost_enclosing(node, ast.stmt)
-    return top_level_stmt
 
 
 def _get_reparse_unit_range(
@@ -53,6 +50,7 @@ def _get_reparse_unit_range(
 def _get_reparse_unit_range_adjusted(
     changed_range: Range, ast_cache: SourceAstCache
 ) -> tuple[Range, ast.AST] | None:
+    # TODO: How to specify the reparce position? Changed position is not parsed and mapped yet.
     unit_and_range = _get_reparse_unit_range(changed_range, ast_cache)
     if unit_and_range is None:
         return None
@@ -64,7 +62,16 @@ def _get_reparse_replace_target(
     changed_range: Range, ast_mapping: SourceMap, filter_type: type[ast.AST]
 ) -> ast.AST | None:
     # TODO: If the position is contained in several target?
-    target = ast_mapping.origin_range_to_origin_node(changed_range, filter_type)
+    target = ast_mapping.origin_range_to_origin_node(changed_range.col_back(), ast.stmt)
+    if not target:
+        target = ast_mapping.origin_line_to_origin_node(
+            changed_range.start.line, ast.stmt
+        )
+        debug_verbose_print(
+            lambda: (
+                f"Replace target mapping failed {changed_range}, trying line-based mapping: {target} filter_type={filter_type}"
+            )
+        )
     return target
 
 
@@ -81,6 +88,15 @@ class PositionAdjuster(ast.NodeVisitor):
                     col_offset + self.column_offset if lineno == 1 else col_offset
                 )
                 setattr(node, "col_offset", new_col_offset)
+        if end_lineno := getattr(node, "end_lineno", None):
+            setattr(node, "end_lineno", end_lineno + self.line_offset)
+            if end_col_offset := getattr(node, "end_col_offset", None):
+                new_end_col_offset = (
+                    end_col_offset + self.column_offset
+                    if end_lineno == 1
+                    else end_col_offset
+                )
+                setattr(node, "end_col_offset", new_end_col_offset)
         self.generic_visit(node)
 
 
@@ -173,13 +189,13 @@ def _reparce_range_and_replace(
     replace_target = _get_reparse_replace_target(
         reparse_unit_range, ast_mapping, type(reparse_unit)
     )
-    if replace_target is None:
-        return None
     debug_verbose_print(
         lambda: (
             f"Replace target for reparse unit range {reparse_unit_range}: {replace_target}"
         )
     )
+    if replace_target is None:
+        return None
     reparsed_result = parse_string(origin_source_reparse_part, "exec")
     if reparsed_result is None:
         return None
@@ -203,11 +219,19 @@ def try_reparse_range(
     changed_lsp_range: types.Range,
 ) -> ast.AST | None:
     original_transformed_module = parsed_buffer.get_module(original_uri)
+    debug_verbose_print(
+        lambda: (
+            f"Trying to reparse changed range {changed_lsp_range} in {original_uri}, original transformed module: {ast.dump(original_transformed_module) if original_transformed_module else None}"
+        )
+    )
     if original_transformed_module is None:
         return None
     changed_range = lsp_range_to_range(changed_lsp_range)
     ast_cache = parsed_buffer.get_source_ast_cache(original_uri)
     mapping = parsed_buffer.get_mapping(original_uri)
+    debug_verbose_print(
+        lambda: f"Source AST cache for {original_uri}: {ast_cache}, mapping: {mapping}"
+    )
     if ast_cache is None or mapping is None:
         return None
     result = _reparce_range_and_replace(

@@ -70,9 +70,13 @@ def assert_capabilities_equal(
     )
 
 
-async def start_typhon_connection_client() -> LanguageClient:
+async def start_typhon_connection_client(
+    testing_reparser: bool = False,
+) -> LanguageClient:
     client = LanguageClient("typhon-language-client", "v0.1.4")
     debug_options = ["--debug-verbose"] if is_debug_verbose() else []
+    if testing_reparser:  # Enable testing reparser for e2e tests.
+        debug_options.append("--testing-reparser")
     async with asyncio.timeout(10):
         await client.start_io(  # type: ignore
             sys.executable, "-m", "Typhon", "lsp", *debug_options
@@ -84,8 +88,9 @@ async def start_initialize_open_typhon_connection_client(
     root_dir: Path = run_file_dir,
     open_file: Path = semtok_file,
     on_before_initialize: Callable[[LanguageClient], None] | None = None,
+    testing_reparser: bool = False,
 ) -> tuple[LanguageClient, types.InitializeResult]:
-    client = await start_typhon_connection_client()
+    client = await start_typhon_connection_client(testing_reparser)
     open_file_uri = path_to_uri(open_file)
 
     @client.feature(types.CLIENT_REGISTER_CAPABILITY)  # type: ignore

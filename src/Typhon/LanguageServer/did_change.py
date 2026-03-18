@@ -6,7 +6,11 @@ from lsprotocol import types
 
 from ..LanguageServer.parsed_buffer import LanguageServerParsedBuffer
 from ..LanguageServer.partial_reparse import try_reparse_range
-from ..Driver.debugging import debug_file_write
+from ..Driver.debugging import (
+    debug_file_write,
+    debug_file_write_verbose,
+    is_testing_reparser,
+)
 from ..SourceMap.ast_match_based_map import MatchBasedSourceMap
 from ._utils.mapping import (
     lsp_range_to_range,
@@ -149,6 +153,7 @@ def map_did_change_params_with_reparse(
         )
         return None
     for change in content_changes:
+        debug_file_write_verbose(lambda: f"Processing change: {change}")
         if isinstance(change, types.TextDocumentContentChangePartial):
             unparsed_before_change = parsed_buffer.get_translated_source(original_uri)
             if try_reparse_range(
@@ -180,9 +185,18 @@ def map_did_change_params_with_reparse(
                     ),
                     content_changes=content_changes_after_reparse,
                 )
-        if mapped_change := map_content_change(change, source_map):
-            result.append(mapped_change)
-
+        # if mapped_change := map_content_change(change, source_map):
+        #     result.append(mapped_change)
+    debug_file_write_verbose(lambda: f"Mapped did change content changes: {result}")
+    if not result:
+        if is_testing_reparser():
+            debug_file_write(
+                lambda: (
+                    f"No mapped content changes for {params.content_changes} in {original_uri}, but we're in testing reparser mode, so we will return None to trigger full reparse."
+                )
+            )
+            assert False
+        return None
     return (
         types.DidChangeTextDocumentParams(
             text_document=types.VersionedTextDocumentIdentifier(

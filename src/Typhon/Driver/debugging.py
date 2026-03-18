@@ -9,6 +9,7 @@ _debug = False
 _debug_verbose = False
 _debug_first_error = False
 _debug_log_file: Path | None = None
+_testing_reparser = False
 
 
 def set_debug_mode(debug: bool):
@@ -59,6 +60,15 @@ def is_debug_first_error() -> bool:
 
 def get_debug_log_file() -> Path | None:
     return _debug_log_file
+
+
+def set_testing_reparser(reparser: bool):
+    global _testing_reparser
+    _testing_reparser = reparser
+
+
+def is_testing_reparser() -> bool:
+    return _testing_reparser
 
 
 _debug_printed: int = 0

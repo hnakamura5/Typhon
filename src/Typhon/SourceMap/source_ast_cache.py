@@ -19,8 +19,15 @@ class SourceAstCache:
         self.source_code_lines = source_code.splitlines()
         self.parent_map: dict[ast.AST, ast.AST | None] = {module: None}
         self.node_interval_tree = RangeIntervalTree[ast.AST]()
+        self.nodes_by_line: dict[int, list[tuple[Range, ast.AST]]] = {}
         self._setup_parent_map()
         self._setup_interval_trees()
+
+    def _index_node_by_line(self, node_range: Range, node: ast.AST) -> None:
+        for line in range(node_range.start.line, node_range.end.line + 1):
+            if line not in self.nodes_by_line:
+                self.nodes_by_line[line] = []
+            self.nodes_by_line[line].append((node_range, node))
 
     def _setup_parent_map(self) -> None:
         for parent in ast.walk(self.module):
@@ -42,6 +49,7 @@ class SourceAstCache:
                 )
             )
             self.node_interval_tree.add(node_range, node)
+            self._index_node_by_line(node_range, node)
 
     def _pos_to_node(
         self,
@@ -81,6 +89,25 @@ class SourceAstCache:
         _, node = nodes[0]
         return node
 
+    def _line_to_node(
+        self,
+        line: int,
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None:
+        nodes = self.nodes_by_line.get(line, [])
+        if filter_node_type is not None:
+            nodes = [(r, n) for r, n in nodes if isinstance(n, filter_node_type)]
+        if not nodes:
+            return None
+        _, node = min(
+            nodes,
+            key=lambda entry: (
+                entry[0].end.line - entry[0].start.line,
+                entry[0].end.column - entry[0].start.column,
+            ),
+        )
+        return node
+
     def source_pos_to_node(
         self,
         pos: Pos,
@@ -94,6 +121,13 @@ class SourceAstCache:
         filter_node_type: type[ast.AST] | None = None,
     ) -> ast.AST | None:
         return self._range_to_node(range, filter_node_type)
+
+    def source_line_to_node(
+        self,
+        line: int,
+        filter_node_type: type[ast.AST] | None = None,
+    ) -> ast.AST | None:
+        return self._line_to_node(line, filter_node_type)
 
     def parent_of(self, node: ast.AST) -> ast.AST | None:
         return self.parent_map.get(node, None)

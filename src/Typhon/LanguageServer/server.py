@@ -67,6 +67,7 @@ from .completion import (
 )
 from .did_change import (
     map_did_change_params,
+    map_did_change_params_with_reparse,
 )
 from ._utils.path import (
     canonicalize_uri,
@@ -209,34 +210,32 @@ class LanguageServer(PyglsLanguageServer):
                 )
                 return None
             transformed_module, unparsed = reload_result
-            translate_file_path, root = self.get_translated_file_path_and_root(doc_path)
-            server_temp_dir = output_dir_for_server_workspace(root) if root else None
-            self.setup_container_directories(translate_file_path, root)
-            config_output_dir = (
-                server_temp_dir
-                if server_temp_dir is not None
-                else default_server_output_dir(doc_path.as_posix())
-            )
-            config_output_dir.mkdir(parents=True, exist_ok=True)
-            write_config(config_output_dir)
-            with open(translate_file_path, "w", encoding="utf-8") as f:
-                debug_file_write(
-                    lambda: (
-                        f"Writing translated file to {translate_file_path}, length={len(unparsed)}"
-                    )
-                )
-                f.write(unparsed)
+            self.write_translated_file(doc_path, unparsed)
             return unparsed
         except Exception as e:
             debug_file_write(lambda: f"Error reloading document {orignal_uri}: {e}")
-            debug_file_write(
-                lambda: (
-                    "Keeping last successful parse/mapping state for completion fallback."
-                )
-            )
             # dump traceback to debug log
             traceback_str = traceback.format_exc()
             debug_file_write_verbose(lambda: f"Traceback:\n{traceback_str}")
+
+    def write_translated_file(self, doc_path: Path, translated_code: str) -> None:
+        translate_file_path, root = self.get_translated_file_path_and_root(doc_path)
+        server_temp_dir = output_dir_for_server_workspace(root) if root else None
+        self.setup_container_directories(translate_file_path, root)
+        config_output_dir = (
+            server_temp_dir
+            if server_temp_dir is not None
+            else default_server_output_dir(doc_path.as_posix())
+        )
+        config_output_dir.mkdir(parents=True, exist_ok=True)
+        write_config(config_output_dir)
+        with open(translate_file_path, "w", encoding="utf-8") as f:
+            debug_file_write(
+                lambda: (
+                    f"Writing translated file to {translate_file_path}, length={len(translated_code)}"
+                )
+            )
+            f.write(translated_code)
 
     def on_initialize_backend(self, init_result: types.InitializeResult) -> None:
         if semantic_token_provider := init_result.capabilities.semantic_tokens_provider:
@@ -556,65 +555,37 @@ def did_change(ls: LanguageServer, params: types.DidChangeTextDocumentParams):
         uri = params.text_document.uri
         canonical_uri = canonicalize_uri(uri)
         translated_uri = ls.get_translated_file_uri(uri)
-        # Fast path: small edits reuse the cached source map.
-        if ls.is_change_small_enough(params):
-            debug_file_write(
-                lambda: f"Did change is small enough for fast path {params}"
-            )
-            if mapping := ls.parsed_buffer.get_mapping(canonical_uri):
-                if mapped_params := map_did_change_params(
-                    params, translated_uri, mapping
-                ):
-                    ls.backend_client.text_document_did_change(mapped_params)
-                    ls.schedule_deferred_reload(uri)
-                    debug_file_write(
-                        lambda: (
-                            f"Did change called {params}, "
-                            "used fast path + scheduled deferred reload."
-                        )
-                    )
-                    return None
-        # Rescue path: partial reparse and reload.
         module = ls.parsed_buffer.get_module(canonical_uri)
         if module and is_reparse_target(module):
-            pass  # TODO: Implement partial reparse path for modules with reparsing support.
-
+            if reparsed := map_did_change_params_with_reparse(
+                ls.parsed_buffer, translated_uri, params
+            ):
+                ls.backend_client.text_document_did_change(reparsed)
+                debug_file_write(
+                    lambda: f"Did change called for {uri}, used partial reparse path."
+                )
+                if translated := ls.parsed_buffer.get_translated_source(canonical_uri):
+                    debug_file_write(
+                        lambda: (
+                            f"Did change partial reparse for {uri}, OK:\n{translated}"
+                        )
+                    )
+                    ls.write_translated_file(
+                        uri_to_path(translated_uri),
+                        translated,
+                    )
+                ls.schedule_deferred_reload(uri)
+                return
         # Normal path: full reload.
         ls.cancel_deferred_reload(canonical_uri)
-        unparsed = ls.reload(uri)
-        translated_text = unparsed
+        translated = ls.reload(uri)
+        translated_text = translated
         debug_file_write_verbose(
             lambda: (
                 f"Did change not small translated text for {uri}: {translated_text is not None}"
             )
         )
         if translated_text is None:
-            # TODO: Does this path really work? Or no need?
-            mapping = ls.parsed_buffer.get_mapping(canonical_uri)
-            if mapping is None:
-                debug_file_write(
-                    lambda: (
-                        f"Did change called for {uri}, but no translated snapshot/mapping is available. Skipping backend sync."
-                    )
-                )
-                return
-            mapped_params = map_did_change_params(params, translated_uri, mapping)
-            if mapped_params is None:
-                debug_file_write(
-                    lambda: (
-                        f"Did change called for {uri}, but no mapped content changes were produced."
-                    )
-                )
-                return
-            debug_file_write_verbose(
-                lambda: f"Did change mapped params for {uri}: {mapped_params}"
-            )
-            ls.backend_client.text_document_did_change(mapped_params)
-            debug_file_write(
-                lambda: (
-                    f"Did change called for {uri}, synced mapped incremental changes."
-                )
-            )
             return
         ls.backend_client.text_document_did_change(
             types.DidChangeTextDocumentParams(

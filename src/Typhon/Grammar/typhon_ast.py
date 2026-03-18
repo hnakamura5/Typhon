@@ -16,16 +16,18 @@ import ast
 from dataclasses import dataclass
 from copy import copy
 from tokenize import TokenInfo
-from ..Driver.debugging import debug_print, debug_verbose_print
+from ..Driver.debugging import debug_print, debug_verbose_print, is_testing_reparser
 
 if TYPE_CHECKING:
     from .parser_helper import Parser
 
 
-_REPARSE_THREASHOLD_TOKEN_SIZE = 256  # string length threshold to trigger reparsing.
+_REPARSE_THREASHOLD_TOKEN_SIZE = 512  # string length threshold to trigger reparsing.
 
 
 def is_reparse_target_token_size(source_code_token_size: int) -> bool:
+    if is_testing_reparser():
+        return True
     return source_code_token_size >= _REPARSE_THREASHOLD_TOKEN_SIZE
 
 
