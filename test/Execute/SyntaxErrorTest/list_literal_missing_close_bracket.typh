@@ -3,6 +3,7 @@ let xs = [1, 2, 3
 """stderr
 syntax error: $FILE:1:1
   unknown tokens
+
     1 |  let xs = [1, 2, 3
          ^^^^^^^^^^^^^^^^^^
 """

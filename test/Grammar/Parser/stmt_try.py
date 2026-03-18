@@ -116,6 +116,8 @@ try_braceless_recovery = """
 try:
     print('Hello')
     pass
+finally:
+    pass
 """
 
 _try_braceless_code = """

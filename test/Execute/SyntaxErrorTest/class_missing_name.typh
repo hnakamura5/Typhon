@@ -4,6 +4,7 @@ class {
 """stderr
 syntax error: $FILE:1:6
   expected class name
+
     1 |  class {
               ^
 """

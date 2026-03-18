@@ -3,6 +3,7 @@ let d = {'a' 1}
 """stderr
 syntax error: $FILE:1:9
   unknown tokens
+
     1 |  let d = {'a' 1}
                  ^^^^^^^
 """

@@ -17,7 +17,7 @@ RUN_MATCH_TESTS = sorted((Path(__file__).parent / "Syntax" / "Match").glob("*.ty
 @pytest.mark.parametrize("test_file", RUN_EXPR_TESTS, ids=lambda p: p.name)
 def test_syntax_expr(test_file: Path):
     result = run_file(test_file, capture_output=True)
-    debug_print(f"Test file: {test_file} result:\n{result}")
+    debug_print(lambda: f"Test file: {test_file} result:\n{result}")
     assert result.returncode == 0
     assert_file_stdout(test_file, result.stdout)
     assert_file_stderr(test_file, result.stderr)
@@ -26,15 +26,16 @@ def test_syntax_expr(test_file: Path):
 @pytest.mark.parametrize("test_file", RUN_STMT_TESTS, ids=lambda p: p.name)
 def test_syntax_stmt(test_file: Path):
     result = run_file(test_file, capture_output=True)
-    debug_print(f"Test file: {test_file} result:\n{result}")
+    debug_print(lambda: f"Test file: {test_file} result:\n{result}")
     assert result.returncode == 0
     assert_file_stdout(test_file, result.stdout)
     assert_file_stderr(test_file, result.stderr)
 
+
 @pytest.mark.parametrize("test_file", RUN_MATCH_TESTS, ids=lambda p: p.name)
 def test_syntax_match(test_file: Path):
     result = run_file(test_file, capture_output=True)
-    debug_print(f"Test file: {test_file} result:\n{result}")
+    debug_print(lambda: f"Test file: {test_file} result:\n{result}")
     assert result.returncode == 0
     assert_file_stdout(test_file, result.stdout)
     assert_file_stderr(test_file, result.stderr)

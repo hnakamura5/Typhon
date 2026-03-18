@@ -4,6 +4,7 @@ while (True {
 """stderr
 syntax error: $FILE:1:12
   expected ')'
+
     1 |  while (True {
                     ^
 """

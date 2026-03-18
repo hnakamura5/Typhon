@@ -711,7 +711,7 @@ try_stmt_with_error[ast.Try]:
     | 'try' b=maybe_block !('except' | 'finally') {
         recover_invalid_try(self,
             message="expected 'except' or 'finally' block",
-            node=ast.Try(body=b, handlers=[], orelse=[], finalbody=[], LOCATIONS)
+            node=ast.Try(body=b, handlers=[], orelse=[], finalbody=[ast.Pass(LOCATIONS)], LOCATIONS)
         )
      }
 

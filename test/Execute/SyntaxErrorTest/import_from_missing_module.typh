@@ -3,6 +3,7 @@ from import x
 """stderr
 syntax error: $FILE:1:1
   unknown tokens
+
     1 |  from import x
          ^^^^^^^^^^^^^^
 """

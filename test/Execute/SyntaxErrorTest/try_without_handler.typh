@@ -5,6 +5,7 @@ try {
 """stderr
 syntax error: $FILE:1:1
   expected 'except' or 'finally' block
+
     1 |  try {
     2 |      pass
     3 |  }

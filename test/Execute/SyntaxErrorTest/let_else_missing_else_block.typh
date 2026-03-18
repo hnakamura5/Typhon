@@ -4,6 +4,7 @@ print(x)
 """stderr
 syntax error: $FILE:1:1
   let pattern is irrefutable, possibly fails to match. else clause of let-else statement is required.
+
     1 |  let [x, y] = [1, 2] else
          ^^^^^^^^^^^^^^^^^^^
 """
