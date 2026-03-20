@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import json
+import shutil
+import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import mean
@@ -20,6 +24,8 @@ class PhaseTimes:
     unparse_ms: float
     map_ms: float
     write_ms: float
+    typecheck_ms: float
+    pyrefly_ms: float
     total_ms: float
 
 
@@ -141,6 +147,8 @@ def _run_one_iteration(
     source_text: str,
     translated_file: Path,
     run_mapping: bool,
+    run_typecheck: bool,
+    run_pyrefly: bool,
 ) -> PhaseTimes:
     begin = perf_counter()
 
@@ -166,13 +174,45 @@ def _run_one_iteration(
     translated_file.write_text(translated, encoding="utf-8")
     t5 = perf_counter()
 
+    if run_typecheck:
+        subprocess.run(
+            ["basedpyright", translated_file.as_posix()],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    t6 = perf_counter()
+
     end = perf_counter()
+
+    pyrefly_ms = 0.0
+    if run_pyrefly:
+        pyrefly_t0 = perf_counter()
+        pyrefly_run = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pyrefly",
+                "check",
+                "--output-format",
+                "json",
+                translated_file.as_posix(),
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        pyrefly_t1 = perf_counter()
+        pyrefly_ms = (pyrefly_t1 - pyrefly_t0) * 1000
     return PhaseTimes(
         parse_ms=(t1 - t0) * 1000,
         transform_ms=(t2 - t1) * 1000,
         unparse_ms=(t3 - t2) * 1000,
         map_ms=(t4 - t3) * 1000,
         write_ms=(t5 - t4) * 1000,
+        typecheck_ms=(t6 - t5) * 1000,
+        pyrefly_ms=pyrefly_ms,
         total_ms=(end - begin) * 1000,
     )
 
@@ -190,11 +230,20 @@ def run_benchmark(
     warmup: int,
     output_dir: Path,
     run_mapping: bool,
+    run_typecheck: bool,
+    run_pyrefly: bool,
 ) -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     source_file = output_dir / f"generated_{line_count}_lines.typh"
     translated_file = output_dir / f"generated_{line_count}_lines.py"
+
+    if run_typecheck and shutil.which("basedpyright") is None:
+        print("basedpyright command not found; skipping type-check phase.")
+        run_typecheck = False
+    if run_pyrefly and shutil.which("pyrefly") is None:
+        print("pyrefly command not found; skipping pyrefly reference phase.")
+        run_pyrefly = False
 
     source_text = generate_large_typhon_source(line_count)
     source_file.write_text(source_text, encoding="utf-8")
@@ -203,7 +252,10 @@ def run_benchmark(
     print(f"Generated line count: {len(source_text.splitlines())}")
     print(f"Output translated file: {translated_file}")
     print(
-        f"Benchmark config: iterations={iterations}, warmup={warmup}, run_mapping={run_mapping}"
+        "Benchmark config: "
+        f"iterations={iterations}, warmup={warmup}, "
+        f"run_mapping={run_mapping}, run_typecheck={run_typecheck}, "
+        f"run_pyrefly={run_pyrefly}"
     )
 
     for idx in range(warmup):
@@ -212,6 +264,8 @@ def run_benchmark(
             source_text=source_text,
             translated_file=translated_file,
             run_mapping=run_mapping,
+            run_typecheck=run_typecheck,
+            run_pyrefly=run_pyrefly,
         )
         print(f"Warmup {idx + 1}/{warmup} completed.")
 
@@ -222,6 +276,8 @@ def run_benchmark(
             source_text=source_text,
             translated_file=translated_file,
             run_mapping=run_mapping,
+            run_typecheck=run_typecheck,
+            run_pyrefly=run_pyrefly,
         )
         runs.append(result)
         print(f"Run {idx + 1}/{iterations}: total={result.total_ms:.2f} ms")
@@ -231,6 +287,8 @@ def run_benchmark(
     unparse_values = [r.unparse_ms for r in runs]
     map_values = [r.map_ms for r in runs]
     write_values = [r.write_ms for r in runs]
+    typecheck_values = [r.typecheck_ms for r in runs]
+    pyrefly_values = [r.pyrefly_ms for r in runs]
     total_values = [r.total_ms for r in runs]
 
     print("\n=== Benchmark Summary ===")
@@ -239,6 +297,8 @@ def run_benchmark(
     print(_format_stats("unparse", unparse_values))
     print(_format_stats("map", map_values))
     print(_format_stats("write", write_values))
+    print(_format_stats("typecheck", typecheck_values))
+    print(_format_stats("pyrefly(ref: not included in total)", pyrefly_values))
     print(_format_stats("total", total_values))
 
     return 0
@@ -279,6 +339,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip source-map generation benchmark phase.",
     )
+    parser.add_argument(
+        "--skip-typecheck",
+        action="store_true",
+        help="Skip generated Python type-check benchmark phase (basedpyright).",
+    )
+    parser.add_argument(
+        "--skip-pyrefly",
+        action="store_true",
+        help="Skip pyrefly reference timing phase (not included in total).",
+    )
     return parser.parse_args()
 
 
@@ -300,6 +370,8 @@ def main() -> int:
         warmup=args.warmup,
         output_dir=args.output_dir,
         run_mapping=not args.skip_mapping,
+        run_typecheck=not args.skip_typecheck,
+        run_pyrefly=not args.skip_pyrefly,
     )
 
 
