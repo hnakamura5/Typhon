@@ -14,9 +14,6 @@ from .utils import (
 
 normal_completion_file = sample_workspace / "normal_completion.typh"
 trigger_completion_dot_file = sample_workspace / "trigger_completion_dot.typh"
-trigger_completion_dot_optional_file = (
-    sample_workspace / "trigger_completion_optional.typh"
-)
 trigger_completion_subscr_file = sample_workspace / "trigger_completion_subscr.typh"
 trigger_completion_subscr_optional_file = (
     sample_workspace / "trigger_completion_subscr_optional.typh"

@@ -229,6 +229,19 @@ class RangeIntervalTree[T]:
     def __init__(self):
         self.interval_tree = IntervalTree()
 
+    @staticmethod
+    def most_specific_node(nodes: list[RangeInterval[T]]) -> T | None:
+        if not nodes:
+            return None
+        _, node = min(
+            nodes,
+            key=lambda entry: (
+                entry[0].end.line - entry[0].start.line,
+                entry[0].end.column - entry[0].start.column,
+            ),
+        )
+        return node
+
     def add(self, range: Range, data: T):
         self.interval_tree.addi(  # type: ignore[misc]
             range.start,
@@ -242,6 +255,16 @@ class RangeIntervalTree[T]:
             (Range.from_interval(interval), interval.data)  # type: ignore[misc]
             for interval in intervals  # type: ignore[misc]
         ]
+
+    def pos_to_node(
+        self,
+        pos: Pos,
+        filter_fn: Callable[[T], bool] | None = None,
+    ) -> T | None:
+        nodes = self.at(pos)
+        if filter_fn is not None:
+            nodes = [(r, n) for r, n in nodes if filter_fn(n)]
+        return self.most_specific_node(nodes)
 
     def overlap(self, range: Range) -> list[RangeInterval[T]]:
         intervals = self.interval_tree.overlap(range.start, range.end)  # type: ignore[misc]
@@ -286,8 +309,8 @@ class RangeIntervalTree[T]:
             return []
         if filter_container is not None:
             containers = [
-                interval  # type: ignore[misc]
-                for interval in containers  # type: ignore[misc]
+                interval
+                for interval in containers
                 if filter_container(interval.data)  # type: ignore[misc]
             ]
         result: list[RangeInterval[T]] = []
@@ -306,3 +329,14 @@ class RangeIntervalTree[T]:
                 debug_verbose_print(lambda: f"  Minimal container: {interval}")
                 result.append((Range.from_interval(interval), interval.data))  # type: ignore[misc]
         return result
+
+    def range_to_single_container_node(
+        self,
+        range: Range,
+        filter_fn: Callable[[T], bool] | None = None,
+    ) -> T | None:
+        nodes = self.minimal_containers(range, filter_fn)
+        if len(nodes) != 1:
+            return None
+        _, node = nodes[0]
+        return node

@@ -1,9 +1,13 @@
 import ast
-from typing import cast
 
 from ..Driver.debugging import debug_verbose_print
 from ..Grammar.typhon_ast import get_pos_attributes_if_exists, PythonScope
 from .datatype import Pos, Range, RangeIntervalTree
+from ._utils import (
+    filter_fn_by_node_type,
+    index_node_by_line,
+    line_to_node,
+)
 
 
 class SourceAstCache:
@@ -22,12 +26,6 @@ class SourceAstCache:
         self.nodes_by_line: dict[int, list[tuple[Range, ast.AST]]] = {}
         self._setup_parent_map()
         self._setup_interval_trees()
-
-    def _index_node_by_line(self, node_range: Range, node: ast.AST) -> None:
-        for line in range(node_range.start.line, node_range.end.line + 1):
-            if line not in self.nodes_by_line:
-                self.nodes_by_line[line] = []
-            self.nodes_by_line[line].append((node_range, node))
 
     def _setup_parent_map(self) -> None:
         for parent in ast.walk(self.module):
@@ -49,85 +47,38 @@ class SourceAstCache:
                 )
             )
             self.node_interval_tree.add(node_range, node)
-            self._index_node_by_line(node_range, node)
-
-    def _pos_to_node(
-        self,
-        pos: Pos,
-        filter_node_type: type[ast.AST] | None = None,
-    ) -> ast.AST | None:
-        nodes = self.node_interval_tree.at(pos)
-        if filter_node_type is not None:
-            nodes = [(r, n) for r, n in nodes if isinstance(n, filter_node_type)]
-        if not nodes:
-            return None
-        _, node = min(
-            nodes,
-            key=lambda entry: (
-                entry[0].end.line - entry[0].start.line,
-                entry[0].end.column - entry[0].start.column,
-            ),
-        )
-        return node
-
-    def _range_to_node(
-        self,
-        range: Range,
-        filter_node_type: type[ast.AST] | None = None,
-    ) -> ast.AST | None:
-        def _filter_node(node: ast.AST) -> bool:
-            if filter_node_type is None:
-                return True
-            return isinstance(node, filter_node_type)
-
-        nodes = self.node_interval_tree.minimal_containers(range, _filter_node)
-        debug_verbose_print(
-            lambda: f"Source AST minimal containers for range {range}: {nodes}"
-        )
-        if len(nodes) != 1:
-            return None
-        _, node = nodes[0]
-        return node
-
-    def _line_to_node(
-        self,
-        line: int,
-        filter_node_type: type[ast.AST] | None = None,
-    ) -> ast.AST | None:
-        nodes = self.nodes_by_line.get(line, [])
-        if filter_node_type is not None:
-            nodes = [(r, n) for r, n in nodes if isinstance(n, filter_node_type)]
-        if not nodes:
-            return None
-        _, node = min(
-            nodes,
-            key=lambda entry: (
-                entry[0].end.line - entry[0].start.line,
-                entry[0].end.column - entry[0].start.column,
-            ),
-        )
-        return node
+            index_node_by_line(self.nodes_by_line, node_range, node)
 
     def source_pos_to_node(
         self,
         pos: Pos,
         filter_node_type: type[ast.AST] | None = None,
     ) -> ast.AST | None:
-        return self._pos_to_node(pos, filter_node_type)
+        return self.node_interval_tree.pos_to_node(
+            pos,
+            filter_fn_by_node_type(filter_node_type),
+        )
 
     def source_range_to_node(
         self,
         range: Range,
         filter_node_type: type[ast.AST] | None = None,
     ) -> ast.AST | None:
-        return self._range_to_node(range, filter_node_type)
+        return self.node_interval_tree.range_to_single_container_node(
+            range,
+            filter_fn_by_node_type(filter_node_type),
+        )
 
     def source_line_to_node(
         self,
         line: int,
         filter_node_type: type[ast.AST] | None = None,
     ) -> ast.AST | None:
-        return self._line_to_node(line, filter_node_type)
+        return line_to_node(
+            line,
+            self.nodes_by_line,
+            filter_fn_by_node_type(filter_node_type),
+        )
 
     def parent_of(self, node: ast.AST) -> ast.AST | None:
         return self.parent_map.get(node, None)
@@ -170,7 +121,9 @@ class SourceAstCache:
             node,
             (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
         )
-        return cast(PythonScope | None, scope)
+        if not isinstance(scope, PythonScope):
+            return None
+        return None
 
     def source_range_to_source_code(
         self,

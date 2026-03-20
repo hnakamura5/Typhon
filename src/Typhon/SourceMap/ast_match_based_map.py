@@ -4,6 +4,11 @@ from ..Grammar.typhon_ast import get_pos_attributes_if_exists
 from ..Driver.debugging import debug_verbose_print
 from ..SourceMap.ast_matching import match_ast
 from .defined_name_retrieve import defined_name_retrieve
+from ._utils import (
+    filter_fn_by_node_type,
+    index_node_by_line,
+    line_to_node,
+)
 
 
 class MatchBasedSourceMap:
@@ -27,17 +32,6 @@ class MatchBasedSourceMap:
         self.unparsed_code_lines = unparsed_code.splitlines()
         self._setup_interval_trees()
 
-    def _index_node_by_line(
-        self,
-        index: dict[int, list[RangeInterval[ast.AST]]],
-        node_range: Range,
-        node: ast.AST,
-    ) -> None:
-        for line in range(node_range.start.line, node_range.end.line + 1):
-            if line not in index:
-                index[line] = []
-            index[line].append((node_range, node))
-
     def _setup_interval_trees(self):
         for origin_node, unparsed_node in self.origin_to_unparsed.items():
             origin_pos = get_pos_attributes_if_exists(origin_node)
@@ -49,7 +43,7 @@ class MatchBasedSourceMap:
                     )
                 )
                 self.origin_interval_tree.add(origin_range, origin_node)
-                self._index_node_by_line(
+                index_node_by_line(
                     self.origin_nodes_by_line,
                     origin_range,
                     origin_node,
@@ -63,7 +57,7 @@ class MatchBasedSourceMap:
                     )
                 )
                 self.unparsed_interval_tree.add(unparsed_range, unparsed_node)
-                self._index_node_by_line(
+                index_node_by_line(
                     self.unparsed_nodes_by_line,
                     unparsed_range,
                     unparsed_node,
@@ -154,19 +148,12 @@ class MatchBasedSourceMap:
         mapping: dict[ast.AST, ast.AST] | None,
         filter_node_type: type[ast.AST] | None = None,
     ) -> ast.AST | None:
-        nodes = interval_tree.at(pos)
-        if filter_node_type is not None:
-            nodes = [(r, n) for r, n in nodes if isinstance(n, filter_node_type)]
-        if not nodes:
-            return None
-        # Prefer most-specific container.
-        _, node = min(
-            nodes,
-            key=lambda entry: (
-                entry[0].end.line - entry[0].start.line,
-                entry[0].end.column - entry[0].start.column,
-            ),
+        node = interval_tree.pos_to_node(
+            pos,
+            filter_fn_by_node_type(filter_node_type),
         )
+        if node is None:
+            return None
         if mapping is None:
             return node
         return mapping.get(node, None)
@@ -179,18 +166,14 @@ class MatchBasedSourceMap:
         filter_node_type: type[ast.AST] | None = None,
     ) -> ast.AST | None:
         nodes = line_index.get(line, [])
-        if filter_node_type is not None:
-            nodes = [(r, n) for r, n in nodes if isinstance(n, filter_node_type)]
-        if not nodes:
-            return None
         debug_verbose_print(lambda: f"Mapping line: {line} nodes: {nodes}")
-        _, node = min(
-            nodes,
-            key=lambda entry: (
-                entry[0].end.line - entry[0].start.line,
-                entry[0].end.column - entry[0].start.column,
-            ),
+        node = line_to_node(
+            line,
+            line_index,
+            filter_fn_by_node_type(filter_node_type),
         )
+        if node is None:
+            return None
         if mapping is None:
             return node
         return mapping.get(node, None)
@@ -233,17 +216,14 @@ class MatchBasedSourceMap:
                 f"Mapping unparsed range to origin node: {range_unparsed} nodes: {nodes}"
             )
         )
-        if filter_node_type is not None:
-            nodes = [
-                (r, n)
-                for r, n in nodes
-                if isinstance(self.unparsed_to_origin.get(n, None), filter_node_type)
-            ]
-        if nodes and len(nodes) == 1:
-            _, node = nodes[0]
-            return self.unparsed_to_origin.get(node, None)
-        debug_verbose_print(lambda: "No nodes found for the given unparsed range.")
-        return None
+        unparsed_node = self.unparsed_interval_tree.range_to_single_container_node(
+            range_unparsed,
+            filter_fn_by_node_type(filter_node_type),
+        )
+        if unparsed_node is None:
+            debug_verbose_print(lambda: "No nodes found for the given unparsed range.")
+            return None
+        return self.unparsed_to_origin.get(unparsed_node, None)
 
     def unparsed_pos_to_unparsed_node(
         self,
@@ -381,13 +361,10 @@ class MatchBasedSourceMap:
                 f"Mapping origin range to origin node: {range_origin} nodes: {nodes}"
             )
         )
-        if filter_node_type is not None:
-            nodes = [(r, n) for r, n in nodes if isinstance(n, filter_node_type)]
-        if nodes and len(nodes) == 1:
-            _, node = nodes[0]
-            return node
-        debug_verbose_print(lambda: "No nodes found for the given origin range.")
-        return None
+        return self.origin_interval_tree.range_to_single_container_node(
+            range_origin,
+            filter_fn_by_node_type(filter_node_type),
+        )
 
     def unparsed_code_end_pos(self) -> Pos:
         if self.unparsed_code_lines:

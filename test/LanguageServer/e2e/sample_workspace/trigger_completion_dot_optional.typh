@@ -1,4 +1,0 @@
-from pkg import math
-
-let value =math.add(1, 2)
-let member = math?
