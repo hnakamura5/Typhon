@@ -4,7 +4,6 @@
         "dockerfile": "Dockerfile"
     },
     "postCreateCommand": "uv sync && uv run -m script.build",
-    "workspaceFolder": "/workspaces/Typhon",
     "customizations": {
         "vscode": {
             "extensions": [
@@ -20,8 +19,8 @@
                 "hnakamura5.typhon-language-support"
             ],
             "settings": {
-                "python.defaultInterpreterPath": "/workspaces/Typhon/.venv/bin/python",
-                "typhon.path": "/workspaces/Typhon/.venv/bin/typhon",
+                "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+                "typhon.path": "${workspaceFolder}/.venv/bin/typhon",
                 "typhon.args": [
                     "lsp"
                 ],

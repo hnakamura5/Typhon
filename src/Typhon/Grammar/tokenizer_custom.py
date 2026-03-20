@@ -174,6 +174,7 @@ class TokenizerCustom(PegenTokenizer):
         super().__init__(*args, **kwargs)
         self._all_tokens = []
         self._forward_next = []
+        self._lines_cache: dict[int, str] = {}
         self._end_tok = None
 
     def _is_token_to_skip(self, tok: TokenInfo) -> bool:
@@ -210,6 +211,21 @@ class TokenizerCustom(PegenTokenizer):
             next_tok = self._exact_next()
             self._add_forward_next(next_tok)
         return self._forward_next[num - 1]
+
+    @override
+    def get_lines(self, line_numbers: list[int]) -> list[str]:
+        # Original method is fragile to invalid line numbers, not suitable to error text reporting.
+        if self._lines_cache:
+            lines = self._lines_cache
+        else:
+            count = 0
+            with open(self._path) as f:
+                for line in f:
+                    count += 1
+                    self._lines_cache[count] = line
+                self._lines_cache[count + 1] = ""  # Add empty sentinel line.
+            lines = self._lines_cache
+        return [lines[n] for n in line_numbers if n in lines]
 
     def _commit_token(self, tok: TokenInfo) -> None:
         self._tokens.append(tok)
