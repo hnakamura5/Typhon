@@ -17,7 +17,7 @@ _PENDING_SEMANTIC_TOKENS: set[Any] = set()
 
 
 def create_pyright_client() -> LanguageClient:
-    client = LanguageClient("pyright-language-client", "v0.1.4")
+    client = LanguageClient("pyright-language-client", "v0.1.5")
     return client
 
 
