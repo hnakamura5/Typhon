@@ -1,3 +1,25 @@
-match (x) {
+match (1) {
     (1) { }
 }
+
+"""stderr
+syntax error: $FILE:1:12
+  unknown tokens
+
+    1 |  match (1) {
+    2 |      (1) { }
+
+syntax error: $FILE:3:1
+  unknown tokens
+
+    3 |  }
+    4 |  
+    5 |  """stderr
+    ...
+
+syntax error: $FILE:1:1
+  Symbol 'match' is referenced before declaration
+
+    1 |  match (1) {
+         ^^^^^
+"""

@@ -202,7 +202,7 @@ def assert_equal_with_meta_variable(target_code: str, expected_code: str):
     replaced_expected_code_parts.append(re.escape(expected_code[last_index:]))
     if len(meta_varialbes) == 0:
         assert target_code == expected_code, (
-            f"Expected '{expected_code}', got '{target_code}'"
+            f"Expected:\n{expected_code}\nGot:\n{target_code}"
         )
         return
     replaced_expected_code = "".join(replaced_expected_code_parts)

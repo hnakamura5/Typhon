@@ -1,1 +1,23 @@
 let r = {|x = 1}
+
+"""stderr
+syntax error: $FILE:1:10
+  unknown tokens
+
+    1 |  let r = {|x = 1}
+                  ^^^^^^
+
+syntax error: $FILE:1:16
+  expected closing bracket for '{|'
+
+    1 |  let r = {|x = 1}
+                        ^
+
+syntax error: $FILE:1:16
+  unknown tokens
+
+    1 |  let r = {|x = 1}
+    2 |  
+    3 |  """stderr
+    ...
+"""

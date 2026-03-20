@@ -181,8 +181,8 @@ def test_paren_recovery():
         paren_recovery_code,
         paren_recovery_recovery,
         [
-            ("unknown tokens", Range(Pos(1, 8), Pos(1, 17))),
-            ("unknown tokens", Range(Pos(1, 20), Pos(1, 33))),
+            ("unknown tokens", Range(Pos(1, 9), Pos(1, 17))),
+            ("unknown tokens", Range(Pos(1, 21), Pos(1, 33))),
         ],
     )
 
@@ -200,7 +200,7 @@ def test_bracket_recovery():
         bracket_recovery_code,
         bracket_recovery_recovery,
         [
-            ("unknown tokens", Range(Pos(1, 8), Pos(1, 29))),
+            ("unknown tokens", Range(Pos(1, 9), Pos(1, 29))),
         ],
     )
 
@@ -218,7 +218,7 @@ def test_brace_recovery():
         brace_recovery_code,
         brace_recovery_recovery,
         [
-            ("unknown tokens", Range(Pos(1, 8), Pos(1, 38))),
+            ("unknown tokens", Range(Pos(1, 9), Pos(1, 38))),
         ],
     )
 
@@ -235,7 +235,7 @@ def test_record_recovery():
         record_recovery_code,
         record_recovery_recovery,
         [
-            ("unknown tokens", Range(Pos(1, 8), Pos(1, 40))),
+            ("unknown tokens", Range(Pos(1, 9), Pos(1, 40))),
         ],
     )
 

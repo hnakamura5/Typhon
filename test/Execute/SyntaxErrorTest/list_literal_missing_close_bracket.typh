@@ -1,9 +1,15 @@
 let xs = [1, 2, 3
 
 """stderr
-syntax error: $FILE:1:1
+syntax error: $FILE:1:11
   unknown tokens
 
     1 |  let xs = [1, 2, 3
-         ^^^^^^^^^^^^^^^^^^
+                   ^^^^^^^
+
+syntax error: $FILE:1:18
+  expected closing bracket for '['
+
+    1 |  let xs = [1, 2, 3
+                          ^
 """

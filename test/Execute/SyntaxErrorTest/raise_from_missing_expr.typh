@@ -1,1 +1,9 @@
+"""stderr
+syntax error: $FILE:9:23
+  unknown tokens
+
+    9 |  raise ValueError("x") from
+                               ^^^^
+"""
+
 raise ValueError("x") from

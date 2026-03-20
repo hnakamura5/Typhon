@@ -1,1 +1,9 @@
+"""stderr
+syntax error: $FILE:9:11
+  unknown tokens
+
+    9 |  let y = 1 |>
+                   ^^
+"""
+
 let y = 1 |>

@@ -433,7 +433,7 @@ function_def[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
     | f=function_def_raw {self.set_decorators(f, [])}
 
 function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
-    | st=['static'] asc=['async'] k='def' n=[NAME_OR_UNUSABLE] t=[type_params] lp=['('] params=[params] rp=[')'] a=[typing_arrow_return_type] tc=[func_type_comment] NEWLINE*  b=maybe_block {
+    | st=['static'] asc=['async'] k='def' n=[NAME_OR_UNUSABLE] t=[type_params] lp=['('] params=[params] rp=[')'] colon=[':'] a=[typing_arrow_return_type] tc=[func_type_comment] NEWLINE*  b=maybe_block {
         recover_maybe_invalid_function_def_raw(
             self,
             is_async=(asc is not None),
@@ -442,6 +442,7 @@ function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
             open_paren=lp,
             args=params,
             close_paren=rp,
+            invalid_colon=colon,
             returns=a,
             body=b,
             type_comment=tc,
@@ -452,17 +453,11 @@ function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
         )
     }
 
-# invalid_def_raw[NoReturn]:
-#     | ['async'] a='def' NAME  [type_params] '(' [params] ')' '->' expression NEWLINE* !'{' { self.raise_syntax_error("expected '{'") }
-#     # TODO: Make this rule in typing_arrow_return_type
-#     | ['async'] a='def' NAME  [type_params] '(' [params] ')' ':' { self.raise_syntax_error("use '->' for function return type") }
-#     | ['async'] a='def' NAME  [type_params] '(' [params] ')' !('{' | '->') { self.raise_syntax_error("expected '{'") }
 
 # Function parameters
 # -------------------
 
 params[ast.arguments]:
-  #  | invalid_parameters
     | parameters
 
 parameters[ast.arguments]:
@@ -1560,7 +1555,7 @@ paren_exp_recovery:
         expression_bracket_recovery(self, comp=comp, open=a, close=b, skip=skip, LOCATIONS)
      }
 bracket_exp_recovery:
-    | a='[' comp=['for'] skip=(!SYNC_STMT (!']' ANY_TOKEN))* b=']' {
+    | a='[' comp=['for'] skip=(!SYNC_STMT (!']' ANY_TOKEN))* b=[']'] {
         expression_bracket_recovery(self, comp=comp, open=a, close=b, skip=skip, LOCATIONS)
      }
 brace_exp_recovery:
@@ -1568,7 +1563,7 @@ brace_exp_recovery:
         expression_bracket_recovery(self, comp=comp, open=a, close=b, skip=skip, LOCATIONS)
      }
 record_exp_recovery:
-    | a='{|' skip=(!SYNC_STMT (!'|}' ANY_TOKEN))* b='|}' {
+    | a='{|' skip=(!SYNC_STMT (!'|}' ANY_TOKEN))* b=['|}'] {
         expression_bracket_recovery(self, comp=None, open=a, close=b, skip=skip, LOCATIONS)
      }
 

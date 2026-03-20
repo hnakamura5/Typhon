@@ -259,6 +259,8 @@ def recover_maybe_invalid_function_def_raw(
     open_paren: TokenInfo | None,
     args: ast.arguments | None,
     close_paren: TokenInfo | None,
+    # Detect mistake colon due to Python's block colon, or TypeScript return type colon.
+    invalid_colon: TokenInfo | None,
     returns: ast.expr | None,
     body: list[ast.stmt],
     type_comment: str | None,
@@ -268,22 +270,38 @@ def recover_maybe_invalid_function_def_raw(
     close_anchor: PosNode | TokenInfo,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.FunctionDef | ast.AsyncFunctionDef:
-    error: SyntaxError | None = None
+    errors: list[SyntaxError] = []
     if not maybe_name:
         start_pos, end_pos = _pos_of_anchor(open_anchor)
         error = parser.build_expected_error("function name", start_pos, end_pos)
+        errors.append(error)
         name = get_invalid_name()
     else:
         name, is_usable = maybe_name
         if not is_usable:
             error = parser.build_syntax_error(
-                f"keyword '{name.string}' cannot be used as function name",
+                f"keyword '{name.string}' cannot be used as function name.",
                 name.start,
                 name.end,
             )
+            errors.append(error)
             name = get_invalid_name()
     if args is None:
         args = make_arguments(None, [], None, [], None, **get_empty_pos_attributes())
+    if invalid_colon:
+        if returns:
+            error = parser.build_syntax_error(
+                "':' is not allowed here.",
+                invalid_colon.start,
+                invalid_colon.end,
+            )
+        else:
+            error = parser.build_syntax_error(
+                "':' is not allowed here, use '->' for function return type.",
+                invalid_colon.start,
+                invalid_colon.end,
+            )
+        errors.append(error)
     result = maybe_invalid_stmt(
         parser,
         open_paren,
@@ -303,8 +321,8 @@ def recover_maybe_invalid_function_def_raw(
         open_anchor=open_anchor,
         close_anchor=close_anchor,
     )
-    if error:
-        add_error_node(result, [error])
+    if errors:
+        add_error_node(result, errors)
     return result
 
 
@@ -341,7 +359,7 @@ def recover_maybe_invalid_class_def_raw(
         name, is_usable = maybe_name
         if not is_usable:
             error = parser.build_syntax_error(
-                f"keyword '{name.string}' cannot be used as class name",
+                f"keyword '{name.string}' cannot be used as class name.",
                 name.start,
                 name.end,
             )
@@ -441,16 +459,27 @@ def expression_bracket_recovery(
     open: TokenInfo,
     comp: TokenInfo | None,
     skip: list[TokenInfo],
-    close: TokenInfo,
+    close: TokenInfo | None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.Constant:
-    start_loc = open.start
-    end_loc = close.end
+    start_loc = _next_col(open.start)
+    end_loc = close.end if close else skip[-1].end if skip else _next_col(start_loc)
     if comp:
         skip.insert(0, comp)
-    error = parser.build_skip_tokens_error(skip, start_loc, end_loc)
+    errors: list[SyntaxError] = []
+    if skip:
+        error = parser.build_skip_tokens_error(skip, start_loc, end_loc)
+        errors.append(error)
+        start_loc = _next_col(skip[-1].start)
+        end_loc = _next_col(skip[-1].end)
+    if not close:
+        error = parser.build_expected_error(
+            f"closing bracket for '{open.string}'", start_loc, end_loc
+        )
+        errors.append(error)
     resul = ast.Constant(value=Ellipsis, **kwargs)
-    add_error_node(resul, [error])
+    if errors:
+        add_error_node(resul, errors)
     return resul
 
 
@@ -598,7 +627,7 @@ def maybe_invalid_import_dot_names(
     error = parser.build_expected_error(
         "name after '.'",
         start_loc,
-        (end_loc[0], end_loc[1] + 1),
+        _next_col(end_loc),
     )
     debug_verbose_print(
         lambda: (

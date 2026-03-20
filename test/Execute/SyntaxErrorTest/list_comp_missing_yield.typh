@@ -1,9 +1,9 @@
 let xs = [for (x in range(3)) x]
 
 """stderr
-syntax error: $FILE:1:10
+syntax error: $FILE:1:11
   unknown tokens
 
     1 |  let xs = [for (x in range(3)) x]
-                  ^^^^^^^^^^^^^^^^^^^^^^^
+                   ^^^^^^^^^^^^^^^^^^^^^^
 """
