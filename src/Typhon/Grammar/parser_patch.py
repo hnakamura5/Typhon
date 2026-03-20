@@ -4,6 +4,7 @@
 from typing import Any, cast, Callable, Optional
 from pegen.parser import T, P, F
 import pegen.parser as pegen_parser
+from pegen.parser import Parser as PegenParser
 
 
 # TODO: Monkey patching for memo of parser to optimize
@@ -11,7 +12,7 @@ def memoize(method: F) -> F:
     """Memoize a symbol method."""
     method_name = method.__name__
 
-    def memoize_wrapper(self: Any, *args: object) -> Any:
+    def memoize_wrapper(self: PegenParser, *args: object) -> Any:
         mark = self._mark()
         key = mark, method_name, args
         # Fast path: cache hit, and not verbose.
@@ -54,7 +55,7 @@ def memoize_left_rec(method: Callable[[P], Optional[T]]) -> Callable[[P], Option
     """Memoize a left-recursive symbol method."""
     method_name = method.__name__
 
-    def memoize_left_rec_wrapper(self: Any) -> Optional[T]:
+    def memoize_left_rec_wrapper(self: PegenParser) -> Optional[T]:
         mark = self._mark()
         key = mark, method_name, ()
         # Fast path: cache hit, and not verbose.

@@ -57,9 +57,12 @@ def parse_file(
         tokenizer = TokenizerCustom(tok_stream, verbose=verbose, path=file_path)
         parsed = parse_tokenizer(
             tokenizer,
+            file_path=file_path,
             py_version=py_version,
             verbose=verbose,
         )
+        if not isinstance(parsed, ast.Module):
+            raise SyntaxError(f"Parsing failed: {parsed}")
         assert isinstance(parsed, ast.Module), f"Parsing failed: {parsed}"
         gather_errors(parsed)
         return parsed
@@ -67,12 +70,13 @@ def parse_file(
 
 def parse_tokenizer(
     tokenizer: TokenizerCustom,
+    file_path: str | None = None,
     py_version: Optional[tuple[int, int]] = None,
     verbose: bool = False,
 ) -> ast.AST:
     """Parse using a tokenizer."""
     parsed = _TYPHON_PARSER_MODULE.parse(
-        filename="<tokenizer>",
+        filename=file_path or "<tokenizer>",
         tokenizer=tokenizer,
         mode="file",
         py_version=py_version,

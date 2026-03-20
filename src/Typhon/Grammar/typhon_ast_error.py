@@ -441,6 +441,23 @@ def statement_panic_skip(
     return [result]
 
 
+def file_trailing_recovery_error(
+    parser: Parser,
+    success_body: list[ast.stmt],
+    skip: list[TokenInfo],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.Module:
+    start_loc, end_loc = unpack_pos_tuple(kwargs)
+    if skip:
+        start_loc = skip[0].start
+        end_loc = skip[-1].end
+    # Record the skipped tokens for error recovery
+    error = parser.build_skip_tokens_error(skip, start_loc, end_loc)
+    error_node = ast.Pass(**kwargs)  # Error holder
+    add_error_node(error_node, [error])
+    return ast.Module(body=success_body + [error_node], type_ignores=[])
+
+
 def expression_bracket_recovery(
     parser: Parser,
     open: TokenInfo,

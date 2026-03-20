@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import NamedTuple
 from tokenize import TokenInfo, OP, NAME
 import tokenize
@@ -219,6 +220,8 @@ class TokenizerCustom(PegenTokenizer):
             lines = self._lines_cache
         else:
             count = 0
+            if not Path(self._path).is_file():
+                return []
             with open(self._path) as f:
                 for line in f:
                     count += 1
