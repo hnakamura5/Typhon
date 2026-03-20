@@ -123,7 +123,7 @@ class SourceAstCache:
         )
         if not isinstance(scope, PythonScope):
             return None
-        return None
+        return scope
 
     def source_range_to_source_code(
         self,
