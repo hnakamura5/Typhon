@@ -3,11 +3,10 @@ import builtins
 from contextlib import contextmanager
 from dataclasses import dataclass
 
+from ..Grammar.position import get_pos_attributes, PosAttributes
 from ..Grammar.typhon_ast import (
-    get_pos_attributes,
     is_decl_assign,
     is_multi_decl,
-    PosAttributes,
     is_let_else,
     is_inline_with,
 )

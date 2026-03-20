@@ -1,5 +1,5 @@
+from ...Grammar.position import PosAttributes
 from ...Grammar.typhon_ast import (
-    PosAttributes,
     add_import_alias_top,
     set_is_internal_name,
 )

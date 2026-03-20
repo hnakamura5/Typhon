@@ -1,50 +1,28 @@
 import ast
 import copy
+from dataclasses import dataclass
 from typing import Unpack, cast
 from tokenize import TokenInfo
-from .typhon_ast import (
+from .position import (
     PosAttributes,
     get_empty_pos_attributes,
-    make_arguments,
     unpack_pos_default,
     get_pos_attributes,
     PosNode,
+    unpack_pos_tuple,
+)
+from .typhon_ast import (
+    ImportDotNames,
+    make_arguments,
     make_for_let_pattern,
     make_function_def,
     make_class_def,
     get_invalid_name,
-    unpack_pos_tuple,
 )
 from ..Driver.debugging import debug_print, debug_verbose_print
 from .parser_helper import Parser
-from .syntax_errors import set_syntax_error
+from .syntax_errors import set_syntax_error, add_error_node, get_error_node
 from ..Transform.visitor import TyphonASTRawVisitor
-
-
-_ERROR_NODE = "_typh_error_node"
-
-
-def set_error_node[T: ast.AST](node: T, errors: list[SyntaxError]) -> T:
-    setattr(node, _ERROR_NODE, errors)
-    return node
-
-
-def add_error_node[T: ast.AST](node: T, errors: list[SyntaxError]) -> T:
-    new_errors = get_error_node(node) + errors
-    return set_error_node(node, new_errors)
-
-
-def get_error_node(node: ast.AST) -> list[SyntaxError]:
-    return getattr(node, _ERROR_NODE, [])
-
-
-def clear_error_node(node: ast.AST) -> None:
-    if hasattr(node, _ERROR_NODE):
-        delattr(node, _ERROR_NODE)
-
-
-class ErrorPositionHolder(PosAttributes):
-    pass
 
 
 def maybe_invalid_block(
@@ -599,6 +577,39 @@ def subscr_recovery(
     )
     add_error_node(result, [error])
     return result
+
+
+def maybe_invalid_import_dot_names(
+    parser: Parser,
+    names: ImportDotNames | None,
+    name: TokenInfo | None,
+    **kwargs: Unpack[PosAttributes],
+) -> ImportDotNames:
+    if name:
+        if names:
+            return ImportDotNames(
+                names=names.names + [name],
+                name_missing_dot_errors=names.name_missing_dot_errors,
+            )
+        else:
+            return ImportDotNames(names=[name], name_missing_dot_errors=[])
+    # Missing name error.
+    start_loc, end_loc = unpack_pos_tuple(kwargs)
+    error = parser.build_expected_error(
+        "name after '.'",
+        start_loc,
+        (end_loc[0], end_loc[1] + 1),
+    )
+    debug_verbose_print(
+        lambda: (
+            f"Import name missing after dot: start_loc={start_loc}, end_loc={end_loc}, error={error}"
+        )
+    )
+    return ImportDotNames(
+        names=names.names if names else [],
+        name_missing_dot_errors=(names.name_missing_dot_errors if names else [])
+        + [error],
+    )
 
 
 class _ErrorGather(TyphonASTRawVisitor):

@@ -25,8 +25,10 @@ from .typhon_ast import (
     make_while_let_comp, make_let_comp,
     make_record_literal, make_record_type, make_attributes_pattern, make_tuple_pattern, make_for_let_pattern, make_with_let_pattern, make_inline_with_let_pattern, make_class_def,
     make_match_case, make_alias, make_import_from, make_arguments, make_attribute,
-    make_arg,  make_match_class,
-    get_pos_attributes,
+    make_arg,  make_match_class, ImportDotNames
+)
+from .position import (
+    get_pos_attributes
 )
 from .typhon_ast_error import (
     maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, recover_invalid_for, recover_invalid_try, recover_maybe_invalid_function_def_raw,
@@ -34,7 +36,7 @@ from .typhon_ast_error import (
     statement_panic_skip, let_pattern_check,
     file_trailing_recovery_error,
     expression_bracket_recovery, maybe_invalid_close_paren,
-    attribute_access_recovery, subscr_recovery,
+    attribute_access_recovery, subscr_recovery, maybe_invalid_import_dot_names
 )
 from .syntax_errors import set_syntax_error
 from .parser_helper import Parser, Load, Store, Del, Target
@@ -138,7 +140,6 @@ statement_panic_recovery[List[ast.stmt]]:
     | one=(!SYNC_STMT_CLOSER ANY_TOKEN) skips=(!SYNC_STMT ANY_TOKEN)+ sync=statement_panic_synchronize {
         statement_panic_skip(self, [one] + skips, sync, LOCATIONS)
      }
-
 
 # Note when the rule returns Falsy value, it is regarded as fail. We return dummy string here.
 statement_panic_synchronize:
@@ -327,10 +328,15 @@ import_stmt[ast.Import]:
 import_name[ast.Import]: 'import' a=dotted_as_names { ast.Import(names=a, LOCATIONS) }
 dotted_as_names[List[ast.alias]]:
     | a=','.dotted_as_name+ { a }
-# dotted_as_name[ast.alias]:
-#     | a=dotted_name b=['as' z=NAME { z.string }] { ast.alias(name=a, asname=b, LOCATIONS) }
+
 dotted_as_name[ast.alias]:
-    | a=dotted_name b=['as' z=NAME { z }] { make_alias(name=a, asname=b, LOCATIONS) }
+    | a=dotted_name b=[ c='as' z=[NAME] { (c, z) }] {
+        make_alias(self, name=a,
+            asname=b[1] if b else None,
+            astoken=b[0] if b else None,
+            LOCATIONS
+        )
+     }
 
 # note below: the ('.' | '...') is necessary because '...' is tokenized as ELLIPSIS
 import_from[ast.ImportFrom]:
@@ -348,14 +354,18 @@ import_from_targets[List[ast.alias]]:
 import_from_as_names[List[ast.alias]]:
     | a=','.import_from_as_name+ { a }
 import_from_as_name[ast.alias]:
-    | a=NAME b=['as' z=NAME { z }] { make_alias(name=[a], asname=b, LOCATIONS) }
-# dotted_name[str]:
-#     | a=dotted_name '.' b=NAME { a + "." + b.string }
-#     | a=NAME { a.string }
+    | a=NAME b=[ c='as' z=[NAME] { (c, z) }] {
+            make_alias(self, name=ImportDotNames([a], None),
+            asname=b[1] if b else None,
+            astoken=b[0] if b else None,
+            LOCATIONS
+        )
+     }
 
-dotted_name:
-    | a=dotted_name '.' b=NAME { a + [b] }
-    | a=NAME { [a] }
+dotted_name[ImportDotNames]:
+    | a=dotted_name '.' b=NAME { maybe_invalid_import_dot_names(self, a, b, LOCATIONS) }
+    | a=dotted_name dot='.' !NAME { maybe_invalid_import_dot_names(self, a, None, LOCATIONS) }
+    | a=NAME { maybe_invalid_import_dot_names(self, None, a, LOCATIONS) }
 
 # COMPOUND STATEMENTS
 # ===================
@@ -370,7 +380,6 @@ maybe_block[List[ast.stmt]]:
     | lb=['{'] a=statements* rb=['}'] ~ {
         maybe_invalid_block(self, lb, rb, sum(a, []) if len(a) > 0 else [ast.Pass(LOCATIONS)])
     }
-
 
 decorators: decorator+
 decorator:

@@ -1,16 +1,18 @@
 import ast
 from dataclasses import dataclass
 from typing import Protocol, Iterable, Final
+from ..Grammar.position import (
+    get_pos_attributes,
+    pos_attribute_to_range,
+    get_empty_pos_attributes,
+    PosAttributes,
+)
 from ..Grammar.typhon_ast import (
     RecordLiteral,
     copy_is_let_var,
     get_match_class_keyword_names,
     get_record_literal_fields,
     get_record_type_fields,
-    get_pos_attributes,
-    pos_attribute_to_range,
-    get_empty_pos_attributes,
-    PosAttributes,
     set_is_internal_name,
     set_is_var,
     is_record_literal,

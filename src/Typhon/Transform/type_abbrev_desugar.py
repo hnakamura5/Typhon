@@ -1,14 +1,13 @@
 import ast
 from typing import cast
 from contextlib import contextmanager
+from ..Grammar.position import get_empty_pos_attributes, get_pos_attributes
 from ..Grammar.typhon_ast import (
     FunctionType,
     get_args_of_function_type,
     get_star_arg_of_function_type,
     get_star_kwds_of_function_type,
     get_return_of_function_type,
-    get_empty_pos_attributes,
-    get_pos_attributes,
     is_typing_expression,
     is_optional_question,
 )

@@ -1,8 +1,8 @@
 import ast
+from ..Grammar.position import get_pos_attributes
 from ..Grammar.typhon_ast import (
     clear_is_control_comprehension,
     get_control_comprehension_def,
-    get_pos_attributes,
     ControlComprehension,
 )
 from .visitor import TyphonParentASTVisitor, TyphonASTTransformer, flat_append

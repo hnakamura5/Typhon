@@ -10,7 +10,7 @@ from Typhon.Grammar.demangle import (
     pretty_print_and_demangle_type_args_suffix,
 )
 from Typhon.Grammar.pretty_printer import get_record_literal_typevar_fields
-from Typhon.Grammar.typhon_ast import get_pos_attributes
+from Typhon.Grammar.position import get_pos_attributes
 
 from ..Transform.name_generator import get_final_name
 from ..Driver.debugging import debug_file_write_verbose

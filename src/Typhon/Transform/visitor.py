@@ -1,6 +1,7 @@
 from typing import TypeGuard, override, Callable, cast, Any
 from contextlib import contextmanager
 import ast
+from ..Grammar.position import PosAttributes
 from ..Grammar.typhon_ast import (
     PossibleAnnotatedNode,
     is_function_literal,
@@ -15,7 +16,6 @@ from ..Grammar.typhon_ast import (
     set_control_comprehension_def,
     get_type_annotation,
     set_type_annotation,
-    PosAttributes,
 )
 from .name_generator import UniqueNameGenerator, PythonScope, NameKind
 from ..Grammar.syntax_errors import (

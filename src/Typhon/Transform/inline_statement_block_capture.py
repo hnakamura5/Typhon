@@ -1,10 +1,10 @@
 import ast
+from ..Grammar.position import get_pos_attributes
 from ..Grammar.typhon_ast import (
     is_inline_with,
     clear_inline_with,
     is_let_else,
     get_let_pattern_body,
-    get_pos_attributes,
 )
 from .visitor import TyphonASTVisitor, flat_append
 from contextlib import contextmanager

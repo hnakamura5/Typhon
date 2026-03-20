@@ -1,9 +1,9 @@
 import ast
 
 from ..Driver.debugging import debug_verbose_print
+from ..Grammar.position import get_pos_attributes
 from ..Grammar.typhon_ast import (
     set_defined_name,
-    get_pos_attributes,
     set_import_from_names,
     set_return_type_annotation_anchor,
 )

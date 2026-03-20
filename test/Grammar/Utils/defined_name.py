@@ -1,5 +1,6 @@
 import ast
-from Typhon.Grammar.typhon_ast import get_defined_name, get_pos_attributes
+from Typhon.Grammar.position import get_pos_attributes
+from Typhon.Grammar.typhon_ast import get_defined_name
 from Typhon.SourceMap.defined_name_retrieve import defined_name_retrieve
 
 decorator_func_code = """

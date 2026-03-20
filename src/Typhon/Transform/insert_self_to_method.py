@@ -1,7 +1,7 @@
 import ast
+from ..Grammar.position import get_pos_attributes
 from ..Grammar.typhon_ast import (
     is_static,
-    get_pos_attributes,
     is_function_literal_def,
 )
 from .visitor import TyphonASTVisitor, TyphonASTTransformer

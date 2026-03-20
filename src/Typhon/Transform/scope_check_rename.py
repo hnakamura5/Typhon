@@ -4,12 +4,14 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Unpack
 
-from ..Grammar.typhon_ast import (
-    is_var,
-    is_decl_assign,
+from ..Grammar.position import (
     PosAttributes,
     get_pos_attributes,
     get_empty_pos_attributes,
+)
+from ..Grammar.typhon_ast import (
+    is_var,
+    is_decl_assign,
     is_inline_with,
     set_is_placeholder,
     get_type_annotation,

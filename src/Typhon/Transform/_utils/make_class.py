@@ -1,9 +1,11 @@
-from ...Grammar.typhon_ast import (
+from ...Grammar.position import (
     get_pos_attributes,
     pos_attribute_to_range,
+    PosAttributes,
+)
+from ...Grammar.typhon_ast import (
     set_is_internal_name,
     set_is_var,
-    PosAttributes,
 )
 import ast
 from typing import Protocol, Iterable, Final

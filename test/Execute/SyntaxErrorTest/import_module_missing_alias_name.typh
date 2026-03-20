@@ -1,1 +1,9 @@
 import math as
+
+"""stderr
+syntax error: $FILE:1:13
+  expected name after 'as'
+
+    1 |  import math as
+                     ^^
+"""

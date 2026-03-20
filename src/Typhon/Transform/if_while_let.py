@@ -1,7 +1,7 @@
 import ast
+from ..Grammar.position import get_pos_attributes
 from ..Grammar.typhon_ast import (
     get_let_pattern_body,
-    get_pos_attributes,
     is_let_else,
     set_is_var,
     LetPatternInfo,

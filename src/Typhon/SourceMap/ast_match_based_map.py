@@ -1,6 +1,6 @@
 import ast
 from .datatype import Range, Pos, RangeIntervalTree, RangeInterval
-from ..Grammar.typhon_ast import get_pos_attributes_if_exists
+from ..Grammar.position import get_pos_attributes_if_exists
 from ..Driver.debugging import debug_verbose_print
 from ..SourceMap.ast_matching import match_ast
 from .defined_name_retrieve import defined_name_retrieve

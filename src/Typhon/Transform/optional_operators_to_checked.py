@@ -1,9 +1,11 @@
 import ast
 from typing import Callable
-from ..Grammar.typhon_ast import (
+from ..Grammar.position import (
     PosAttributes,
     get_empty_pos_attributes,
     get_pos_attributes,
+)
+from ..Grammar.typhon_ast import (
     is_force_unwrap,
     is_coalescing,
     is_optional,

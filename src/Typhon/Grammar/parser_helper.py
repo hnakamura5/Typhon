@@ -28,10 +28,9 @@ from typing import (
 from pegen.tokenizer import Tokenizer
 from pegen.parser import Parser as PegenParser
 from ..Driver.debugging import is_debug_first_error
+from .position import PosAttributes
 from .typhon_ast import (
     set_anonymous_name_id,
-    PosAttributes,
-    get_pos_attributes,
     get_anonymous_base_name,
 )
 from .syntax_errors import SkipTokensError, ExpectedTokenError

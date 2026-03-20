@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from ..Grammar.typhon_ast import PosAttributes, PosRange, get_pos_attributes_if_exists
+from ..Grammar.position import PosAttributes, PosRange, get_pos_attributes_if_exists
 from ..Driver.debugging import debug_verbose_print
 from intervaltree import IntervalTree, Interval  # type: ignore[import]
 from typing import Callable, Iterable

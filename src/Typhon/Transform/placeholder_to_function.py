@@ -1,9 +1,9 @@
 import ast
+from ..Grammar.position import get_pos_attributes
 from ..Grammar.typhon_ast import (
     FunctionLiteral,
     get_function_literal_def,
     clear_function_literal_def,
-    get_pos_attributes,
     is_placeholder,
 )
 from .visitor import TyphonParentASTVisitor, TyphonASTTransformer, flat_append

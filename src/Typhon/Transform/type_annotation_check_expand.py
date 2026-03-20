@@ -5,12 +5,11 @@ from contextlib import contextmanager
 from Typhon.Grammar.pretty_printer import make_final_demangle_template
 
 from ._utils.imports import add_import_for_final, get_final, get_final_of_type
+from ..Grammar.position import PosAttributes, get_pos_attributes
 from ..Grammar.typhon_ast import (
     DeclarableStmt,
     add_generated_name_original,
     is_decl_assign,
-    PosAttributes,
-    get_pos_attributes,
     get_type_annotation,
     get_annotations_of_declaration_target,
     copy_is_let_var,

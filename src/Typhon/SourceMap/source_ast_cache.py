@@ -1,7 +1,8 @@
 import ast
 
 from ..Driver.debugging import debug_verbose_print
-from ..Grammar.typhon_ast import get_pos_attributes_if_exists, PythonScope
+from ..Grammar.position import get_pos_attributes_if_exists
+from ..Grammar.typhon_ast import PythonScope
 from .datatype import Pos, Range, RangeIntervalTree
 from ._utils import (
     filter_fn_by_node_type,

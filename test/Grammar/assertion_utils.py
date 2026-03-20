@@ -4,7 +4,7 @@ import traceback
 import io
 import re
 from typing import Type, Union, Any, Callable
-from Typhon.Grammar.typhon_ast import get_pos_attributes_if_exists
+from Typhon.Grammar.position import get_pos_attributes_if_exists
 from Typhon.Grammar.parser import parse_string
 from Typhon.Transform.transform import transform
 from Typhon.Grammar.tokenizer_custom import TokenizerCustom, show_token

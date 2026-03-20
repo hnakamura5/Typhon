@@ -1,11 +1,34 @@
 import ast
 from pathlib import Path
 from tokenize import TokenInfo
-from .typhon_ast import PosAttributes
+from .position import PosAttributes
 from typing import Unpack, Callable
 from ..Driver.diagnostic import diag_error_file_position, positioned_source_code
 from ..SourceMap.datatype import Range
 from ..Driver.debugging import debug_print, is_debug_first_error
+
+
+_ERROR_NODE = "_typh_error_node"
+
+
+def set_error_node[T: ast.AST](node: T, errors: list[SyntaxError]) -> T:
+    setattr(node, _ERROR_NODE, errors)
+    return node
+
+
+def add_error_node[T: ast.AST](node: T, errors: list[SyntaxError]) -> T:
+    new_errors = get_error_node(node) + errors
+    return set_error_node(node, new_errors)
+
+
+def get_error_node(node: ast.AST) -> list[SyntaxError]:
+    return getattr(node, _ERROR_NODE, [])
+
+
+def clear_error_node(node: ast.AST) -> None:
+    if hasattr(node, _ERROR_NODE):
+        delattr(node, _ERROR_NODE)
+
 
 _SYNTAX_ERROR_IN_MODULE = "_typh_syntax_error_in_module"
 

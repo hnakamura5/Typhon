@@ -4,7 +4,6 @@ import re
 from typing import (
     Union,
     Unpack,
-    TypedDict,
     Tuple,
     cast,
     TYPE_CHECKING,
@@ -16,7 +15,15 @@ import ast
 from dataclasses import dataclass
 from copy import copy
 from tokenize import TokenInfo
+
 from ..Driver.debugging import debug_print, debug_verbose_print, is_testing_reparser
+from .position import (
+    PosAttributes,
+    get_pos_attributes,
+    get_empty_pos_attributes,
+    pos_attribute_to_range,
+)
+from .syntax_errors import add_error_node
 
 if TYPE_CHECKING:
     from .parser_helper import Parser
@@ -47,114 +54,7 @@ def is_reparse_target(module: ast.Module) -> bool:
     return getattr(module, _IS_REPARSE_TARGET, False)
 
 
-# Same as ast module's position attributes
-class PosAttributes(TypedDict):
-    lineno: int
-    col_offset: int
-    end_lineno: int | None
-    end_col_offset: int | None
-
-
-def unpack_pos_default(pos: PosAttributes) -> Tuple[int, int, int, int]:
-    return (
-        pos["lineno"],
-        pos["col_offset"],
-        pos["end_lineno"] or pos["lineno"],
-        pos["end_col_offset"] or pos["col_offset"] + 1,
-    )
-
-
-def unpack_pos_tuple(pos: PosAttributes) -> Tuple[Tuple[int, int], Tuple[int, int]]:
-    return (
-        (pos["lineno"], pos["col_offset"]),
-        (
-            pos["end_lineno"] or pos["lineno"],
-            pos["end_col_offset"] or pos["col_offset"] + 1,
-        ),
-    )
-
-
-class PosRange(TypedDict):
-    lineno: int
-    col_offset: int
-    end_lineno: int
-    end_col_offset: int
-
-
-def pos_attribute_to_range(pos: PosAttributes) -> PosRange:
-    result: PosRange = {
-        "lineno": pos["lineno"],
-        "col_offset": pos["col_offset"],
-        "end_lineno": pos["end_lineno"]
-        if pos["end_lineno"] is not None
-        else pos["lineno"],
-        "end_col_offset": pos["end_col_offset"]
-        if pos["end_col_offset"] is not None
-        else pos["col_offset"],
-    }
-
-    return result
-
-
 PythonScope = ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
-
-
-type PosNode = (
-    ast.stmt
-    | ast.expr
-    | ast.alias
-    | ast.arg
-    | ast.type_param
-    | ast.excepthandler
-    | ast.pattern
-    | ast.keyword
-    | ast.match_case
-)
-
-
-def get_pos_attributes(node: PosNode | TokenInfo) -> PosAttributes:
-    if isinstance(node, TokenInfo):
-        return PosAttributes(
-            lineno=node.start[0],
-            col_offset=node.start[1],
-            end_lineno=node.end[0],
-            end_col_offset=node.end[1],
-        )
-    return PosAttributes(
-        lineno=getattr(node, "lineno", 1),
-        col_offset=getattr(node, "col_offset", 0),
-        end_lineno=getattr(node, "end_lineno", None),
-        end_col_offset=getattr(node, "end_col_offset", None),
-    )
-
-
-def get_pos_attributes_if_exists(node: ast.AST) -> PosAttributes | None:
-    if hasattr(node, "lineno") and hasattr(node, "col_offset"):
-        return PosAttributes(
-            lineno=getattr(node, "lineno"),
-            col_offset=getattr(node, "col_offset"),
-            end_lineno=getattr(node, "end_lineno", None),
-            end_col_offset=getattr(node, "end_col_offset", None),
-        )
-    return None
-
-
-def get_lineno_col_offset(node: ast.AST) -> Tuple[int, int]:
-    pos = get_pos_attributes_if_exists(node)
-    if pos is not None:
-        return (pos["lineno"], pos["col_offset"])
-    else:
-        return (0, 0)
-
-
-def get_empty_pos_attributes() -> PosAttributes:
-    # Python ast position is 1-based for line, 0-based for column
-    return PosAttributes(
-        lineno=1,
-        col_offset=0,
-        end_lineno=1,
-        end_col_offset=0,
-    )
 
 
 _ANONYMOUS_NAME = "_typh_anonymous"
@@ -1460,23 +1360,6 @@ def make_class_def(
     return result
 
 
-def make_alias(
-    name: list[TokenInfo],
-    asname: TokenInfo | None,
-    **kwargs: Unpack[PosAttributes],
-) -> ast.alias:
-    result = ast.alias(
-        name=".".join(n.string for n in name),
-        asname=asname.string if asname else None,
-        **kwargs,
-    )
-    if asname is not None:
-        set_defined_name_token(result, asname)
-    else:
-        set_defined_name_token(result, name[-1])
-    return result
-
-
 def make_attribute(
     value: ast.expr,
     attr: TokenInfo,
@@ -1532,14 +1415,26 @@ def clear_import_from_names(node: ast.ImportFrom):
         delattr(node, _IMPORT_FROM_NAMES)
 
 
+_TYPH_MISSING_NAME_IMPORT = "_typh_missing_name_import"
+
+
+@dataclass
+class ImportDotNames:
+    names: list[TokenInfo | None]  # None for missing name.
+    name_missing_dot_errors: list[SyntaxError]
+
+    def names_as_strings(self) -> list[str]:
+        return [n.string if n else _TYPH_MISSING_NAME_IMPORT for n in self.names]
+
+
 # Used only the case module part exists.
 def make_import_from(
-    module: list[TokenInfo] | None,
+    module: ImportDotNames | None,
     names: list[ast.alias],
     level: int,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.ImportFrom:
-    mod_name = ".".join(n.string for n in module) if module else None
+    mod_name = ".".join(module.names_as_strings()) if module else None
     result = ast.ImportFrom(
         module=mod_name,
         names=names,
@@ -1556,9 +1451,43 @@ def make_import_from(
                 end_col_offset=n.end[1],
                 ctx=ast.Load(),
             )
-            for n in module
+            if n
+            else ast.Name(
+                id=_TYPH_MISSING_NAME_IMPORT,
+                **get_empty_pos_attributes(),
+                ctx=ast.Load(),
+            )
+            for n in module.names
         ]
         set_import_from_names(result, import_names)
+        if module.name_missing_dot_errors:
+            add_error_node(result, module.name_missing_dot_errors)
+    return result
+
+
+def make_alias(
+    parser: Parser,
+    name: ImportDotNames,
+    asname: TokenInfo | None,
+    astoken: TokenInfo | None = None,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.alias:
+    result = ast.alias(
+        name=".".join(name.names_as_strings()),
+        asname=asname.string if asname else None,
+        **kwargs,
+    )
+    if asname is not None:
+        set_defined_name_token(result, asname)
+    elif name.names and name.names[-1] is not None:
+        set_defined_name_token(result, name.names[-1])
+    if name.name_missing_dot_errors:
+        add_error_node(result, name.name_missing_dot_errors)
+    if not asname and astoken:
+        error = parser.build_expected_error(
+            "name after 'as'", astoken.start, astoken.end
+        )
+        add_error_node(result, [error])
     return result
 
 
