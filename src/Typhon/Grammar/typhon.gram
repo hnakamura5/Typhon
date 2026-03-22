@@ -27,6 +27,7 @@ from .typhon_ast import (
     make_match_case, make_alias, make_import_from, make_arguments, make_attribute,
     make_arg, make_match_class, ImportDotNames,  set_completion_trigger_anchor_token,
     CallArgs, set_call_anchors,
+    set_wrapper_paren_tokens, set_constant_raw_tokens
 )
 from .position import (
     get_pos_attributes, set_completion_trigger_anchor,
@@ -861,9 +862,9 @@ literal_expr:
     | signed_number !('+' | '-')
     | complex_number
     | strings
-    | 'None' { ast.Constant(value=None, LOCATIONS) }
-    | 'True' { ast.Constant(value=True, LOCATIONS) }
-    | 'False' { ast.Constant(value=False, LOCATIONS) }
+    | n='None' { set_constant_raw_tokens(ast.Constant(value=None, LOCATIONS), [n]) }
+    | t='True' { set_constant_raw_tokens(ast.Constant(value=True, LOCATIONS), [t]) }
+    | f='False' { set_constant_raw_tokens(ast.Constant(value=False, LOCATIONS), [f]) }
 
 complex_number:
     | real=signed_real_number '+' imag=imaginary_number {
@@ -874,16 +875,19 @@ complex_number:
      }
 
 signed_number:
-    | a=NUMBER { ast.Constant(value=ast.literal_eval(a.string), LOCATIONS) }
+    | a=NUMBER { set_constant_raw_tokens(ast.Constant(value=ast.literal_eval(a.string), LOCATIONS), [a]) }
     | '-' a=NUMBER {
         ast.UnaryOp(
             op=ast.USub(),
-            operand=ast.Constant(
-                value=ast.literal_eval(a.string),
-                lineno=a.start[0],
-                col_offset=a.start[1],
-                end_lineno=a.end[0],
-                end_col_offset=a.end[1]
+            operand=set_constant_raw_tokens(
+                ast.Constant(
+                    value=ast.literal_eval(a.string),
+                    lineno=a.start[0],
+                    col_offset=a.start[1],
+                    end_lineno=a.end[0],
+                    end_col_offset=a.end[1]
+                ),
+                [a],
             ),
             LOCATIONS,
         )
@@ -894,10 +898,10 @@ signed_real_number:
     | '-' real=real_number { ast.UnaryOp(op=ast.USub(), operand=real, LOCATIONS) }
 
 real_number[ast.Constant]:
-    | real=NUMBER { ast.Constant(value=self.ensure_real(real), LOCATIONS) }
+    | real=NUMBER { set_constant_raw_tokens(ast.Constant(value=self.ensure_real(real), LOCATIONS), [real]) }
 
 imaginary_number[ast.Constant]:
-    | imag=NUMBER { ast.Constant(value=self.ensure_imaginary(imag), LOCATIONS) }
+    | imag=NUMBER { set_constant_raw_tokens(ast.Constant(value=self.ensure_imaginary(imag), LOCATIONS), [imag]) }
 
 capture_pattern:
     | target=pattern_capture_target_annot {
@@ -1525,40 +1529,39 @@ slice:
 
 atom:
     | a=NAME { ast.Name(id=a.string, ctx=Load, LOCATIONS) }
-    | 'True' {
-        ast.Constant(value=True, LOCATIONS)
+    | t='True' {
+        set_constant_raw_tokens(ast.Constant(value=True, LOCATIONS), [t])
         if sys.version_info >= (3, 9) else
-        ast.Constant(value=True, kind=None, LOCATIONS)
+        set_constant_raw_tokens(ast.Constant(value=True, kind=None, LOCATIONS), [t])
      }
-    | 'False' {
-        ast.Constant(value=False, LOCATIONS)
+    | f='False' {
+        set_constant_raw_tokens(ast.Constant(value=False, LOCATIONS), [f])
         if sys.version_info >= (3, 9) else
-        ast.Constant(value=False, kind=None, LOCATIONS)
+        set_constant_raw_tokens(ast.Constant(value=False, kind=None, LOCATIONS), [f])
      }
-    | 'None' {
-        ast.Constant(value=None, LOCATIONS)
+    | n='None' {
+        set_constant_raw_tokens(ast.Constant(value=None, LOCATIONS), [n])
         if sys.version_info >= (3, 9) else
-        ast.Constant(value=None, kind=None, LOCATIONS)
+        set_constant_raw_tokens(ast.Constant(value=None, kind=None, LOCATIONS), [n])
      }
     | &(STRING|FSTRING_START) strings
     | a=NUMBER {
-        ast.Constant(value=ast.literal_eval(a.string), LOCATIONS)
+        set_constant_raw_tokens(ast.Constant(value=ast.literal_eval(a.string), LOCATIONS), [a])
         if sys.version_info >= (3, 9) else
-        ast.Constant(value=ast.literal_eval(a.string), kind=None, LOCATIONS)
+        set_constant_raw_tokens(ast.Constant(value=ast.literal_eval(a.string), kind=None, LOCATIONS), [a])
      }
     | &'(' (function_literal | typing_arrow_type | tuple | group | comprehension_paren | paren_exp_recovery)
     | &'[' (list | listcomp | bracket_exp_recovery)
     | &'{' (dict | set | dictcomp | setcomp | brace_exp_recovery)
     | &'{|'(record_type | record_literal | record_exp_recovery)
-    | '...' {
-        ast.Constant(value=Ellipsis, LOCATIONS)
+    | e='...' {
+        set_constant_raw_tokens(ast.Constant(value=Ellipsis, LOCATIONS), [e])
         if sys.version_info >= (3, 9) else
-        ast.Constant(value=Ellipsis, kind=None, LOCATIONS)
+        set_constant_raw_tokens(ast.Constant(value=Ellipsis, kind=None, LOCATIONS), [e])
      }
 
 group:
-    | '(' a=(yield_expr | named_expression) ')' { a }
-  #  | invalid_group
+    | lp='(' a=(yield_expr | named_expression) rp=')' { set_wrapper_paren_tokens(a, [lp, rp]) }
 
 
 function_literal:
@@ -1591,7 +1594,7 @@ record_exp_recovery:
 
 fstring_mid[ast.expr]:
     | fstring_replacement_field
-    | t=FSTRING_MIDDLE { ast.Constant(value=t.string, LOCATIONS) }
+    | t=FSTRING_MIDDLE { set_constant_raw_tokens(ast.Constant(value=t.string, LOCATIONS), [t]) }
 fstring_replacement_field[ast.FormattedValue]:
     | '{' a=(yield_expr | star_expressions) debug_expr="="? conversion=[fstring_conversion] format=[fstring_full_format_spec] rbrace='}' {
         ast.FormattedValue(
@@ -1616,7 +1619,7 @@ fstring_full_format_spec:
         )
      }
 fstring_format_spec:
-    | t=FSTRING_MIDDLE { ast.Constant(value=t.string, LOCATIONS) }
+    | t=FSTRING_MIDDLE { set_constant_raw_tokens(ast.Constant(value=t.string, LOCATIONS), [t]) }
     | fstring_replacement_field
 fstring[ast.JoinedStr]:
     | a=FSTRING_START b=fstring_mid* c=FSTRING_END {

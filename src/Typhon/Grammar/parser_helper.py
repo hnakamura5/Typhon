@@ -32,6 +32,7 @@ from .position import PosAttributes
 from .typhon_ast import (
     set_anonymous_name_id,
     get_anonymous_base_name,
+    set_constant_raw_tokens,
 )
 from .syntax_errors import SkipTokensError, ExpectedTokenError
 
@@ -293,7 +294,7 @@ class Parser(PegenParser):
         )
         if parts[0].string.startswith("u"):
             args["kind"] = "u"
-        return ast.Constant(**args)
+        return set_constant_raw_tokens(ast.Constant(**args), parts)
 
     def concatenate_strings(self, parts: list[tokenize.TokenInfo]):
         """Concatenate multiple tokens and ast.JoinedStr"""

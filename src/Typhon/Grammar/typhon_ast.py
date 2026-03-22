@@ -132,6 +132,59 @@ def clear_type_ignore_node(node: ast.AST) -> None:
         delattr(node, _TYPE_IGNORE_NODES)
 
 
+_LOSSLESS_TOKEN_INFO = "lossless_token_info"
+
+
+def set_lossless_token_info(module: ast.Module, tokens: list[TokenInfo]) -> ast.Module:
+    setattr(module, _LOSSLESS_TOKEN_INFO, tokens)
+    return module
+
+
+def get_lossless_token_info(module: ast.Module) -> list[TokenInfo] | None:
+    return getattr(module, _LOSSLESS_TOKEN_INFO, None)
+
+
+def clear_lossless_token_info(module: ast.Module) -> None:
+    if hasattr(module, _LOSSLESS_TOKEN_INFO):
+        delattr(module, _LOSSLESS_TOKEN_INFO)
+
+
+_WRAPPER_PAREN_TOKENS = "wrapper_paren_tokens"
+
+
+def set_wrapper_paren_tokens[T: ast.expr](node: T, tokens: list[TokenInfo]) -> T:
+    setattr(node, _WRAPPER_PAREN_TOKENS, tokens)
+    return node
+
+
+def get_wrapper_paren_tokens(node: ast.expr) -> list[TokenInfo] | None:
+    return getattr(node, _WRAPPER_PAREN_TOKENS, None)
+
+
+def clear_wrapper_paren_tokens(node: ast.expr) -> None:
+    if hasattr(node, _WRAPPER_PAREN_TOKENS):
+        delattr(node, _WRAPPER_PAREN_TOKENS)
+
+
+_RAW_TOKENS = "raw_tokens"
+
+
+def set_constant_raw_tokens(
+    node: ast.Constant, tokens: list[TokenInfo]
+) -> ast.Constant:
+    setattr(node, _RAW_TOKENS, tokens)
+    return node
+
+
+def get_constant_raw_tokens(node: ast.Constant) -> list[TokenInfo] | None:
+    return getattr(node, _RAW_TOKENS, None)
+
+
+def clear_constant_raw_tokens(node: ast.Constant) -> None:
+    if hasattr(node, _RAW_TOKENS):
+        delattr(node, _RAW_TOKENS)
+
+
 # The name is internal when it has no counterpart in input typhon source code.
 _INTERNAL_NAME = "_typh_internal_name"
 

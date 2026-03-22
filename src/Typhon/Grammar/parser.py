@@ -8,6 +8,7 @@ from typing import Literal, Union, Optional
 
 from Typhon.Grammar.typhon_ast import (
     is_reparse_target_token_size,
+    set_lossless_token_info,
     set_is_reparse_target,
 )
 
@@ -85,9 +86,10 @@ def parse_tokenizer(
     # Must be successful parse
     assert isinstance(parsed, ast.AST), f"Parsing failed: {parsed}"
     gather_errors(parsed)
-    set_is_reparse_target(
-        parsed, is_reparse_target_token_size(len(tokenizer.read_all_tokens()))
-    )
+    all_tokens = tokenizer.read_all_tokens()
+    if isinstance(parsed, ast.Module):
+        set_lossless_token_info(parsed, all_tokens)
+    set_is_reparse_target(parsed, is_reparse_target_token_size(len(all_tokens)))
     return parsed
 
 
