@@ -127,8 +127,8 @@ def test_hover_mapped_range():
             target_file_uri,
             line=6,
             character=13,
-            expected_start_character=14,
-            expected_end_character=15,
+            expected_start_character=13,
+            expected_end_character=14,
             expected_text_fragment="x",
         )
 

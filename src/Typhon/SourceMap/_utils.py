@@ -28,7 +28,10 @@ def line_to_node[T](
 
 def filter_fn_by_node_type(
     node_type: type[ast.AST] | None,
+    filter_pred: Callable[[ast.AST], bool] | None = None,
 ) -> Callable[[ast.AST], bool] | None:
     if node_type is None:
-        return None
-    return lambda node: isinstance(node, node_type)
+        return filter_pred
+    if filter_pred is None:
+        return lambda node: isinstance(node, node_type)
+    return lambda node: isinstance(node, node_type) and filter_pred(node)

@@ -1,4 +1,5 @@
 import ast
+from typing import Callable
 from .datatype import Range, Pos, RangeIntervalTree, RangeInterval
 from ..Grammar.position import get_pos_attributes_if_exists
 from ..Driver.debugging import debug_verbose_print
@@ -147,10 +148,11 @@ class MatchBasedSourceMap:
         interval_tree: RangeIntervalTree[ast.AST],
         mapping: dict[ast.AST, ast.AST] | None,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
         node = interval_tree.pos_to_node(
             pos,
-            filter_fn_by_node_type(filter_node_type),
+            filter_fn_by_node_type(filter_node_type, filter_pred),
         )
         if node is None:
             return None
@@ -164,13 +166,12 @@ class MatchBasedSourceMap:
         line_index: dict[int, list[RangeInterval[ast.AST]]],
         mapping: dict[ast.AST, ast.AST] | None,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
-        nodes = line_index.get(line, [])
-        debug_verbose_print(lambda: f"Mapping line: {line} nodes: {nodes}")
         node = line_to_node(
             line,
             line_index,
-            filter_fn_by_node_type(filter_node_type),
+            filter_fn_by_node_type(filter_node_type, filter_pred),
         )
         if node is None:
             return None
@@ -207,18 +208,11 @@ class MatchBasedSourceMap:
         self,
         range_unparsed: Range,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
-        nodes: list[RangeInterval[ast.AST]] = (
-            self.unparsed_interval_tree.minimal_containers(range_unparsed)
-        )
-        debug_verbose_print(
-            lambda: (
-                f"Mapping unparsed range to origin node: {range_unparsed} nodes: {nodes}"
-            )
-        )
         unparsed_node = self.unparsed_interval_tree.range_to_single_container_node(
             range_unparsed,
-            filter_fn_by_node_type(filter_node_type),
+            filter_fn_by_node_type(filter_node_type, filter_pred),
         )
         if unparsed_node is None:
             debug_verbose_print(lambda: "No nodes found for the given unparsed range.")
@@ -229,24 +223,28 @@ class MatchBasedSourceMap:
         self,
         pos_unparsed: Pos,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
         return self._pos_to_node(
             pos_unparsed,
             self.unparsed_interval_tree,
             None,
             filter_node_type,
+            filter_pred,
         )
 
     def unparsed_line_to_unparsed_node(
         self,
         line_unparsed: int,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
         return self._line_to_node(
             line_unparsed,
             self.unparsed_nodes_by_line,
             None,
             filter_node_type,
+            filter_pred,
         )
 
     def unparsed_pos_to_origin_pos(
@@ -265,12 +263,14 @@ class MatchBasedSourceMap:
         self,
         pos_unparsed: Pos,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
         return self._pos_to_node(
             pos_unparsed,
             self.unparsed_interval_tree,
             self.unparsed_to_origin,
             filter_node_type,
+            filter_pred,
         )
 
     def origin_node_to_unparsed_node(
@@ -283,7 +283,6 @@ class MatchBasedSourceMap:
         self,
         range_origin: Range,
     ) -> Range | None:
-        debug_verbose_print(lambda: f"Mapping origin range: {range_origin}")
         return self._range_to(
             range_origin,
             self.origin_interval_tree,
@@ -306,12 +305,14 @@ class MatchBasedSourceMap:
         self,
         pos_origin: Pos,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
         return self._pos_to_node(
             pos_origin,
             self.origin_interval_tree,
             self.origin_to_unparsed,
             filter_node_type,
+            filter_pred,
         )
 
     def origin_node_to_unparsed_range(
@@ -328,42 +329,39 @@ class MatchBasedSourceMap:
         self,
         pos_origin: Pos,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
         return self._pos_to_node(
             pos_origin,
             self.origin_interval_tree,
             None,
             filter_node_type,
+            filter_pred,
         )
 
     def origin_line_to_origin_node(
         self,
         line_origin: int,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
         return self._line_to_node(
             line_origin,
             self.origin_nodes_by_line,
             None,
             filter_node_type,
+            filter_pred,
         )
 
     def origin_range_to_origin_node(
         self,
         range_origin: Range,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
-        nodes: list[RangeInterval[ast.AST]] = (
-            self.origin_interval_tree.minimal_containers(range_origin)
-        )
-        debug_verbose_print(
-            lambda: (
-                f"Mapping origin range to origin node: {range_origin} nodes: {nodes}"
-            )
-        )
         return self.origin_interval_tree.range_to_single_container_node(
             range_origin,
-            filter_fn_by_node_type(filter_node_type),
+            filter_fn_by_node_type(filter_node_type, filter_pred),
         )
 
     def unparsed_code_end_pos(self) -> Pos:

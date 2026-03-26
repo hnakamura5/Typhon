@@ -1,11 +1,15 @@
 import ast
 
 from ..Driver.debugging import debug_verbose_print
-from ..Grammar.position import get_pos_attributes
+from ..Grammar.position import (
+    get_pos_attributes,
+    set_completion_trigger_anchor,
+)
 from ..Grammar.typhon_ast import (
     set_defined_name,
     set_import_from_names,
     set_return_type_annotation_anchor,
+    set_completion_trigger_anchor_at,
 )
 
 
@@ -117,23 +121,25 @@ class _DefinedNameRetriever(ast.NodeVisitor):
         start_line = pos["lineno"]
         end_col = pos["end_col_offset"]
         # The defined name is the attribute name.
-        attr_index = (
-            end_col - len(node.attr) - 1 if end_col is not None else pos["col_offset"]
+        attr_start_index = (
+            end_col - len(node.attr) if end_col is not None else pos["col_offset"]
         )
+        dot_start_index = attr_start_index - 1
         debug_verbose_print(
             lambda: (
-                f'Retrieving defined name for attribute "{node.attr}" of {ast.dump(node.value)} at line {start_line}, col {attr_index}'
+                f'Retrieving defined name for attribute "{node.attr}" (len={len(node.attr)}) of {ast.dump(node.value)} at line {start_line}, col {attr_start_index}, dot_start_index={dot_start_index} (pos={pos})'
             )
         )
         name = ast.Name(
             id=node.attr,
             ctx=node.ctx,
             lineno=start_line,
-            col_offset=attr_index,
+            col_offset=attr_start_index,
             end_lineno=start_line,
             end_col_offset=end_col,
         )
         set_defined_name(node, name)
+        set_completion_trigger_anchor_at(node, start_line, dot_start_index, ".")
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node: ast.ImportFrom):
@@ -141,7 +147,7 @@ class _DefinedNameRetriever(ast.NodeVisitor):
             self.visit(alias)
         column = node.col_offset + len("from ") + node.level * len(".")
         module_names: list[ast.Name] = []
-        for mod in node.module.split(".") if node.module else []:
+        for i, mod in enumerate(node.module.split(".") if node.module else []):
             if mod:
                 name = ast.Name(
                     id=mod,
@@ -151,9 +157,30 @@ class _DefinedNameRetriever(ast.NodeVisitor):
                     end_col_offset=column + len(mod),
                     ctx=ast.Load(),
                 )
+                if i > 0:
+                    set_completion_trigger_anchor_at(node, node.lineno, column - 1, ".")
                 module_names.append(name)
             column += len(mod) + len(".")
         set_import_from_names(node, module_names)
+
+    def visit_Call(self, node: ast.Call):
+        pos = get_pos_attributes(node)
+        open_paren_col = node.func.end_col_offset
+        debug_verbose_print(
+            lambda: (
+                f"Visiting Call node: {ast.dump(node)}, func={ast.dump(node.func)}, pos={pos}, open_paren_col={open_paren_col} func position: {get_pos_attributes(node.func)}"
+            )
+        )
+        if open_paren_col is not None:
+            set_completion_trigger_anchor_at(node, pos["lineno"], open_paren_col, "(")
+        self.generic_visit(node)
+
+    def visit_Subscript(self, node: ast.Subscript):
+        pos = get_pos_attributes(node)
+        open_bracket_col = node.value.end_col_offset
+        if open_bracket_col is not None:
+            set_completion_trigger_anchor_at(node, pos["lineno"], open_bracket_col, "[")
+        self.generic_visit(node)
 
     def visit_arg(self, node: ast.arg):
         pos = get_pos_attributes(node)

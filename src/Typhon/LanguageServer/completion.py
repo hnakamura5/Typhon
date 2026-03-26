@@ -16,7 +16,8 @@ from ._utils.mapping import (
 
 type CompletionResult = types.CompletionList | Sequence[types.CompletionItem] | None
 
-COMPLETION_TRIGGER_CHARS = [".", "[", "'", '"']
+COMPLETION_TRIGGER_CHARS = [".", "[", "(", "'", '"']
+OPTIONAL_ENABLED_TRIGGER_CHARS = [".", "[", "("]
 
 
 def chars_before_trigger_from_source(
@@ -56,7 +57,7 @@ def map_completion_request_params(
         else None
     )
     # TODO: How to handle the cases systematically?
-    if before_trigger == "?" and trigger_character in [".", "["]:
+    if before_trigger == "?" and trigger_character in OPTIONAL_ENABLED_TRIGGER_CHARS:
         trigger_character = "?" + trigger_character
     trigger_len = len(trigger_character) if trigger_character else 0
     mapped_trigger_len = 1  # TODO: Really?
@@ -68,7 +69,8 @@ def map_completion_request_params(
         )
     )
     mapped_probe = source_map.origin_pos_to_unparsed_pos(
-        Pos(line=original_pos.line, column=probe_col).col_back(),
+        original_pos.col_back(),
+        # Pos(line=original_pos.line, column=probe_col).col_back(),
         prefer_right=True,
     )
     if mapped_probe is None:
@@ -79,7 +81,13 @@ def map_completion_request_params(
             )
         )
         return None
-    mapped_column = mapped_probe.column + mapped_trigger_len
+    debug_file_write(
+        lambda: (
+            f"Completion request mapper: mapped probe position: {mapped_probe} (trigger={trigger_character}), before_trigger={before_trigger!r}"
+        )
+    )
+    # mapped_column = mapped_probe.column + mapped_trigger_len
+    mapped_column = mapped_probe.column
     mapped_position = pos_to_lsp_position(
         Pos(line=mapped_probe.line, column=mapped_column)
     )

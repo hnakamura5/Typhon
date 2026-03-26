@@ -1,4 +1,5 @@
 import ast
+from typing import Callable
 
 from ..Driver.debugging import debug_verbose_print
 from ..Grammar.position import get_pos_attributes_if_exists
@@ -54,31 +55,34 @@ class SourceAstCache:
         self,
         pos: Pos,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
         return self.node_interval_tree.pos_to_node(
             pos,
-            filter_fn_by_node_type(filter_node_type),
+            filter_fn_by_node_type(filter_node_type, filter_pred),
         )
 
     def source_range_to_node(
         self,
         range: Range,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
         return self.node_interval_tree.range_to_single_container_node(
             range,
-            filter_fn_by_node_type(filter_node_type),
+            filter_fn_by_node_type(filter_node_type, filter_pred),
         )
 
     def source_line_to_node(
         self,
         line: int,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
         return line_to_node(
             line,
             self.nodes_by_line,
-            filter_fn_by_node_type(filter_node_type),
+            filter_fn_by_node_type(filter_node_type, filter_pred),
         )
 
     def parent_of(self, node: ast.AST) -> ast.AST | None:

@@ -1,0 +1,6 @@
+def add(x: int, y: int) -> int {
+    return x + y
+}
+
+let result1 = add
+let result2 = add?

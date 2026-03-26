@@ -18,6 +18,7 @@ from .typhon_ast import (
     make_function_def,
     make_class_def,
     get_invalid_name,
+    set_completion_trigger_anchor_token,
 )
 from ..Driver.debugging import debug_print, debug_verbose_print
 from .parser_helper import Parser
@@ -511,6 +512,7 @@ def attribute_access_recovery(
             **kwargs,
         )
         add_error_node(result, [error])
+        set_completion_trigger_anchor_token(result, access_dot)
         return result
     # "?."
     adjusted_pos = kwargs
@@ -538,6 +540,7 @@ def attribute_access_recovery(
             f"Adding error to optional attribute access:\n  value={ast.dump(value)}@{get_pos_attributes(value)},\n  access={ast.dump(access)}@{get_pos_attributes(access)},\n  result={ast.dump(result)}@{get_pos_attributes(result)}"
         )
     )
+    set_completion_trigger_anchor_token(access, access_dot)
     add_error_node(result, [error])
     return result
 
@@ -557,11 +560,6 @@ def subscr_recovery(
         start_loc,
         (end_loc[0], end_loc[1] + len(open_bracket.string)),
     )
-    debug_verbose_print(
-        lambda: (
-            f"Recovering from invalid subscript access: {ast.dump(value)}{open_bracket.string}"
-        )
-    )
     if open_bracket.string == "[":
         result = ast.Subscript(
             value=value,
@@ -575,6 +573,7 @@ def subscr_recovery(
                 f"Adding error to subscript access:\n  value={ast.dump(value)}@{get_pos_attributes(value)},\n  subscript={ast.dump(result)}@{get_pos_attributes(result)}"
             )
         )
+        set_completion_trigger_anchor_token(result, open_bracket)
         add_error_node(result, [error])
         return result
     # "?["
@@ -604,24 +603,27 @@ def subscr_recovery(
             f"Adding error to optional subscript access:\n  value={ast.dump(value)}@{get_pos_attributes(value)},\n  subscript={ast.dump(body)}@{get_pos_attributes(body)},\n  result={ast.dump(result)}@{get_pos_attributes(result)}"
         )
     )
+    set_completion_trigger_anchor_token(body, open_bracket)
     add_error_node(result, [error])
     return result
 
 
 def maybe_invalid_import_dot_names(
     parser: Parser,
-    names: ImportDotNames | None,
+    left_names: ImportDotNames | None,
     name: TokenInfo | None,
+    dot: TokenInfo | None,
     **kwargs: Unpack[PosAttributes],
 ) -> ImportDotNames:
     if name:
-        if names:
+        if left_names:
             return ImportDotNames(
-                names=names.names + [name],
-                name_missing_dot_errors=names.name_missing_dot_errors,
+                names=left_names.names + [name],
+                dots=left_names.dots + [dot],
+                name_missing_dot_errors=left_names.name_missing_dot_errors,
             )
         else:
-            return ImportDotNames(names=[name], name_missing_dot_errors=[])
+            return ImportDotNames(names=[name], dots=[dot], name_missing_dot_errors=[])
     # Missing name error.
     start_loc, end_loc = unpack_pos_tuple(kwargs)
     error = parser.build_expected_error(
@@ -635,8 +637,11 @@ def maybe_invalid_import_dot_names(
         )
     )
     return ImportDotNames(
-        names=names.names if names else [],
-        name_missing_dot_errors=(names.name_missing_dot_errors if names else [])
+        names=left_names.names if left_names else [],
+        dots=left_names.dots if left_names else [],
+        name_missing_dot_errors=(
+            left_names.name_missing_dot_errors if left_names else []
+        )
         + [error],
     )
 

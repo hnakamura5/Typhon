@@ -25,10 +25,10 @@ from .typhon_ast import (
     make_while_let_comp, make_let_comp,
     make_record_literal, make_record_type, make_attributes_pattern, make_tuple_pattern, make_for_let_pattern, make_with_let_pattern, make_inline_with_let_pattern, make_class_def,
     make_match_case, make_alias, make_import_from, make_arguments, make_attribute,
-    make_arg,  make_match_class, ImportDotNames
+    make_arg,  make_match_class, ImportDotNames,  set_completion_trigger_anchor_token,
 )
 from .position import (
-    get_pos_attributes
+    get_pos_attributes, set_completion_trigger_anchor,
 )
 from .typhon_ast_error import (
     maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, recover_invalid_for, recover_invalid_try, recover_maybe_invalid_function_def_raw,
@@ -341,10 +341,14 @@ dotted_as_name[ast.alias]:
 # note below: the ('.' | '...') is necessary because '...' is tokenized as ELLIPSIS
 import_from[ast.ImportFrom]:
     | 'from' a=('.' | '...')* b=dotted_name 'import' c=import_from_targets {
-        make_import_from(module=b, names=c, level=self.extract_import_level(a), LOCATIONS)
+        set_completion_trigger_anchor_token(
+            make_import_from(module=b, names=c, level=self.extract_import_level(a), LOCATIONS), a[-1] if a else None
+        )
      }
     | 'from' a=('.' | '...')+ 'import' b=import_from_targets {
-        make_import_from(module=None, names=b, level=self.extract_import_level(a), LOCATIONS)
+        set_completion_trigger_anchor_token(
+            make_import_from(module=None, names=b, level=self.extract_import_level(a), LOCATIONS), a[-1]
+        )
      }
 import_from_targets[List[ast.alias]]:
     | '(' a=import_from_as_names [','] ')' { a }
@@ -355,7 +359,7 @@ import_from_as_names[List[ast.alias]]:
     | a=','.import_from_as_name+ { a }
 import_from_as_name[ast.alias]:
     | a=NAME b=[ c='as' z=[NAME] { (c, z) }] {
-            make_alias(self, name=ImportDotNames([a], None),
+            make_alias(self, name=maybe_invalid_import_dot_names(self, None, a, None, LOCATIONS),
             asname=b[1] if b else None,
             astoken=b[0] if b else None,
             LOCATIONS
@@ -363,9 +367,9 @@ import_from_as_name[ast.alias]:
      }
 
 dotted_name[ImportDotNames]:
-    | a=dotted_name '.' b=NAME { maybe_invalid_import_dot_names(self, a, b, LOCATIONS) }
-    | a=dotted_name dot='.' !NAME { maybe_invalid_import_dot_names(self, a, None, LOCATIONS) }
-    | a=NAME { maybe_invalid_import_dot_names(self, None, a, LOCATIONS) }
+    | a=dotted_name dot='.' b=NAME { maybe_invalid_import_dot_names(self, a, b, dot, LOCATIONS) }
+    | a=dotted_name dot='.' !NAME { maybe_invalid_import_dot_names(self, a, None, dot, LOCATIONS) }
+    | a=NAME { maybe_invalid_import_dot_names(self, None, a, None, LOCATIONS) }
 
 # COMPOUND STATEMENTS
 # ===================
@@ -390,14 +394,17 @@ decorator:
 dec_maybe_call:
     | dn=dec_primary o=('('|'?(') z=[arguments] ')' {
         maybe_optional(
-            ast.Call(func=dn, args=z[0] if z else [], keywords=z[1] if z else [], LOCATIONS),
-            o.string)
+            set_completion_trigger_anchor_token(
+                ast.Call(func=dn, args=z[0] if z else [], keywords=z[1] if z else [], LOCATIONS), o
+            ),
+            o.string
+        )
      }
     | dec_primary
 dec_primary:
-    | a=dec_primary ('.'|'?.') b=NAME {
+    | a=dec_primary dot=('.'|'?.') b=NAME {
         maybe_optional(
-            make_attribute(value=a, attr=b, ctx=Load, LOCATIONS),
+            make_attribute(value=a, attr=b, ctx=Load, dot=dot, LOCATIONS),
             o.string)
      }
     | a=NAME { ast.Name(id=a.string, ctx=Load, LOCATIONS) }
@@ -911,9 +918,9 @@ value_pattern["ast.MatchValue"]:
     | attr=attr !('.' | '(') { ast.MatchValue(value=attr, LOCATIONS) }
 
 attr[ast.Attribute]:
-    | value=name_or_attr ('.'|'?.') attr=NAME {
+    | value=name_or_attr dot=('.'|'?.') attr=NAME {
         maybe_optional(
-            make_attribute(value=value, attr=attr, ctx=Load, LOCATIONS),
+            make_attribute(value=value, attr=attr, ctx=Load, dot=dot, LOCATIONS),
             o.string)
     }
 
@@ -973,8 +980,8 @@ items_pattern[List[Tuple[ast.expr, ast.pattern]]]:
 
 # In pattern '?.' is not allowed
 attr_pattern[ast.Attribute]:
-    | value=name_or_attr '.' attr=NAME {
-        make_attribute(value=value, attr=attr, ctx=Load, LOCATIONS)
+    | value=name_or_attr dot='.' attr=NAME {
+        make_attribute(value=value, attr=attr, ctx=Load, dot=dot, LOCATIONS)
     }
 
 name_or_attr_pattern:
@@ -1443,7 +1450,7 @@ await_primary (memo):
 primary:
     | a=primary o=('.' | '?.') b=NAME {
         maybe_optional(
-            make_attribute(value=a, attr=b, ctx=Load, LOCATIONS),
+            make_attribute(value=a, attr=b, ctx=Load, dot=o, LOCATIONS),
             o.string)
      }
     # Recovery for attribute access, for completion.
@@ -1456,17 +1463,23 @@ primary:
      }
     | a=primary o=('('|'?(') b=[arguments] ')' {
         maybe_optional(
-            ast.Call(
-                func=a,
-                args=b[0] if b else [],
-                keywords=b[1] if b else [],
-                LOCATIONS,
+            set_completion_trigger_anchor_token(
+                ast.Call(
+                    func=a,
+                    args=b[0] if b else [],
+                    keywords=b[1] if b else [],
+                    LOCATIONS,
+                ),o
             ),
             o.string)
      }
     | a=primary o=('['|'?[') b=slices ']' {
         maybe_optional(
-            ast.Subscript(value=a, slice=b, ctx=Load, LOCATIONS), o.string)
+            set_completion_trigger_anchor_token(
+                ast.Subscript(value=a, slice=b, ctx=Load, LOCATIONS), o
+            ),
+            o.string
+        )
      }
     # Recovery for subscription, for completion.
     | a=primary o=('['|'?[') close=']' {
@@ -1971,8 +1984,12 @@ star_target_may_annot[ast.Name | ast.Tuple | ast.List | ast.Attribute | ast.Subs
     | a=star_target b=annotation? { set_type_annotation(a, b) }
 
 target_with_star_atom[ast.Name | ast.Tuple | ast.List | ast.Attribute | ast.Subscript](memo):
-    | a=t_primary '.' b=NAME !t_lookahead { make_attribute(value=a, attr=b, ctx=Store, LOCATIONS) }
-    | a=t_primary '[' b=slices ']' !t_lookahead { ast.Subscript(value=a, slice=b, ctx=Store, LOCATIONS) }
+    | a=t_primary dot='.' b=NAME !t_lookahead { make_attribute(value=a, attr=b, ctx=Store, dot=dot, LOCATIONS) }
+    | a=t_primary o='[' b=slices ']' !t_lookahead {
+        set_completion_trigger_anchor_token(
+            ast.Subscript(value=a, slice=b, ctx=Store, LOCATIONS), o
+        )
+     }
     | star_atom
 
 star_atom[ast.Name| ast.Tuple | ast.List | ast.Attribute | ast.Subscript]:
@@ -1987,20 +2004,30 @@ single_target:
     | '(' a=single_target ')' { a }
 
 single_subscript_attribute_target:
-    | a=t_primary '.' b=NAME !t_lookahead { make_attribute(value=a, attr=b, ctx=Store, LOCATIONS) }
-    | a=t_primary '[' b=slices ']' !t_lookahead { ast.Subscript(value=a, slice=b, ctx=Store, LOCATIONS) }
+    | a=t_primary dot='.' b=NAME !t_lookahead { make_attribute(value=a, attr=b, ctx=Store, dot=dot, LOCATIONS) }
+    | a=t_primary o='[' b=slices ']' !t_lookahead {
+        set_completion_trigger_anchor_token(
+            ast.Subscript(value=a, slice=b, ctx=Store, LOCATIONS), o
+        )
+     }
 
 # Assignment target primary.
 t_primary:
-    | a=t_primary '.' b=NAME &t_lookahead { make_attribute(value=a, attr=b, ctx=Load, LOCATIONS) }
-    | a=t_primary '[' b=slices ']' &t_lookahead { ast.Subscript(value=a, slice=b, ctx=Load, LOCATIONS) }
+    | a=t_primary dot='.' b=NAME &t_lookahead { make_attribute(value=a, attr=b, ctx=Load, dot=dot, LOCATIONS) }
+    | a=t_primary o='[' b=slices ']' &t_lookahead {
+        set_completion_trigger_anchor_token(
+            ast.Subscript(value=a, slice=b, ctx=Load, LOCATIONS), o
+        )
+     }
     | a=t_primary b=genexp &t_lookahead { ast.Call(func=a, args=[b], keywords=[], LOCATIONS) }
-    | a=t_primary '(' b=[arguments] ')' &t_lookahead {
-        ast.Call(
-            func=a,
-            args=b[0] if b else [],
-            keywords=b[1] if b else [],
-            LOCATIONS,
+    | a=t_primary o='(' b=[arguments] ')' &t_lookahead {
+        set_completion_trigger_anchor_token(
+            ast.Call(
+                func=a,
+                args=b[0] if b else [],
+                keywords=b[1] if b else [],
+                LOCATIONS,
+            ), o
         )
      }
     | a=atom &t_lookahead { a }
@@ -2013,8 +2040,12 @@ t_lookahead: '(' | '[' | '.'
 del_targets: a=','.del_target+ [','] { a }
 
 del_target (memo):
-    | a=t_primary '.' b=NAME !t_lookahead { make_attribute(value=a, attr=b, ctx=Del, LOCATIONS) }
-    | a=t_primary '[' b=slices ']' !t_lookahead { ast.Subscript(value=a, slice=b, ctx=Del, LOCATIONS) }
+    | a=t_primary dot='.' b=NAME !t_lookahead { make_attribute(value=a, attr=b, ctx=Del, dot=dot, LOCATIONS) }
+    | a=t_primary o='[' b=slices ']' !t_lookahead {
+        set_completion_trigger_anchor_token(
+            ast.Subscript(value=a, slice=b, ctx=Del, LOCATIONS), o
+        )
+     }
     | del_t_atom
 
 del_t_atom:

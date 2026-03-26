@@ -12,6 +12,7 @@ from ..Grammar.typhon_ast import (
     is_optional_pipe,
     get_defined_name,
     maybe_copy_defined_name,
+    maybe_copy_completion_trigger_anchor,
 )
 from ..Driver.debugging import debug_verbose_print
 from .visitor import TyphonASTTransformer
@@ -128,11 +129,14 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
             result = self._optional_check_if_exp(
                 node,
                 node.func,
-                lambda tmp_name: ast.Call(
-                    func=ast.Name(id=tmp_name, ctx=ast.Load()),
-                    args=node.args,
-                    keywords=node.keywords,
-                    **pos,
+                lambda tmp_name: maybe_copy_completion_trigger_anchor(
+                    node,
+                    ast.Call(
+                        func=ast.Name(id=tmp_name, ctx=ast.Load()),
+                        args=node.args,
+                        keywords=node.keywords,
+                        **pos,
+                    ),
                 ),
                 ast.Constant(value=None, **pos),
                 pos,
@@ -148,11 +152,14 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
             result = self._optional_check_if_exp(
                 node,
                 arg,
-                lambda tmp_name: ast.Call(
-                    func=node.func,
-                    args=[ast.Name(id=tmp_name, ctx=ast.Load())],
-                    keywords=[],
-                    **pos,
+                lambda tmp_name: maybe_copy_completion_trigger_anchor(
+                    node,
+                    ast.Call(
+                        func=node.func,
+                        args=[ast.Name(id=tmp_name, ctx=ast.Load())],
+                        keywords=[],
+                        **pos,
+                    ),
                 ),
                 ast.Constant(value=None, **pos),
                 pos,
@@ -168,11 +175,14 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
         result = self._optional_check_if_exp(
             node,
             node.value,
-            lambda tmp_name: ast.Subscript(
-                value=ast.Name(id=tmp_name, ctx=ast.Load()),
-                slice=node.slice,
-                ctx=node.ctx,
-                **pos,
+            lambda tmp_name: maybe_copy_completion_trigger_anchor(
+                node,
+                ast.Subscript(
+                    value=ast.Name(id=tmp_name, ctx=ast.Load()),
+                    slice=node.slice,
+                    ctx=node.ctx,
+                    **pos,
+                ),
             ),
             ast.Constant(value=None, **pos),
             pos,
@@ -195,11 +205,14 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
             node.value,
             lambda tmp_name: maybe_copy_defined_name(
                 node,
-                ast.Attribute(
-                    value=ast.Name(id=tmp_name, ctx=ast.Load()),
-                    attr=node.attr,
-                    ctx=node.ctx,
-                    **pos,
+                maybe_copy_completion_trigger_anchor(
+                    node,
+                    ast.Attribute(
+                        value=ast.Name(id=tmp_name, ctx=ast.Load()),
+                        attr=node.attr,
+                        ctx=node.ctx,
+                        **pos,
+                    ),
                 ),
             ),
             ast.Constant(value=None, **pos),

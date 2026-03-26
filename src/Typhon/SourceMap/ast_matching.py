@@ -7,6 +7,11 @@ from ..Grammar.typhon_ast import (
     DefinesName,
     get_defined_name,
     get_import_from_names,
+    is_internal_name,
+    set_is_internal_name,
+)
+from ..Grammar.position import (
+    get_completion_trigger_anchor,
     get_return_type_annotation_anchor,
 )
 
@@ -36,6 +41,11 @@ class MatchingVisitor(ast.NodeVisitor):
         )
         self.left_to_right[left] = right
         self.right_to_left[right] = left
+        if isinstance(left, ast.Name) and isinstance(right, ast.Name):
+            # TODO: ad-hoc inheritance of internal name status, can be improved by more explicit design
+            if is_internal_name(left) or is_internal_name(right):
+                set_is_internal_name(left, True)
+                set_is_internal_name(right, True)
 
     def _visit_list(self, lefts: list[Any], rights: list[Any]):
         if len(lefts) != len(rights):
@@ -76,10 +86,16 @@ class MatchingVisitor(ast.NodeVisitor):
             right_anchor = get_return_type_annotation_anchor(
                 cast(ast.FunctionDef | ast.AsyncFunctionDef, right)
             )
+            # Allow return type annotation anchor not matching
             if left_anchor is not None and right_anchor is not None:
                 with self._with_right(right_anchor):
                     self.visit(left_anchor)
-            # Allow return type annotation anchor not matching
+        # Check completion trigger anchor
+        if completion_anchor := get_completion_trigger_anchor(node):
+            right_completion_anchor = get_completion_trigger_anchor(right)
+            if right_completion_anchor is not None:
+                with self._with_right(right_completion_anchor):
+                    self.visit(completion_anchor)
         # Recursively visit fields
         for field, value in ast.iter_fields(node):
             right_value = getattr(right, field, None)

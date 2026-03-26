@@ -18,6 +18,7 @@ trigger_completion_subscr_file = sample_workspace / "trigger_completion_subscr.t
 trigger_completion_subscr_optional_file = (
     sample_workspace / "trigger_completion_subscr_optional.typh"
 )
+trigger_completion_paren_file = sample_workspace / "trigger_completion_paren.typh"
 
 type CompletionResult = types.CompletionList | Sequence[types.CompletionItem] | None
 
@@ -99,7 +100,7 @@ async def request_trigger_completion(
                         start=types.Position(line=line, character=character),
                         end=types.Position(line=line, character=character),
                     ),
-                    text=trigger_char,
+                    text=trigger_change,
                     range_length=0,
                 )
             ],
@@ -109,7 +110,7 @@ async def request_trigger_completion(
         client,
         trigger_uri,
         line=line,
-        character=character + 1,
+        character=character + len(trigger_char),
         context=types.CompletionContext(
             trigger_kind=types.CompletionTriggerKind.TriggerCharacter,
             trigger_character=trigger_char,
@@ -198,6 +199,14 @@ def assert_pos_attributes_in_completion_result(
     )
 
 
+def assert_named_arguments_in_completion_result(result: CompletionResult) -> None:
+    assert result is not None, "Completion result is None"
+    items = result.items if isinstance(result, types.CompletionList) else result
+    labels = {item.label for item in items}
+    assert "x=" in labels, "Expected named argument completion 'x=' not found"
+    assert "y=" in labels, "Expected named argument completion 'y=' not found"
+
+
 def test_completion_trigger_character_subscr_typed_e2e():
     async def run_test() -> None:
         client, _ = await start_initialize_open_typhon_connection_client(
@@ -240,6 +249,54 @@ def test_completion_trigger_character_optional_subscr_typed_e2e():
             )
             assert result is None or isinstance(result, (types.CompletionList, list))
             assert_pos_attributes_in_completion_result(result)
+        finally:
+            await ensure_exit(client)
+
+    asyncio.run(run_test())
+
+
+def test_completion_trigger_character_paren_typed_named_args_e2e():
+    async def run_test() -> None:
+        client, _ = await start_initialize_open_typhon_connection_client(
+            root_dir=sample_workspace,
+            open_file=trigger_completion_paren_file,
+        )
+        try:
+            trigger_uri = path_to_uri(trigger_completion_paren_file)
+            result = await request_trigger_completion(
+                client,
+                trigger_uri,
+                trigger_char="(",
+                line=4,
+                character=17,
+                trigger_change="()",
+            )
+            assert result is None or isinstance(result, (types.CompletionList, list))
+            assert_named_arguments_in_completion_result(result)
+        finally:
+            await ensure_exit(client)
+
+    asyncio.run(run_test())
+
+
+def test_completion_trigger_character_optional_paren_typed_named_args_e2e():
+    async def run_test() -> None:
+        client, _ = await start_initialize_open_typhon_connection_client(
+            root_dir=sample_workspace,
+            open_file=trigger_completion_paren_file,
+        )
+        try:
+            trigger_uri = path_to_uri(trigger_completion_paren_file)
+            result = await request_trigger_completion(
+                client,
+                trigger_uri,
+                trigger_char="(",
+                line=5,
+                character=18,
+                trigger_change="()",
+            )
+            assert result is None or isinstance(result, (types.CompletionList, list))
+            assert_named_arguments_in_completion_result(result)
         finally:
             await ensure_exit(client)
 

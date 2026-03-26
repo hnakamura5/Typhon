@@ -172,7 +172,6 @@ def map_semantic_tokens(
     debug_file_write_verbose(lambda: f"Decoded tokens for mapping: {decoded_tokens}")
     # Map each token position
     mapped_tokens: list[SemanticToken] = []
-
     for token in decoded_tokens:
         token_range = Range(
             start=Pos(line=token.line, column=token.start_col),
@@ -183,13 +182,17 @@ def map_semantic_tokens(
         debug_file_write_verbose(
             lambda: f"Mapping token from decoded: {token} at range: {token_range}"
         )
-        if mapped_node := mapping.unparsed_range_to_origin_node(token_range, ast.Name):
-            if isinstance(mapped_node, ast.Name) and not is_internal_name(mapped_node):
+        if mapped_node := mapping.unparsed_range_to_origin_node(
+            token_range,
+            ast.Name,
+            lambda n: isinstance(n, ast.Name) and not is_internal_name(n),
+        ):
+            if isinstance(mapped_node, ast.Name):
                 if mapped_range := Range.from_ast_node(mapped_node):
                     line = mapped_range.start.line
                     debug_file_write_verbose(
                         lambda: (
-                            f"Mapping token to node with range OK: {token}\n --> {ast.dump(mapped_node)} (internal={is_internal_name(mapped_node)})@{mapped_range}"
+                            f"Mapping token to node with range OK: {token}\n --> {ast.dump(mapped_node)} [{mapped_node.__dict__}](internal={is_internal_name(mapped_node)})@{mapped_range}"
                         )
                     )
                     debug_file_write_verbose(

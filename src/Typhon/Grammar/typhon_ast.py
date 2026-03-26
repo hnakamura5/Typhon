@@ -1,6 +1,5 @@
 # Ast Extensions for Typhon
 from __future__ import annotations
-import re
 from typing import (
     Union,
     Unpack,
@@ -22,6 +21,10 @@ from .position import (
     get_pos_attributes,
     get_empty_pos_attributes,
     pos_attribute_to_range,
+    name_from_anchor_token,
+    set_return_type_annotation_anchor,
+    set_completion_trigger_anchor,
+    get_completion_trigger_anchor,
 )
 from .syntax_errors import add_error_node
 
@@ -241,11 +244,6 @@ PossibleAnnotatedNode = (
 def set_type_annotation[T: PossibleAnnotatedNode](
     node: T, type_node: ast.expr | None
 ) -> T:
-    debug_verbose_print(
-        lambda: (
-            f"set_type_annotation: {ast.dump(node)} to {ast.dump(type_node) if type_node else 'None'}"
-        )
-    )
     setattr(node, _TYPE_ANNOTATION, type_node)
     return node
 
@@ -276,7 +274,6 @@ def clear_is_multi_decl(node: ast.AST) -> None:
 def set_is_typing_expression(node: ast.expr, is_typing: bool = True) -> ast.expr:
     result = copy(node)  # To avoid chached node is contaminated.
     setattr(result, _IS_TYPING_EXPRESSION, is_typing)
-    debug_verbose_print(lambda: f"set_is_typing_expression: {ast.dump(result)}")
     return result
 
 
@@ -376,18 +373,8 @@ def get_annotations_of_declaration_target(
     type_annotation: ast.expr | None,
 ) -> list[tuple[ast.Name, ast.expr | None]]:
     if isinstance(target, ast.Name):
-        debug_verbose_print(
-            lambda: (
-                f"get_annotations_of_declaration_target ast.Name: {target}, {type_annotation}"
-            )
-        )
         return [(target, type_annotation)]
     elif isinstance(target, ast.Tuple):
-        debug_verbose_print(
-            lambda: (
-                f"get_annotations_of_declaration_target ast.Tuple: {target}, {type_annotation}"
-            )
-        )
         type_elts = (
             _get_tuple_type_elements(type_annotation) if type_annotation else None
         )
@@ -1228,14 +1215,7 @@ def set_defined_name_token(
     node: DefinesName, name: TokenInfo | ast.Name, ctx: ast.expr_context = ast.Store()
 ):
     if isinstance(name, TokenInfo):
-        name = ast.Name(
-            id=name.string,
-            lineno=name.start[0],
-            col_offset=name.start[1],
-            end_lineno=name.end[0],
-            end_col_offset=name.end[1],
-            ctx=ctx,
-        )
+        name = name_from_anchor_token(name, ctx)
     setattr(node, _DEFINED_NAME, name)
     return node
 
@@ -1243,6 +1223,58 @@ def set_defined_name_token(
 def clear_defined_name(node: DefinesName):
     if hasattr(node, _DEFINED_NAME):
         delattr(node, _DEFINED_NAME)
+
+
+def set_completion_trigger_anchor_token[T: ast.AST](
+    node: T, token: TokenInfo | None
+) -> T:
+    if token:
+        if token.string.startswith("?"):
+            # Ignore optional trigger character '?' because retrieved (from Python code) trigger does not contain it.
+            anchor = ast.Name(
+                id=token.string[1:],
+                lineno=token.start[0],
+                col_offset=token.start[1] + 1,
+                end_lineno=token.end[0],
+                end_col_offset=token.end[1],
+                ctx=ast.Load(),
+            )
+        elif token.string == "...":
+            # Appears first of import from. Treat this also as signle '.'.
+            anchor = ast.Name(
+                id=".",
+                lineno=token.end[0] - 1,
+                col_offset=token.start[1],
+                end_lineno=token.end[0],
+                end_col_offset=token.end[1],
+                ctx=ast.Load(),
+            )
+        else:
+            anchor = name_from_anchor_token(token, ctx=ast.Load())
+        set_is_internal_name(anchor)
+    else:
+        anchor = None
+    return set_completion_trigger_anchor(node, anchor)
+
+
+def set_completion_trigger_anchor_at(
+    node: ast.AST, lineno: int, col_offset: int, id: str
+) -> ast.AST:
+    anchor = ast.Name(
+        id=id,
+        lineno=lineno,
+        col_offset=col_offset,
+        end_lineno=lineno,
+        end_col_offset=col_offset + len(id),
+        ctx=ast.Load(),
+    )
+    set_is_internal_name(anchor)
+    return set_completion_trigger_anchor(node, anchor)
+
+
+def maybe_copy_completion_trigger_anchor[T: ast.AST](from_node: T, to_node: T) -> T:
+    anchor = get_completion_trigger_anchor(from_node)
+    return set_completion_trigger_anchor(to_node, anchor)
 
 
 _MATCH_CLASS_KEYWORD_NAMES = "_typh_match_class_keyword_names"
@@ -1260,26 +1292,6 @@ def set_match_class_keyword_names(node: ast.MatchClass, names: list[ast.Name]):
 def clear_match_class_keyword_names(node: ast.MatchClass):
     if hasattr(node, _MATCH_CLASS_KEYWORD_NAMES):
         delattr(node, _MATCH_CLASS_KEYWORD_NAMES)
-
-
-_RETURN_TYPE_ANNOTATION_ANCHOR = "_typh_return_type_annotation_anchor"
-
-
-def set_return_type_annotation_anchor(
-    node: ast.FunctionDef | ast.AsyncFunctionDef, anchor: ast.Name | None
-):
-    setattr(node, _RETURN_TYPE_ANNOTATION_ANCHOR, anchor)
-
-
-def get_return_type_annotation_anchor(
-    node: ast.FunctionDef | ast.AsyncFunctionDef,
-) -> ast.Name | None:
-    return getattr(node, _RETURN_TYPE_ANNOTATION_ANCHOR, None)
-
-
-def clear_return_type_annotation_anchor(node: ast.FunctionDef | ast.AsyncFunctionDef):
-    if hasattr(node, _RETURN_TYPE_ANNOTATION_ANCHOR):
-        delattr(node, _RETURN_TYPE_ANNOTATION_ANCHOR)
 
 
 def make_function_def(
@@ -1320,14 +1332,7 @@ def make_function_def(
     if close_paren_anchor is not None:
         set_return_type_annotation_anchor(
             result,
-            ast.Name(
-                id=")",
-                lineno=close_paren_anchor.start[0],
-                col_offset=close_paren_anchor.start[1],
-                end_lineno=close_paren_anchor.end[0],
-                end_col_offset=close_paren_anchor.end[1],
-                ctx=ast.Load(),
-            ),
+            name_from_anchor_token(close_paren_anchor, ctx=ast.Load()),
         )
     return result
 
@@ -1364,14 +1369,18 @@ def make_attribute(
     value: ast.expr,
     attr: TokenInfo,
     ctx: ast.expr_context,
+    dot: TokenInfo | None,
     **kwargs: Unpack[PosAttributes],
 ):
     return set_defined_name_token(
-        ast.Attribute(
-            value=value,
-            attr=attr.string,
-            ctx=ctx,
-            **kwargs,
+        set_completion_trigger_anchor_token(
+            ast.Attribute(
+                value=value,
+                attr=attr.string,
+                ctx=ctx,
+                **kwargs,
+            ),
+            dot,
         ),
         attr,
         ctx,
@@ -1421,6 +1430,7 @@ _TYPH_MISSING_NAME_IMPORT = "_typh_missing_name_import"
 @dataclass
 class ImportDotNames:
     names: list[TokenInfo | None]  # None for missing name.
+    dots: list[TokenInfo | None]  # Dots between names.
     name_missing_dot_errors: list[SyntaxError]
 
     def names_as_strings(self) -> list[str]:
@@ -1443,21 +1453,19 @@ def make_import_from(
     )
     if module:
         import_names = [
-            ast.Name(
-                id=n.string,
-                lineno=n.start[0],
-                col_offset=n.start[1],
-                end_lineno=n.end[0],
-                end_col_offset=n.end[1],
-                ctx=ast.Load(),
+            set_completion_trigger_anchor_token(
+                name_from_anchor_token(n, ctx=ast.Load())
+                if n
+                else set_is_internal_name(
+                    ast.Name(
+                        id=_TYPH_MISSING_NAME_IMPORT,
+                        **get_empty_pos_attributes(),
+                        ctx=ast.Load(),
+                    )
+                ),
+                dot,
             )
-            if n
-            else ast.Name(
-                id=_TYPH_MISSING_NAME_IMPORT,
-                **get_empty_pos_attributes(),
-                ctx=ast.Load(),
-            )
-            for n in module.names
+            for n, dot in zip(module.names, module.dots)
         ]
         set_import_from_names(result, import_names)
         if module.name_missing_dot_errors:

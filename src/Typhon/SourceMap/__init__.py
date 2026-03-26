@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Callable, Protocol
 from .datatype import Range, Pos
 import ast
 
@@ -48,36 +48,42 @@ class SourceMap(Protocol):
         self,
         pos_origin: Pos,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None: ...
 
     def origin_pos_to_origin_node(
         self,
         pos_origin: Pos,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None: ...
 
     def origin_line_to_origin_node(
         self,
         line_origin: int,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None: ...
 
     def origin_range_to_origin_node(
         self,
         range_origin: Range,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None: ...
 
     def unparsed_pos_to_origin_node(
         self,
         pos_unparsed: Pos,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None: ...
 
     def unparsed_line_to_unparsed_node(
         self,
         line_unparsed: int,
         filter_node_type: type[ast.AST] | None = None,
+        filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None: ...
 
     def unparsed_code_end_pos(self) -> Pos: ...
