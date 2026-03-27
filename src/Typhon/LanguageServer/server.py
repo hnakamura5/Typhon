@@ -65,6 +65,12 @@ from .completion import (
     map_completion_request_params,
     map_completion_result,
 )
+from .signature_help import (
+    SIGNATURE_HELP_TRIGGER_CHARS,
+    demangle_signature_help,
+    map_signature_help_request_position,
+    map_signature_help_result,
+)
 from .did_change import (
     map_did_change_params,
     map_did_change_params_with_reparse,
@@ -865,5 +871,39 @@ async def completion(ls: LanguageServer, params: types.CompletionParams):
     except Exception as e:
         debug_file_write(
             lambda: f"Error during completion retrieval: {type(e).__name__}: {e}"
+        )
+        return None
+
+
+@server.feature(
+    types.TEXT_DOCUMENT_SIGNATURE_HELP,
+    types.SignatureHelpOptions(
+        trigger_characters=SIGNATURE_HELP_TRIGGER_CHARS,
+    ),
+)
+async def signature_help(ls: LanguageServer, params: types.SignatureHelpParams):
+    uri = canonicalize_uri(params.text_document.uri)
+    try:
+        debug_file_write(lambda: f"Signature help requested: {params}")
+        cloned_params = ls.clone_params_map_uri(params)
+        mapping = ls.parsed_buffer.get_mapping(uri)
+        mapped_position = map_signature_help_request_position(params.position, mapping)
+        if mapped_position is None:
+            debug_file_write(
+                lambda: "Signature help request position mapping failed. Skipping."
+            )
+            return None
+        cloned_params.position = mapped_position
+        debug_file_write(
+            lambda: f"Forwarding signature help request to backend: {cloned_params}"
+        )
+        result = await ls.backend_client.text_document_signature_help_async(
+            cloned_params
+        )
+        debug_file_write(lambda: f"Received signature help result: {result}")
+        return map_signature_help_result(result, ls.parsed_buffer.get_module(uri))
+    except Exception as e:
+        debug_file_write(
+            lambda: f"Error during signature help retrieval: {type(e).__name__}: {e}"
         )
         return None
