@@ -38,6 +38,18 @@ def test_match_typhon_stmt_completion_trigger_anchor():
         Range(start=Pos(0, 15), end=Pos(0, 16)),
         "(",
     )
+    sa.assert_range_text(  # ',' after "e"
+        Range(start=Pos(1, 19), end=Pos(1, 20)),
+        ",",
+        Range(start=Pos(0, 19), end=Pos(0, 20)),
+        ",",
+    )
+    sa.assert_range_text(  # ',' after 0
+        Range(start=Pos(1, 22), end=Pos(1, 23)),
+        ",",
+        Range(start=Pos(0, 22), end=Pos(0, 23)),
+        ",",
+    )
 
 
 code_completion_trigger_anchor_optional = """
@@ -72,4 +84,42 @@ def test_match_typhon_stmt_completion_trigger_anchor_optional():
         "(",
         Range(start=Pos(0, 16), end=Pos(0, 17)),
         "(",
+    )
+    sa.assert_range_text(  # ',' after "e"
+        Range(start=Pos(1, 22), end=Pos(1, 23)),
+        ",",
+        Range(start=Pos(0, 20), end=Pos(0, 21)),
+        ",",
+    )
+    sa.assert_range_text(  # ',' after 0
+        Range(start=Pos(1, 25), end=Pos(1, 26)),
+        ",",
+        Range(start=Pos(0, 23), end=Pos(0, 24)),
+        ",",
+    )
+
+
+code_call_comma_anchor = """
+print("Hello", "World",)
+"""
+transformed_code_call_comma_anchor = """
+print('Hello', 'World',)
+"""
+
+
+def test_match_typhon_stmt_call_comma_anchor():
+    assert_transform(code_call_comma_anchor, transformed_code_call_comma_anchor)
+    assert_typh_code_match_unparse(code_call_comma_anchor)
+    sa = SourceMapAsserter(code_call_comma_anchor)
+    sa.assert_range_text(  # ',' after "Hello"
+        Range(start=Pos(1, 13), end=Pos(1, 14)),
+        ",",
+        Range(start=Pos(0, 13), end=Pos(0, 14)),
+        ",",
+    )
+    sa.assert_range_text(  # ',' after "World"
+        Range(start=Pos(1, 22), end=Pos(1, 23)),
+        ",",
+        Range(start=Pos(0, 22), end=Pos(0, 23)),
+        ",",
     )

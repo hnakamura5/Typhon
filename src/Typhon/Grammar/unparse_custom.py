@@ -1,6 +1,8 @@
 # type: ignore[all]
 # TODO: Never forget implementation here is temporal hack.
 import ast
+
+from .position import get_call_trailing_comma_anchor
 from .typhon_ast import get_type_ignore_comment
 
 
@@ -18,6 +20,16 @@ class CustomUnparser(ast._Unparser):
             self.traverse(node.guard)
         with self.block(extra=get_type_ignore_comment(node)):
             self.traverse(node.body)
+
+    def visit_Call(
+        self,
+        node: ast.Call,
+    ):
+        super().visit_Call(node)
+        # Ad-hoc insertion of trailing comma. Mainly for signature help.
+        if get_call_trailing_comma_anchor(node):
+            self._source[-1] = ","
+            self._source.extend(")")
 
 
 def unparse_custom(node: ast.AST) -> str:

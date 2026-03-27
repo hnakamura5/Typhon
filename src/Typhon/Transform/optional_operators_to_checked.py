@@ -12,7 +12,7 @@ from ..Grammar.typhon_ast import (
     is_optional_pipe,
     get_defined_name,
     maybe_copy_defined_name,
-    maybe_copy_completion_trigger_anchor,
+    maybe_copy_anchors_in_call,
 )
 from ..Driver.debugging import debug_verbose_print
 from .visitor import TyphonASTTransformer
@@ -129,7 +129,7 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
             result = self._optional_check_if_exp(
                 node,
                 node.func,
-                lambda tmp_name: maybe_copy_completion_trigger_anchor(
+                lambda tmp_name: maybe_copy_anchors_in_call(
                     node,
                     ast.Call(
                         func=ast.Name(id=tmp_name, ctx=ast.Load()),
@@ -152,7 +152,7 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
             result = self._optional_check_if_exp(
                 node,
                 arg,
-                lambda tmp_name: maybe_copy_completion_trigger_anchor(
+                lambda tmp_name: maybe_copy_anchors_in_call(
                     node,
                     ast.Call(
                         func=node.func,
@@ -175,7 +175,7 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
         result = self._optional_check_if_exp(
             node,
             node.value,
-            lambda tmp_name: maybe_copy_completion_trigger_anchor(
+            lambda tmp_name: maybe_copy_anchors_in_call(
                 node,
                 ast.Subscript(
                     value=ast.Name(id=tmp_name, ctx=ast.Load()),
@@ -205,7 +205,7 @@ class _OptionalToCheckTransformer(TyphonASTTransformer):
             node.value,
             lambda tmp_name: maybe_copy_defined_name(
                 node,
-                maybe_copy_completion_trigger_anchor(
+                maybe_copy_anchors_in_call(
                     node,
                     ast.Attribute(
                         value=ast.Name(id=tmp_name, ctx=ast.Load()),

@@ -11,6 +11,8 @@ from ..Grammar.typhon_ast import (
     set_is_internal_name,
 )
 from ..Grammar.position import (
+    get_call_argument_comma_anchors,
+    get_call_trailing_comma_anchor,
     get_completion_trigger_anchor,
     get_return_type_annotation_anchor,
 )
@@ -47,10 +49,17 @@ class MatchingVisitor(ast.NodeVisitor):
                 set_is_internal_name(left, True)
                 set_is_internal_name(right, True)
 
-    def _visit_list(self, lefts: list[Any], rights: list[Any]):
+    def _visit_list(
+        self, lefts: list[Any], rights: list[Any], allow_len_mismatch: bool = False
+    ):
         if len(lefts) != len(rights):
-            # TODO: Error rescue: List length mismatch
-            raise ValueError(f"List length mismatch: {len(lefts)} vs {len(rights)}")
+            if not allow_len_mismatch:
+                # TODO: Error rescue: List length mismatch
+                raise ValueError(f"List length mismatch: {len(lefts)} vs {len(rights)}")
+            # Cut to the shorter length
+            min_len = min(len(lefts), len(rights))
+            lefts = lefts[:min_len]
+            rights = rights[:min_len]
         for left, right in zip(lefts, rights):
             if not isinstance(left, ast.AST) or not isinstance(right, ast.AST):
                 if left != right:
@@ -96,6 +105,19 @@ class MatchingVisitor(ast.NodeVisitor):
             if right_completion_anchor is not None:
                 with self._with_right(right_completion_anchor):
                     self.visit(completion_anchor)
+        if isinstance(node, ast.Call) and isinstance(right, ast.Call):
+            if call_comma_anchors := get_call_argument_comma_anchors(node):
+                if right_call_comma_anchors := get_call_argument_comma_anchors(right):
+                    self._visit_list(
+                        call_comma_anchors,
+                        right_call_comma_anchors,
+                        allow_len_mismatch=True,
+                    )
+            if trailing_comma_anchor := get_call_trailing_comma_anchor(node):
+                right_trailing_comma_anchor = get_call_trailing_comma_anchor(right)
+                if right_trailing_comma_anchor is not None:
+                    with self._with_right(right_trailing_comma_anchor):
+                        self.visit(trailing_comma_anchor)
         # Recursively visit fields
         for field, value in ast.iter_fields(node):
             right_value = getattr(right, field, None)

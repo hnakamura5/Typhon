@@ -110,3 +110,67 @@ def test_signature_help_trigger_paren_e2e():
             await ensure_exit(client)
 
     asyncio.run(run_test())
+
+
+async def request_retrigger_signature_help_comma(
+    client: LanguageClient,
+    trigger_uri: str,
+    line: int,
+    character: int,
+    version: int = 2,
+) -> SignatureHelpResult:
+    client.text_document_did_change(
+        types.DidChangeTextDocumentParams(
+            text_document=types.VersionedTextDocumentIdentifier(
+                version=version,
+                uri=trigger_uri,
+            ),
+            content_changes=[
+                types.TextDocumentContentChangePartial(
+                    range=types.Range(
+                        start=types.Position(line=line, character=character),
+                        end=types.Position(line=line, character=character),
+                    ),
+                    text=",",
+                    range_length=0,
+                )
+            ],
+        )
+    )
+    result = await request_signature_help(
+        client,
+        trigger_uri,
+        line=line,
+        character=character + 1,
+        context=types.SignatureHelpContext(
+            trigger_kind=types.SignatureHelpTriggerKind.TriggerCharacter,
+            trigger_character=",",
+            is_retrigger=True,
+        ),
+    )
+    return result
+
+
+def test_signature_help_retrigger_comma_e2e():
+    async def run_test() -> None:
+        client, _ = await start_initialize_open_typhon_connection_client(
+            root_dir=sample_workspace,
+            open_file=trigger_signature_help_file,
+        )
+        try:
+            trigger_uri = path_to_uri(trigger_signature_help_file)
+            # Insert comma after "1" in "add(1)"
+            result = await request_retrigger_signature_help_comma(
+                client,
+                trigger_uri,
+                line=5,
+                character=19,
+            )
+            assert result is not None, "Signature help result is None"
+            assert len(result.signatures) > 0, "No signatures returned"
+            sig = result.signatures[0]
+            assert_no_mangled_names(sig)
+        finally:
+            await ensure_exit(client)
+
+    asyncio.run(run_test())

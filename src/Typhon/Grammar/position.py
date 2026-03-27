@@ -115,7 +115,7 @@ def get_empty_pos_attributes() -> PosAttributes:
 
 
 def name_from_anchor_token(
-    token: TokenInfo, ctx: ast.expr_context = ast.Store()
+    token: TokenInfo, ctx: ast.expr_context = ast.Load()
 ) -> ast.Name:
     return ast.Name(
         id=token.string,
@@ -150,6 +150,25 @@ def clear_completion_trigger_anchor(node: ast.AST):
         delattr(node, _COMPLETION_TRIGGER_ANCHOR)
 
 
+_CALL_ARGUMENT_COMMA_ANCHORS = "_typh_call_argument_comma_anchors"
+
+
+def set_call_argument_comma_anchors(
+    node: ast.Call, anchors: list[ast.Name] | None
+) -> ast.Call:
+    setattr(node, _CALL_ARGUMENT_COMMA_ANCHORS, anchors)
+    return node
+
+
+def get_call_argument_comma_anchors(node: ast.Call) -> list[ast.Name] | None:
+    return getattr(node, _CALL_ARGUMENT_COMMA_ANCHORS, None)
+
+
+def clear_call_argument_comma_anchors(node: ast.Call):
+    if hasattr(node, _CALL_ARGUMENT_COMMA_ANCHORS):
+        delattr(node, _CALL_ARGUMENT_COMMA_ANCHORS)
+
+
 _RETURN_TYPE_ANNOTATION_ANCHOR = "_typh_return_type_annotation_anchor"
 
 
@@ -168,3 +187,19 @@ def get_return_type_annotation_anchor(
 def clear_return_type_annotation_anchor(node: ast.FunctionDef | ast.AsyncFunctionDef):
     if hasattr(node, _RETURN_TYPE_ANNOTATION_ANCHOR):
         delattr(node, _RETURN_TYPE_ANNOTATION_ANCHOR)
+
+
+_CALL_TRAILING_COMMA_ANCHOR = "_typh_call_trailing_comma_anchor"
+
+
+def set_call_trailing_comma_anchor(node: ast.Call, anchor: ast.Name | None):
+    setattr(node, _CALL_TRAILING_COMMA_ANCHOR, anchor)
+
+
+def get_call_trailing_comma_anchor(node: ast.Call) -> ast.Name | None:
+    return getattr(node, _CALL_TRAILING_COMMA_ANCHOR, None)
+
+
+def clear_call_trailing_comma_anchor(node: ast.Call):
+    if hasattr(node, _CALL_TRAILING_COMMA_ANCHOR):
+        delattr(node, _CALL_TRAILING_COMMA_ANCHOR)

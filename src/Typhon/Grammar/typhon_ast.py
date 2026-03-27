@@ -18,10 +18,14 @@ from tokenize import TokenInfo
 from ..Driver.debugging import debug_print, debug_verbose_print, is_testing_reparser
 from .position import (
     PosAttributes,
+    get_call_argument_comma_anchors,
+    get_call_trailing_comma_anchor,
     get_pos_attributes,
     get_empty_pos_attributes,
     pos_attribute_to_range,
     name_from_anchor_token,
+    set_call_argument_comma_anchors,
+    set_call_trailing_comma_anchor,
     set_return_type_annotation_anchor,
     set_completion_trigger_anchor,
     get_completion_trigger_anchor,
@@ -2533,3 +2537,102 @@ def make_arguments(
     for key, value in kwargs.items():
         setattr(node, key, value)
     return node
+
+
+@dataclass
+class CallArgs:
+    positionals: list[ast.expr]
+    keywords: list[ast.keyword]
+    commas: list[TokenInfo]
+    trailing_comma: TokenInfo | None
+
+    @staticmethod
+    def from_pos_and_kwargs(
+        first: ast.expr | None,
+        pos_args: list[tuple[ast.expr, TokenInfo]],
+        kwargs: list[tuple[ast.Starred | ast.keyword | None, TokenInfo | None]],
+    ) -> CallArgs:
+        starred_in_kwargs = [k for k, _ in kwargs if isinstance(k, ast.Starred)]
+        true_kwargs = [k for k, _ in kwargs if isinstance(k, ast.keyword)]
+        commas = [comma for _, comma in pos_args] + [
+            comma for _, comma in kwargs if comma is not None
+        ]
+        positionals: list[ast.expr] = [first] if first else []
+        positionals += [p for p, _ in pos_args]
+        positionals += starred_in_kwargs
+        return CallArgs(
+            positionals=positionals,
+            keywords=true_kwargs,
+            commas=commas,
+            trailing_comma=None,
+        )
+
+    @staticmethod
+    def with_trailing_comma(original: CallArgs, comma: TokenInfo | None) -> CallArgs:
+        return CallArgs(
+            positionals=original.positionals,
+            keywords=original.keywords,
+            commas=original.commas.copy(),
+            trailing_comma=comma,
+        )
+
+
+def set_call_argument_comma_anchor_tokens(
+    call_node: ast.Call,
+    commas: list[TokenInfo],
+) -> ast.Call:
+    names = [set_is_internal_name(name_from_anchor_token(comma)) for comma in commas]
+    debug_verbose_print(
+        lambda: f"Setting call argument comma anchors: {[name.id for name in names]}"
+    )
+    set_call_argument_comma_anchors(call_node, names)
+    return call_node
+
+
+def set_call_anchors(
+    call_node: ast.Call,
+    call_args: CallArgs | None,
+    open_paren: TokenInfo,
+) -> ast.Call:
+    if call_args is not None:
+        call_node = set_call_argument_comma_anchor_tokens(call_node, call_args.commas)
+        call_node = set_call_trailing_comma_anchor_token(
+            call_node, call_args.trailing_comma
+        )
+    set_completion_trigger_anchor_token(call_node, open_paren)
+    return call_node
+
+
+def maybe_copy_call_argument_comma_anchors(
+    from_node: ast.Call, to_node: ast.Call
+) -> ast.Call:
+    anchor = get_call_argument_comma_anchors(from_node)
+    return set_call_argument_comma_anchors(to_node, anchor)
+
+
+def set_call_trailing_comma_anchor_token(
+    call_node: ast.Call,
+    comma: TokenInfo | None,
+) -> ast.Call:
+    if comma is None:
+        return call_node
+    name = set_is_internal_name(name_from_anchor_token(comma))
+    debug_verbose_print(lambda: f"Setting call trailing comma anchor: {name.id}")
+    set_call_trailing_comma_anchor(call_node, name)
+    return call_node
+
+
+def maybe_copy_call_trailing_comma_anchor(
+    from_node: ast.Call, to_node: ast.Call
+) -> ast.Call:
+    anchor = get_call_trailing_comma_anchor(from_node)
+    if anchor is None:
+        return to_node
+    return to_node
+
+
+def maybe_copy_anchors_in_call(from_node: ast.Call, to_node: ast.Call) -> ast.Call:
+    to_node = maybe_copy_completion_trigger_anchor(from_node, to_node)
+    to_node = maybe_copy_call_argument_comma_anchors(from_node, to_node)
+    to_node = maybe_copy_call_trailing_comma_anchor(from_node, to_node)
+    return to_node

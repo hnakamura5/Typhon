@@ -3,3 +3,4 @@ def add(x: int, y: int) -> int {
 }
 
 let result1 = add
+let result2 = add(1)

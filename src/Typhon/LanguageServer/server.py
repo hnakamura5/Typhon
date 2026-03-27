@@ -67,12 +67,11 @@ from .completion import (
 )
 from .signature_help import (
     SIGNATURE_HELP_TRIGGER_CHARS,
-    demangle_signature_help,
+    SIGNATURE_HELP_RETRIGGER_CHARS,
     map_signature_help_request_position,
     map_signature_help_result,
 )
 from .did_change import (
-    map_did_change_params,
     map_did_change_params_with_reparse,
 )
 from ._utils.path import (
@@ -879,6 +878,7 @@ async def completion(ls: LanguageServer, params: types.CompletionParams):
     types.TEXT_DOCUMENT_SIGNATURE_HELP,
     types.SignatureHelpOptions(
         trigger_characters=SIGNATURE_HELP_TRIGGER_CHARS,
+        retrigger_characters=SIGNATURE_HELP_RETRIGGER_CHARS,
     ),
 )
 async def signature_help(ls: LanguageServer, params: types.SignatureHelpParams):

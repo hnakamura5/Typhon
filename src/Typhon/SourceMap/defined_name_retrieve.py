@@ -3,11 +3,13 @@ import ast
 from ..Driver.debugging import debug_verbose_print
 from ..Grammar.position import (
     get_pos_attributes,
-    set_completion_trigger_anchor,
+    set_call_argument_comma_anchors,
+    set_call_trailing_comma_anchor,
 )
 from ..Grammar.typhon_ast import (
     set_defined_name,
     set_import_from_names,
+    set_is_internal_name,
     set_return_type_annotation_anchor,
     set_completion_trigger_anchor_at,
 )
@@ -173,6 +175,31 @@ class _DefinedNameRetriever(ast.NodeVisitor):
         )
         if open_paren_col is not None:
             set_completion_trigger_anchor_at(node, pos["lineno"], open_paren_col, "(")
+        commas: list[ast.Name] = []
+        has_trailing_comma = True
+        for arg in node.args + node.keywords:
+            arg_pos = get_pos_attributes(arg)
+            if arg_pos["end_col_offset"] is not None:
+                comma_col = arg_pos["end_col_offset"]
+                if node.end_col_offset and comma_col + 1 >= node.end_col_offset:
+                    has_trailing_comma = False
+                    continue
+                commas.append(
+                    set_is_internal_name(
+                        ast.Name(
+                            id=",",
+                            ctx=ast.Load(),
+                            lineno=arg_pos["lineno"],
+                            col_offset=comma_col,
+                            end_lineno=arg_pos["lineno"],
+                            end_col_offset=comma_col + 1,
+                        )
+                    )
+                )
+        if has_trailing_comma and node.args + node.keywords:
+            set_call_trailing_comma_anchor(node, commas[-1])
+            commas = commas[:-1]
+        set_call_argument_comma_anchors(node, commas)
         self.generic_visit(node)
 
     def visit_Subscript(self, node: ast.Subscript):

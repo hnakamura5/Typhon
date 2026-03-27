@@ -12,6 +12,7 @@ from .position import (
     unpack_pos_tuple,
 )
 from .typhon_ast import (
+    CallArgs,
     ImportDotNames,
     make_arguments,
     make_for_let_pattern,
@@ -330,10 +331,7 @@ def recover_maybe_invalid_function_def_raw(
 def recover_maybe_invalid_class_def_raw(
     parser: Parser,
     maybe_name: tuple[TokenInfo, bool] | None,
-    bases_parens: tuple[
-        TokenInfo, tuple[list[ast.expr], list[ast.keyword]], TokenInfo | None
-    ]
-    | None,
+    bases_parens: tuple[TokenInfo, CallArgs, TokenInfo | None] | None,
     body: list[ast.stmt],
     decorator_list: list[ast.expr],
     type_params: list[ast.type_param],
@@ -341,7 +339,13 @@ def recover_maybe_invalid_class_def_raw(
     open_anchor: PosNode | TokenInfo,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.ClassDef:
-    open_paren, (bases, keywords), close_paren = bases_parens or (None, ([], []), None)
+    open_paren, call_args, close_paren = bases_parens or (
+        None,
+        CallArgs([], [], [], None),
+        None,
+    )
+    bases = call_args.positionals
+    keywords = call_args.keywords
     close_anchor = (
         bases[-1]
         if bases

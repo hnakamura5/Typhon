@@ -25,7 +25,8 @@ from .typhon_ast import (
     make_while_let_comp, make_let_comp,
     make_record_literal, make_record_type, make_attributes_pattern, make_tuple_pattern, make_for_let_pattern, make_with_let_pattern, make_inline_with_let_pattern, make_class_def,
     make_match_case, make_alias, make_import_from, make_arguments, make_attribute,
-    make_arg,  make_match_class, ImportDotNames,  set_completion_trigger_anchor_token,
+    make_arg, make_match_class, ImportDotNames,  set_completion_trigger_anchor_token,
+    CallArgs, set_call_anchors,
 )
 from .position import (
     get_pos_attributes, set_completion_trigger_anchor,
@@ -392,12 +393,16 @@ decorator:
         self.check_version((3, 9), "Generic decorator are",  a)
      }
 dec_maybe_call:
-    | dn=dec_primary o=('('|'?(') z=[arguments] ')' {
+    | dn=dec_primary o=('('|'?(') z=[call_arguments] ')' {
         maybe_optional(
-            set_completion_trigger_anchor_token(
-                ast.Call(func=dn, args=z[0] if z else [], keywords=z[1] if z else [], LOCATIONS), o
-            ),
-            o.string
+            set_call_anchors(
+                ast.Call(
+                    func=dn,
+                    args=z.positionals if z else [],
+                    keywords=z.keywords if z else [],
+                    LOCATIONS
+                ), z, o
+            ), o.string
         )
      }
     | dec_primary
@@ -417,7 +422,7 @@ class_def[ast.ClassDef]:
     | class_def_raw
 
 class_def_raw[ast.ClassDef]:
-    | k='class' n=[NAME_OR_UNUSABLE] t=[type_params] bases=[lp='(' b=[arguments] rp=[')'] { (lp, b, rp) }] NEWLINE* c=maybe_block {
+    | k='class' n=[NAME_OR_UNUSABLE] t=[type_params] bases=[lp='(' b=[call_arguments] rp=[')'] { (lp, b, rp) }] NEWLINE* c=maybe_block {
         (
             recover_maybe_invalid_class_def_raw(
                 self,
@@ -1461,17 +1466,17 @@ primary:
     | a=primary b=question_comprehension_paren {
         maybe_optional(ast.Call(func=a, args=[b], keywords=[], LOCATIONS), '?')
      }
-    | a=primary o=('('|'?(') b=[arguments] ')' {
+    | a=primary o=('('|'?(') b=[call_arguments] ')' {
         maybe_optional(
-            set_completion_trigger_anchor_token(
+            set_call_anchors(
                 ast.Call(
                     func=a,
-                    args=b[0] if b else [],
-                    keywords=b[1] if b else [],
+                    args=b.positionals if b else [],
+                    keywords=b.keywords if b else [],
                     LOCATIONS,
-                ),o
-            ),
-            o.string)
+                ), b, o
+            ), o.string
+        )
      }
     | a=primary o=('['|'?[') b=slices ']' {
         maybe_optional(
@@ -1919,25 +1924,36 @@ question_comprehension_paren:
 # FUNCTION CALL ARGUMENTS
 # =======================
 
-arguments[Tuple[List[ast.expr], List[ast.keyword]]](memo):
-    | a=args [','] !'=' { a }
-  #  | invalid_arguments
+call_arguments[CallArgs](memo):
+    | a=call_args c=[','] !'=' { CallArgs.with_trailing_comma(a, c) }
 
-args[Tuple[List[ast.expr], List[ast.keyword]]]:
-    | a=','.(starred_expression | ( assignment_expression | expression !':=') !'=')+ b=[',' k=kwargs {k}] {
-        (a + ([e for e in b if isinstance(e, ast.Starred)] if b else []),
-         ([e for e in b if not isinstance(e, ast.Starred)] if b else [])
-        )
+call_arg_item:
+    | starred_expression
+    | ( assignment_expression | expression !':=') !'='
+
+call_args[CallArgs]:
+    | ca=call_arg_item cas=(c=',' i=call_arg_item { (i, c) })* kws=[(c2=',' k=kwargs { [(None, c2)] + k})] {
+        CallArgs.from_pos_and_kwargs(ca, cas, kws or [])
      }
-    | a=kwargs {
-        ([e for e in a if isinstance(e, ast.Starred)],
-         [e for e in a if not isinstance(e, ast.Starred)])
-    }
+    | k=kwargs {
+        CallArgs.from_pos_and_kwargs(None, [], k)
+     }
 
-kwargs[List[ast.keyword | ast.Starred]]:
-    | a=','.kwarg_or_starred+ ',' b=','.kwarg_or_double_starred+ { a + b }
-    | ','.kwarg_or_starred+
-    | ','.kwarg_or_double_starred+
+kwargs[List[Tuple[ast.keyword | ast.Starred | None, TokenInfo | None]]]:
+    | a=kwarg_or_starreds c=',' b=kwarg_or_double_starreds { a + [(None, c)] + b }
+    | kwarg_or_starreds
+    | kwarg_or_double_starreds
+
+kwarg_or_starreds[Tuple[ast.keyword | ast.Starred | None, TokenInfo | None]]:
+    | k=kwarg_or_starred ks=(c=',' i=kwarg_or_starred { (i, c) })* {
+        [ (k, None) ] + ks
+     }
+
+kwarg_or_double_starreds[Tuple[ast.keyword | None, TokenInfo | None]]:
+    | k=kwarg_or_double_starred ks=(c=',' i=kwarg_or_double_starred { (i, c) })* {
+        [ (k, None) ] + ks
+     }
+
 
 starred_expression[ast.Starred]:
   #  | invalid_starred_expression
@@ -2020,14 +2036,14 @@ t_primary:
         )
      }
     | a=t_primary b=genexp &t_lookahead { ast.Call(func=a, args=[b], keywords=[], LOCATIONS) }
-    | a=t_primary o='(' b=[arguments] ')' &t_lookahead {
-        set_completion_trigger_anchor_token(
+    | a=t_primary o='(' b=[call_arguments] ')' &t_lookahead {
+        set_call_anchors(
             ast.Call(
                 func=a,
-                args=b[0] if b else [],
-                keywords=b[1] if b else [],
+                args=b.positionals if b else [],
+                keywords=b.keywords if b else [],
                 LOCATIONS,
-            ), o
+            ), b, o
         )
      }
     | a=atom &t_lookahead { a }
@@ -2103,7 +2119,7 @@ invalid_arguments[NoReturn]:
             a,
         )
      }
-    | a=expression b=for_if_clauses ',' [args | expression for_if_clauses] {
+    | a=expression b=for_if_clauses ',' [call_args | expression for_if_clauses] {
         self.raise_syntax_error_known_range(
             "Generator expression must be parenthesized",
             a,
@@ -2115,24 +2131,24 @@ invalid_arguments[NoReturn]:
             "invalid syntax. Maybe you meant '==' or ':=' instead of '='?", a, b
         )
      }
-    | (args ',')? a=NAME b='=' &(',' | ')') {
+    | (call_args ',')? a=NAME b='=' &(',' | ')') {
         self.raise_syntax_error_known_range("expected argument value expression", a, b)
      }
-    | a=args b=for_if_clauses {
+    | a=call_args b=for_if_clauses {
         self.raise_syntax_error_known_range(
             "Generator expression must be parenthesized",
             a[0][-1],
             (b[-1].ifs[-1] if b[-1].ifs else b[-1].iter),
         ) if len(a[0]) > 1 else None
      }
-    | args ',' a=expression b=for_if_clauses {
+    | call_args ',' a=expression b=for_if_clauses {
         self.raise_syntax_error_known_range(
             "Generator expression must be parenthesized",
             a,
             (b[-1].ifs[-1] if b[-1].ifs else b[-1].iter),
         )
      }
-    | a=args ',' args {
+    | a=call_args ',' a=call_args {
         self.raise_syntax_error(
             "positional argument follows keyword argument unpacking"
             if a[1][-1].arg is None else

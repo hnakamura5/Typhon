@@ -12,6 +12,7 @@ from ._utils.mapping import (
 
 
 SIGNATURE_HELP_TRIGGER_CHARS = ["("]
+SIGNATURE_HELP_RETRIGGER_CHARS = [","]
 
 type SignatureHelpResult = types.SignatureHelp | None
 
@@ -96,7 +97,7 @@ def _demangle_signature_info(
     )
 
 
-def demangle_signature_help(
+def _demangle_signature_help(
     result: types.SignatureHelp,
     module: ast.Module | None,
 ) -> types.SignatureHelp:
@@ -113,4 +114,4 @@ def map_signature_help_result(
 ) -> SignatureHelpResult:
     if result is None:
         return None
-    return demangle_signature_help(result, module)
+    return _demangle_signature_help(result, module)
