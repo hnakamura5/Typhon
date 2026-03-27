@@ -1,6 +1,7 @@
 import ast
 import re
 
+from ..Transform.name_generator import is_reserved_typh_name
 from ..Driver.debugging import debug_verbose_print
 from .pretty_printer import (
     has_pretty_print_type_arg_placeholders,
@@ -20,13 +21,16 @@ _BUILTIN_MANGLED_NAME_PATTERN = re.compile(
 )
 
 
+DEMANGLE_FALLBACK_NAME = "<anonymous>"  # TODO: Temporal fallback name
+
+
 def _fallback_demangle_generated_name(name: str) -> str | None:
     if match := _BUILTIN_MANGLED_NAME_PATTERN.match(name):
         return match.group("name")
     if match := _GENERATED_NAME_ORIGINAL_SUFFIX_PATTERN.match(name):
         return match.group("name")
-    if name.startswith("_typh_"):
-        return "<anonymous>"  # TODO: Temporal
+    if is_reserved_typh_name(name):
+        return DEMANGLE_FALLBACK_NAME
     return None
 
 

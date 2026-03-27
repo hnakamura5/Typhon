@@ -15,6 +15,10 @@ _TYPHON_PREFIX = "_typh_"
 _TYPHON_BUILTIN_PREFIX = f"{_TYPHON_PREFIX}bi_"
 
 
+def is_reserved_typh_name(name: str) -> bool:
+    return name.startswith(_TYPHON_PREFIX)
+
+
 # TODO Namekind Enum
 class NameKind(Enum):
     VARIABLE = auto()

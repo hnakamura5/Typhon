@@ -71,6 +71,10 @@ from .signature_help import (
     map_signature_help_request_position,
     map_signature_help_result,
 )
+from .symbol import (
+    map_document_symbol_result,
+    map_workspace_symbol_result,
+)
 from .did_change import (
     map_did_change_params_with_reparse,
 )
@@ -905,5 +909,56 @@ async def signature_help(ls: LanguageServer, params: types.SignatureHelpParams):
     except Exception as e:
         debug_file_write(
             lambda: f"Error during signature help retrieval: {type(e).__name__}: {e}"
+        )
+        return None
+
+
+@server.feature(types.TEXT_DOCUMENT_DOCUMENT_SYMBOL)
+async def document_symbol(ls: LanguageServer, params: types.DocumentSymbolParams):
+    uri = canonicalize_uri(params.text_document.uri)
+    try:
+        debug_file_write(lambda: f"Document symbol requested: {params}")
+        cloned_params = ls.clone_params_map_uri(params)
+        debug_file_write(
+            lambda: f"Forwarding document symbol request to backend: {cloned_params}"
+        )
+        symbol_result = await ls.backend_client.text_document_document_symbol_async(
+            cloned_params
+        )
+        debug_file_write(lambda: f"Received document symbol result: {symbol_result}")
+        return map_document_symbol_result(
+            symbol_result,
+            ls.parsed_buffer.get_module(uri),
+            ls.parsed_buffer.get_mapping(uri),
+            ls.parsed_buffer.get_mapping,
+            ls.translated_uri_to_original_uri,
+            ls.parsed_buffer.get_module,
+        )
+    except Exception as e:
+        debug_file_write(
+            lambda error=e: (
+                f"Error during document symbol retrieval: {type(error).__name__}: {error}"
+            )
+        )
+        return None
+
+
+@server.feature(types.WORKSPACE_SYMBOL)
+async def workspace_symbol(ls: LanguageServer, params: types.WorkspaceSymbolParams):
+    try:
+        debug_file_write(lambda: f"Workspace symbol requested: {params}")
+        symbol_result = await ls.backend_client.workspace_symbol_async(params)
+        debug_file_write(lambda: f"Received workspace symbol result: {symbol_result}")
+        return map_workspace_symbol_result(
+            symbol_result,
+            ls.parsed_buffer.get_mapping,
+            ls.translated_uri_to_original_uri,
+            ls.parsed_buffer.get_module,
+        )
+    except Exception as e:
+        debug_file_write(
+            lambda error=e: (
+                f"Error during workspace symbol retrieval: {type(error).__name__}: {error}"
+            )
         )
         return None
