@@ -41,10 +41,10 @@ class CustomUnparseHelper(ast._Unparser):
         return self.binop[op.__class__.__name__]
 
     def get_unaryop_operator(self, op: ast.unaryop) -> str:
-        return self.unaryop[op.__class__.__name__]
+        return self.unop[op.__class__.__name__]
 
     def get_cmpop_operator(self, op: ast.cmpop) -> str:
-        return self.unop[op.__class__.__name__]
+        return self.cmpops[op.__class__.__name__]
 
 
 def unparse_custom(node: ast.AST) -> str:

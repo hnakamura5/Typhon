@@ -19,6 +19,7 @@ from Typhon.Format.doc_datatype import (
 )
 from Typhon.Format.print_to_doc import print_to_doc
 from Typhon.Grammar.parser import parse_string
+from Typhon.Driver.debugging import debug_verbose_print
 
 
 # Pserdo rendering of Doc to string for testing purposes.
@@ -63,134 +64,101 @@ def _parse_module(source: str) -> ast.Module:
     return parsed
 
 
-def test_translate_constant_preserves_raw_tokens():
-    module = _parse_module("1_000")
-
+def assert_rendered_doc_ident(source: str):
+    module = _parse_module(source)
     doc = print_to_doc(module)
+    assert _render_doc(doc) == source
 
-    assert _render_doc(doc) == "1_000"
+
+def assert_rendered_doc_equal(source: str, expected: str):
+    module = _parse_module(source)
+    doc = print_to_doc(module)
+    assert _render_doc(doc) == expected
+
+
+def test_translate_constant_preserves_raw_tokens():
+    assert_rendered_doc_ident("1_000")
 
 
 def test_translate_group_expr_preserves_wrapper_paren_tokens():
-    module = _parse_module("(1 + 2)")
-
-    doc = print_to_doc(module)
-
-    assert _render_doc(doc) == "(1 + 2)"
+    assert_rendered_doc_ident("(1 + 2)")
 
 
 def test_translate_module_statements_with_newline_separator():
-    module = _parse_module("a\nb")
-
-    doc = print_to_doc(module)
-
-    assert _render_doc(doc) == "a\nb"
+    assert_rendered_doc_ident("a\nb")
 
 
 def test_translate_call_with_keyword_argument():
-    module = _parse_module("f(1, x=2)")
-
-    doc = print_to_doc(module)
-
-    assert _render_doc(doc) == "f(1, x=2)"
+    assert_rendered_doc_ident("f(1, x=2)")
 
 
 def test_translate_record_literal_doc():
-    module = _parse_module("{|x = 1, y: str = '2'|}")
-
-    doc = print_to_doc(module)
-
-    assert _render_doc(doc) == "{|x = 1, y: str = '2'|}"
+    assert_rendered_doc_ident("{|x = 1, y: str = '2'|}")
 
 
 def test_translate_record_type_doc():
-    module = _parse_module("def f(x: {|id: int, name: str|}) { pass }")
+    assert_rendered_doc_ident("def f(x: {|id: int, name: str|}) { pass }")
 
-    doc = print_to_doc(module)
 
-    assert _render_doc(doc) == "def f(x: {|id: int, name: str|}) { pass }"
+def test_translate_list_comprehension_doc():
+    assert_rendered_doc_ident("[for (var x: int in xs) if (x > 0) yield x]")
+
+
+def test_translate_dict_comprehension_doc():
+    assert_rendered_doc_ident("{async for (var k in ks) yield k: v}")
 
 
 def test_translate_if_stmt_to_typhon_style_block_doc():
-    module = _parse_module("if (a) { b } else { c }")
-
-    doc = print_to_doc(module)
-
-    assert _render_doc(doc) == "if (a) {\nb\n} else {\nc\n}"
+    assert_rendered_doc_equal("if (a) { b } else { c }", "if (a) {\nb\n} else {\nc\n}")
 
 
 def test_translate_class_stmt_to_typhon_style_block_doc():
-    module = _parse_module("class C { pass }")
-
-    doc = print_to_doc(module)
-
-    assert _render_doc(doc) == "class C { pass }"
+    assert_rendered_doc_ident("class C { pass }")
 
 
 def test_translate_function_stmt_to_typhon_style_block_doc():
-    module = _parse_module("def f(x: int) -> int { return x }")
-
-    doc = print_to_doc(module)
-
-    assert _render_doc(doc) == "def f(x: int) -> int {\nreturn x\n}"
+    assert_rendered_doc_equal(
+        "def f(x: int) -> int { return x }", "def f(x: int) -> int {\nreturn x\n}"
+    )
 
 
 def test_translate_while_stmt_to_typhon_style_block_doc():
-    module = _parse_module("while (ok) { work }")
-
-    doc = print_to_doc(module)
-
-    assert _render_doc(doc) == "while (ok) {\nwork\n}"
+    assert_rendered_doc_equal("while (ok) { work }", "while (ok) {\nwork\n}")
 
 
 def test_translate_for_stmt_to_typhon_style_block_doc():
-    module = _parse_module("for (let x in xs) { work }")
-
-    doc = print_to_doc(module)
-
-    assert _render_doc(doc) == "for (let x in xs) {\nwork\n}"
+    assert_rendered_doc_equal(
+        "for (let x in xs) { work }", "for (let x in xs) {\nwork\n}"
+    )
 
 
 def test_translate_with_stmt_to_typhon_style_block_doc():
-    module = _parse_module("with (resource) { use }")
-
-    doc = print_to_doc(module)
-
-    assert _render_doc(doc) == "with ((resource)) {\nuse\n}"
+    assert_rendered_doc_equal("with (resource) { use }", "with ((resource)) {\nuse\n}")
 
 
 def test_translate_try_stmt_to_typhon_style_block_doc():
-    module = _parse_module(
-        "try { work } except (Error as e) { recover } finally { cleanup }"
-    )
-
-    doc = print_to_doc(module)
-
-    assert (
-        _render_doc(doc)
-        == "try {\nwork\n} except (Error as e) {\nrecover\n} finally {\ncleanup\n}"
+    assert_rendered_doc_equal(
+        "try { work } except (Error as e) { recover } finally { cleanup }",
+        "try {\nwork\n} except (Error as e) {\nrecover\n} finally {\ncleanup\n}",
     )
 
 
 def test_translate_match_stmt_to_typhon_style_block_doc():
-    module = _parse_module("match (x) { case (1) { a } case (_) { b } }")
-
-    doc = print_to_doc(module)
-
-    assert _render_doc(doc) == "match (x) {\ncase (1) {\na\n}\ncase (_) {\nb\n}\n}"
+    assert_rendered_doc_equal(
+        "match (x) { case (1) { a } case (_) { b } }",
+        "match (x) {\ncase (1) {\na\n}\ncase (_) {\nb\n}\n}",
+    )
 
 
 def test_translate_match_stmt_with_class_pattern_doc():
-    module = _parse_module("match (x) { case (Point(a, y=b)) { ok } }")
-
-    doc = print_to_doc(module)
-
-    assert _render_doc(doc) == "match (x) {\ncase (Point(a, y = b)) {\nok\n}\n}"
+    assert_rendered_doc_equal(
+        "match (x) { case (Point(a, y=b)) { ok } }",
+        "match (x) {\ncase (Point(a, y = b)) {\nok\n}\n}",
+    )
 
 
 def test_translate_match_stmt_with_attributes_pattern_doc():
-    module = _parse_module("match (x) { case ({.a, .b = c}) { ok } }")
-
-    doc = print_to_doc(module)
-
-    assert _render_doc(doc) == "match (x) {\ncase ({.a, .b = c}) {\nok\n}\n}"
+    assert_rendered_doc_equal(
+        "match (x) { case ({.a, .b = c}) { ok } }",
+        "match (x) {\ncase ({.a, .b = c}) {\nok\n}\n}",
+    )

@@ -32,6 +32,7 @@ from Typhon.Grammar.typhon_ast import (
 )
 from Typhon.Grammar.unparse_custom import CustomUnparseHelper
 from Typhon.Transform.visitor import TyphonASTRawVisitor
+from ..Driver.debugging import debug_verbose_print
 
 from .doc_datatype import Doc, NIL, concat, group, hardline, join, space, text
 
@@ -109,71 +110,6 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             return base
         return concat([base, text(":"), space(), self._visit_doc(arg.annotation)])
 
-    def _arg_doc(self, arg: ast.arg) -> Doc:
-        parts: list[Doc] = [text(arg.arg)]
-        if arg.annotation is not None:
-            parts.extend([text(":"), space(), self._visit_doc(arg.annotation)])
-        return concat(parts)
-
-    def _arguments_doc(self, args: ast.arguments) -> Doc:
-        params: list[Doc] = []
-        for arg in args.posonlyargs:
-            params.append(self._typed_name_doc(arg))
-        if len(args.posonlyargs) > 0:
-            params.append(text("/"))
-        for index, arg in enumerate(args.args):
-            default_index = index - (len(args.args) - len(args.defaults))
-            if default_index >= 0:
-                params.append(
-                    concat(
-                        [
-                            self._typed_name_doc(arg),
-                            space(),
-                            text("="),
-                            space(),
-                            self._visit_doc(args.defaults[default_index]),
-                        ]
-                    )
-                )
-            else:
-                params.append(self._typed_name_doc(arg))
-
-        if args.vararg is not None:
-            params.append(concat([text("*"), self._typed_name_doc(args.vararg)]))
-        elif len(args.kwonlyargs) > 0:
-            params.append(text("*"))
-
-        for kw_arg, kw_default in zip(args.kwonlyargs, args.kw_defaults):
-            if kw_default is None:
-                params.append(self._typed_name_doc(kw_arg))
-            else:
-                params.append(
-                    concat(
-                        [
-                            self._typed_name_doc(kw_arg),
-                            space(),
-                            text("="),
-                            space(),
-                            self._visit_doc(kw_default),
-                        ]
-                    )
-                )
-
-        if args.kwarg is not None:
-            params.append(concat([text("**"), self._typed_name_doc(args.kwarg)]))
-
-        return join(concat([text(","), space()]), params)
-
-    def _compare_doc(self, node: ast.Compare) -> Doc:
-        comps: list[Doc] = [self._visit_doc(node.left)]
-        for op, right in zip(node.ops, node.comparators):
-            op_symbol = self._get_cmpop_symbol(op)
-            comps.append(space())
-            comps.append(text(op_symbol))
-            comps.append(space())
-            comps.append(self._visit_doc(right))
-        return self._maybe_wrap_group_paren(node, concat(comps))
-
     def visit_Module(self, node: ast.Module) -> Doc:
         if len(node.body) == 0:
             return NIL
@@ -186,7 +122,17 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return self._maybe_wrap_group_paren(node, text(node.id))
 
     def visit_Compare(self, node: ast.Compare) -> Doc:
-        return self._compare_doc(node)
+        comps: list[Doc] = [self._visit_doc(node.left)]
+        debug_verbose_print(
+            lambda: f"Translating Compare node: {ast.dump(node, indent=4)}"
+        )
+        for op, right in zip(node.ops, node.comparators):
+            op_symbol = self._get_cmpop_symbol(op)
+            comps.append(space())
+            comps.append(text(op_symbol))
+            comps.append(space())
+            comps.append(self._visit_doc(right))
+        return self._maybe_wrap_group_paren(node, concat(comps))
 
     def visit_Constant(self, node: ast.Constant) -> Doc:
         raw_tokens = get_constant_raw_tokens(node)
@@ -212,8 +158,18 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         )
         return self._maybe_wrap_group_paren(node, doc)
 
+    def visit_BoolOp(self, node: ast.BoolOp) -> Doc:
+        op = self._get_boolop_symbol(node.op)
+        doc = group(
+            join(
+                concat([space(), text(op), space()]),
+                [self._visit_doc(v) for v in node.values],
+            )
+        )
+        return self._maybe_wrap_group_paren(node, doc)
+
     def visit_UnaryOp(self, node: ast.UnaryOp) -> Doc:
-        op = self._helper.get_unaryop_operator(node.op)
+        op = self._get_unaryop_symbol(node.op)
         doc = concat([text(op), self._visit_doc(node.operand)])
         return self._maybe_wrap_group_paren(node, doc)
 
@@ -297,6 +253,90 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             )
         doc = concat([text("("), inner, text(")")])
         return self._maybe_wrap_group_paren(node, doc)
+
+    def _comprehension_list_doc(self, generators: list[ast.comprehension]) -> Doc:
+        return join(space(), [self._visit_doc(gen) for gen in generators])
+
+    def visit_comprehension(self, node: ast.comprehension) -> Doc:
+        decl = text("let") if is_let(node) else text("var")
+        target = concat([decl, space(), self._visit_doc(node.target)])
+        if type_ann := get_type_annotation(node):
+            target = concat([target, text(":"), space(), self._visit_doc(type_ann)])
+
+        head = (
+            [
+                text("async"),
+                space(),
+            ]
+            if node.is_async
+            else []
+        )
+        head.extend(
+            [
+                text("for"),
+                space(),
+                text("("),
+                target,
+                space(),
+                text("in"),
+                space(),
+                self._visit_doc(node.iter),
+                text(")"),
+            ]
+        )
+        parts: list[Doc] = [concat(head)]
+        for cond in node.ifs:
+            parts.extend(
+                [
+                    space(),
+                    text("if"),
+                    space(),
+                    text("("),
+                    self._visit_doc(cond),
+                    text(")"),
+                ]
+            )
+        return concat(parts)
+
+    def _comp_doc(
+        self, node: ast.ListComp | ast.SetComp | ast.GeneratorExp, open: str, close: str
+    ) -> Doc:
+        return concat(
+            [
+                text(open),
+                self._comprehension_list_doc(node.generators),
+                space(),
+                text("yield"),
+                space(),
+                self._visit_doc(node.elt),
+                text(close),
+            ]
+        )
+
+    def visit_ListComp(self, node: ast.ListComp) -> Doc:
+        return self._comp_doc(node, "[", "]")
+
+    def visit_SetComp(self, node: ast.SetComp) -> Doc:
+        return self._comp_doc(node, "{", "}")
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> Doc:
+        return self._comp_doc(node, "(", ")")
+
+    def visit_DictComp(self, node: ast.DictComp) -> Doc:
+        return concat(
+            [
+                text("{"),
+                self._comprehension_list_doc(node.generators),
+                space(),
+                text("yield"),
+                space(),
+                self._visit_doc(node.key),
+                text(":"),
+                space(),
+                self._visit_doc(node.value),
+                text("}"),
+            ]
+        )
 
     def visit_Assign(self, node: ast.Assign) -> Doc:
         decl_prefix = ""
@@ -581,27 +621,6 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             )
         return concat(parts)
 
-    def _match_case_doc(self, node: ast.match_case) -> Doc:
-        head: list[Doc] = [
-            text("case"),
-            space(),
-            text("("),
-            self._visit_doc(node.pattern),
-            text(")"),
-        ]
-        if node.guard is not None:
-            head.extend(
-                [
-                    space(),
-                    text("if"),
-                    space(),
-                    text("("),
-                    self._visit_doc(node.guard),
-                    text(")"),
-                ]
-            )
-        return concat([concat(head), space(), self._block_doc(node.body)])
-
     def visit_MatchValue(self, node: ast.MatchValue) -> Doc:
         return self._visit_doc(node.value)
 
@@ -731,6 +750,27 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             ]
         )
 
+    def _match_case_doc(self, node: ast.match_case) -> Doc:
+        head: list[Doc] = [
+            text("case"),
+            space(),
+            text("("),
+            self._visit_doc(node.pattern),
+            text(")"),
+        ]
+        if node.guard is not None:
+            head.extend(
+                [
+                    space(),
+                    text("if"),
+                    space(),
+                    text("("),
+                    self._visit_doc(node.guard),
+                    text(")"),
+                ]
+            )
+        return concat([concat(head), space(), self._block_doc(node.body)])
+
     def visit_Match(self, node: ast.Match) -> Doc:
         return concat(
             [
@@ -773,6 +813,55 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             )
         class_head.extend([space(), self._block_doc(node.body)])
         return concat(deco_docs + [concat(class_head)])
+
+    def _arguments_doc(self, args: ast.arguments) -> Doc:
+        params: list[Doc] = []
+        for arg in args.posonlyargs:
+            params.append(self._typed_name_doc(arg))
+        if len(args.posonlyargs) > 0:
+            params.append(text("/"))
+        for index, arg in enumerate(args.args):
+            default_index = index - (len(args.args) - len(args.defaults))
+            if default_index >= 0:
+                params.append(
+                    concat(
+                        [
+                            self._typed_name_doc(arg),
+                            space(),
+                            text("="),
+                            space(),
+                            self._visit_doc(args.defaults[default_index]),
+                        ]
+                    )
+                )
+            else:
+                params.append(self._typed_name_doc(arg))
+
+        if args.vararg is not None:
+            params.append(concat([text("*"), self._typed_name_doc(args.vararg)]))
+        elif len(args.kwonlyargs) > 0:
+            params.append(text("*"))
+
+        for kw_arg, kw_default in zip(args.kwonlyargs, args.kw_defaults):
+            if kw_default is None:
+                params.append(self._typed_name_doc(kw_arg))
+            else:
+                params.append(
+                    concat(
+                        [
+                            self._typed_name_doc(kw_arg),
+                            space(),
+                            text("="),
+                            space(),
+                            self._visit_doc(kw_default),
+                        ]
+                    )
+                )
+
+        if args.kwarg is not None:
+            params.append(concat([text("**"), self._typed_name_doc(args.kwarg)]))
+
+        return join(concat([text(","), space()]), params)
 
     def _visit_FcuntionDef_AsyncFunctionDef(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef
@@ -856,6 +945,12 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             ),
         )
 
+    def _arg_doc(self, arg: ast.arg) -> Doc:
+        parts: list[Doc] = [text(arg.arg)]
+        if arg.annotation is not None:
+            parts.extend([text(":"), space(), self._visit_doc(arg.annotation)])
+        return concat(parts)
+
     def visit_FunctionType(self, node: FunctionType) -> Doc:
         arguments_doc: list[Doc] = []
         for arg in get_args_of_function_type(node):
@@ -917,7 +1012,13 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
 
     def visit_ControlComprehension(self, node: ast.Name) -> Doc:
         if func_def := get_control_comprehension_def(node):
-            return self._comprehension_printer._visit_doc(func_def.body[0])
+            return concat(
+                [
+                    text("("),
+                    self._comprehension_printer._visit_doc(func_def.body[0]),
+                    text(")"),
+                ]
+            )
         raise ValueError(f"Unsupported control comprehension: {node.id}")
 
 
