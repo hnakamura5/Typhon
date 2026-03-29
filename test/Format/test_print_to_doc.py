@@ -21,6 +21,7 @@ from Typhon.Format.print_to_doc import print_to_doc
 from Typhon.Grammar.parser import parse_string
 
 
+# Pserdo rendering of Doc to string for testing purposes.
 def _render_doc(doc: Doc) -> str:
     if isinstance(doc, Nil):
         return ""
@@ -92,6 +93,22 @@ def test_translate_call_with_keyword_argument():
     doc = print_to_doc(module)
 
     assert _render_doc(doc) == "f(1, x=2)"
+
+
+def test_translate_record_literal_doc():
+    module = _parse_module("{|x = 1, y: str = '2'|}")
+
+    doc = print_to_doc(module)
+
+    assert _render_doc(doc) == "{|x = 1, y: str = '2'|}"
+
+
+def test_translate_record_type_doc():
+    module = _parse_module("def f(x: {|id: int, name: str|}) { pass }")
+
+    doc = print_to_doc(module)
+
+    assert _render_doc(doc) == "def f(x: {|id: int, name: str|}) { pass }"
 
 
 def test_translate_if_stmt_to_typhon_style_block_doc():

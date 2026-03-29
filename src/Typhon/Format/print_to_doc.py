@@ -11,6 +11,8 @@ from Typhon.Grammar.typhon_ast import (
     get_control_comprehension_def,
     get_function_literal_def,
     get_let_pattern_body,
+    get_record_literal_fields,
+    get_record_type_fields,
     get_return_of_function_type,
     get_star_arg_of_function_type,
     get_star_kwds_of_function_type,
@@ -803,6 +805,56 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> Doc:
         return self._visit_FcuntionDef_AsyncFunctionDef(node)
+
+    def visit_RecordLiteral(self, node: ast.Name) -> Doc:
+        fields = get_record_literal_fields(node)
+        if fields is None:
+            raise ValueError("RecordLiteral node has no field metadata")
+        if len(fields) == 0:
+            return self._maybe_wrap_group_paren(
+                node, concat([text("{|"), space(), text("|}")])
+            )
+        field_docs: list[Doc] = []
+        for name, annotation, value in fields:
+            parts: list[Doc] = [text(name.id)]
+            if annotation is not None:
+                parts.extend([text(":"), space(), self._visit_doc(annotation)])
+            parts.extend([space(), text("="), space(), self._visit_doc(value)])
+            field_docs.append(concat(parts))
+
+        return self._maybe_wrap_group_paren(
+            node,
+            concat(
+                [
+                    text("{|"),
+                    join(concat([text(","), space()]), field_docs),
+                    text("|}"),
+                ]
+            ),
+        )
+
+    def visit_RecordType(self, node: ast.Name) -> Doc:
+        fields = get_record_type_fields(node)
+        if fields is None:
+            raise ValueError("RecordType node has no field metadata")
+        if len(fields) == 0:
+            return self._maybe_wrap_group_paren(
+                node, concat([text("{|"), space(), text("|}")])
+            )
+        field_docs = [
+            concat([text(name.id), text(":"), space(), self._visit_doc(annotation)])
+            for name, annotation in fields
+        ]
+        return self._maybe_wrap_group_paren(
+            node,
+            concat(
+                [
+                    text("{|"),
+                    join(concat([text(","), space()]), field_docs),
+                    text("|}"),
+                ]
+            ),
+        )
 
     def visit_FunctionType(self, node: FunctionType) -> Doc:
         arguments_doc: list[Doc] = []
