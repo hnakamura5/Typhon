@@ -92,3 +92,88 @@ def test_translate_call_with_keyword_argument():
     doc = print_to_doc(module)
 
     assert _render_doc(doc) == "f(1, x=2)"
+
+
+def test_translate_if_stmt_to_typhon_style_block_doc():
+    module = _parse_module("if (a) { b } else { c }")
+
+    doc = print_to_doc(module)
+
+    assert _render_doc(doc) == "if (a) {\nb\n} else {\nc\n}"
+
+
+def test_translate_class_stmt_to_typhon_style_block_doc():
+    module = _parse_module("class C { pass }")
+
+    doc = print_to_doc(module)
+
+    assert _render_doc(doc) == "class C { pass }"
+
+
+def test_translate_function_stmt_to_typhon_style_block_doc():
+    module = _parse_module("def f(x: int) -> int { return x }")
+
+    doc = print_to_doc(module)
+
+    assert _render_doc(doc) == "def f(x: int) -> int {\nreturn x\n}"
+
+
+def test_translate_while_stmt_to_typhon_style_block_doc():
+    module = _parse_module("while (ok) { work }")
+
+    doc = print_to_doc(module)
+
+    assert _render_doc(doc) == "while (ok) {\nwork\n}"
+
+
+def test_translate_for_stmt_to_typhon_style_block_doc():
+    module = _parse_module("for (let x in xs) { work }")
+
+    doc = print_to_doc(module)
+
+    assert _render_doc(doc) == "for (let x in xs) {\nwork\n}"
+
+
+def test_translate_with_stmt_to_typhon_style_block_doc():
+    module = _parse_module("with (resource) { use }")
+
+    doc = print_to_doc(module)
+
+    assert _render_doc(doc) == "with ((resource)) {\nuse\n}"
+
+
+def test_translate_try_stmt_to_typhon_style_block_doc():
+    module = _parse_module(
+        "try { work } except (Error as e) { recover } finally { cleanup }"
+    )
+
+    doc = print_to_doc(module)
+
+    assert (
+        _render_doc(doc)
+        == "try {\nwork\n} except (Error as e) {\nrecover\n} finally {\ncleanup\n}"
+    )
+
+
+def test_translate_match_stmt_to_typhon_style_block_doc():
+    module = _parse_module("match (x) { case (1) { a } case (_) { b } }")
+
+    doc = print_to_doc(module)
+
+    assert _render_doc(doc) == "match (x) {\ncase (1) {\na\n}\ncase (_) {\nb\n}\n}"
+
+
+def test_translate_match_stmt_with_class_pattern_doc():
+    module = _parse_module("match (x) { case (Point(a, y=b)) { ok } }")
+
+    doc = print_to_doc(module)
+
+    assert _render_doc(doc) == "match (x) {\ncase (Point(a, y = b)) {\nok\n}\n}"
+
+
+def test_translate_match_stmt_with_attributes_pattern_doc():
+    module = _parse_module("match (x) { case ({.a, .b = c}) { ok } }")
+
+    doc = print_to_doc(module)
+
+    assert _render_doc(doc) == "match (x) {\ncase ({.a, .b = c}) {\nok\n}\n}"

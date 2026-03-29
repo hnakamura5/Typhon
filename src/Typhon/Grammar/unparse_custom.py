@@ -32,6 +32,21 @@ class CustomUnparser(ast._Unparser):
             self._source.extend(")")
 
 
+# Utility for formatter and pretty printing.
+class CustomUnparseHelper(ast._Unparser):
+    def __init__(self):
+        super().__init__()
+
+    def get_binop_operator(self, op: ast.operator) -> str:
+        return self.binop[op.__class__.__name__]
+
+    def get_unaryop_operator(self, op: ast.unaryop) -> str:
+        return self.unaryop[op.__class__.__name__]
+
+    def get_cmpop_operator(self, op: ast.cmpop) -> str:
+        return self.unop[op.__class__.__name__]
+
+
 def unparse_custom(node: ast.AST) -> str:
     unparser = CustomUnparser()
     return unparser.visit(node)

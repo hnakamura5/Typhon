@@ -134,10 +134,14 @@ TRIM = Trim()
 CURSOR = Cursor()
 
 
-def text(value: str) -> Doc:
-    if value == "":
+def text(v: str) -> Doc:
+    if v == "":
         return NIL
-    return Text(value)
+    return Text(v)
+
+
+def space(n: int = 1) -> Doc:
+    return text(" " * n)
 
 
 def line() -> Doc:

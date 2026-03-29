@@ -1,44 +1,37 @@
 from __future__ import annotations
 
 import ast
-from typing import cast
+from typing import Literal, cast, override
 
-from Typhon.Grammar.pretty_printer import pretty_print_expr
 from Typhon.Grammar.typhon_ast import (
     FunctionLiteral,
     FunctionType,
+    get_args_of_function_type,
     get_constant_raw_tokens,
     get_control_comprehension_def,
     get_function_literal_def,
+    get_let_pattern_body,
+    get_return_of_function_type,
+    get_star_arg_of_function_type,
+    get_star_kwds_of_function_type,
+    get_type_annotation,
     get_wrapper_paren_tokens,
+    is_attributes_pattern,
+    is_inline_with,
+    is_let,
+    is_let_assign,
+    is_optional,
+    is_optional_pipe,
+    is_pattern_tuple,
+    is_pipe,
+    is_static,
+    is_var,
+    is_var_assign,
 )
+from Typhon.Grammar.unparse_custom import CustomUnparseHelper
 from Typhon.Transform.visitor import TyphonASTRawVisitor
 
-from .doc_datatype import Doc, NIL, concat, group, hardline, join, text
-
-
-_BINOP_SYMBOLS: dict[type[ast.operator], str] = {
-    ast.Add: "+",
-    ast.Sub: "-",
-    ast.Mult: "*",
-    ast.MatMult: "@",
-    ast.Div: "/",
-    ast.FloorDiv: "//",
-    ast.Mod: "%",
-    ast.Pow: "**",
-    ast.LShift: "<<",
-    ast.RShift: ">>",
-    ast.BitAnd: "&",
-    ast.BitOr: "|",
-    ast.BitXor: "^",
-}
-
-_UNARY_SYMBOLS: dict[type[ast.unaryop], str] = {
-    ast.Invert: "~",
-    ast.Not: "not ",
-    ast.UAdd: "+",
-    ast.USub: "-",
-}
+from .doc_datatype import Doc, NIL, concat, group, hardline, join, space, text
 
 
 class _PrintToDocVisitor(TyphonASTRawVisitor):
@@ -48,9 +41,39 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     textual rendering for unsupported nodes.
     """
 
-    def __init__(self, module: ast.Module):
+    def __init__(
+        self,
+        module: ast.Module,
+        *,
+        comprehension_printer: _PrintComprehensionToDocVisitor | None = None,
+    ):
         super().__init__()
         self.module = module
+        # Only the helper. Not used for actual unparsing.
+        self._helper = CustomUnparseHelper()
+        self._comprehension_printer: _PrintComprehensionToDocVisitor = (
+            comprehension_printer or _PrintComprehensionToDocVisitor(module, self)
+        )
+
+    def _get_binop_symbol(self, op: ast.operator) -> str:
+        return self._helper.get_binop_operator(op)
+
+    def _get_unaryop_symbol(self, op: ast.unaryop) -> str:
+        result = self._helper.get_unaryop_operator(op)
+        if result == "not":
+            return "!"
+        return result
+
+    def _get_boolop_symbol(self, op: ast.boolop) -> str:
+        if isinstance(op, ast.And):
+            return "&&"
+        elif isinstance(op, ast.Or):
+            return "||"
+        else:
+            raise ValueError(f"Unsupported boolean operator: {type(op)}")
+
+    def _get_cmpop_symbol(self, op: ast.cmpop) -> str:
+        return self._helper.get_cmpop_operator(op)
 
     def _maybe_wrap_group_paren(self, node: ast.expr, doc: Doc) -> Doc:
         wrappers = get_wrapper_paren_tokens(node)
@@ -63,15 +86,91 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     def _visit_doc(self, node: ast.AST) -> Doc:
         return cast(Doc, self.visit(node))
 
-    def _fallback_expr_doc(self, node: ast.expr) -> Doc:
-        try:
-            rendered = pretty_print_expr(node)
-        except Exception:
-            rendered = ast.unparse(node)
-        return self._maybe_wrap_group_paren(node, text(rendered))
+    def _block_doc(self, body: list[ast.stmt]) -> Doc:
+        if len(body) == 0:
+            return concat([text("{"), space(), text("}")])
+        if len(body) == 1 and isinstance(body[0], ast.Pass):
+            return concat([text("{"), space(), text("pass"), space(), text("}")])
+        return concat(
+            [
+                text("{"),
+                hardline(),
+                join(hardline(), [self._visit_doc(stmt) for stmt in body]),
+                hardline(),
+                text("}"),
+            ]
+        )
 
-    def _fallback_stmt_doc(self, node: ast.stmt) -> Doc:
-        return text(ast.unparse(node).strip())
+    def _typed_name_doc(self, arg: ast.arg) -> Doc:
+        base = text(arg.arg)
+        if arg.annotation is None:
+            return base
+        return concat([base, text(":"), space(), self._visit_doc(arg.annotation)])
+
+    def _arg_doc(self, arg: ast.arg) -> Doc:
+        parts: list[Doc] = [text(arg.arg)]
+        if arg.annotation is not None:
+            parts.extend([text(":"), space(), self._visit_doc(arg.annotation)])
+        return concat(parts)
+
+    def _arguments_doc(self, args: ast.arguments) -> Doc:
+        params: list[Doc] = []
+        for arg in args.posonlyargs:
+            params.append(self._typed_name_doc(arg))
+        if len(args.posonlyargs) > 0:
+            params.append(text("/"))
+        for index, arg in enumerate(args.args):
+            default_index = index - (len(args.args) - len(args.defaults))
+            if default_index >= 0:
+                params.append(
+                    concat(
+                        [
+                            self._typed_name_doc(arg),
+                            space(),
+                            text("="),
+                            space(),
+                            self._visit_doc(args.defaults[default_index]),
+                        ]
+                    )
+                )
+            else:
+                params.append(self._typed_name_doc(arg))
+
+        if args.vararg is not None:
+            params.append(concat([text("*"), self._typed_name_doc(args.vararg)]))
+        elif len(args.kwonlyargs) > 0:
+            params.append(text("*"))
+
+        for kw_arg, kw_default in zip(args.kwonlyargs, args.kw_defaults):
+            if kw_default is None:
+                params.append(self._typed_name_doc(kw_arg))
+            else:
+                params.append(
+                    concat(
+                        [
+                            self._typed_name_doc(kw_arg),
+                            space(),
+                            text("="),
+                            space(),
+                            self._visit_doc(kw_default),
+                        ]
+                    )
+                )
+
+        if args.kwarg is not None:
+            params.append(concat([text("**"), self._typed_name_doc(args.kwarg)]))
+
+        return join(concat([text(","), space()]), params)
+
+    def _compare_doc(self, node: ast.Compare) -> Doc:
+        comps: list[Doc] = [self._visit_doc(node.left)]
+        for op, right in zip(node.ops, node.comparators):
+            op_symbol = self._get_cmpop_symbol(op)
+            comps.append(space())
+            comps.append(text(op_symbol))
+            comps.append(space())
+            comps.append(self._visit_doc(right))
+        return self._maybe_wrap_group_paren(node, concat(comps))
 
     def visit_Module(self, node: ast.Module) -> Doc:
         if len(node.body) == 0:
@@ -84,6 +183,9 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     def visit_Name(self, node: ast.Name) -> Doc:
         return self._maybe_wrap_group_paren(node, text(node.id))
 
+    def visit_Compare(self, node: ast.Compare) -> Doc:
+        return self._compare_doc(node)
+
     def visit_Constant(self, node: ast.Constant) -> Doc:
         raw_tokens = get_constant_raw_tokens(node)
         if raw_tokens:
@@ -91,19 +193,17 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 node,
                 text("".join(tok.string for tok in raw_tokens)),
             )
-        return self._fallback_expr_doc(node)
+        raise ValueError(f"Unsupported constant without raw tokens: {node.value!r}")
 
     def visit_BinOp(self, node: ast.BinOp) -> Doc:
-        op = _BINOP_SYMBOLS.get(type(node.op))
-        if op is None:
-            return self._fallback_expr_doc(node)
+        op = self._get_binop_symbol(node.op)
         doc = group(
             concat(
                 [
                     self._visit_doc(node.left),
-                    text(" "),
+                    space(),
                     text(op),
-                    text(" "),
+                    space(),
                     self._visit_doc(node.right),
                 ]
             )
@@ -111,13 +211,29 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return self._maybe_wrap_group_paren(node, doc)
 
     def visit_UnaryOp(self, node: ast.UnaryOp) -> Doc:
-        op = _UNARY_SYMBOLS.get(type(node.op))
-        if op is None:
-            return self._fallback_expr_doc(node)
+        op = self._helper.get_unaryop_operator(node.op)
         doc = concat([text(op), self._visit_doc(node.operand)])
         return self._maybe_wrap_group_paren(node, doc)
 
+    def _pipe_operator_doc(self, node: ast.Call, is_optional: bool) -> Doc:
+        doc = group(
+            concat(
+                [
+                    self._visit_doc(node.args[0]),
+                    space(),
+                    text("?|>" if is_optional else "|>"),
+                    space(),
+                    self._visit_doc(node.func),
+                ]
+            )
+        )
+        return self._maybe_wrap_group_paren(node, doc)
+
     def visit_Call(self, node: ast.Call) -> Doc:
+        if is_pipe(node):
+            return self._pipe_operator_doc(node, is_optional=False)
+        if is_optional_pipe(node):
+            return self._pipe_operator_doc(node, is_optional=True)
         args_docs = [self._visit_doc(arg) for arg in node.args]
         kw_docs = [
             concat([text(kw.arg), text("="), self._visit_doc(kw.value)])
@@ -129,22 +245,28 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         doc = concat(
             [
                 self._visit_doc(node.func),
-                text("("),
-                join(concat([text(","), text(" ")]), all_args),
+                text("?(" if is_optional(node) else "("),
+                join(concat([text(","), space()]), all_args),
                 text(")"),
             ]
         )
         return self._maybe_wrap_group_paren(node, doc)
 
     def visit_Attribute(self, node: ast.Attribute) -> Doc:
-        doc = concat([self._visit_doc(node.value), text("."), text(node.attr)])
+        doc = concat(
+            [
+                self._visit_doc(node.value),
+                text("?." if is_optional(node) else "."),
+                text(node.attr),
+            ]
+        )
         return self._maybe_wrap_group_paren(node, doc)
 
     def visit_Subscript(self, node: ast.Subscript) -> Doc:
         doc = concat(
             [
                 self._visit_doc(node.value),
-                text("["),
+                text("?[" if is_optional(node) else "["),
                 self._visit_doc(node.slice),
                 text("]"),
             ]
@@ -156,7 +278,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             [
                 text("["),
                 join(
-                    concat([text(","), text(" ")]),
+                    concat([text(","), space()]),
                     [self._visit_doc(e) for e in node.elts],
                 ),
                 text("]"),
@@ -169,50 +291,600 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             inner = concat([self._visit_doc(node.elts[0]), text(",")])
         else:
             inner = join(
-                concat([text(","), text(" ")]), [self._visit_doc(e) for e in node.elts]
+                concat([text(","), space()]), [self._visit_doc(e) for e in node.elts]
             )
         doc = concat([text("("), inner, text(")")])
         return self._maybe_wrap_group_paren(node, doc)
 
-    def visit_FunctionLiteral(self, node: FunctionLiteral) -> Doc:
-        func_def = get_function_literal_def(node)
-        return text(func_def.name)
-
-    def visit_FunctionType(self, node: FunctionType) -> Doc:
-        return text(pretty_print_expr(node))
-
-    def visit_ControlComprehension(self, node: ast.Name) -> Doc:
-        func_def = get_control_comprehension_def(node)
-        if func_def is None:
-            return text(node.id)
-        return text(func_def.name)
-
     def visit_Assign(self, node: ast.Assign) -> Doc:
-        return self._fallback_stmt_doc(node)
+        decl_prefix = ""
+        if is_var_assign(node):
+            decl_prefix = "var "
+        elif is_let_assign(node):
+            decl_prefix = "let "
+
+        targets_doc = join(
+            concat([text(","), space()]), [self._visit_doc(t) for t in node.targets]
+        )
+        return concat(
+            [
+                text(decl_prefix),
+                targets_doc,
+                space(),
+                text("="),
+                space(),
+                self._visit_doc(node.value),
+            ]
+        )
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> Doc:
-        return self._fallback_stmt_doc(node)
+        decl_prefix = ""
+        if is_var_assign(node):
+            decl_prefix = "var"
+        elif is_let_assign(node):
+            decl_prefix = "let"
+
+        base = concat(
+            [
+                text(decl_prefix),
+                space(),
+                self._visit_doc(node.target),
+                text(":"),
+                space(),
+                self._visit_doc(node.annotation),
+            ]
+        )
+        if node.value is None:
+            return base
+        return concat([base, space(), text("="), space(), self._visit_doc(node.value)])
 
     def visit_AugAssign(self, node: ast.AugAssign) -> Doc:
-        return self._fallback_stmt_doc(node)
+        op = self._get_binop_symbol(node.op)
+        return concat(
+            [
+                self._visit_doc(node.target),
+                space(),
+                text(op),
+                text("="),
+                space(),
+                self._visit_doc(node.value),
+            ]
+        )
 
     def visit_Return(self, node: ast.Return) -> Doc:
-        return self._fallback_stmt_doc(node)
+        if node.value is None:
+            return text("return")
+        return concat([text("return"), space(), self._visit_doc(node.value)])
+
+    def visit_Raise(self, node: ast.Raise) -> Doc:
+        if node.exc is None:
+            return text("raise")
+        result = concat([text("raise"), space(), self._visit_doc(node.exc)])
+        if node.cause is not None:
+            result = concat(
+                [result, space(), text("from"), space(), self._visit_doc(node.cause)]
+            )
+        return result
+
+    def visit_Break(self, node: ast.Break) -> Doc:
+        return text("break")
+
+    def visit_Continue(self, node: ast.Continue) -> Doc:
+        return text("continue")
 
     def visit_Pass(self, node: ast.Pass) -> Doc:
-        return self._fallback_stmt_doc(node)
+        return text("pass")
+
+    def visit_Assert(self, node: ast.Assert) -> Doc:
+        result = concat([text("assert"), space(), self._visit_doc(node.test)])
+        if node.msg is not None:
+            result = concat([result, text(","), space(), self._visit_doc(node.msg)])
+        return result
+
+    def _let_patterns_match_doc(
+        self, body: list[ast.stmt], innermost_body: list[ast.stmt]
+    ) -> list[Doc]:
+        """
+        match <subject1>:
+            case <pattern1>:
+                match <subject2>:
+                    case <pattern2>:
+                        ...
+                            match <subjectN>:
+                                case <patternN> if <cond>:
+                                    <body>
+
+        -->
+
+        let <pattern1> = <subject1>,
+                   <pattern2> = <subject2>,
+                   ...,
+                   <patternN> = <subjectN>
+                   [;<cond>]
+        """
+        # TODO: Implement while-let pattern
+        # body must be nested match with single pattern case. cond is only attached to the innermost pattern.
+        assert body is not innermost_body
+        assert len(body) == 1
+        match_stmt = body[0]
+        assert isinstance(match_stmt, ast.Match)
+        assert len(match_stmt.cases) == 1
+        case = match_stmt.cases[0]
+        pattern = case.pattern
+        parts: list[Doc] = [
+            self._visit_doc(pattern),
+            space(),
+            text("="),
+            space(),
+            self._visit_doc(match_stmt.subject),
+        ]
+        cond = case.guard
+        case_body = case.body
+        if case_body is innermost_body:
+            # Base case: pattern matches directly to the body.
+            if cond is not None:
+                parts.extend([text(";"), space(), self._visit_doc(cond)])
+            return parts
+        else:
+            assert cond is None, "Only innermost pattern can have condition"
+            parts.append(text(","))
+            parts.append(space())
+            parts.extend(self._let_patterns_match_doc(case_body, innermost_body))
+            return parts
+
+    def _if_while_body(self, keyword: str, node: ast.If | ast.While) -> Doc:
+        if let_pattern := get_let_pattern_body(node):
+            body = let_pattern.body
+            pattens = self._let_patterns_match_doc(node.body, body)
+            parts = [text("let" if let_pattern.is_let else "var"), space()]
+            parts.extend(pattens)
+            cond_doc = concat(parts)
+        else:
+            body = node.body
+            cond_doc = self._visit_doc(node.test)
+        body_doc = concat(
+            [
+                text(keyword),
+                space(),
+                text("("),
+                cond_doc,
+                text(")"),
+                space(),
+                self._block_doc(body),
+            ]
+        )
+        return body_doc
+
+    def _if_chain_doc(self, node: ast.If, keyword: Literal["if", "elif"] = "if") -> Doc:
+        doc = self._if_while_body(keyword, node)
+        if len(node.orelse) == 0:
+            return doc
+        if len(node.orelse) == 1 and isinstance(node.orelse[0], ast.If):
+            # Note in if-elif chain orelse is single statement
+            return concat([doc, space(), self._if_chain_doc(node.orelse[0], "elif")])
+        return concat(
+            [doc, space(), text("else"), space(), self._block_doc(node.orelse)]
+        )
 
     def visit_If(self, node: ast.If) -> Doc:
-        return self._fallback_stmt_doc(node)
+        return self._if_chain_doc(node, "if")
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Doc:
-        return self._fallback_stmt_doc(node)
+    def visit_While(self, node: ast.While) -> Doc:
+        doc = self._if_while_body("while", node)
+        if len(node.orelse) > 0:
+            doc = concat(
+                [doc, space(), text("else"), space(), self._block_doc(node.orelse)]
+            )
+        return doc
 
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> Doc:
-        return self._fallback_stmt_doc(node)
+    def visit_For(self, node: ast.For) -> Doc:
+        target = concat(
+            [
+                text("let" if is_let(node) else "var"),
+                space(),
+                self._visit_doc(node.target),
+            ]
+        )
+        if type_ann := get_type_annotation(node):
+            target = concat([target, text(":"), space(), self._visit_doc(type_ann)])
+        doc = concat(
+            [
+                text("for"),
+                space(),
+                text("("),
+                target,
+                space(),
+                text("in"),
+                space(),
+                self._visit_doc(node.iter),
+                text(")"),
+                space(),
+                self._block_doc(node.body),
+            ]
+        )
+        if len(node.orelse) > 0:
+            doc = concat(
+                [doc, space(), text("else"), space(), self._block_doc(node.orelse)]
+            )
+        return doc
+
+    def visit_AsyncFor(self, node: ast.AsyncFor) -> Doc:
+        for_doc = self.visit_For(cast(ast.For, node))
+        return concat([text("async"), space(), for_doc])
+
+    def _withitem_doc(self, node: ast.withitem) -> Doc:
+        context_expr_doc = self._visit_doc(node.context_expr)
+        if node.optional_vars:
+            decl = text("let") if is_let(node) else text("var")
+            target = self._visit_doc(node.optional_vars)
+            if type_ann := get_type_annotation(node):
+                target = concat([target, text(":"), space(), self._visit_doc(type_ann)])
+            return concat(
+                [decl, space(), target, space(), text("="), space(), context_expr_doc]
+            )
+        else:
+            return context_expr_doc
+
+    def visit_With(self, node: ast.With) -> Doc:
+        parts = [
+            text("with"),
+            space(),
+        ]
+        if not is_inline_with(node):
+            parts.append(text("("))
+        parts.append(
+            join(
+                concat([text(","), space()]),
+                [self._withitem_doc(i) for i in node.items],
+            )
+        )
+        if not is_inline_with(node):
+            parts.append(text(")"))
+        if is_inline_with(node):
+            parts.append(hardline())
+        else:
+            parts.extend([space(), self._block_doc(node.body)])
+        doc = concat(parts)
+        return doc
+
+    def visit_AsyncWith(self, node: ast.AsyncWith) -> Doc:
+        with_doc = self.visit_With(cast(ast.With, node))
+        return concat([text("async"), space(), with_doc])
+
+    def _except_handler_doc(self, node: ast.ExceptHandler) -> Doc:
+        if node.type is None:
+            head = text("except")
+        else:
+            head_parts: list[Doc] = [
+                text("except"),
+                space(),
+                text("("),
+                self._visit_doc(node.type),
+            ]
+            if node.name is not None:
+                head_parts.extend([space(), text("as"), space(), text(node.name)])
+            head_parts.append(text(")"))
+            head = concat(head_parts)
+        return concat([head, space(), self._block_doc(node.body)])
+
+    def visit_Try(self, node: ast.Try) -> Doc:
+        parts: list[Doc] = [text("try"), space(), self._block_doc(node.body)]
+        for handler in node.handlers:
+            parts.extend([space(), self._except_handler_doc(handler)])
+        if len(node.orelse) > 0:
+            parts.extend([space(), text("else"), space(), self._block_doc(node.orelse)])
+        if len(node.finalbody) > 0:
+            parts.extend(
+                [space(), text("finally"), space(), self._block_doc(node.finalbody)]
+            )
+        return concat(parts)
+
+    def _match_case_doc(self, node: ast.match_case) -> Doc:
+        head: list[Doc] = [
+            text("case"),
+            space(),
+            text("("),
+            self._visit_doc(node.pattern),
+            text(")"),
+        ]
+        if node.guard is not None:
+            head.extend(
+                [
+                    space(),
+                    text("if"),
+                    space(),
+                    text("("),
+                    self._visit_doc(node.guard),
+                    text(")"),
+                ]
+            )
+        return concat([concat(head), space(), self._block_doc(node.body)])
+
+    def visit_MatchValue(self, node: ast.MatchValue) -> Doc:
+        return self._visit_doc(node.value)
+
+    def visit_MatchSingleton(self, node: ast.MatchSingleton) -> Doc:
+        if node.value is None:
+            return text("None")
+        if node.value is True:
+            return text("True")
+        if node.value is False:
+            return text("False")
+        raise ValueError(f"Unsupported singleton in match pattern: {node.value!r}")
+
+    def visit_MatchSequence(self, node: ast.MatchSequence) -> Doc:
+        items = join(
+            concat([text(","), space()]), [self._visit_doc(p) for p in node.patterns]
+        )
+        if is_pattern_tuple(node):
+            if len(node.patterns) == 1:
+                items = concat([items, text(",")])
+            return concat([text("("), items, text(")")])
+        return concat([text("["), items, text("]")])
+
+    def visit_MatchMapping(self, node: ast.MatchMapping) -> Doc:
+        entries: list[Doc] = [
+            concat([self._visit_doc(key), text(":"), space(), self._visit_doc(pattern)])
+            for key, pattern in zip(node.keys, node.patterns)
+        ]
+        if node.rest is not None:
+            entries.append(concat([text("**"), text(node.rest)]))
+        return concat(
+            [
+                text("{"),
+                join(concat([text(","), space()]), entries),
+                text("}"),
+            ]
+        )
+
+    def visit_MatchStar(self, node: ast.MatchStar) -> Doc:
+        if node.name is None:
+            return text("*_")
+        star_target: Doc = text(node.name)
+        if type_ann := get_type_annotation(node):
+            star_target = concat(
+                [star_target, text(":"), space(), self._visit_doc(type_ann)]
+            )
+        return concat([text("*"), star_target])
+
+    def visit_MatchAs(self, node: ast.MatchAs) -> Doc:
+        if node.pattern is None and node.name is None:
+            return text("_")
+        if node.pattern is None:
+            assert node.name is not None
+            capture: Doc = text(node.name)
+            if type_ann := get_type_annotation(node):
+                capture = concat(
+                    [capture, text(":"), space(), self._visit_doc(type_ann)]
+                )
+            return capture
+        if node.name is None:
+            return self._visit_doc(node.pattern)
+        capture = text(node.name)
+        if type_ann := get_type_annotation(node):
+            capture = concat([capture, text(":"), space(), self._visit_doc(type_ann)])
+        return concat(
+            [self._visit_doc(node.pattern), space(), text("as"), space(), capture]
+        )
+
+    def visit_MatchOr(self, node: ast.MatchOr) -> Doc:
+        return join(
+            concat([space(), text("|"), space()]),
+            [self._visit_doc(p) for p in node.patterns],
+        )
+
+    def _attribute_pattern_doc(self, node: ast.MatchClass) -> Doc:
+        # { .attr1, .attr2=pattern, ... }
+        entries: list[Doc] = []
+        for attr, pattern in zip(node.kwd_attrs, node.kwd_patterns):
+            default_name_capture = (
+                isinstance(pattern, ast.MatchAs)
+                and pattern.pattern is None
+                and pattern.name == attr
+                and get_type_annotation(pattern) is None
+            )
+            if default_name_capture:
+                # The case { .attr }.
+                entries.append(concat([text("."), text(attr)]))
+            else:
+                # The case { .attr = pattern }.
+                entries.append(
+                    concat(
+                        [
+                            text("."),
+                            text(attr),
+                            space(),
+                            text("="),
+                            space(),
+                            self._visit_doc(pattern),
+                        ]
+                    )
+                )
+        return concat(
+            [
+                text("{"),
+                join(concat([text(","), space()]), entries),
+                text("}"),
+            ]
+        )
+
+    def visit_MatchClass(self, node: ast.MatchClass) -> Doc:
+        if isinstance(node.cls, ast.Name) and is_attributes_pattern(node.cls):
+            return self._attribute_pattern_doc(node)
+        args: list[Doc] = [self._visit_doc(pattern) for pattern in node.patterns]
+        args.extend(
+            [
+                concat(
+                    [text(attr), space(), text("="), space(), self._visit_doc(pattern)]
+                )
+                for attr, pattern in zip(node.kwd_attrs, node.kwd_patterns)
+            ]
+        )
+        return concat(
+            [
+                self._visit_doc(node.cls),
+                text("("),
+                join(concat([text(","), space()]), args),
+                text(")"),
+            ]
+        )
+
+    def visit_Match(self, node: ast.Match) -> Doc:
+        return concat(
+            [
+                text("match"),
+                space(),
+                text("("),
+                self._visit_doc(node.subject),
+                text(")"),
+                space(),
+                text("{"),
+                hardline(),
+                join(hardline(), [self._match_case_doc(c) for c in node.cases]),
+                hardline(),
+                text("}"),
+            ]
+        )
+
+    def _visit_Decorators(self, decos: list[ast.expr]) -> list[Doc]:
+        return [concat([text("@"), self._visit_doc(d), hardline()]) for d in decos]
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Doc:
-        return self._fallback_stmt_doc(node)
+        deco_docs = self._visit_Decorators(node.decorator_list)
+        args: list[Doc] = [self._visit_doc(base) for base in node.bases]
+        args.extend(
+            [
+                concat([text(k.arg), text("="), self._visit_doc(k.value)])
+                if k.arg is not None
+                else concat([text("**"), self._visit_doc(k.value)])
+                for k in node.keywords
+            ]
+        )
+        class_head = [text("class"), space(), text(node.name)]
+        if len(args) > 0:
+            class_head.extend(
+                [
+                    text("("),
+                    join(concat([text(","), space()]), args),
+                    text(")"),
+                ]
+            )
+        class_head.extend([space(), self._block_doc(node.body)])
+        return concat(deco_docs + [concat(class_head)])
+
+    def _visit_FcuntionDef_AsyncFunctionDef(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ) -> Doc:
+        deco_docs = self._visit_Decorators(node.decorator_list)
+        head_parts: list[Doc] = []
+        if is_static(node):
+            head_parts.extend([text("static"), space()])
+        if isinstance(node, ast.AsyncFunctionDef):
+            head_parts.extend([text("async"), space()])
+        head_parts.extend(
+            [
+                text("def"),
+                space(),
+                text(node.name),
+                text("("),
+                self._arguments_doc(node.args),
+                text(")"),
+            ]
+        )
+        if node.returns is not None:
+            head_parts.extend(
+                [space(), text("->"), space(), self._visit_doc(node.returns)]
+            )
+        head_parts.extend([space(), self._block_doc(node.body)])
+        return concat(deco_docs + [concat(head_parts)])
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Doc:
+        return self._visit_FcuntionDef_AsyncFunctionDef(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> Doc:
+        return self._visit_FcuntionDef_AsyncFunctionDef(node)
+
+    def visit_FunctionType(self, node: FunctionType) -> Doc:
+        arguments_doc: list[Doc] = []
+        for arg in get_args_of_function_type(node):
+            arguments_doc.append(self._arg_doc(arg))
+        if star_arg := get_star_arg_of_function_type(node):
+            arguments_doc.append(concat([text("*"), self._arg_doc(star_arg)]))
+        if star_kwds := get_star_kwds_of_function_type(node):
+            arguments_doc.append(concat([text("**"), self._arg_doc(star_kwds)]))
+        return_type = get_return_of_function_type(node)
+        return concat(
+            [
+                text("("),
+                join(concat([text(","), space()]), arguments_doc),
+                text(")"),
+                space(),
+                text("->"),
+                space(),
+                self._visit_doc(return_type)
+                if return_type is not None
+                else text("None"),
+            ]
+        )
+
+    def visit_FunctionLiteral(self, node: FunctionLiteral) -> Doc:
+        func_def = get_function_literal_def(node)
+        assert func_def is not None, (
+            "FunctionLiteral must have a corresponding FunctionDef"
+        )
+        head_parts: list[Doc] = []
+        head_parts.extend(
+            [
+                text("("),
+                self._arguments_doc(func_def.args),
+                text(")"),
+                space(),
+            ]
+        )
+        if func_def.returns is not None:
+            head_parts.extend(
+                [
+                    text("->"),
+                    space(),
+                    self._visit_doc(func_def.returns),
+                    space(),
+                ]
+            )
+        head_parts.extend(
+            [
+                text("=>"),
+                space(),
+            ]
+        )
+        if len(func_def.body) == 1:
+            if stmt := func_def.body[0]:
+                if isinstance(stmt, ast.Return) and stmt.value is not None:
+                    # Special case for single return value.
+                    return concat(head_parts + [self._visit_doc(stmt.value)])
+        return concat(head_parts + [self._block_doc(func_def.body)])
+
+    def visit_ControlComprehension(self, node: ast.Name) -> Doc:
+        if func_def := get_control_comprehension_def(node):
+            return self._comprehension_printer._visit_doc(func_def.body[0])
+        raise ValueError(f"Unsupported control comprehension: {node.id}")
+
+
+class _PrintComprehensionToDocVisitor(_PrintToDocVisitor):
+    def __init__(self, module: ast.Module, parent: _PrintToDocVisitor):
+        super().__init__(module, comprehension_printer=self)
+        self._parent = parent
+
+    @override
+    def _block_doc(self, body: list[ast.stmt]) -> Doc:
+        # 'Block' must be single expression or yield.
+        assert len(body) == 1
+        stmt = body[0]
+        # Falling back to parent for contents of the block.
+        if isinstance(stmt, ast.Expr):
+            return self._parent._visit_doc(stmt.value)
+        elif isinstance(stmt, ast.Yield) and stmt.value is not None:
+            return self._parent._visit_doc(stmt.value)
+        return self._parent._visit_doc(stmt)
 
 
 def print_to_doc(node: ast.AST) -> Doc:

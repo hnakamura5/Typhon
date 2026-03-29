@@ -912,6 +912,7 @@ _IS_LET_ELSE = "_typh_is_let_else"
 class LetPatternInfo:
     body: list[ast.stmt]
     is_all_pattern_irrefutable: bool
+    is_let: bool
 
 
 def get_let_pattern_body(node: ast.While | ast.If) -> LetPatternInfo | None:
@@ -1097,7 +1098,7 @@ def _make_if_let_multiple(
         }
     --> (temporary represented now)
 
-        if True: # multiple_let_pattern_body set
+        if True: # let_pattern_body set
             match <subject1>:
                 case <pattern1>:
                     match <subject2>:
@@ -1148,6 +1149,7 @@ def _make_if_let_multiple(
         LetPatternInfo(
             body=body,
             is_all_pattern_irrefutable=is_all_pattern_irrefutable,
+            is_let=decl_type == "let",
         ),
     )
     return result
@@ -1183,7 +1185,7 @@ def _make_while_let(
 
     --> (temporary represented now)
 
-        while True: # multiple_let_pattern_body set to <body>
+        while True: # let_pattern_body set to <body>
             match <subject1>:
                 case <pattern1>:
                     match <subject2>:
@@ -1218,6 +1220,7 @@ def _make_while_let(
             is_all_pattern_irrefutable=all(
                 is_pattern_irrefutable(pat) for pat, _ in pattern_subjects
             ),
+            is_let=True,
         ),
     )
     return result
@@ -2131,7 +2134,6 @@ def make_let_comp(
 
 
 IS_OPTIONAL = "_typh_is_optional"
-IS_OPTIONAL_PIPE = "_typh_is_optional_pipe"
 
 
 def maybe_optional(node: ast.expr, operator_string: str) -> ast.expr:
@@ -2152,6 +2154,26 @@ def is_optional(node: ast.expr) -> bool:
 def clear_is_optional(node: ast.expr) -> None:
     if hasattr(node, IS_OPTIONAL):
         delattr(node, IS_OPTIONAL)
+
+
+IS_PIPE = "_typh_is_pipe"
+
+
+def set_is_pipe(node: ast.expr, is_pipe: bool = True) -> ast.expr:
+    setattr(node, IS_PIPE, is_pipe)
+    return node
+
+
+def is_pipe(node: ast.expr) -> bool:
+    return getattr(node, IS_PIPE, False)
+
+
+def clear_is_pipe(node: ast.expr) -> None:
+    if hasattr(node, IS_PIPE):
+        delattr(node, IS_PIPE)
+
+
+IS_OPTIONAL_PIPE = "_typh_is_optional_pipe"
 
 
 def set_is_optional_pipe(node: ast.expr, is_optional: bool = True) -> ast.expr:
@@ -2225,6 +2247,8 @@ def make_pipe_call(
         )
         if is_optional:
             set_is_optional_pipe(result, True)
+        else:
+            set_is_pipe(result, True)
     return result
 
 

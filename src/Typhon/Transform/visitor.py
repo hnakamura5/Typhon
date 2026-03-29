@@ -222,10 +222,11 @@ class _TyphonExtendedNodeTransformerMixin:
         transform: bool,
     ):
         func_def = get_control_comprehension_def(node)
-        if func_def is not None:
-            new_def = visitor.visit(func_def)
-            if transform and isinstance(new_def, ast.FunctionDef):
-                set_control_comprehension_def(node, new_def)
+        if func_def is None:
+            return node
+        new_def = visitor.visit(func_def)
+        if transform and isinstance(new_def, ast.FunctionDef):
+            set_control_comprehension_def(node, new_def)
         return node
 
     def _visit_Possibly_Annotated_Node(
@@ -298,18 +299,18 @@ class TyphonASTRawVisitor(
     ast.NodeVisitor,
     _TyphonExtendedNodeTransformerMixin,
 ):
-    def visit_PossiblyAnnotatedNode(self, node: ast.AST):
+    def visit_PossiblyAnnotatedNode(self, node: ast.AST) -> Any:
         self._visit_Possibly_Annotated_Node(node, self, False)
 
     def run(self, module: ast.Module):
         self.visit(module)
 
     @override
-    def visit(self, node: ast.AST):
+    def visit(self, node: ast.AST) -> Any:
         return self._visit(node, self, super().visit)
 
     @override
-    def generic_visit(self, node: ast.AST):
+    def generic_visit(self, node: ast.AST) -> Any:
         # visit() calls _visit() but generic_visit() does not. So we need to dispatch here too.
         return _TyphonExtendedNodeTransformerMixin._generic_visit(
             self, node, self, super().generic_visit

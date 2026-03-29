@@ -686,7 +686,6 @@ inline_with_stmt[List[ast.stmt]]:
 
 with_item[List[ast.withitem]]:
     | a=declaration_assignment { list(map(declaration_as_withitem, a)) }
-  #  | invalid_with_item
     | exprs=','.expression+ [','] {
         list(map(lambda e: ast.withitem(context_expr=e, optional_vars=None), exprs))
      }
