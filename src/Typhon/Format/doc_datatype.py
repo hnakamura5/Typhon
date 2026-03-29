@@ -9,6 +9,7 @@ import enum
 class LineMode(enum.Enum):
     # Typhon-specific: Prettier models line/softline/hardline/literalline as
     # separate constants. We unify them into one node + mode.
+    LINE = enum.auto()
     SOFT = enum.auto()
     HARD = enum.auto()
     LITERAL = enum.auto()
@@ -125,6 +126,7 @@ type Doc = (
 
 
 NIL = Nil()
+LINE = Line(LineMode.LINE)
 SOFTLINE = Line(LineMode.SOFT)
 HARDLINE = Line(LineMode.HARD)
 LITERALLINE = Line(LineMode.LITERAL)
@@ -144,14 +146,17 @@ def space(n: int = 1) -> Doc:
     return text(" " * n)
 
 
+# Line break or space.
 def line() -> Doc:
-    return SOFTLINE
+    return LINE
 
 
+# Line break or nothing.
 def softline() -> Doc:
     return SOFTLINE
 
 
+# Force line break.
 def hardline() -> Doc:
     return HARDLINE
 
@@ -178,11 +183,13 @@ def concat(parts: list[Doc]) -> Doc:
 
 
 def group(
-    content: Doc,
+    content: Doc | list[Doc],
     should_break: bool = False,
     id: str | None = None,
     expanded_states: list[Doc] | None = None,
 ) -> Doc:
+    if isinstance(content, list):
+        content = concat(content)
     return Group(
         content=content,
         should_break=should_break,

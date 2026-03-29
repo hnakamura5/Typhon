@@ -19,6 +19,7 @@ from Typhon.Grammar.typhon_ast import (
     get_type_annotation,
     get_wrapper_paren_tokens,
     is_attributes_pattern,
+    is_elseless_if_exp,
     is_inline_with,
     is_let,
     is_let_assign,
@@ -27,14 +28,53 @@ from Typhon.Grammar.typhon_ast import (
     is_pattern_tuple,
     is_pipe,
     is_static,
-    is_var,
     is_var_assign,
 )
 from Typhon.Grammar.unparse_custom import CustomUnparseHelper
 from Typhon.Transform.visitor import TyphonASTRawVisitor
 from ..Driver.debugging import debug_verbose_print
 
-from .doc_datatype import Doc, NIL, concat, group, hardline, join, space, text
+from .doc_datatype import (
+    Doc,
+    NIL,
+    concat,
+    group,
+    line,
+    softline,
+    hardline,
+    indent,
+    join,
+    space,
+    text,
+)
+
+
+def comma() -> Doc:
+    return concat([text(","), line()])
+
+
+def paren(content: Doc | list[Doc]) -> Doc:
+    if isinstance(content, list):
+        content = concat(content)
+    return group(
+        concat([text("("), softline(), indent(content), softline(), text(")")])
+    )
+
+
+def bracket(content: Doc | list[Doc]) -> Doc:
+    if isinstance(content, list):
+        content = concat(content)
+    return group(
+        concat([text("["), softline(), indent(content), softline(), text("]")])
+    )
+
+
+def brace(content: Doc | list[Doc]) -> Doc:
+    if isinstance(content, list):
+        content = concat(content)
+    return group(
+        concat([text("{"), softline(), indent(content), softline(), text("}")])
+    )
 
 
 class _PrintToDocVisitor(TyphonASTRawVisitor):
@@ -94,11 +134,17 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             return concat([text("{"), space(), text("}")])
         if len(body) == 1 and isinstance(body[0], ast.Pass):
             return concat([text("{"), space(), text("pass"), space(), text("}")])
-        return concat(
+        return group(
             [
                 text("{"),
-                hardline(),
-                join(hardline(), [self._visit_doc(stmt) for stmt in body]),
+                indent(
+                    concat(
+                        [
+                            hardline(),
+                            join(hardline(), [self._visit_doc(stmt) for stmt in body]),
+                        ]
+                    )
+                ),
                 hardline(),
                 text("}"),
             ]
@@ -168,6 +214,28 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         )
         return self._maybe_wrap_group_paren(node, doc)
 
+    def visit_IfExp(self, node: ast.IfExp) -> Doc:
+        parts: list[Doc] = [
+            text("("),  # No space here
+            text("if"),
+            space(),
+            paren(self._visit_doc(node.test)),
+            space(),
+            self._visit_doc(node.body),
+        ]
+        if not is_elseless_if_exp(node):
+            parts.extend(
+                [
+                    space(),
+                    text("else"),
+                    space(),
+                    self._visit_doc(node.orelse),
+                ]
+            )
+        parts.append(text(")"))
+        doc = group(concat(parts))
+        return self._maybe_wrap_group_paren(node, doc)
+
     def visit_UnaryOp(self, node: ast.UnaryOp) -> Doc:
         op = self._get_unaryop_symbol(node.op)
         doc = concat([text(op), self._visit_doc(node.operand)])
@@ -200,11 +268,11 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             for kw in node.keywords
         ]
         all_args = args_docs + kw_docs
-        doc = concat(
+        doc = group(
             [
                 self._visit_doc(node.func),
                 text("?(" if is_optional(node) else "("),
-                join(concat([text(","), space()]), all_args),
+                join(comma(), all_args),
                 text(")"),
             ]
         )
@@ -221,7 +289,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return self._maybe_wrap_group_paren(node, doc)
 
     def visit_Subscript(self, node: ast.Subscript) -> Doc:
-        doc = concat(
+        doc = group(
             [
                 self._visit_doc(node.value),
                 text("?[" if is_optional(node) else "["),
@@ -232,27 +300,22 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return self._maybe_wrap_group_paren(node, doc)
 
     def visit_List(self, node: ast.List) -> Doc:
-        doc = concat(
+        doc = bracket(
             [
-                text("["),
                 join(
-                    concat([text(","), space()]),
+                    comma(),
                     [self._visit_doc(e) for e in node.elts],
                 ),
-                text("]"),
             ]
         )
         return self._maybe_wrap_group_paren(node, doc)
 
     def visit_Tuple(self, node: ast.Tuple) -> Doc:
         if len(node.elts) == 1:
-            inner = concat([self._visit_doc(node.elts[0]), text(",")])
+            inner = concat([self._visit_doc(node.elts[0]), comma()])
         else:
-            inner = join(
-                concat([text(","), space()]), [self._visit_doc(e) for e in node.elts]
-            )
-        doc = concat([text("("), inner, text(")")])
-        return self._maybe_wrap_group_paren(node, doc)
+            inner = join(comma(), [self._visit_doc(e) for e in node.elts])
+        return self._maybe_wrap_group_paren(node, paren(inner))
 
     def _comprehension_list_doc(self, generators: list[ast.comprehension]) -> Doc:
         return join(space(), [self._visit_doc(gen) for gen in generators])
@@ -275,8 +338,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             [
                 text("for"),
                 space(),
-                text("("),
-                target,
+                paren(target),
                 space(),
                 text("in"),
                 space(),
@@ -291,9 +353,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     space(),
                     text("if"),
                     space(),
-                    text("("),
-                    self._visit_doc(cond),
-                    text(")"),
+                    paren(self._visit_doc(cond)),
                 ]
             )
         return concat(parts)
@@ -301,7 +361,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     def _comp_doc(
         self, node: ast.ListComp | ast.SetComp | ast.GeneratorExp, open: str, close: str
     ) -> Doc:
-        return concat(
+        return group(
             [
                 text(open),
                 self._comprehension_list_doc(node.generators),
@@ -323,16 +383,15 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return self._comp_doc(node, "(", ")")
 
     def visit_DictComp(self, node: ast.DictComp) -> Doc:
-        return concat(
+        return group(
             [
-                text("{"),
+                text("{"),  # No space here
                 self._comprehension_list_doc(node.generators),
                 space(),
                 text("yield"),
                 space(),
                 self._visit_doc(node.key),
                 text(":"),
-                space(),
                 self._visit_doc(node.value),
                 text("}"),
             ]
@@ -341,21 +400,26 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     def visit_Assign(self, node: ast.Assign) -> Doc:
         decl_prefix = ""
         if is_var_assign(node):
-            decl_prefix = "var "
+            decl_prefix = "var"
         elif is_let_assign(node):
-            decl_prefix = "let "
+            decl_prefix = "let"
 
-        targets_doc = join(
-            concat([text(","), space()]), [self._visit_doc(t) for t in node.targets]
-        )
+        targets_doc = join(comma(), [self._visit_doc(t) for t in node.targets])
         return concat(
             [
                 text(decl_prefix),
+                space(),
                 targets_doc,
                 space(),
                 text("="),
-                space(),
-                self._visit_doc(node.value),
+                group(
+                    [
+                        line(),
+                        indent(
+                            self._visit_doc(node.value),
+                        ),
+                    ]
+                ),
             ]
         )
 
@@ -378,7 +442,14 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         )
         if node.value is None:
             return base
-        return concat([base, space(), text("="), space(), self._visit_doc(node.value)])
+        return concat(
+            [
+                base,
+                space(),
+                text("="),
+                indent(group([line(), self._visit_doc(node.value)])),
+            ]
+        )
 
     def visit_AugAssign(self, node: ast.AugAssign) -> Doc:
         op = self._get_binop_symbol(node.op)
@@ -388,8 +459,14 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 space(),
                 text(op),
                 text("="),
-                space(),
-                self._visit_doc(node.value),
+                indent(
+                    group(
+                        [
+                            line(),
+                            self._visit_doc(node.value),
+                        ]
+                    )
+                ),
             ]
         )
 
@@ -420,7 +497,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     def visit_Assert(self, node: ast.Assert) -> Doc:
         result = concat([text("assert"), space(), self._visit_doc(node.test)])
         if node.msg is not None:
-            result = concat([result, text(","), space(), self._visit_doc(node.msg)])
+            result = concat([result, comma(), self._visit_doc(node.msg)])
         return result
 
     def _let_patterns_match_doc(
@@ -457,20 +534,21 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             self._visit_doc(pattern),
             space(),
             text("="),
-            space(),
-            self._visit_doc(match_stmt.subject),
+            line(),
+            indent(
+                self._visit_doc(match_stmt.subject),
+            ),
         ]
         cond = case.guard
         case_body = case.body
         if case_body is innermost_body:
             # Base case: pattern matches directly to the body.
             if cond is not None:
-                parts.extend([text(";"), space(), self._visit_doc(cond)])
+                parts.extend([text(";"), line(), self._visit_doc(cond)])
             return parts
         else:
             assert cond is None, "Only innermost pattern can have condition"
-            parts.append(text(","))
-            parts.append(space())
+            parts.append(comma())
             parts.extend(self._let_patterns_match_doc(case_body, innermost_body))
             return parts
 
@@ -488,9 +566,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             [
                 text(keyword),
                 space(),
-                text("("),
-                cond_doc,
-                text(")"),
+                paren(cond_doc),
                 space(),
                 self._block_doc(body),
             ]
@@ -533,13 +609,15 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             [
                 text("for"),
                 space(),
-                text("("),
-                target,
-                space(),
-                text("in"),
-                space(),
-                self._visit_doc(node.iter),
-                text(")"),
+                paren(
+                    [
+                        target,
+                        space(),
+                        text("in"),
+                        space(),
+                        self._visit_doc(node.iter),
+                    ]
+                ),
                 space(),
                 self._block_doc(node.body),
             ]
@@ -562,7 +640,15 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             if type_ann := get_type_annotation(node):
                 target = concat([target, text(":"), space(), self._visit_doc(type_ann)])
             return concat(
-                [decl, space(), target, space(), text("="), space(), context_expr_doc]
+                [
+                    decl,
+                    space(),
+                    target,
+                    space(),
+                    text("="),
+                    line(),
+                    indent(context_expr_doc),
+                ]
             )
         else:
             return context_expr_doc
@@ -572,19 +658,15 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             text("with"),
             space(),
         ]
-        if not is_inline_with(node):
-            parts.append(text("("))
-        parts.append(
-            join(
-                concat([text(","), space()]),
-                [self._withitem_doc(i) for i in node.items],
-            )
+        items = join(
+            comma(),
+            [self._withitem_doc(i) for i in node.items],
         )
-        if not is_inline_with(node):
-            parts.append(text(")"))
         if is_inline_with(node):
+            parts.append(items)
             parts.append(hardline())
         else:
+            parts.append(paren(items))
             parts.extend([space(), self._block_doc(node.body)])
         doc = concat(parts)
         return doc
@@ -600,12 +682,18 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             head_parts: list[Doc] = [
                 text("except"),
                 space(),
-                text("("),
-                self._visit_doc(node.type),
             ]
             if node.name is not None:
-                head_parts.extend([space(), text("as"), space(), text(node.name)])
-            head_parts.append(text(")"))
+                as_parts = [
+                    self._visit_doc(node.type),
+                    space(),
+                    text("as"),
+                    space(),
+                    text(node.name),
+                ]
+                head_parts.append(paren(as_parts))
+            else:
+                head_parts.append(paren(self._visit_doc(node.type)))
             head = concat(head_parts)
         return concat([head, space(), self._block_doc(node.body)])
 
@@ -634,14 +722,12 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         raise ValueError(f"Unsupported singleton in match pattern: {node.value!r}")
 
     def visit_MatchSequence(self, node: ast.MatchSequence) -> Doc:
-        items = join(
-            concat([text(","), space()]), [self._visit_doc(p) for p in node.patterns]
-        )
+        items = join(comma(), [self._visit_doc(p) for p in node.patterns])
         if is_pattern_tuple(node):
             if len(node.patterns) == 1:
-                items = concat([items, text(",")])
-            return concat([text("("), items, text(")")])
-        return concat([text("["), items, text("]")])
+                items = concat([items, comma()])
+            return paren(items)
+        return bracket(items)
 
     def visit_MatchMapping(self, node: ast.MatchMapping) -> Doc:
         entries: list[Doc] = [
@@ -650,13 +736,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         ]
         if node.rest is not None:
             entries.append(concat([text("**"), text(node.rest)]))
-        return concat(
-            [
-                text("{"),
-                join(concat([text(","), space()]), entries),
-                text("}"),
-            ]
-        )
+        return brace(join(comma(), entries))
 
     def visit_MatchStar(self, node: ast.MatchStar) -> Doc:
         if node.name is None:
@@ -724,7 +804,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return concat(
             [
                 text("{"),
-                join(concat([text(","), space()]), entries),
+                join(comma(), entries),
                 text("}"),
             ]
         )
@@ -744,9 +824,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return concat(
             [
                 self._visit_doc(node.cls),
-                text("("),
-                join(concat([text(","), space()]), args),
-                text(")"),
+                paren(join(comma(), args)),
             ]
         )
 
@@ -754,9 +832,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         head: list[Doc] = [
             text("case"),
             space(),
-            text("("),
-            self._visit_doc(node.pattern),
-            text(")"),
+            paren(self._visit_doc(node.pattern)),
         ]
         if node.guard is not None:
             head.extend(
@@ -764,9 +840,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     space(),
                     text("if"),
                     space(),
-                    text("("),
-                    self._visit_doc(node.guard),
-                    text(")"),
+                    paren(self._visit_doc(node.guard)),
                 ]
             )
         return concat([concat(head), space(), self._block_doc(node.body)])
@@ -776,13 +850,20 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             [
                 text("match"),
                 space(),
-                text("("),
-                self._visit_doc(node.subject),
-                text(")"),
+                paren(self._visit_doc(node.subject)),
                 space(),
                 text("{"),
-                hardline(),
-                join(hardline(), [self._match_case_doc(c) for c in node.cases]),
+                indent(
+                    concat(
+                        [
+                            hardline(),
+                            join(
+                                hardline(),
+                                [self._match_case_doc(c) for c in node.cases],
+                            ),
+                        ]
+                    )
+                ),
                 hardline(),
                 text("}"),
             ]
@@ -806,9 +887,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         if len(args) > 0:
             class_head.extend(
                 [
-                    text("("),
-                    join(concat([text(","), space()]), args),
-                    text(")"),
+                    paren(join(comma(), args)),
                 ]
             )
         class_head.extend([space(), self._block_doc(node.body)])
@@ -861,7 +940,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         if args.kwarg is not None:
             params.append(concat([text("**"), self._typed_name_doc(args.kwarg)]))
 
-        return join(concat([text(","), space()]), params)
+        return group(join(comma(), params))
 
     def _visit_FcuntionDef_AsyncFunctionDef(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef
@@ -877,9 +956,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 text("def"),
                 space(),
                 text(node.name),
-                text("("),
-                self._arguments_doc(node.args),
-                text(")"),
+                paren(self._arguments_doc(node.args)),
             ]
         )
         if node.returns is not None:
@@ -901,7 +978,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             raise ValueError("RecordLiteral node has no field metadata")
         if len(fields) == 0:
             return self._maybe_wrap_group_paren(
-                node, concat([text("{|"), space(), text("|}")])
+                node, group([text("{|"), space(), text("|}")])
             )
         field_docs: list[Doc] = []
         for name, annotation, value in fields:
@@ -913,10 +990,12 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
 
         return self._maybe_wrap_group_paren(
             node,
-            concat(
+            group(
                 [
                     text("{|"),
-                    join(concat([text(","), space()]), field_docs),
+                    softline(),
+                    join(comma(), field_docs),
+                    softline(),
                     text("|}"),
                 ]
             ),
@@ -939,7 +1018,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             concat(
                 [
                     text("{|"),
-                    join(concat([text(","), space()]), field_docs),
+                    join(comma(), field_docs),
                     text("|}"),
                 ]
             ),
@@ -962,9 +1041,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return_type = get_return_of_function_type(node)
         return concat(
             [
-                text("("),
-                join(concat([text(","), space()]), arguments_doc),
-                text(")"),
+                paren(join(comma(), arguments_doc)),
                 space(),
                 text("->"),
                 space(),
@@ -982,9 +1059,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         head_parts: list[Doc] = []
         head_parts.extend(
             [
-                text("("),
-                self._arguments_doc(func_def.args),
-                text(")"),
+                paren(self._arguments_doc(func_def.args)),
                 space(),
             ]
         )
@@ -1014,7 +1089,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         if func_def := get_control_comprehension_def(node):
             return concat(
                 [
-                    text("("),
+                    text("("),  # No space here
                     self._comprehension_printer._visit_doc(func_def.body[0]),
                     text(")"),
                 ]

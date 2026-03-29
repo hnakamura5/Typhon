@@ -30,6 +30,8 @@ def _render_doc(doc: Doc) -> str:
         return doc.value
     if isinstance(doc, Line):
         if doc.mode == LineMode.SOFT:
+            return ""
+        if doc.mode == LineMode.LINE:
             return " "
         return "\n"
     if isinstance(doc, Concat):

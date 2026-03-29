@@ -2392,15 +2392,36 @@ def make_attributes_pattern(
     return result
 
 
+_ELSELESS_IF_EXP = "_typh_is_elseless_if_exp"
+
+
+def set_elseless_if_exp(node: ast.IfExp, is_elseless: bool = True) -> ast.IfExp:
+    setattr(node, _ELSELESS_IF_EXP, is_elseless)
+    return node
+
+
+def is_elseless_if_exp(node: ast.IfExp) -> bool:
+    return getattr(node, _ELSELESS_IF_EXP, False)
+
+
+def clear_elseless_if_exp(node: ast.IfExp) -> None:
+    if hasattr(node, _ELSELESS_IF_EXP):
+        delattr(node, _ELSELESS_IF_EXP)
+
+
 def if_comp_exp(
     test: ast.expr,
     body: ast.expr,
     orelse: ast.expr | None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.IfExp:
+    else_less = False
     if orelse is None:
+        else_less = True
         orelse = ast.Constant(value=None, **get_pos_attributes(test))
-    return ast.IfExp(test=test, body=body, orelse=orelse, **kwargs)
+    return set_elseless_if_exp(
+        ast.IfExp(test=test, body=body, orelse=orelse, **kwargs), else_less
+    )
 
 
 def get_postfix_operator_temp_name(symbol: str) -> str:
