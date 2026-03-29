@@ -1,22 +1,14 @@
 import ast
 from dataclasses import dataclass
-from typing import Protocol, Iterable, Final
 from ..Grammar.position import (
     get_pos_attributes,
     pos_attribute_to_range,
     get_empty_pos_attributes,
-    PosAttributes,
 )
 from ..Grammar.typhon_ast import (
-    RecordLiteral,
     copy_is_let_var,
     get_match_class_keyword_names,
-    get_record_literal_fields,
-    get_record_type_fields,
     set_is_internal_name,
-    set_is_var,
-    is_record_literal,
-    is_record_type,
     is_attributes_pattern,
     is_pattern_tuple,
 )
@@ -118,7 +110,6 @@ class _Transform(TyphonASTTransformer):
     def visit_Name(self, node: ast.Name):
         if node in self.class_for_record_pattern:
             class_def = self.class_for_record_pattern[node]
-            info = self.info_for_record_pattern[node]
             return set_is_internal_name(
                 ast.Name(id=class_def.name, ctx=ast.Load(), **get_pos_attributes(node))
             )

@@ -7,6 +7,8 @@ from ..Grammar.typhon_ast import (
     is_function_literal,
     is_function_type,
     get_function_literal_def,
+    is_record_literal,
+    is_record_type,
     set_function_literal_def,
     FunctionLiteral,
     FunctionType,
@@ -243,6 +245,22 @@ class _TyphonExtendedNodeTransformerMixin:
                     set_type_annotation(node, new_annotation)
         return node
 
+    def _visit_RecordLiteral(
+        self,
+        node: ast.Name,
+        visitor: ast.NodeVisitor | ast.NodeTransformer,
+        transform: bool,
+    ):
+        return node
+
+    def _visit_RecordType(
+        self,
+        node: ast.Name,
+        visitor: ast.NodeVisitor | ast.NodeTransformer,
+        transform: bool,
+    ):
+        return node
+
     def _visit(
         self,
         node: ast.AST,
@@ -261,8 +279,15 @@ class _TyphonExtendedNodeTransformerMixin:
                     visitor, "visit_ControlComprehension", visitor.generic_visit
                 )
                 return visit(node)
+            elif is_record_literal(node):
+                visit = getattr(visitor, "visit_RecordLiteral", visitor.generic_visit)
+                return visit(node)
+            elif is_record_type(node):
+                visit = getattr(visitor, "visit_RecordType", visitor.generic_visit)
+                return visit(node)
         return otherwise(node)
 
+    # Default implementation for extended nodes.
     def _generic_visit(
         self,
         node: ast.AST,
@@ -276,6 +301,10 @@ class _TyphonExtendedNodeTransformerMixin:
                 return self._visit_FunctionType(node, visitor, False)
             elif is_control_comprehension(node):
                 return self._visit_ControlComprehension(node, visitor, False)
+            elif is_record_literal(node):
+                return self._visit_RecordLiteral(node, visitor, False)
+            elif is_record_type(node):
+                return self._visit_RecordType(node, visitor, False)
         return otherwise(node)
 
 

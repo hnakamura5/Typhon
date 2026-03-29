@@ -8,6 +8,7 @@ from ..Grammar.position import (
 )
 from ..Grammar.typhon_ast import (
     RecordLiteral,
+    RecordType,
     add_generated_name_original,
     get_record_literal_fields,
     get_record_type_fields,
@@ -23,6 +24,7 @@ from ..Grammar.pretty_printer import (
     make_record_type_demangle_template,
     set_record_literal_typevar_fields,
 )
+from ..Driver.debugging import debug_verbose_print
 from .visitor import TyphonASTVisitor, TyphonASTTransformer, flat_append
 from ._utils.imports import (
     get_insert_point_for_class,
@@ -76,7 +78,7 @@ class _GatherRecords(TyphonASTVisitor):
         self.records = []
         self.record_types = []
 
-    def _visit_RecordLiteral(self, node: RecordLiteral):
+    def visit_RecordLiteral(self, node: RecordLiteral):
         fields = get_record_literal_fields(node)
         if not fields:
             return
@@ -117,7 +119,7 @@ class _GatherRecords(TyphonASTVisitor):
             ),
         )
 
-    def _visit_RecordType(self, node: RecordLiteral):
+    def visit_RecordType(self, node: RecordLiteral):
         type_fields = get_record_type_fields(node)
         if not type_fields:
             return
@@ -157,10 +159,10 @@ class _GatherRecords(TyphonASTVisitor):
         )
 
     def visit_Name(self, node: RecordLiteral):
-        if is_record_literal(node):
-            self._visit_RecordLiteral(node)
-        elif is_record_type(node):
-            self._visit_RecordType(node)
+        # if is_record_literal(node):
+        #     self._visit_RecordLiteral(node)
+        # elif is_record_type(node):
+        #     self._visit_RecordType(node)
         return self.generic_visit(node)
 
 
@@ -228,60 +230,61 @@ class _Transform(TyphonASTTransformer):
         self.class_for_record_type = class_for_record_type
         self.info_for_record_type = info_for_record_type
 
-    def visit_Name(self, node: ast.Name):
-        if node in self.class_for_record:
-            class_def = self.class_for_record[node]
-            pos = get_pos_attributes(node)
-            keywords: list[ast.keyword] = []
-            type_var_fields: list[ast.Name] = []
-            for field in self.info_for_record[node].fields:
-                keywords.append(
-                    ast.keyword(
-                        arg=field.name.id,
-                        value=ast.Name(
-                            id=field.name.id,
-                            ctx=ast.Load(),
-                            **get_pos_attributes(field.name),
-                        ),
+    def visit_RecordLiteral(self, node: RecordLiteral):
+        if node not in self.class_for_record:
+            return self.generic_visit(node)
+        class_def = self.class_for_record[node]
+        pos = get_pos_attributes(node)
+        keywords: list[ast.keyword] = []
+        type_var_fields: list[ast.Name] = []
+        for field in self.info_for_record[node].fields:
+            keywords.append(
+                ast.keyword(
+                    arg=field.name.id,
+                    value=ast.Name(
+                        id=field.name.id,
+                        ctx=ast.Load(),
                         **get_pos_attributes(field.name),
-                    )
+                    ),
+                    **get_pos_attributes(field.name),
                 )
-                if field.is_type_var:
-                    type_var_fields.append(field.name)
-            class_name = set_is_internal_name(
-                ast.Name(id=class_def.name, ctx=ast.Load(), **pos)
             )
-            if type_var_fields:
-                set_record_literal_typevar_fields(class_name, type_var_fields)
-            return ast.Call(
-                func=class_name,
-                args=[],
-                keywords=[
-                    ast.keyword(
-                        arg=field.name.id,
-                        value=field.value,
-                        **get_pos_attributes(field.name),
-                    )
-                    for field in self.info_for_record[node].fields
-                ],
-                **pos,
-            )
-        elif node in self.class_for_record_type:
-            class_def = self.class_for_record_type[node]
-            info = self.info_for_record_type[node]
-            return ast.Subscript(
-                value=set_is_internal_name(
-                    ast.Name(
-                        id=class_def.name, ctx=ast.Load(), **get_pos_attributes(node)
-                    )
-                ),
-                slice=ast.Tuple(
-                    elts=[field.orig_annotation for field in info.fields],
-                    ctx=ast.Load(),
-                    **get_empty_pos_attributes(),
-                ),
-            )
-        return self.generic_visit(node)
+            if field.is_type_var:
+                type_var_fields.append(field.name)
+        class_name = set_is_internal_name(
+            ast.Name(id=class_def.name, ctx=ast.Load(), **pos)
+        )
+        if type_var_fields:
+            set_record_literal_typevar_fields(class_name, type_var_fields)
+        return ast.Call(
+            func=class_name,
+            args=[],
+            keywords=[
+                ast.keyword(
+                    arg=field.name.id,
+                    value=field.value,
+                    **get_pos_attributes(field.name),
+                )
+                for field in self.info_for_record[node].fields
+            ],
+            **pos,
+        )
+
+    def visit_RecordType(self, node: RecordType):
+        if node not in self.class_for_record_type:
+            return self.generic_visit(node)
+        class_def = self.class_for_record_type[node]
+        info = self.info_for_record_type[node]
+        return ast.Subscript(
+            value=set_is_internal_name(
+                ast.Name(id=class_def.name, ctx=ast.Load(), **get_pos_attributes(node))
+            ),
+            slice=ast.Tuple(
+                elts=[field.orig_annotation for field in info.fields],
+                ctx=ast.Load(),
+                **get_empty_pos_attributes(),
+            ),
+        )
 
 
 # Run before other transformations so that the generated call is visited properly.
