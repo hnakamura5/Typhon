@@ -203,6 +203,23 @@ def clear_internal_name(name: ast.Name) -> None:
         delattr(name, _INTERNAL_NAME)
 
 
+_EMPTY_PASS = "_typh_empty_pass"
+
+
+def is_empty_pass(node: ast.Pass) -> bool:
+    return getattr(node, _EMPTY_PASS, False)
+
+
+def set_is_empty_pass(node: ast.Pass, is_empty: bool = True) -> ast.Pass:
+    setattr(node, _EMPTY_PASS, is_empty)
+    return node
+
+
+def clear_is_empty_pass(node: ast.Pass) -> None:
+    if hasattr(node, _EMPTY_PASS):
+        delattr(node, _EMPTY_PASS)
+
+
 # Normal assignments, let assignments for variable declarations,
 # and constant assignments for constant definitions.
 # They all are Assign/AnnAssign in Python, we distinguish them by

@@ -147,7 +147,7 @@ def space(n: int = 1) -> Doc:
 
 
 # Line break or space.
-def line() -> Doc:
+def line_or_space() -> Doc:
     return LINE
 
 
@@ -198,7 +198,9 @@ def group(
     )
 
 
-def indent(content: Doc) -> Doc:
+def indent(content: Doc | list[Doc]) -> Doc:
+    if isinstance(content, list):
+        content = concat(content)
     return Indent(content)
 
 

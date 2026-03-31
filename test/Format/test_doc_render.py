@@ -17,7 +17,7 @@ from Typhon.Format.doc_datatype import (
     concat,
     group,
     indent,
-    line,
+    line_or_space,
     text,
 )
 from Typhon.Format.doc_render import render_doc_to_string
@@ -143,8 +143,10 @@ def test_builder_helpers():
         concat(
             [
                 text("fn("),
-                indent(concat([line(), text("a,"), line(), text("b")])),
-                line(),
+                indent(
+                    concat([line_or_space(), text("a,"), line_or_space(), text("b")])
+                ),
+                line_or_space(),
                 text(")"),
             ]
         )

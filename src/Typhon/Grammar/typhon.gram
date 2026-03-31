@@ -26,7 +26,7 @@ from .typhon_ast import (
     make_record_literal, make_record_type, make_attributes_pattern, make_tuple_pattern, make_for_let_pattern, make_with_let_pattern, make_inline_with_let_pattern, make_class_def,
     make_match_case, make_alias, make_import_from, make_arguments, make_attribute,
     make_arg, make_match_class, ImportDotNames,  set_completion_trigger_anchor_token,
-    CallArgs, set_call_anchors,
+    CallArgs, set_call_anchors, set_is_empty_pass,
     set_wrapper_paren_tokens, set_constant_raw_tokens
 )
 from .position import (
@@ -380,11 +380,11 @@ dotted_name[ImportDotNames]:
 # ---------------
 
 block[List[ast.stmt]] (memo):
-    | '{' a=statements* '}' ~ { sum(a, []) if len(a) > 0 else [ast.Pass(LOCATIONS)]  }
+    | '{' a=statements* '}' ~ { sum(a, []) if len(a) > 0 else [set_is_empty_pass(ast.Pass(LOCATIONS))]  }
 
 maybe_block[List[ast.stmt]]:
     | lb=['{'] a=statements* rb=['}'] ~ {
-        maybe_invalid_block(self, lb, rb, sum(a, []) if len(a) > 0 else [ast.Pass(LOCATIONS)])
+        maybe_invalid_block(self, lb, rb, sum(a, []) if len(a) > 0 else [set_is_empty_pass(ast.Pass(LOCATIONS))])
     }
 
 decorators: decorator+
