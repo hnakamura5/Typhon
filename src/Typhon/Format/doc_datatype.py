@@ -65,6 +65,19 @@ class Align:
 
 
 @dataclass(frozen=True, slots=True)
+class Anchor:
+    content: "Doc"
+    label: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AlignToAnchor:
+    content: "Doc"
+    anchor: Anchor
+    offset: int = 0
+
+
+@dataclass(frozen=True, slots=True)
 class Fill:
     parts: list["Doc"]
 
@@ -110,6 +123,8 @@ type Doc = (
     | Group
     | Indent
     | Align
+    | Anchor
+    | AlignToAnchor
     | Fill
     | IfBreak
     | LineSuffix
@@ -120,6 +135,7 @@ type Doc = (
 )
 
 # Typhon compatibility union:
+
 # - Includes core Prettier commands.
 # - Also includes structural wrappers (Nil/Text/Concat/Line+LineMode) that
 #   normalize Prettier's primitive forms (empty/string/array).
@@ -204,7 +220,9 @@ def indent(content: Doc | list[Doc]) -> Doc:
     return Indent(content)
 
 
-def align(content: Doc, n: int | str) -> Doc:
+def align(content: Doc | list[Doc], n: int | str) -> Doc:
+    if isinstance(content, list):
+        content = concat(content)
     return Align(content=content, n=n)
 
 
@@ -237,3 +255,13 @@ def join(sep: Doc, parts: list[Doc]) -> Doc:
         joined.append(sep)
         joined.append(part)
     return concat(joined)
+
+
+def anchor(content: Doc = NIL, label: str | None = None) -> Anchor:
+    return Anchor(content=content, label=label)
+
+
+def align_to_anchor(content: Doc | list[Doc], anchor: Anchor, offset: int = 0) -> Doc:
+    if isinstance(content, list):
+        content = concat(content)
+    return AlignToAnchor(content=content, anchor=anchor, offset=offset)

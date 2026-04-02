@@ -1,4 +1,6 @@
 from Typhon.Format.doc_datatype import (
+    AlignToAnchor,
+    Anchor,
     BreakParent,
     Concat,
     Cursor,
@@ -136,6 +138,42 @@ def test_trim_removes_trailing_whitespace():
 def test_break_parent_and_cursor_are_noop():
     doc = Concat([Text("a"), BreakParent(), Cursor(), Text("b")])
     assert render_doc_to_string(doc) == "ab"
+
+
+def test_anchor_align_to_anchor_break_mode():
+    for_anchor = Anchor(Text("item"), "for_anchor")
+    doc = Group(
+        Concat(
+            [
+                Text("for "),
+                for_anchor,
+                AlignToAnchor(
+                    Concat([Line(LineMode.LINE), Text("yield x")]),
+                    for_anchor,
+                    offset=4,
+                ),
+            ]
+        ),
+        should_break=True,
+    )
+    assert render_doc_to_string(doc) == "for item\n        yield x"
+
+
+def test_align_to_anchor_fallback_without_anchor():
+    missing_anchor = Anchor(Text("unused"), "missing")
+    doc = Group(
+        Concat(
+            [
+                Text("a"),
+                AlignToAnchor(
+                    Concat([Line(LineMode.LINE), Text("b")]),
+                    missing_anchor,
+                ),
+            ]
+        ),
+        should_break=True,
+    )
+    assert render_doc_to_string(doc) == "a\nb"
 
 
 def test_builder_helpers():

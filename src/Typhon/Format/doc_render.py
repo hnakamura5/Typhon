@@ -4,6 +4,8 @@ import enum
 
 from .doc_datatype import (
     Align,
+    AlignToAnchor,
+    Anchor,
     BreakParent,
     Concat,
     Cursor,
@@ -23,6 +25,7 @@ from .doc_datatype import (
 
 DEFAULT_PRINT_WIDTH = 80
 DEFAULT_INDENT_TEXT = "    "
+DEFAULT_INDENT_WIDTH = len(DEFAULT_INDENT_TEXT)
 DEFAULT_ALIGN_CHAR = " "
 DEFAULT_NEWLINE = "\n"
 
@@ -60,8 +63,10 @@ def _fits(
     indent_text: str,
 ) -> bool:
     remaining = width - current_column
+    probe_column = current_column
     probe_stack = list(commands)
     probe_group_mode = dict(group_mode_by_id)
+    probe_anchor_columns: dict[int, int] = {}
 
     while remaining >= 0 and len(probe_stack) > 0:
         indent, mode, doc = probe_stack.pop()
@@ -70,7 +75,9 @@ def _fits(
             continue
 
         if isinstance(doc, Text):
-            remaining -= len(doc.value)
+            width_used = len(doc.value)
+            remaining -= width_used
+            probe_column += width_used
             continue
 
         if isinstance(doc, Concat):
@@ -84,6 +91,19 @@ def _fits(
 
         if isinstance(doc, Align):
             probe_stack.append((indent + _align_width(doc.n), mode, doc.content))
+            continue
+
+        if isinstance(doc, Anchor):
+            probe_anchor_columns[id(doc)] = probe_column
+            probe_stack.append((indent, mode, doc.content))
+            continue
+
+        if isinstance(doc, AlignToAnchor):
+            anchor_column = probe_anchor_columns.get(id(doc.anchor))
+            aligned_indent = (
+                anchor_column + doc.offset if anchor_column is not None else indent
+            )
+            probe_stack.append((aligned_indent, mode, doc.content))
             continue
 
         if isinstance(doc, Group):
@@ -126,6 +146,7 @@ def _fits(
         if mode is _RenderMode.FLAT:
             if doc.mode is LineMode.LINE:
                 remaining -= 1
+                probe_column += 1
                 continue
             if doc.mode is LineMode.SOFT:
                 continue
@@ -210,6 +231,7 @@ def render_doc_to_string(
     stack: list[_Command] = [(0, _RenderMode.BREAK, doc)]
     pending_line_suffixes: list[_Command] = []
     group_mode_by_id: dict[str, _RenderMode] = {}
+    anchor_columns: dict[int, int] = {}
 
     def current_column() -> int:
         return len(lines[-1])
@@ -253,6 +275,19 @@ def render_doc_to_string(
 
         if isinstance(current, Align):
             stack.append((indent + _align_width(current.n), mode, current.content))
+            continue
+
+        if isinstance(current, Anchor):
+            anchor_columns[id(current)] = current_column()
+            stack.append((indent, mode, current.content))
+            continue
+
+        if isinstance(current, AlignToAnchor):
+            anchor_column = anchor_columns.get(id(current.anchor))
+            aligned_indent = (
+                anchor_column + current.offset if anchor_column is not None else indent
+            )
+            stack.append((aligned_indent, mode, current.content))
             continue
 
         if isinstance(current, Group):
@@ -317,8 +352,9 @@ def render_doc_to_string(
 
         if isinstance(current, LineSuffixBoundary):
             if len(pending_line_suffixes) > 0:
+                boundary_suffixes: list[_Command] = pending_line_suffixes.copy()
                 stack.append((indent, _RenderMode.BREAK, Line(LineMode.HARD)))
-                for suffix_cmd in reversed(pending_line_suffixes):
+                for suffix_cmd in reversed(boundary_suffixes):
                     stack.append(suffix_cmd)
                 pending_line_suffixes.clear()
             continue
@@ -349,8 +385,9 @@ def render_doc_to_string(
                 continue
 
         if len(pending_line_suffixes) > 0:
+            pending_suffixes: list[_Command] = pending_line_suffixes.copy()
             stack.append((indent, mode, current))
-            for suffix_cmd in reversed(pending_line_suffixes):
+            for suffix_cmd in reversed(pending_suffixes):
                 stack.append(suffix_cmd)
             pending_line_suffixes.clear()
             continue
