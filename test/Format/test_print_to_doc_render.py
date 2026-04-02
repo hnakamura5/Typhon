@@ -219,21 +219,21 @@ def test_format_if_elif_comp_format():
     assert_render_pipeline(code_if_elif_comp, result_if_elif_comp)
 
 
-# code_if_elif_comp_long = """
-# let x = (if (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa) bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb elif (cccccccccccccccccccccccccccccccccccccccc) ddddddddddddddddddddddddddddddddddddddddd else eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee)
-# """
-# result_if_elif_comp_long = """
-# let x = (if(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
-#             bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-#          elif(cccccccccccccccccccccccccccccccccccccccc)
-#             ddddddddddddddddddddddddddddddddddddddddd
-#          else
-#             eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee)
-# """
+code_if_elif_comp_long = """
+let x = (if (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa) bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb elif (cccccccccccccccccccccccccccccccccccccccc) ddddddddddddddddddddddddddddddddddddddddd else eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee)
+"""
+result_if_elif_comp_long = """
+let x = (if(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+             bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+         elif(cccccccccccccccccccccccccccccccccccccccc)
+             ddddddddddddddddddddddddddddddddddddddddd
+         else
+             eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee)
+"""
 
 
-# def test_format_if_elif_comp_long_format():
-#     assert_render_pipeline(code_if_elif_comp_long, result_if_elif_comp_long)
+def test_format_if_elif_comp_long_format():
+    assert_render_pipeline(code_if_elif_comp_long, result_if_elif_comp_long)
 
 
 code_gen_expr = """

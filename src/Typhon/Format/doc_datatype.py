@@ -73,7 +73,7 @@ class Anchor:
 @dataclass(frozen=True, slots=True)
 class AlignToAnchor:
     content: "Doc"
-    anchor: Anchor
+    anchor: Anchor | None
     offset: int = 0
 
 
@@ -261,7 +261,9 @@ def anchor(content: Doc = NIL, label: str | None = None) -> Anchor:
     return Anchor(content=content, label=label)
 
 
-def align_to_anchor(content: Doc | list[Doc], anchor: Anchor, offset: int = 0) -> Doc:
+def align_to_anchor(
+    content: Doc | list[Doc], anchor: Anchor | None, offset: int = 0
+) -> Doc:
     if isinstance(content, list):
         content = concat(content)
     return AlignToAnchor(content=content, anchor=anchor, offset=offset)

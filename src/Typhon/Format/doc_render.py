@@ -99,7 +99,11 @@ def _fits(
             continue
 
         if isinstance(doc, AlignToAnchor):
-            anchor_column = probe_anchor_columns.get(id(doc.anchor))
+            anchor_column = (
+                probe_anchor_columns.get(id(doc.anchor))
+                if doc.anchor is not None
+                else None
+            )
             aligned_indent = (
                 anchor_column + doc.offset if anchor_column is not None else indent
             )
@@ -283,7 +287,11 @@ def render_doc_to_string(
             continue
 
         if isinstance(current, AlignToAnchor):
-            anchor_column = anchor_columns.get(id(current.anchor))
+            anchor_column = (
+                anchor_columns.get(id(current.anchor))
+                if current.anchor is not None
+                else None
+            )
             aligned_indent = (
                 anchor_column + current.offset if anchor_column is not None else indent
             )

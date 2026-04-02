@@ -147,12 +147,18 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return self.comprehension_open_anchor[-1]
 
     @contextmanager
-    def _comprehension_open_anchor_ctx(self, anchor: Anchor):
-        self.comprehension_open_anchor.append(anchor)
-        self._comprehension_printer.comprehension_open_anchor.append(anchor)
-        yield
+    def _comprehension_open_anchor_ctx(self):
+        open_anchor = anchor()
+        self.comprehension_open_anchor.append(open_anchor)
+        self._comprehension_printer.comprehension_open_anchor.append(open_anchor)
+        yield open_anchor
         self._comprehension_printer.comprehension_open_anchor.pop()
         self.comprehension_open_anchor.pop()
+
+    def _anchor_to_current(self, content: Doc | list[Doc], offset: int = 0):
+        return align_to_anchor(
+            content, self._get_current_comprehension_open_anchor(), offset
+        )
 
     def _get_binop_symbol(self, op: ast.operator) -> str:
         return self._helper.get_binop_operator(op)
@@ -284,44 +290,65 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     def _if_exp_chain_doc(
         self, node: ast.IfExp, keyword: Literal["if", "elif"] = "if"
     ) -> Doc:
-        doc = group(
-            concat(
-                [
-                    text(keyword),
-                    self._space_between_comprehension_keywords_and_paren,
-                    paren(self._visit_doc(node.test)),
-                    space(),
-                    self._visit_doc(node.body),
-                ]
-            )
+        # If comprehension that is IfExp.
+        doc = group(  # if, elif
+            [
+                text(keyword),
+                self._space_between_comprehension_keywords_and_paren,
+                paren(self._visit_doc(node.test)),
+                self._anchor_to_current(
+                    [
+                        line_or_space(),
+                        self._visit_doc(node.body),
+                    ],
+                    DEFAULT_INDENT_WIDTH + 1,
+                ),
+            ]
         )
         if not is_elseless_if_exp(node):
             if isinstance(node.orelse, ast.IfExp):
-                return concat(
+                return group(  # chain the child IfExp
                     [
                         doc,
-                        line_or_space(),
-                        self._if_exp_chain_doc(node.orelse, "elif"),
+                        self._anchor_to_current(
+                            [
+                                line_or_space(),
+                                self._if_exp_chain_doc(node.orelse, "elif"),
+                            ],
+                            1,
+                        ),
                     ]
                 )
             else:
-                doc = concat(
+                doc = group(  # else
                     [
                         doc,
-                        line_or_space(),
-                        text("else"),
-                        space(),
-                        self._visit_doc(node.orelse),
+                        self._anchor_to_current(
+                            [
+                                line_or_space(),
+                                text("else"),
+                                self._anchor_to_current(
+                                    [
+                                        line_or_space(),
+                                        self._visit_doc(node.orelse),
+                                    ],
+                                    DEFAULT_INDENT_WIDTH + 1,
+                                ),
+                            ],
+                            1,
+                        ),
                     ]
                 )
         return doc
 
     def visit_IfExp(self, node: ast.IfExp) -> Doc:
-        parts: list[Doc] = [
-            text("("),  # No space here
-            self._if_exp_chain_doc(node, "if"),
-            text(")"),
-        ]
+        with self._comprehension_open_anchor_ctx() as open_anchor:
+            parts: list[Doc] = [
+                open_anchor,
+                text("("),  # No space here
+                self._if_exp_chain_doc(node, "if"),
+                text(")"),
+            ]
         return group(parts)
 
     def visit_UnaryOp(self, node: ast.UnaryOp) -> Doc:
@@ -451,8 +478,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     def _comp_doc(
         self, node: ast.ListComp | ast.SetComp | ast.GeneratorExp, open: str, close: str
     ) -> Doc:
-        open_anchor = anchor()
-        with self._comprehension_open_anchor_ctx(open_anchor):
+        with self._comprehension_open_anchor_ctx() as open_anchor:
             return group(
                 [
                     open_anchor,
@@ -486,14 +512,13 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return self._comp_doc(node, "(", ")")
 
     def visit_DictComp(self, node: ast.DictComp) -> Doc:
-        open_anchor = anchor()
-        with self._comprehension_open_anchor_ctx(open_anchor):
+        with self._comprehension_open_anchor_ctx() as open_anchor:
             return group(
                 [
                     open_anchor,
                     text("{"),  # No space here
                     self._comprehension_list_doc(node.generators),
-                    align_to_anchor(
+                    self._anchor_to_current(
                         [
                             line_or_space(),
                             text("yield"),
@@ -502,7 +527,6 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                             text(":"),
                             self._visit_doc(node.value),
                         ],
-                        open_anchor,
                         DEFAULT_INDENT_WIDTH + 1,
                     ),
                     text("}"),
@@ -1187,8 +1211,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
 
     def visit_ControlComprehension(self, node: ast.Name) -> Doc:
         if func_def := get_control_comprehension_def(node):
-            open_anchor = anchor()
-            with self._comprehension_open_anchor_ctx(open_anchor):
+            with self._comprehension_open_anchor_ctx() as open_anchor:
                 result = concat(
                     [
                         open_anchor,
@@ -1218,8 +1241,7 @@ class _PrintComprehensionToDocVisitor(_PrintToDocVisitor):
         # 'Block' must be single expression or yield.
         assert len(body) == 1
         stmt = body[0]
-        open_anchor = self._get_current_comprehension_open_anchor()
-        assert open_anchor is not None, (
+        assert self._get_current_comprehension_open_anchor(), (
             "Comprehension block must be within a comprehension"
         )
         # Falling back to parent for contents of the block.
@@ -1234,8 +1256,8 @@ class _PrintComprehensionToDocVisitor(_PrintToDocVisitor):
         debug_verbose_print(
             lambda: f"Comprehension block content: {ast.dump(stmt)} -> {content}"
         )
-        return align_to_anchor(
-            [line_or_space(), content], open_anchor, DEFAULT_INDENT_WIDTH + 1
+        return self._anchor_to_current(
+            [line_or_space(), content], DEFAULT_INDENT_WIDTH + 1
         )
 
 
