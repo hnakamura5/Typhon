@@ -23,9 +23,12 @@ from Typhon.Grammar.typhon_ast import (
     is_attributes_pattern,
     is_elseless_if_exp,
     is_empty_pass,
+    is_function_literal_inline_return,
+    is_if_let_implicit_none_check,
     is_inline_with,
     is_let,
     is_let_assign,
+    is_let_else,
     is_optional,
     is_optional_pipe,
     is_pattern_tuple,
@@ -260,6 +263,8 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 node,
                 text("".join(tok.string for tok in raw_tokens)),
             )
+        if node.value is None:
+            return text("None")
         raise ValueError(f"Unsupported constant without raw tokens: {node.value!r}")
 
     def visit_BinOp(self, node: ast.BinOp) -> Doc:
@@ -645,6 +650,8 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                             match <subjectN>:
                                 case <patternN> if <cond>:
                                     <body>
+            case _:
+                pass # Default case possibly exists
 
         -->
 
@@ -660,7 +667,13 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         assert len(body) == 1
         match_stmt = body[0]
         assert isinstance(match_stmt, ast.Match)
-        assert len(match_stmt.cases) == 1
+        debug_verbose_print(
+            lambda: (
+                f"_let_patterns_match_doc: match_stmt={ast.dump(match_stmt, include_attributes=True)}"
+            )
+        )
+        assert len(match_stmt.cases) > 0
+        # First case is the case
         case = match_stmt.cases[0]
         pattern = case.pattern
         parts: list[Doc] = [
@@ -673,6 +686,8 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             ),
         ]
         cond = case.guard
+        if cond and is_if_let_implicit_none_check(cond):
+            cond = None
         case_body = case.body
         if case_body is innermost_body:
             # Base case: pattern matches directly to the body.
@@ -691,11 +706,15 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             pattens = self._let_patterns_match_doc(node.body, body)
             parts = [text("let" if let_pattern.is_let else "var"), space()]
             parts.extend(pattens)
-            cond_doc = concat(parts)
+            cond_doc = group(parts)
+            if isinstance(node, ast.If) and is_let_else(node):
+                # let-else pattern
+                if node.orelse:
+                    return cond_doc
         else:
             body = node.body
             cond_doc = self._visit_doc(node.test)
-        body_doc = concat(
+        body_doc = group(
             [
                 text(keyword),
                 self._space_between_statement_keywords_and_paren,
@@ -706,13 +725,15 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return body_doc
 
     def _if_chain_doc(self, node: ast.If, keyword: Literal["if", "elif"] = "if") -> Doc:
-        doc = self._if_while_body(keyword, node)
+        body_doc = self._if_while_body(keyword, node)
         if len(node.orelse) == 0:
-            return doc
+            return body_doc
         if len(node.orelse) == 1 and isinstance(node.orelse[0], ast.If):
             # Note in if-elif chain orelse is single statement
-            return concat([doc, space(), self._if_chain_doc(node.orelse[0], "elif")])
-        return concat([doc, space(), text("else"), self._block_doc(node.orelse)])
+            return group(
+                [body_doc, space(), self._if_chain_doc(node.orelse[0], "elif")]
+            )
+        return group([body_doc, space(), text("else"), self._block_doc(node.orelse)])
 
     def visit_If(self, node: ast.If) -> Doc:
         return self._if_chain_doc(node, "if")
@@ -746,7 +767,6 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                         self._visit_doc(node.iter),
                     ]
                 ),
-                space(),
                 self._block_doc(node.body),
             ]
         )
@@ -1096,6 +1116,17 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> Doc:
         return self._visit_FcuntionDef_AsyncFunctionDef(node)
 
+    def visit_Lambda(self, node: ast.Lambda) -> Doc:
+        return group(
+            [
+                paren(self._arguments_doc(node.args)),
+                space(),
+                text("=>"),
+                space(),
+                self._visit_doc(node.body),
+            ]
+        )
+
     def visit_RecordLiteral(self, node: ast.Name) -> Doc:
         fields = get_record_literal_fields(node)
         if fields is None:
@@ -1199,14 +1230,16 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         head_parts.extend(
             [
                 text("=>"),
-                space(),
             ]
         )
-        if len(func_def.body) == 1:
+        if is_function_literal_inline_return(node):
+            assert len(func_def.body) == 1, (
+                "Inline return function literal must have single statement body"
+            )
             if stmt := func_def.body[0]:
                 if isinstance(stmt, ast.Return) and stmt.value is not None:
                     # Special case for single return value.
-                    return concat(head_parts + [self._visit_doc(stmt.value)])
+                    return concat(head_parts + [space(), self._visit_doc(stmt.value)])
         return concat(head_parts + [self._block_doc(func_def.body)])
 
     def visit_ControlComprehension(self, node: ast.Name) -> Doc:
@@ -1216,7 +1249,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     [
                         open_anchor,
                         text("("),  # No space here
-                        self._comprehension_printer._visit_doc(func_def.body[0]),
+                        self._comprehension_printer._visit_doc(func_def),
                         text(")"),
                     ]
                 )
@@ -1236,6 +1269,21 @@ class _PrintComprehensionToDocVisitor(_PrintToDocVisitor):
         )
         self._parent = parent
 
+    # Entry point for comprehension body
+    @override
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Doc:
+        assert len(node.body) < 3, "Comprehension body must have at most 2 statements"
+        return join(
+            concat([text(";"), line_or_space()]),
+            [self._visit_doc(stmt) for stmt in node.body],
+        )
+
+    @override
+    def visit_Return(self, node: ast.Return) -> Doc:
+        if node.value is None:
+            return NIL
+        return self._visit_doc(node.value)
+
     @override
     def _block_doc(self, body: list[ast.stmt]) -> Doc:
         # 'Block' must be single expression or yield.
@@ -1249,16 +1297,19 @@ class _PrintComprehensionToDocVisitor(_PrintToDocVisitor):
             content = self._parent._visit_doc(stmt.value)
         elif isinstance(stmt, ast.Yield) and stmt.value is not None:
             content = self._parent._visit_doc(stmt.value)
-        elif isinstance(stmt, ast.Return) and stmt.value is not None:
-            content = self._parent._visit_doc(stmt.value)
-        else:
-            content = self._parent._visit_doc(stmt)
+        else:  # TODO: Only return?
+            content = self._visit_doc(stmt)
         debug_verbose_print(
             lambda: f"Comprehension block content: {ast.dump(stmt)} -> {content}"
         )
         return self._anchor_to_current(
             [line_or_space(), content], DEFAULT_INDENT_WIDTH + 1
         )
+
+    # Override for let comprehension
+    @override
+    def visit_Assign(self, node: ast.Assign) -> Doc:
+        return super().visit_Assign(node)
 
 
 def print_to_doc(node: ast.AST) -> Doc:

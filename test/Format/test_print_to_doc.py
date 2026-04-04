@@ -2,6 +2,8 @@ import ast
 
 from Typhon.Format.doc_datatype import (
     Align,
+    AlignToAnchor,
+    Anchor,
     BreakParent,
     Concat,
     Doc,
@@ -41,6 +43,10 @@ def _render_doc(doc: Doc) -> str:
     if isinstance(doc, Indent):
         return _render_doc(doc.content)
     if isinstance(doc, Align):
+        return _render_doc(doc.content)
+    if isinstance(doc, Anchor):
+        return _render_doc(doc.content)
+    if isinstance(doc, AlignToAnchor):
         return _render_doc(doc.content)
     if isinstance(doc, Fill):
         return _render_doc(Concat(parts=doc.parts))
@@ -103,11 +109,11 @@ def test_translate_record_type_doc():
 
 
 def test_translate_list_comprehension_doc():
-    assert_rendered_doc_ident("[for (var x: int in xs) if (x > 0) yield x]")
+    assert_rendered_doc_ident("[for(var x: int in xs) if(x > 0) yield x]")
 
 
 def test_translate_dict_comprehension_doc():
-    assert_rendered_doc_ident("{async for (var k in ks) yield k: v}")
+    assert_rendered_doc_ident("{async for(var k in ks) yield k:v}")
 
 
 def test_translate_if_stmt_to_typhon_style_block_doc():
@@ -135,7 +141,7 @@ def test_translate_for_stmt_to_typhon_style_block_doc():
 
 
 def test_translate_with_stmt_to_typhon_style_block_doc():
-    assert_rendered_doc_equal("with (resource) { use }", "with ((resource)) {\nuse\n}")
+    assert_rendered_doc_equal("with (resource) { use }", "with (resource) {\nuse\n}")
 
 
 def test_translate_try_stmt_to_typhon_style_block_doc():

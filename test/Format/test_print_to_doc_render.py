@@ -101,6 +101,62 @@ def test_format_if_block_newline_format():
     assert_render_pipeline(code_if_block, result_if_block)
 
 
+code_if_let_block = """
+if (let x = foo()) { use(x) }
+"""
+result_if_let_block = """
+if (let x = foo()) {
+    use(x)
+}
+"""
+
+
+def test_format_if_let_block_format():
+    assert_render_pipeline(code_if_let_block, result_if_let_block)
+
+
+code_if_let_cond = """
+if (let x =foo(); x\n>\n0) { use(x) }
+"""
+result_if_let_cond = """
+if (let x = foo(); x > 0) {
+    use(x)
+}
+"""
+
+
+def test_format_if_let_cond_format():
+    assert_render_pipeline(code_if_let_cond, result_if_let_cond)
+
+
+code_let_else = """
+let x = foo() else { raise error() }
+"""
+result_let_else = """
+let x = foo() else {
+    raise error()
+}
+"""
+
+
+def test_format_let_else_format():
+    assert_render_pipeline(code_let_else, result_let_else)
+
+
+code_while_let = """
+while (let x = foo()) { use(x) }
+"""
+result_while_let = """
+while (let x = foo()) {
+    use(x)
+}
+"""
+
+
+def test_format_while_let_format():
+    assert_render_pipeline(code_while_let, result_while_let)
+
+
 code_function_block = """
 def f(x: int) -> int { let x = x + 1; return x }
 """
@@ -126,6 +182,35 @@ def f(x: int) -> None {}
 
 def test_format_function_empty_block_newline_format():
     assert_render_pipeline(code_function_empty_block, result_function_empty_block)
+
+
+code_function_literal_inline_return = """
+let f = (x: int)=>x+1
+"""
+result_function_literal_inline_return = """
+let f = (x: int) => x + 1
+"""
+
+
+def test_format_function_literal_inline_return():
+    assert_render_pipeline(
+        code_function_literal_inline_return, result_function_literal_inline_return
+    )
+
+
+code_function_literal_block = """
+let f = (x: int) => { let y = x + 1; return y }
+"""
+result_function_literal_block = """
+let f = (x: int) => {
+    let y = x + 1
+    return y
+}
+"""
+
+
+def test_format_function_literal_block():
+    assert_render_pipeline(code_function_literal_block, result_function_literal_block)
 
 
 code_class_block = """
@@ -285,3 +370,15 @@ let xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx = (with(resource)
 
 def test_format_with_comp_long():
     assert_render_pipeline(code_with_comp_long, result_with_comp_long)
+
+
+code_let_comp = """
+let x = (let y=\n1;y +1)
+"""
+result_let_comp = """
+let x = (let y = 1; y + 1)
+"""
+
+
+def test_format_let_comp():
+    assert_render_pipeline(code_let_comp, result_let_comp)

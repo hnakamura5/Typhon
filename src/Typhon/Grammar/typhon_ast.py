@@ -681,9 +681,28 @@ def is_arguments_inlineable(args: ast.arguments) -> bool:
     return all(arg.annotation is None for arg in args.args)
 
 
+_FUNCTION_LITERAL_INLINE_RETURN = "_typh_function_literal_inline_return"
+
+
+def is_function_literal_inline_return(node: ast.AST) -> bool:
+    return getattr(node, _FUNCTION_LITERAL_INLINE_RETURN, False)
+
+
+def set_function_literal_inline_return(
+    node: ast.AST, is_inline: bool = True
+) -> ast.AST:
+    setattr(node, _FUNCTION_LITERAL_INLINE_RETURN, is_inline)
+    return node
+
+
+def clear_function_literal_inline_return(node: ast.AST) -> None:
+    if hasattr(node, _FUNCTION_LITERAL_INLINE_RETURN):
+        delattr(node, _FUNCTION_LITERAL_INLINE_RETURN)
+
+
 def make_function_literal(
     args: ast.arguments,
-    returns: ast.expr,
+    returns: ast.expr | None,
     body: Union[list[ast.stmt], ast.expr],
     **kwargs: Unpack[PosAttributes],
 ) -> ast.Lambda | FunctionLiteral:
@@ -691,8 +710,9 @@ def make_function_literal(
     body_stmts: list[ast.stmt]
     if isinstance(body, list):
         body_stmts = body
+        is_inline_return = False
     else:
-        if is_inline_expr(body) and is_arguments_inlineable(args):
+        if is_inline_expr(body) and is_arguments_inlineable(args) and returns is None:
             # Make lambda expression if possible.
             return ast.Lambda(args=args, body=body, **kwargs)
         body_stmts = [
@@ -704,11 +724,14 @@ def make_function_literal(
                 end_col_offset=body.end_col_offset,
             )
         ]
+        is_inline_return = True
     func_def = ast.FunctionDef(
         func_id, args, body_stmts, [], returns, type_comment=None, **kwargs
     )
     name = ast.Name(func_id, **kwargs)
     set_function_literal_def(name, func_def)
+    if is_inline_return:
+        set_function_literal_inline_return(name)
     return name
 
 
@@ -912,12 +935,33 @@ def make_for_let_pattern(
     )
 
 
+_IF_LET_IMPLICIT_NONE_CHECK = "_typh_if_let_implicit_none_check"
+
+
+def is_if_let_implicit_none_check(node: ast.expr) -> bool:
+    return getattr(node, _IF_LET_IMPLICIT_NONE_CHECK, False)
+
+
+def set_if_let_implicit_none_check(
+    node: ast.Compare, is_implicit: bool = True
+) -> ast.Compare:
+    setattr(node, _IF_LET_IMPLICIT_NONE_CHECK, is_implicit)
+    return node
+
+
+def clear_if_let_implicit_none_check(node: ast.expr) -> None:
+    if hasattr(node, _IF_LET_IMPLICIT_NONE_CHECK):
+        delattr(node, _IF_LET_IMPLICIT_NONE_CHECK)
+
+
 def _make_none_check(name: str, pos: PosAttributes) -> ast.Compare:
-    return ast.Compare(
-        left=ast.Name(id=name, ctx=ast.Load(), **pos),
-        ops=[ast.IsNot()],
-        comparators=[ast.Constant(value=None, **pos)],
-        **pos,
+    return set_if_let_implicit_none_check(
+        ast.Compare(
+            left=ast.Name(id=name, ctx=ast.Load(), **pos),
+            ops=[ast.IsNot()],
+            comparators=[ast.Constant(value=None, **pos)],
+            **pos,
+        )
     )
 
 
@@ -991,7 +1035,7 @@ def make_if_let(
     orelse: list[ast.stmt] | None,
     is_let_else: bool,
     **kwargs: Unpack[PosAttributes],
-) -> ast.stmt:
+) -> ast.If:
     decl_type_str = decl_type.string if isinstance(decl_type, TokenInfo) else decl_type
     return set_is_let_else(
         _make_if_let_multiple(
