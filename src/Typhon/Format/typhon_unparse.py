@@ -576,6 +576,17 @@ class _TyphonUnparseVisitor(TyphonASTVisitor):
 
         return [gen, *inner_gens], elt
 
+    def _extract_let_chain_return_expr(self, body: list[ast.stmt]) -> ast.expr | None:
+        current = body
+        while len(current) == 1 and isinstance(current[0], ast.Match):
+            match_stmt = current[0]
+            if len(match_stmt.cases) == 0:
+                return None
+            current = match_stmt.cases[0].body
+        if len(current) != 1 or not isinstance(current[0], ast.Return):
+            return None
+        return current[0].value
+
     def _render_control_comprehension(
         self, func_def: ast.FunctionDef | ast.AsyncFunctionDef
     ) -> str | None:
@@ -671,6 +682,17 @@ class _TyphonUnparseVisitor(TyphonASTVisitor):
             # if/if-let comprehension (function with single if)
             if isinstance(body[0], ast.If):
                 if_stmt = body[0]
+                if (
+                    get_let_pattern_body(if_stmt) is not None
+                    and is_let_else(if_stmt)
+                    and not if_stmt.orelse
+                ):
+                    pairs, cond = self._extract_let_chain(if_stmt.body)
+                    return_expr = self._extract_let_chain_return_expr(if_stmt.body)
+                    if len(pairs) > 0 and return_expr is not None:
+                        binds = self._render_let_bindings(pairs)
+                        cond_text = "" if cond is None else f"; {self._v(cond)}"
+                        return f"(let {binds}{cond_text}; {self._v(return_expr)})"
                 # Reuse statement unparser and convert block form to expression tail.
                 rendered_stmt = self.visit_If(if_stmt)
                 # expected: if (...) { <expr-stmt> } [elif ...] [else { <expr-stmt> }]

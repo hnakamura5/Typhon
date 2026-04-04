@@ -700,17 +700,22 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             parts.extend(self._let_patterns_match_doc(case_body, innermost_body))
             return parts
 
+    def _let_else_doc(self, node: ast.If, cond_doc: Doc, body: list[ast.stmt]) -> Doc:
+        # body is empty for statement case.
+        assert len(body) == 0
+        return cond_doc
+
     def _if_while_body(self, keyword: str, node: ast.If | ast.While) -> Doc:
         if let_pattern := get_let_pattern_body(node):
+            # if-let or while-let pattern
             body = let_pattern.body
             pattens = self._let_patterns_match_doc(node.body, body)
             parts = [text("let" if let_pattern.is_let else "var"), space()]
             parts.extend(pattens)
             cond_doc = group(parts)
             if isinstance(node, ast.If) and is_let_else(node):
-                # let-else pattern
-                if node.orelse:
-                    return cond_doc
+                # let-else pattern.
+                return self._let_else_doc(node, cond_doc, body)
         else:
             body = node.body
             cond_doc = self._visit_doc(node.test)
@@ -1269,10 +1274,30 @@ class _PrintComprehensionToDocVisitor(_PrintToDocVisitor):
         )
         self._parent = parent
 
+    @override
+    def _let_else_doc(self, node: ast.If, cond_doc: Doc, body: list[ast.stmt]) -> Doc:
+        # let comprehension has return as body.
+        assert (
+            len(body) == 1
+            and isinstance(body[0], ast.Return)
+            and body[0].value is not None
+        )
+        return group(
+            [
+                cond_doc,
+                text(";"),
+                line_or_space(),
+                self._visit_doc(body[0].value),
+            ]
+        )
+
     # Entry point for comprehension body
     @override
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Doc:
         assert len(node.body) < 3, "Comprehension body must have at most 2 statements"
+        debug_verbose_print(
+            lambda: f"Visiting function def in comprehension body: {ast.dump(node)}"
+        )
         return join(
             concat([text(";"), line_or_space()]),
             [self._visit_doc(stmt) for stmt in node.body],
@@ -1280,6 +1305,9 @@ class _PrintComprehensionToDocVisitor(_PrintToDocVisitor):
 
     @override
     def visit_Return(self, node: ast.Return) -> Doc:
+        debug_verbose_print(
+            lambda: f"Visiting return in comprehension body: {ast.dump(node)}"
+        )
         if node.value is None:
             return NIL
         return self._visit_doc(node.value)
@@ -1294,9 +1322,9 @@ class _PrintComprehensionToDocVisitor(_PrintToDocVisitor):
         )
         # Falling back to parent for contents of the block.
         if isinstance(stmt, ast.Expr):
-            content = self._parent._visit_doc(stmt.value)
+            content = self._visit_doc(stmt.value)
         elif isinstance(stmt, ast.Yield) and stmt.value is not None:
-            content = self._parent._visit_doc(stmt.value)
+            content = self._visit_doc(stmt.value)
         else:  # TODO: Only return?
             content = self._visit_doc(stmt)
         debug_verbose_print(

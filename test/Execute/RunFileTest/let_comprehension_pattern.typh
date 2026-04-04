@@ -1,0 +1,10 @@
+let sum_ab = (let (a, b) = (1, 2); a + b)
+print(f"sum_ab={sum_ab}")
+
+let mixed = (let (x, y) = (10, 3), (u, v) = (2, 5); x - y + u * v)
+print(f"mixed={mixed}")
+
+"""stdout
+sum_ab=3
+mixed=17
+"""

@@ -1009,24 +1009,6 @@ def clear_is_let_else(node: LetElseAnnotatedNode) -> None:
         delattr(node, _IS_LET_ELSE)
 
 
-def _let_pattern_check(
-    parser: Parser,
-    decl_type_str: str,
-    pattern_subjects: list[tuple[ast.pattern, ast.expr]],
-    start_pos: tuple[int, int],
-    end_pos: tuple[int, int],
-) -> bool:
-    if decl_type_str != "let":
-        error = parser.build_syntax_error(
-            "declaration pattern must be 'let' declaration", start_pos, end_pos
-        )
-    if len(pattern_subjects) == 0:
-        parser.build_syntax_error(
-            "declaration pattern must have at least one pattern", start_pos, end_pos
-        )
-    return True
-
-
 def make_if_let(
     decl_type: TokenInfo | str,
     pattern_subjects: list[tuple[ast.pattern, ast.expr]],
@@ -1193,6 +1175,7 @@ def _make_if_let_multiple(
             pattern_subjects,
             cond,
             body,
+            # let-else without else clause is pattern let with irrefutable patterns.
             type_error_on_failure=(
                 is_let_else
                 and (orelse is None)
@@ -2157,26 +2140,44 @@ def make_while_let_comp(
 
 
 def make_let_comp(
-    assignments: list[tuple[ast.expr, ast.expr | None, ast.expr | None]],
+    assignments: list[tuple[ast.expr, ast.expr | None, ast.expr | None]] | None,
     body: ast.expr,
+    pattern_subjects: list[tuple[ast.pattern, ast.expr]] | None = None,
     **kwargs: Unpack[PosAttributes],
 ):
     control_id = "__let_comp"
-    stmts: list[ast.stmt] = [
-        cast(
-            ast.stmt,
-            assign_as_declaration(
-                "let", a, len(assignments) > 0, **pos_attribute_to_range(kwargs)
-            ),
+    stmts: list[ast.stmt]
+    if pattern_subjects is not None:
+        stmts = [
+            make_if_let(
+                "let",
+                pattern_subjects=pattern_subjects,
+                cond=None,
+                body=[ast.Return(value=body, **get_pos_attributes(body))],
+                orelse=None,
+                is_let_else=True,
+                **kwargs,
+            )
+        ]
+    else:
+        stmts = [
+            cast(
+                ast.stmt,
+                assign_as_declaration(
+                    "let",
+                    a,
+                    bool(assignments),
+                    **pos_attribute_to_range(kwargs),
+                ),
+            )
+            for a in assignments or []
+        ]
+        stmts.append(
+            ast.Return(
+                value=body,
+                **get_pos_attributes(body),
+            )
         )
-        for a in assignments
-    ]
-    stmts.append(
-        ast.Return(
-            value=body,
-            **get_pos_attributes(body),
-        )
-    )
     func_def = make_function_def(
         is_async=False,
         is_static=False,

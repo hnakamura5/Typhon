@@ -131,9 +131,13 @@ def test_format_if_let_cond_format():
 
 code_let_else = """
 let x = foo() else { raise error() }
+let x2 = foo() else { raise error() }
 """
 result_let_else = """
 let x = foo() else {
+    raise error()
+}
+let x2 = foo() else {
     raise error()
 }
 """
@@ -382,3 +386,15 @@ let x = (let y = 1; y + 1)
 
 def test_format_let_comp():
     assert_render_pipeline(code_let_comp, result_let_comp)
+
+
+code_let_comp_pattern = """
+let x = (let (a,b)=pair;a+b)
+"""
+result_let_comp_pattern = """
+let x = (let (a, b) = pair; a + b)
+"""
+
+
+def test_format_let_comp_pattern():
+    assert_render_pipeline(code_let_comp_pattern, result_let_comp_pattern)

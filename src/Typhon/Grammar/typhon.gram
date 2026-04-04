@@ -1895,7 +1895,12 @@ question_while_comp[ast.expr]:
 
 let_comp_internal[ast.expr]:
     | 'let' a=','.declaration_single_assignment+ ';' b=expression {
-        make_let_comp(a, b, LOCATIONS)
+        make_let_comp(assignments=a, body=b, LOCATIONS)
+     }
+    | d='let' a=','.pattern_assignment+ ';' b=expression {
+        let_pattern_check(self, decl_type=d, pattern_subjects=a,
+            node=make_let_comp(assignments=None, pattern_subjects=a, body=b, LOCATIONS)
+        )
      }
 
 let_comp[ast.expr]:

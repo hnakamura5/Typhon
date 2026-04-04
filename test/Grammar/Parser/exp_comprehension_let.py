@@ -47,3 +47,16 @@ def test_comp_let_multi():
     parsed = assert_parse(comp_let_multi_code, comp_let_multi_result)
     assert_transform_ast(parsed, comp_let_multi_transformed)
     assert_typh_code_match_unparse(comp_let_multi_code)
+
+
+comp_let_pattern_code = """
+let val = (let (a, b) = (1, 2); a + b);
+"""
+comp_let_pattern_result = """
+val = __let_comp
+"""
+
+
+def test_comp_let_pattern():
+    assert_parse(comp_let_pattern_code, comp_let_pattern_result)
+    assert_typh_code_match_unparse(comp_let_pattern_code)
