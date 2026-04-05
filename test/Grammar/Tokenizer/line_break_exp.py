@@ -19,11 +19,17 @@ let sq =
       *
       i
       ]
-let sq_2 = sq
+let
+sq_2
+=
+sq
+.
+next(
+)
 """
 result_comp_exp_line_brk = """
 sq = [i * i for i in range(10) if i % 2 == 0]
-sq_2 = sq
+sq_2 = sq.next()
 """
 
 
@@ -64,6 +70,10 @@ def test_comp_exp_line_brk():
     ta.next(NAME, "sq_2")
     ta.next(OP, "=")
     ta.next(NAME, "sq")
+    ta.next(OP, ".")
+    ta.next(NAME, "next")
+    ta.next(OP, "(")
+    ta.next(OP, ")")
     ta.next(NEWLINE, "\n")
     ta.next(ENDMARKER, "")
 

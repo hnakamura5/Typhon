@@ -3,12 +3,11 @@ from tokenize import TokenInfo, generate_tokens, OP, NAME
 
 def is_operator_line_breakable_after(tok: TokenInfo) -> bool:
     # Exceptional symbols that are NOT operator.
-    if tok.string in (
-        "?"  # Single `?` is optional type annotation, not operator.
-        "..."  # Ellipsis is not operator. Just a singleton symbol.
-    ):
+    if tok.string in [
+        "?",  # Single `?` is optional type annotation, not operator.
+        "...",  # Ellipsis is not operator. Just a singleton symbol.
+    ]:
         return False
-
     return (
         tok.type == OP
         and (

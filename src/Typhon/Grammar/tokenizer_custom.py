@@ -6,7 +6,11 @@ import token
 import io
 from pegen.tokenizer import Tokenizer as PegenTokenizer
 from typing import override
-from .line_break import line_breakable_after, line_breakable_before
+from .line_break import (
+    is_operator_line_breakable_after,
+    line_breakable_after,
+    line_breakable_before,
+)
 from .typhon_ast import get_postfix_operator_temp_name
 from ..Driver.debugging import debug_verbose_print
 from .token_factory_custom import token_stream_factory, generate_tokens_ignore_error

@@ -288,6 +288,67 @@ def test_format_long_name_list():
     assert_render_pipeline(code_long_name_list, result_long_name_list)
 
 
+code_attribute = """
+let x = obj.attribute_name
+"""
+result_attribute = """
+let x = obj.attribute_name
+"""
+
+
+def test_format_attribute():
+    assert_render_pipeline(code_attribute, result_attribute)
+
+
+code_attribute_long_wrap = """
+let x = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+"""
+result_attribute_long_wrap = """
+let x = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+"""
+
+
+def test_format_attribute_long_wrap():
+    assert_render_pipeline(code_attribute_long_wrap, result_attribute_long_wrap)
+
+
+code_attribute_chain_long_wrap = """
+let x = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+"""
+result_attribute_chain_long_wrap = """
+let x = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+.cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+"""
+
+
+def test_format_attribute_chain_long_wrap():
+    assert_render_pipeline(
+        code_attribute_chain_long_wrap, result_attribute_chain_long_wrap
+    )
+
+
+code_method_chain_long_wrap = """
+let vvvvvvvvvvvvvvvvvvvv = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(xxxxxxxxx, yyyyyyyyyy).bbbbbbbbbbbbbbbbbbbb(xxxxxxxxx, yyyyyyyyyy)?.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc(xxxxxxxxx, yyyyyyyyyy)
+"""
+result_method_chain_long_wrap = """
+let vvvvvvvvvvvvvvvvvvvv = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(
+    xxxxxxxxx,
+    yyyyyyyyyy
+)
+.bbbbbbbbbbbbbbbbbbbb(xxxxxxxxx, yyyyyyyyyy)
+?.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc(
+    xxxxxxxxx,
+    yyyyyyyyyy
+)
+"""
+
+
+def test_format_method_chain_long_wrap():
+    assert_render_pipeline(code_method_chain_long_wrap, result_method_chain_long_wrap)
+
+
 code_if_comp = """
 let x = (if (a)   b \n else   c)
 """
@@ -671,6 +732,7 @@ def decorator[**P](f: P) -> P {
 def test_format_func_paramspec():
     assert_render_pipeline(code_func_paramspec, result_func_paramspec)
 
+
 code_func_type_param_long = """
 def long_type_param[Taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, Tbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb: int](x: Taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, y: Tbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb) -> Taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa { return x }
 """
@@ -685,6 +747,7 @@ def long_type_param[
     return x
 }
 """
+
 
 def test_format_func_type_param_long():
     assert_render_pipeline(code_func_type_param_long, result_func_type_param_long)
