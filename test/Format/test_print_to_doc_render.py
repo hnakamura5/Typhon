@@ -445,3 +445,258 @@ def gen() {
 
 def test_format_yield_and_yield_from():
     assert_render_pipeline(code_yield_and_yield_from, result_yield_and_yield_from)
+
+
+code_type_alias = """
+type Pair[T] = (T, T)
+"""
+result_type_alias = """
+type Pair[T] = (T, T)
+"""
+
+
+def test_format_type_alias():
+    assert_render_pipeline(code_type_alias, result_type_alias)
+
+
+code_await = """
+async def f(x: int) -> int { return await g(x) }
+"""
+result_await = """
+async def f(x: int) -> int {
+    return await g(x)
+}
+"""
+
+
+def test_format_await():
+    assert_render_pipeline(code_await, result_await)
+
+
+code_dict_set_slice_starred = """
+let d = {"a":1, **m}
+let s = {1,2,3}
+let x = arr[1:10:2]
+let y = [*xs,3]
+"""
+result_dict_set_slice_starred = """
+let d = {"a": 1, **m}
+let s = {1, 2, 3}
+let x = arr[1:10:2]
+let y = [*xs, 3]
+"""
+
+
+def test_format_dict_set_slice_starred():
+    assert_render_pipeline(code_dict_set_slice_starred, result_dict_set_slice_starred)
+
+
+code_fstring = """
+let s = f"value={x}"
+"""
+result_fstring = """
+let s = f"value={x}"
+"""
+
+
+def test_format_fstring():
+    assert_render_pipeline(code_fstring, result_fstring)
+
+
+code_fstring_long_expr = """
+let s = f"value={very_long_function_name(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb)}"
+"""
+result_fstring_long_expr = """
+let s = f"value={very_long_function_name(
+    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+    bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+)}"
+"""
+
+
+def test_format_fstring_long_expr_wrap():
+    assert_render_pipeline(code_fstring_long_expr, result_fstring_long_expr)
+
+
+code_fstring_conversion = """
+let s = f"debug={x!r}"
+"""
+result_fstring_conversion = """
+let s = f"debug={x!r}"
+"""
+
+
+def test_format_fstring_conversion_r():
+    assert_render_pipeline(code_fstring_conversion, result_fstring_conversion)
+
+
+# TryStar (except*) tests
+# -----------------------
+
+code_try_except_star = """
+try { raise TypeError } except*(TypeError as e) { handle(e) }
+"""
+result_try_except_star = """
+try {
+    raise TypeError
+} except* (TypeError as e) {
+    handle(e)
+}
+"""
+
+
+def test_format_try_except_star():
+    assert_render_pipeline(code_try_except_star, result_try_except_star)
+
+
+code_try_except_star_finally = """
+try { risky() } except*(ValueError as e) { handle(e) } finally { cleanup() }
+"""
+result_try_except_star_finally = """
+try {
+    risky()
+} except* (ValueError as e) {
+    handle(e)
+} finally {
+    cleanup()
+}
+"""
+
+
+def test_format_try_except_star_finally():
+    assert_render_pipeline(code_try_except_star_finally, result_try_except_star_finally)
+
+
+# Type parameters tests
+# ---------------------
+
+code_class_type_params = """
+class Box[T] { let value: T = value }
+"""
+result_class_type_params = """
+class Box[T] {
+    let value: T = value
+}
+"""
+
+
+def test_format_class_type_params():
+    assert_render_pipeline(code_class_type_params, result_class_type_params)
+
+
+code_class_type_params_with_bound = """
+class Container[T: int] { let value: T = value }
+"""
+result_class_type_params_with_bound = """
+class Container[T: int] {
+    let value: T = value
+}
+"""
+
+
+def test_format_class_type_params_with_bound():
+    assert_render_pipeline(
+        code_class_type_params_with_bound, result_class_type_params_with_bound
+    )
+
+
+code_class_type_params_with_base = """
+class MyList[T](list) { let x = 1 }
+"""
+result_class_type_params_with_base = """
+class MyList[T](list) {
+    let x = 1
+}
+"""
+
+
+def test_format_class_type_params_with_base():
+    assert_render_pipeline(
+        code_class_type_params_with_base, result_class_type_params_with_base
+    )
+
+
+code_func_type_params = """
+def identity[T](x: T) -> T { return x }
+"""
+result_func_type_params = """
+def identity[T](x: T) -> T {
+    return x
+}
+"""
+
+
+def test_format_func_type_params():
+    assert_render_pipeline(code_func_type_params, result_func_type_params)
+
+
+code_func_type_params_multiple = """
+def pair[T, U](a: T, b: U) -> tuple { return (a, b) }
+"""
+result_func_type_params_multiple = """
+def pair[T, U](a: T, b: U) -> tuple {
+    return (a, b)
+}
+"""
+
+
+def test_format_func_type_params_multiple():
+    assert_render_pipeline(
+        code_func_type_params_multiple, result_func_type_params_multiple
+    )
+
+
+code_func_typevar_tuple = """
+def foo[*Ts]() -> None {}
+"""
+result_func_typevar_tuple = """
+def foo[*Ts]() -> None {}
+"""
+
+
+def test_format_func_typevar_tuple():
+    assert_render_pipeline(code_func_typevar_tuple, result_func_typevar_tuple)
+
+
+code_func_paramspec = """
+def decorator[**P](f: P) -> P { return f }
+"""
+result_func_paramspec = """
+def decorator[**P](f: P) -> P {
+    return f
+}
+"""
+
+
+def test_format_func_paramspec():
+    assert_render_pipeline(code_func_paramspec, result_func_paramspec)
+
+code_func_type_param_long = """
+def long_type_param[Taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, Tbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb: int](x: Taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, y: Tbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb) -> Taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa { return x }
+"""
+result_func_type_param_long = """
+def long_type_param[
+    Taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+    Tbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb: int
+](
+    x: Taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+    y: Tbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+) -> Taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa {
+    return x
+}
+"""
+
+def test_format_func_type_param_long():
+    assert_render_pipeline(code_func_type_param_long, result_func_type_param_long)
+
+
+code_type_alias_bound = """
+type Vector[T: int] = list[T]
+"""
+result_type_alias_bound = """
+type Vector[T: int] = list[T]
+"""
+
+
+def test_format_type_alias_bound():
+    assert_render_pipeline(code_type_alias_bound, result_type_alias_bound)

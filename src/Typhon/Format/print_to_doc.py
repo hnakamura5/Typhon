@@ -235,16 +235,36 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             return base
         return concat([base, text(":"), space(), self._visit_doc(arg.annotation)])
 
+    def _unsupported_syntax_doc(self, node: ast.AST) -> Doc:
+        debug_verbose_print(
+            lambda: (
+                f"Unsupported syntax in print_to_doc: {ast.dump(node, include_attributes=True)}"
+            )
+        )
+        return text(f"<Unsupported syntax: {type(node).__name__}>")
+
     def visit_Module(self, node: ast.Module) -> Doc:
         if len(node.body) == 0:
             return NIL
         return join(hardline(), [self._visit_doc(stmt) for stmt in node.body])
 
-    def visit_Expr(self, node: ast.Expr) -> Doc:
-        return self._visit_doc(node.value)
+    def visit_Delete(self, node: ast.Delete) -> Doc:
+        return self._unsupported_syntax_doc(node)
+
+    def visit_Global(self, node: ast.Global) -> Doc:
+        return self._unsupported_syntax_doc(node)
+
+    def visit_Nonlocal(self, node: ast.Nonlocal) -> Doc:
+        return self._unsupported_syntax_doc(node)
 
     def visit_Name(self, node: ast.Name) -> Doc:
         return text(node.id)
+
+    def visit_NamedExpr(self, node: ast.NamedExpr) -> Doc:
+        return self._unsupported_syntax_doc(node)
+
+    def visit_Expr(self, node: ast.Expr) -> Doc:
+        return self._visit_doc(node.value)
 
     def visit_Compare(self, node: ast.Compare) -> Doc:
         comps: list[Doc] = [self._visit_doc(node.left)]
@@ -266,6 +286,25 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         if node.value is None:
             return text("None")
         raise ValueError(f"Unsupported constant without raw tokens: {node.value!r}")
+
+    def visit_JoinedStr(self, node: ast.JoinedStr) -> Doc:
+        parts: list[Doc] = [text('f"')]
+        for value in node.values:
+            if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                parts.append(text(value.value))
+            else:
+                parts.append(self._visit_doc(value))
+        parts.append(text('"'))
+        return concat(parts)
+
+    def visit_FormattedValue(self, node: ast.FormattedValue) -> Doc:
+        parts: list[Doc] = [text("{"), self._visit_doc(node.value)]
+        if node.conversion != -1:
+            parts.extend([text("!"), text(chr(node.conversion))])
+        if node.format_spec is not None:
+            parts.extend([text(":"), self._visit_doc(node.format_spec)])
+        parts.append(text("}"))
+        return concat(parts)
 
     def visit_BinOp(self, node: ast.BinOp) -> Doc:
         op = self._get_binop_symbol(node.op)
@@ -361,6 +400,9 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         doc = concat([text(op), self._visit_doc(node.operand)])
         return self._maybe_wrap_group_paren(node, doc)
 
+    def visit_Await(self, node: ast.Await) -> Doc:
+        return concat([text("await"), space(), self._visit_doc(node.value)])
+
     def _pipe_operator_doc(self, node: ast.Call, is_optional: bool) -> Doc:
         doc = group(
             concat(
@@ -418,6 +460,17 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         )
         return self._maybe_wrap_group_paren(node, doc)
 
+    def visit_Slice(self, node: ast.Slice) -> Doc:
+        lower = self._visit_doc(node.lower) if node.lower is not None else NIL
+        upper = self._visit_doc(node.upper) if node.upper is not None else NIL
+        if node.step is None:
+            return concat([lower, text(":"), upper])
+        step = self._visit_doc(node.step)
+        return concat([lower, text(":"), upper, text(":"), step])
+
+    def visit_Starred(self, node: ast.Starred) -> Doc:
+        return concat([text("*"), self._visit_doc(node.value)])
+
     def visit_List(self, node: ast.List) -> Doc:
         doc = bracket(
             [
@@ -428,6 +481,27 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             ]
         )
         return self._maybe_wrap_group_paren(node, doc)
+
+    def visit_Dict(self, node: ast.Dict) -> Doc:
+        entries: list[Doc] = []
+        for key, value in zip(node.keys, node.values):
+            if key is None:
+                entries.append(concat([text("**"), self._visit_doc(value)]))
+            else:
+                entries.append(
+                    concat(
+                        [
+                            self._visit_doc(key),
+                            text(":"),
+                            space(),
+                            self._visit_doc(value),
+                        ]
+                    )
+                )
+        return brace(join(comma(), entries))
+
+    def visit_Set(self, node: ast.Set) -> Doc:
+        return brace(join(comma(), [self._visit_doc(e) for e in node.elts]))
 
     def visit_Tuple(self, node: ast.Tuple) -> Doc:
         if len(node.elts) == 1:
@@ -530,6 +604,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                             space(),
                             self._visit_doc(node.key),
                             text(":"),
+                            space(),
                             self._visit_doc(node.value),
                         ],
                         DEFAULT_INDENT_WIDTH + 1,
@@ -691,6 +766,34 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 self._alias_list_doc(node.names),
             ]
         )
+
+    def _type_param_doc(self, node: ast.type_param) -> Doc:
+        if isinstance(node, ast.TypeVar):
+            parts: list[Doc] = [text(node.name)]
+            if node.bound is not None:
+                parts.extend([text(":"), space(), self._visit_doc(node.bound)])
+            return concat(parts)
+        elif isinstance(node, ast.TypeVarTuple):
+            return concat([text("*"), text(node.name)])
+        elif isinstance(node, ast.ParamSpec):
+            return concat([text("**"), text(node.name)])
+        return self._unsupported_syntax_doc(node)
+
+    def _type_params_doc(self, type_params: list[ast.type_param]) -> Doc:
+        return bracket(
+            join(comma(), [self._type_param_doc(p) for p in type_params]),
+        )
+
+    def visit_TypeAlias(self, node: ast.TypeAlias) -> Doc:
+        parts: list[Doc] = [
+            text("type"),
+            space(),
+            self._visit_doc(node.name),
+        ]
+        if len(node.type_params) > 0:
+            parts.append(self._type_params_doc(node.type_params))
+        parts.extend([space(), text("="), space(), self._visit_doc(node.value)])
+        return concat(parts)
 
     def _let_patterns_match_doc(
         self, body: list[ast.stmt], innermost_body: list[ast.stmt]
@@ -880,12 +983,15 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         with_doc = self.visit_With(cast(ast.With, node))
         return concat([text("async"), space(), with_doc])
 
-    def _except_handler_doc(self, node: ast.ExceptHandler) -> Doc:
+    def _except_handler_doc(
+        self, node: ast.ExceptHandler, *, is_star: bool = False
+    ) -> Doc:
+        keyword = "except*" if is_star else "except"
         if node.type is None:
-            head = text("except")
+            head = text(keyword)
         else:
             head_parts: list[Doc] = [
-                text("except"),
+                text(keyword),
                 self._space_between_statement_keywords_and_paren,
             ]
             if node.name is not None:
@@ -902,15 +1008,26 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             head = concat(head_parts)
         return concat([head, self._block_doc(node.body)])
 
-    def visit_Try(self, node: ast.Try) -> Doc:
+    def _try_body_doc(
+        self,
+        node: ast.Try | ast.TryStar,
+        *,
+        is_star: bool = False,
+    ) -> Doc:
         parts: list[Doc] = [text("try"), self._block_doc(node.body)]
         for handler in node.handlers:
-            parts.extend([space(), self._except_handler_doc(handler)])
+            parts.extend([space(), self._except_handler_doc(handler, is_star=is_star)])
         if len(node.orelse) > 0:
             parts.extend([space(), text("else"), self._block_doc(node.orelse)])
         if len(node.finalbody) > 0:
             parts.extend([space(), text("finally"), self._block_doc(node.finalbody)])
         return concat(parts)
+
+    def visit_Try(self, node: ast.Try) -> Doc:
+        return self._try_body_doc(node, is_star=False)
+
+    def visit_TryStar(self, node: ast.TryStar) -> Doc:
+        return self._try_body_doc(node, is_star=True)
 
     def visit_MatchValue(self, node: ast.MatchValue) -> Doc:
         return self._visit_doc(node.value)
@@ -1087,6 +1204,8 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             ]
         )
         class_head = [text("class"), space(), text(node.name)]
+        if len(node.type_params) > 0:
+            class_head.append(self._type_params_doc(node.type_params))
         if len(args) > 0:
             class_head.extend(
                 [
@@ -1159,9 +1278,11 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 text("def"),
                 space(),
                 text(node.name),
-                paren(self._arguments_doc(node.args)),
             ]
         )
+        if len(node.type_params) > 0:
+            head_parts.append(self._type_params_doc(node.type_params))
+        head_parts.append(paren(self._arguments_doc(node.args)))
         if node.returns is not None:
             head_parts.extend(
                 [space(), text("->"), space(), self._visit_doc(node.returns)]

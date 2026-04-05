@@ -113,7 +113,7 @@ def test_translate_list_comprehension_doc():
 
 
 def test_translate_dict_comprehension_doc():
-    assert_rendered_doc_ident("{async for(var k in ks) yield k:v}")
+    assert_rendered_doc_ident("{async for(var k in ks) yield k: v}")
 
 
 def test_translate_if_stmt_to_typhon_style_block_doc():
