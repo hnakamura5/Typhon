@@ -11,6 +11,7 @@ from .Driver.debugging import (
 from .Driver.run import run
 from .Driver.type_check import type_check
 from .Driver.language_server import language_server
+from .Driver.format import format
 
 
 def _setup_debug_mode():
@@ -46,6 +47,7 @@ def main():
                 "tr": tr,
                 "run": run,
                 "type_check": type_check,
+                "format": format,
                 "lsp": language_server,
             },
             name="typhon",

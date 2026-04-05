@@ -141,6 +141,14 @@ Run type checking on Typhon code.
 typhon type_check <source>
 ```
 
+### Format
+
+Format Typhon source. By default, prints formatted code to stdout. Use `-i` or `--inplace` to edit files in place. Abort formatting on syntax error.
+
+```bash
+typhon format <source> [-i]
+```
+
 ## Future Plans
 
 See [Future Plans](doc/reference/future_plans.md) for planned features like compile-time controls (`static if`) and known limitations.
