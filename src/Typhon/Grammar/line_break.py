@@ -35,7 +35,7 @@ def is_operator_line_breakable_after(tok: TokenInfo) -> bool:
                 )
             )
         )
-        or (tok.type == NAME and tok.string in ("await", "in", "is"))
+        or (tok.type == NAME and tok.string in ("await", "in", "is", "as"))
     )
 
 

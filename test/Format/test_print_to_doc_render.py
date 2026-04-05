@@ -16,12 +16,33 @@ def _render_source(source: str) -> str:
     return render_doc_to_string(print_to_doc(module))
 
 
+def _mess_up_source(source: str) -> str:
+    # Between some keywords, space cannot be replaced with newline.
+    elts = source.split()
+    result: list[str] = []
+    for i, elt in enumerate(elts):
+        next_elt = elts[i + 1] if i + 1 < len(elts) else ""
+        if elt in ["return", "yield", "raise", "as", "from", "type"] or next_elt in {
+            "import",
+            "from",
+        }:
+            result.append(elt + "  ")
+        else:
+            result.append(elt + " \n  ")
+    return "".join(result)
+
+
 def assert_render_pipeline(source: str, expected: str) -> None:
     result = _render_source(source)
     assert result == expected.strip(), f"Expected:\n{expected}\n\nGot:\n{result}"
     round_tripped = _render_source(result)
     assert round_tripped.strip() == expected.strip(), (
         f"Round trip failed. Expected:\n{expected}\n\nGot:\n{round_tripped}"
+    )
+    messed_up = _mess_up_source(source)
+    result_from_messed_up = _render_source(messed_up)
+    assert result_from_messed_up.strip() == expected.strip(), (
+        f"Formatter did not normalize messed up source. Expected:\n{expected}\n\nGot:\n{result_from_messed_up}\n\nOriginal source:\n{source}\n\nOriginal messed up source:\n{messed_up}"
     )
 
 
@@ -828,3 +849,32 @@ type Vector[T: int] = list[T]
 
 def test_format_type_alias_bound():
     assert_render_pipeline(code_type_alias_bound, result_type_alias_bound)
+
+
+code_nested_expr = """
+let x = ([aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, ccccccccccccccccccccccccccccccc], foo(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, ccccccccccccccccccccccccccccccc), (if (aaaaaaaaaaaaaaaaaaaaa) bbbbbbbbbbbbbbbbbbbb else ccccccccccccccccccccccccccccccc), [for (let yyyyyyyyyyyyyyyyy in zzzzzzzzzzzzzzzzzzzzzz) if (p(y)) yield yyyyyyyyyyyyyyyyy])
+"""
+result_nested_expr = """
+let x = (
+    [
+        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+        bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
+        ccccccccccccccccccccccccccccccc
+    ],
+    foo(
+        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+        bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
+        ccccccccccccccccccccccccccccccc
+    ),
+    (if(aaaaaaaaaaaaaaaaaaaaa)
+         bbbbbbbbbbbbbbbbbbbb
+     else
+         ccccccccccccccccccccccccccccccc),
+    [for(let yyyyyyyyyyyyyyyyy in zzzzzzzzzzzzzzzzzzzzzz) if(p(y))
+         yield yyyyyyyyyyyyyyyyy]
+)
+"""
+
+
+def test_format_nested_expr():
+    assert_render_pipeline(code_nested_expr, result_nested_expr)

@@ -371,8 +371,9 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     def _if_exp_chain_doc(
         self, node: ast.IfExp, keyword: Literal["if", "elif"] = "if"
     ) -> Doc:
-        # If comprehension that is IfExp.
-        doc = group(  # if, elif
+        # Keep this segment ungrouped so outer else/elif breaks also force
+        # the body after if/elif to break consistently.
+        doc = concat(
             [
                 text(keyword),
                 self._space_between_comprehension_keywords_and_paren,
@@ -388,7 +389,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         )
         if not is_elseless_if_exp(node):
             if isinstance(node.orelse, ast.IfExp):
-                return group(  # chain the child IfExp
+                return concat(  # chain the child IfExp
                     [
                         doc,
                         self._anchor_to_current(
@@ -401,7 +402,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     ]
                 )
             else:
-                doc = group(  # else
+                doc = concat(  # else
                     [
                         doc,
                         self._anchor_to_current(
