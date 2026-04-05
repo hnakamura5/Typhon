@@ -611,6 +611,16 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             return text("return")
         return concat([text("return"), space(), self._visit_doc(node.value)])
 
+    def visit_Yield(self, node: ast.Yield) -> Doc:
+        if node.value is None:
+            return text("yield")
+        return concat([text("yield"), space(), self._visit_doc(node.value)])
+
+    def visit_YieldFrom(self, node: ast.YieldFrom) -> Doc:
+        return concat(
+            [text("yield"), space(), text("from"), space(), self._visit_doc(node.value)]
+        )
+
     def visit_Raise(self, node: ast.Raise) -> Doc:
         if node.exc is None:
             return text("raise")
@@ -637,6 +647,50 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         if node.msg is not None:
             result = concat([result, comma(), self._visit_doc(node.msg)])
         return result
+
+    def _alias_doc(self, node: ast.alias) -> Doc:
+        result: Doc = text(node.name)
+        if node.asname is not None:
+            result = concat([result, space(), text("as"), space(), text(node.asname)])
+        return result
+
+    def _alias_list_doc(self, aliases: list[ast.alias]) -> Doc:
+        if len(aliases) == 0:
+            return NIL
+        first_alias_anchor = anchor()
+        docs = [self._alias_doc(a) for a in aliases]
+        parts: list[Doc] = [first_alias_anchor, docs[0]]
+        for a in docs[1:]:
+            parts.extend(
+                [
+                    text(","),
+                    align_to_anchor([line_or_space(), a], first_alias_anchor),
+                ]
+            )
+        return group(parts)
+
+    def visit_Import(self, node: ast.Import) -> Doc:
+        return group(
+            [
+                text("import"),
+                space(),
+                self._alias_list_doc(node.names),
+            ]
+        )
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> Doc:
+        module = concat([text("." * node.level), text(node.module or "")])
+        return group(
+            [
+                text("from"),
+                space(),
+                module,
+                space(),
+                text("import"),
+                space(),
+                self._alias_list_doc(node.names),
+            ]
+        )
 
     def _let_patterns_match_doc(
         self, body: list[ast.stmt], innermost_body: list[ast.stmt]

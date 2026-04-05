@@ -19,6 +19,10 @@ def _render_source(source: str) -> str:
 def assert_render_pipeline(source: str, expected: str) -> None:
     result = _render_source(source)
     assert result == expected.strip(), f"Expected:\n{expected}\n\nGot:\n{result}"
+    round_tripped = _render_source(result)
+    assert round_tripped.strip() == expected.strip(), (
+        f"Round trip failed. Expected:\n{expected}\n\nGot:\n{round_tripped}"
+    )
 
 
 code_constant = """
@@ -398,3 +402,46 @@ let x = (let (a, b) = pair; a + b)
 
 def test_format_let_comp_pattern():
     assert_render_pipeline(code_let_comp_pattern, result_let_comp_pattern)
+
+
+code_import = """
+import aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb as cccccccccccccccccccccccccccccccccccccccc, dddddddddddddddddddddddddddddddddddddddd
+"""
+result_import = """
+import aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+       bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb as cccccccccccccccccccccccccccccccccccccccc,
+       dddddddddddddddddddddddddddddddddddddddd
+"""
+
+
+def test_format_import_alignment():
+    assert_render_pipeline(code_import, result_import)
+
+
+code_import_from = """
+from pkg.subpkg.module import aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb as cccccccccccccccccccccccccccccccccccccccc, dddddddddddddddddddddddddddddddddddddddd
+"""
+result_import_from = """
+from pkg.subpkg.module import aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+                              bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb as cccccccccccccccccccccccccccccccccccccccc,
+                              dddddddddddddddddddddddddddddddddddddddd
+"""
+
+
+def test_format_import_from_alignment():
+    assert_render_pipeline(code_import_from, result_import_from)
+
+
+code_yield_and_yield_from = """
+def gen() { yield 1;yield from [2,3] }
+"""
+result_yield_and_yield_from = """
+def gen() {
+    yield 1
+    yield from [2, 3]
+}
+"""
+
+
+def test_format_yield_and_yield_from():
+    assert_render_pipeline(code_yield_and_yield_from, result_yield_and_yield_from)
