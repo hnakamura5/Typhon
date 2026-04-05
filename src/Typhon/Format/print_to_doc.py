@@ -21,8 +21,11 @@ from Typhon.Grammar.typhon_ast import (
     get_type_annotation,
     get_wrapper_paren_tokens,
     is_attributes_pattern,
+    is_control_comprehension,
     is_elseless_if_exp,
     is_empty_pass,
+    is_function_literal,
+    is_function_literal_def,
     is_function_literal_inline_return,
     is_if_let_implicit_none_check,
     is_inline_with,
@@ -191,6 +194,42 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             return doc
         return concat([text(wrappers[0].string), doc, text(wrappers[-1].string)])
 
+    # Ad-hoc preference to represent complex expression (with brace) should
+    # be broken in the right-hand-side of assignment.
+    def _prefer_rhs_internal_break_in_assign(self, value: ast.expr) -> bool:
+        if isinstance(
+            value,
+            (
+                ast.Tuple,
+                ast.List,
+                ast.Set,
+            ),
+        ):
+            return len(value.elts) > 0
+        if isinstance(value, ast.Dict):
+            return len(value.keys) > 0
+        if isinstance(value, ast.Call):
+            return len(value.args) + len(value.keywords) > 0
+        if isinstance(
+            value,
+            (
+                ast.IfExp,
+                ast.ListComp,
+                ast.SetComp,
+                ast.GeneratorExp,
+                ast.DictComp,
+                ast.JoinedStr,
+            ),
+        ):
+            return True
+        if isinstance(value, ast.Name) and (
+            is_function_literal(value) or is_control_comprehension(value)
+        ):
+            return True
+        if get_wrapper_paren_tokens(value):
+            return True
+        return False
+
     def _visit_doc(self, node: ast.AST) -> Doc:
         return cast(Doc, self.visit(node))
 
@@ -309,15 +348,13 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     def visit_BinOp(self, node: ast.BinOp) -> Doc:
         op = self._get_binop_symbol(node.op)
         doc = group(
-            concat(
-                [
-                    self._visit_doc(node.left),
-                    space(),
-                    text(op),
-                    space(),
-                    self._visit_doc(node.right),
-                ]
-            )
+            [
+                self._visit_doc(node.left),
+                line_or_space(),
+                text(op),
+                space(),
+                self._visit_doc(node.right),
+            ]
         )
         return self._maybe_wrap_group_paren(node, doc)
 
@@ -408,7 +445,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             concat(
                 [
                     self._visit_doc(node.args[0]),
-                    space(),
+                    line_or_space(),
                     text("?|>" if is_optional else "|>"),
                     space(),
                     self._visit_doc(node.func),
@@ -621,6 +658,11 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             decl_prefix = "let"
 
         targets_doc = join(comma(), [self._visit_doc(t) for t in node.targets])
+        value_doc = self._visit_doc(node.value)
+        if self._prefer_rhs_internal_break_in_assign(node.value):
+            value_doc = concat([space(), value_doc])
+        else:
+            value_doc = indent([line_or_space(), value_doc])
         return group(
             [
                 text(decl_prefix),
@@ -628,8 +670,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 targets_doc,
                 space(),
                 text("="),
-                space(),
-                self._visit_doc(node.value),
+                value_doc,
             ]
         )
 
@@ -639,7 +680,6 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             decl_prefix = "var"
         elif is_let_assign(node):
             decl_prefix = "let"
-
         base = concat(
             [
                 text(decl_prefix),
@@ -652,32 +692,34 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         )
         if node.value is None:
             return base
+        value_doc = self._visit_doc(node.value)
+        if self._prefer_rhs_internal_break_in_assign(node.value):
+            value_doc = concat([space(), value_doc])
+        else:
+            value_doc = indent([line_or_space(), value_doc])
         return group(
             [
                 base,
                 space(),
                 text("="),
-                line_or_space(),
-                indent(group([self._visit_doc(node.value)])),
+                value_doc,
             ]
         )
 
     def visit_AugAssign(self, node: ast.AugAssign) -> Doc:
         op = self._get_binop_symbol(node.op)
+        value_doc = self._visit_doc(node.value)
+        if self._prefer_rhs_internal_break_in_assign(node.value):
+            value_doc = concat([space(), value_doc])
+        else:
+            value_doc = indent([line_or_space(), value_doc])
         return group(
             [
                 self._visit_doc(node.target),
                 space(),
                 text(op),
                 text("="),
-                line_or_space(),
-                indent(
-                    group(
-                        [
-                            self._visit_doc(node.value),
-                        ]
-                    )
-                ),
+                value_doc,
             ]
         )
 

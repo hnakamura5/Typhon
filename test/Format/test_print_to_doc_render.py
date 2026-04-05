@@ -49,6 +49,22 @@ def test_format_expression_keeps_paren_tokens():
     assert_render_pipeline(code_expression, result_expression)
 
 
+code_binop_operator_leading_break = """
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa + bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+"""
+
+result_binop_operator_leading_break = """
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
++ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+"""
+
+
+def test_format_binop_operator_leading_break():
+    assert_render_pipeline(
+        code_binop_operator_leading_break, result_binop_operator_leading_break
+    )
+
+
 code_call = """
 f(1, x=2)
 """
@@ -75,6 +91,23 @@ let x = f(
 
 def test_format_long_call():
     assert_render_pipeline(code_loag_call, result_long_call)
+
+
+code_assign_rhs_break_after_equal = """
+let result = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa + bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+"""
+
+result_assign_rhs_break_after_equal = """
+let result =
+    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    + bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+"""
+
+
+def test_format_assign_break_after_equal():
+    assert_render_pipeline(
+        code_assign_rhs_break_after_equal, result_assign_rhs_break_after_equal
+    )
 
 
 code_record_literal = """
@@ -288,6 +321,36 @@ def test_format_long_name_list():
     assert_render_pipeline(code_long_name_list, result_long_name_list)
 
 
+code_annassign_break_after_equal = """
+let aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: int = bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+"""
+result_annassign_break_after_equal = """
+let aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: int =
+    bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+"""
+
+
+def test_format_annassign_break_after_equal_indents_once():
+    assert_render_pipeline(
+        code_annassign_break_after_equal, result_annassign_break_after_equal
+    )
+
+
+code_augassign_break_after_operator = """
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa += bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+"""
+result_augassign_break_after_operator = """
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa +=
+    bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+"""
+
+
+def test_format_augassign_break_after_operator_indents_once():
+    assert_render_pipeline(
+        code_augassign_break_after_operator, result_augassign_break_after_operator
+    )
+
+
 code_attribute = """
 let x = obj.attribute_name
 """
@@ -304,8 +367,9 @@ code_attribute_long_wrap = """
 let x = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 """
 result_attribute_long_wrap = """
-let x = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+let x =
+    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    .bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 """
 
 
@@ -317,9 +381,10 @@ code_attribute_chain_long_wrap = """
 let x = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 """
 result_attribute_chain_long_wrap = """
-let x = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-.cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+let x =
+    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    .bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    .cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 """
 
 
