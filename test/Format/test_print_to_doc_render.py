@@ -86,6 +86,22 @@ def test_format_binop_operator_leading_break():
     )
 
 
+code_pipe_operator_leading_break = """
+let x = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ?|> bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb |> cccccccccccccccccccccccccccccccccccccccccccc
+"""
+result_pipe_operator_leading_break = """
+let x = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        ?|> bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+        |> cccccccccccccccccccccccccccccccccccccccccccc
+"""
+
+
+def test_format_pipe_operator_leading_break():
+    assert_render_pipeline(
+        code_pipe_operator_leading_break, result_pipe_operator_leading_break
+    )
+
+
 code_call = """
 f(1, x=2)
 """
@@ -385,12 +401,11 @@ def test_format_attribute():
 
 
 code_attribute_long_wrap = """
-let x = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+let x = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb(x)
 """
 result_attribute_long_wrap = """
-let x =
-    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-    .bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+let x = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb(x)
 """
 
 

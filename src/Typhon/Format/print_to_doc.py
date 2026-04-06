@@ -347,13 +347,21 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
 
     def visit_BinOp(self, node: ast.BinOp) -> Doc:
         op = self._get_binop_symbol(node.op)
+        binop_open_anchor = anchor()
         doc = group(
             [
+                binop_open_anchor,
                 self._visit_doc(node.left),
-                line_or_space(),
-                text(op),
-                space(),
-                self._visit_doc(node.right),
+                align_to_anchor(
+                    [
+                        line_or_space(),
+                        text(op),
+                        space(),
+                        self._visit_doc(node.right),
+                    ],
+                    binop_open_anchor,
+                    0,
+                ),
             ]
         )
         return self._maybe_wrap_group_paren(node, doc)
@@ -442,16 +450,22 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return concat([text("await"), space(), self._visit_doc(node.value)])
 
     def _pipe_operator_doc(self, node: ast.Call, is_optional: bool) -> Doc:
+        pipe_open_anchor = anchor()
         doc = group(
-            concat(
-                [
-                    self._visit_doc(node.args[0]),
-                    line_or_space(),
-                    text("?|>" if is_optional else "|>"),
-                    space(),
-                    self._visit_doc(node.func),
-                ]
-            )
+            [
+                pipe_open_anchor,
+                self._visit_doc(node.args[0]),
+                align_to_anchor(
+                    [
+                        line_or_space(),
+                        text("?|>" if is_optional else "|>"),
+                        space(),
+                        self._visit_doc(node.func),
+                    ],
+                    pipe_open_anchor,
+                    0,
+                ),
+            ]
         )
         return self._maybe_wrap_group_paren(node, doc)
 
