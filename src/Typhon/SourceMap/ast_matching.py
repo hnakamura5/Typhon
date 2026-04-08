@@ -12,7 +12,7 @@ from ..Grammar.typhon_ast import (
 )
 from ..Grammar.position import (
     get_call_argument_comma_anchors,
-    get_call_trailing_comma_anchor,
+    get_trailing_comma_anchor,
     get_completion_trigger_anchor,
     get_return_type_annotation_anchor,
 )
@@ -113,8 +113,8 @@ class MatchingVisitor(ast.NodeVisitor):
                         right_call_comma_anchors,
                         allow_len_mismatch=True,
                     )
-            if trailing_comma_anchor := get_call_trailing_comma_anchor(node):
-                right_trailing_comma_anchor = get_call_trailing_comma_anchor(right)
+            if trailing_comma_anchor := get_trailing_comma_anchor(node):
+                right_trailing_comma_anchor = get_trailing_comma_anchor(right)
                 if right_trailing_comma_anchor is not None:
                     with self._with_right(right_trailing_comma_anchor):
                         self.visit(trailing_comma_anchor)

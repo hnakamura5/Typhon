@@ -26,7 +26,7 @@ from .typhon_ast import (
     make_record_literal, make_record_type, make_attributes_pattern, make_tuple_pattern, make_for_let_pattern, make_with_let_pattern, make_inline_with_let_pattern, make_class_def,
     make_match_case, make_alias, make_import_from, make_arguments, make_attribute,
     make_arg, make_match_class, ImportDotNames,  set_completion_trigger_anchor_token,
-    CallArgs, set_call_anchors, set_is_empty_pass,
+    CallArgs, set_call_anchors, set_is_empty_pass, set_trailing_comma_anchor_token,
     set_wrapper_paren_tokens, set_constant_raw_tokens
 )
 from .position import (
@@ -1265,9 +1265,16 @@ typing_arrow_type[ast.expr]:
 # -----------
 
 expressions:
-    | '(' a=expression b=(',' c=expression { c })+ [','] ')' {
-        ast.Tuple(elts=[a] + b, ctx=Load, LOCATIONS) }
-    | a=expression ',' { ast.Tuple(elts=[a], ctx=Load, LOCATIONS) }
+    | '(' a=expression b=(',' c=expression { c })+ t=[','] ')' {
+        set_trailing_comma_anchor_token(
+            ast.Tuple(elts=[a] + b, ctx=Load, LOCATIONS),
+            t,
+        ) }
+    | a=expression c=',' {
+        set_trailing_comma_anchor_token(
+            ast.Tuple(elts=[a], ctx=Load, LOCATIONS),
+            c,
+        ) }
     | expression
 
 expression (memo):
@@ -1280,9 +1287,16 @@ yield_expr:
     | 'yield' a=[star_expressions] { ast.Yield(value=a, LOCATIONS) }
 
 star_expressions:
-    | '(' a=star_expression b=(',' c=star_expression { c })+ [','] ')' {
-        ast.Tuple(elts=[a] + b, ctx=Load, LOCATIONS) }
-    | '(' a=star_expression ',' ')' { ast.Tuple(elts=[a], ctx=Load, LOCATIONS) }
+    | '(' a=star_expression b=(',' c=star_expression { c })+ t=[','] ')' {
+        set_trailing_comma_anchor_token(
+            ast.Tuple(elts=[a] + b, ctx=Load, LOCATIONS),
+            t,
+        ) }
+    | '(' a=star_expression c=',' ')' {
+        set_trailing_comma_anchor_token(
+            ast.Tuple(elts=[a], ctx=Load, LOCATIONS),
+            c,
+        ) }
     | star_expression
 
 star_expression (memo):
@@ -1630,23 +1644,49 @@ strings (memo): a=(fstring|STRING)+ {
  }
 
 list[ast.List]:
-    | '[' a=[star_named_expressions] ']' { ast.List(elts=a or [], ctx=Load, LOCATIONS) }
+    | '[' a=star_named_expressions_trailing ']' {
+        set_trailing_comma_anchor_token(
+            ast.List(elts=a[0], ctx=Load, LOCATIONS),
+            a[1],
+        )
+     }
+    | '[' ']' { ast.List(elts=[], ctx=Load, LOCATIONS) }
 
 tuple[ast.Tuple]:
-    | '(' a=[y=star_named_expression ',' z=[star_named_expressions] { [y] + (z or []) } ] ')' {
-        ast.Tuple(elts=a or [], ctx=Load, LOCATIONS)
+    | '(' y=star_named_expression c=',' z=[star_named_expressions_trailing] ')' {
+        set_trailing_comma_anchor_token(
+            ast.Tuple(elts=[y] + (z[0] if z is not None else []), ctx=Load, LOCATIONS),
+            c if z is None else z[1],
+        )
      }
 
-set[ast.Set]: '{' a=star_named_expressions '}' { ast.Set(elts=a, LOCATIONS) }
+set[ast.Set]:
+    | '{' a=star_named_expressions_trailing '}' {
+        set_trailing_comma_anchor_token(
+            ast.Set(elts=a[0], LOCATIONS),
+            a[1],
+        )
+     }
 
 # Dicts
 # -----
 
 dict[ast.Dict]:
-    | '{' a=[double_starred_kvpairs] '}' {
-        ast.Dict(keys=[kv[0] for kv in (a or [])], values=[kv[1] for kv in (a or [])], LOCATIONS)
+    | '{' a=','.double_starred_kvpair+ c=[','] '}' {
+        set_trailing_comma_anchor_token(
+            ast.Dict(
+                keys=[kv[0] for kv in a],
+                values=[kv[1] for kv in a],
+                LOCATIONS,
+            ),
+            c,
+        )
      }
+    | '{' '}' { ast.Dict(keys=[], values=[], LOCATIONS) }
     | '{' invalid_double_starred_kvpairs '}'
+
+star_named_expressions_trailing[Tuple[List[ast.expr], TokenInfo | None]]:
+    | a=','.star_named_expression+ c=[','] { (a, c) }
 
 double_starred_kvpairs[List[Tuple[ast.expr | None, ast.expr]]]:
     | a=','.double_starred_kvpair+ [','] { a }
@@ -1664,12 +1704,22 @@ record_literal_field[Tuple[ast.Name, ast.expr | None, ast.expr]]:
     | a=symbol b=annotation? '=' c=expression { (a, b, c) }
 
 record_literal[ast.Name]:
-    | '{|' fs=','.record_literal_field+ [','] '|}' { make_record_literal(fs, LOCATIONS) }
+    | '{|' fs=','.record_literal_field+ c=[','] '|}' {
+        set_trailing_comma_anchor_token(
+            make_record_literal(fs, LOCATIONS),
+            c,
+        )
+     }
 
 record_type_field[Tuple[ast.Name, ast.expr]]:
     | a=symbol b=annotation { (a, b) }
 record_type[ast.Name]:
-    | '{|' fs=','.record_type_field+ [','] '|}' { make_record_type(fs, LOCATIONS) }
+    | '{|' fs=','.record_type_field+ c=[','] '|}' {
+        set_trailing_comma_anchor_token(
+            make_record_type(fs, LOCATIONS),
+            c,
+        )
+     }
 
 # Comprehensions & Generators
 # ---------------------------

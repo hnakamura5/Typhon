@@ -114,6 +114,142 @@ def test_format_call_with_keywords():
     assert_render_pipeline(code_call, result_call)
 
 
+code_call_with_trailing_comma = """
+let x = f(1, 2,)
+"""
+result_call_with_trailing_comma = """
+let x = f(
+    1,
+    2,
+)
+"""
+
+
+def test_format_call_with_trailing_comma_forces_multiline():
+    assert_render_pipeline(
+        code_call_with_trailing_comma, result_call_with_trailing_comma
+    )
+
+
+code_call_with_kw_trailing_comma = """
+let x = f(a=1, b=2,)
+"""
+result_call_with_kw_trailing_comma = """
+let x = f(
+    a=1,
+    b=2,
+)
+"""
+
+
+def test_format_call_with_kw_trailing_comma_forces_multiline():
+    assert_render_pipeline(
+        code_call_with_kw_trailing_comma, result_call_with_kw_trailing_comma
+    )
+
+
+code_list_with_trailing_comma = """
+let x = [1,2,]
+"""
+result_list_with_trailing_comma = """
+let x = [
+    1,
+    2,
+]
+"""
+
+
+def test_format_list_with_trailing_comma():
+    assert_render_pipeline(
+        code_list_with_trailing_comma, result_list_with_trailing_comma
+    )
+
+
+code_tuple_with_trailing_comma = """
+let x = (1,2,)
+"""
+result_tuple_with_trailing_comma = """
+let x = (
+    1,
+    2,
+)
+"""
+
+
+def test_format_tuple_with_trailing_comma():
+    assert_render_pipeline(
+        code_tuple_with_trailing_comma, result_tuple_with_trailing_comma
+    )
+
+
+code_set_with_trailing_comma = """
+let x = {1,2,}
+"""
+result_set_with_trailing_comma = """
+let x = {
+    1,
+    2,
+}
+"""
+
+
+def test_format_set_with_trailing_comma():
+    assert_render_pipeline(code_set_with_trailing_comma, result_set_with_trailing_comma)
+
+
+code_dict_with_trailing_comma = """
+let x = {"a":1, "b":2,}
+"""
+result_dict_with_trailing_comma = """
+let x = {
+    "a": 1,
+    "b": 2,
+}
+"""
+
+
+def test_format_dict_with_trailing_comma():
+    assert_render_pipeline(
+        code_dict_with_trailing_comma, result_dict_with_trailing_comma
+    )
+
+
+code_record_literal_with_trailing_comma = """
+let x = {|x=1, y=2,|}
+"""
+result_record_literal_with_trailing_comma = """
+let x = {|
+    x = 1,
+    y = 2,
+|}
+"""
+
+
+def test_format_record_literal_with_trailing_comma():
+    assert_render_pipeline(
+        code_record_literal_with_trailing_comma,
+        result_record_literal_with_trailing_comma,
+    )
+
+
+code_record_type_with_trailing_comma = """
+let x : {|x:int, y:int,|} = foo()
+"""
+result_record_type_with_trailing_comma = """
+let x: {|
+    x: int,
+    y: int,
+|} = foo()
+"""
+
+
+def test_format_record_type_with_trailing_comma():
+    assert_render_pipeline(
+        code_record_type_with_trailing_comma,
+        result_record_type_with_trailing_comma,
+    )
+
+
 code_loag_call = """
 let x = f(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
 """

@@ -19,13 +19,13 @@ from ..Driver.debugging import debug_print, debug_verbose_print, is_testing_repa
 from .position import (
     PosAttributes,
     get_call_argument_comma_anchors,
-    get_call_trailing_comma_anchor,
+    get_trailing_comma_anchor,
     get_pos_attributes,
     get_empty_pos_attributes,
     pos_attribute_to_range,
     name_from_anchor_token,
     set_call_argument_comma_anchors,
-    set_call_trailing_comma_anchor,
+    set_trailing_comma_anchor,
     set_return_type_annotation_anchor,
     set_completion_trigger_anchor,
     get_completion_trigger_anchor,
@@ -2333,8 +2333,8 @@ def clear_is_placeholder(node: ast.Name) -> None:
 
 _RECORD_LITERAL_FIELDS = "_typh_is_record_literal_fields"
 _RECORD_TYPE = "_typh_is_record_literal_type"
-type RecordLiteral = ast.Name
-type RecordType = ast.Name
+RecordLiteral = ast.Name
+RecordType = ast.Name
 
 
 def set_record_literal_fields(
@@ -2756,9 +2756,7 @@ def set_call_anchors(
 ) -> ast.Call:
     if call_args is not None:
         call_node = set_call_argument_comma_anchor_tokens(call_node, call_args.commas)
-        call_node = set_call_trailing_comma_anchor_token(
-            call_node, call_args.trailing_comma
-        )
+        call_node = set_trailing_comma_anchor_token(call_node, call_args.trailing_comma)
     set_completion_trigger_anchor_token(call_node, open_paren)
     return call_node
 
@@ -2770,22 +2768,22 @@ def maybe_copy_call_argument_comma_anchors(
     return set_call_argument_comma_anchors(to_node, anchor)
 
 
-def set_call_trailing_comma_anchor_token(
-    call_node: ast.Call,
+def set_trailing_comma_anchor_token[T: ast.expr](
+    node: T,
     comma: TokenInfo | None,
-) -> ast.Call:
+) -> T:
     if comma is None:
-        return call_node
+        return node
     name = set_is_internal_name(name_from_anchor_token(comma))
     debug_verbose_print(lambda: f"Setting call trailing comma anchor: {name.id}")
-    set_call_trailing_comma_anchor(call_node, name)
-    return call_node
+    set_trailing_comma_anchor(node, name)
+    return node
 
 
-def maybe_copy_call_trailing_comma_anchor(
+def maybe_copy_trailing_comma_anchor(
     from_node: ast.Call, to_node: ast.Call
 ) -> ast.Call:
-    anchor = get_call_trailing_comma_anchor(from_node)
+    anchor = get_trailing_comma_anchor(from_node)
     if anchor is None:
         return to_node
     return to_node
@@ -2794,5 +2792,5 @@ def maybe_copy_call_trailing_comma_anchor(
 def maybe_copy_anchors_in_call(from_node: ast.Call, to_node: ast.Call) -> ast.Call:
     to_node = maybe_copy_completion_trigger_anchor(from_node, to_node)
     to_node = maybe_copy_call_argument_comma_anchors(from_node, to_node)
-    to_node = maybe_copy_call_trailing_comma_anchor(from_node, to_node)
+    to_node = maybe_copy_trailing_comma_anchor(from_node, to_node)
     return to_node

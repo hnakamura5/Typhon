@@ -189,17 +189,18 @@ def clear_return_type_annotation_anchor(node: ast.FunctionDef | ast.AsyncFunctio
         delattr(node, _RETURN_TYPE_ANNOTATION_ANCHOR)
 
 
-_CALL_TRAILING_COMMA_ANCHOR = "_typh_call_trailing_comma_anchor"
+_TRAILING_COMMA_ANCHOR = "_typh_trailing_comma_anchor"
 
 
-def set_call_trailing_comma_anchor(node: ast.Call, anchor: ast.Name | None):
-    setattr(node, _CALL_TRAILING_COMMA_ANCHOR, anchor)
+def set_trailing_comma_anchor[T: ast.expr](node: T, anchor: ast.Name | None) -> T:
+    setattr(node, _TRAILING_COMMA_ANCHOR, anchor)
+    return node
 
 
-def get_call_trailing_comma_anchor(node: ast.Call) -> ast.Name | None:
-    return getattr(node, _CALL_TRAILING_COMMA_ANCHOR, None)
+def get_trailing_comma_anchor(node: ast.expr) -> ast.Name | None:
+    return getattr(node, _TRAILING_COMMA_ANCHOR, None)
 
 
-def clear_call_trailing_comma_anchor(node: ast.Call):
-    if hasattr(node, _CALL_TRAILING_COMMA_ANCHOR):
-        delattr(node, _CALL_TRAILING_COMMA_ANCHOR)
+def clear_trailing_comma_anchor(node: ast.expr):
+    if hasattr(node, _TRAILING_COMMA_ANCHOR):
+        delattr(node, _TRAILING_COMMA_ANCHOR)

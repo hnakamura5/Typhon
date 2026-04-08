@@ -4,7 +4,7 @@ from ..Driver.debugging import debug_verbose_print
 from ..Grammar.position import (
     get_pos_attributes,
     set_call_argument_comma_anchors,
-    set_call_trailing_comma_anchor,
+    set_trailing_comma_anchor,
 )
 from ..Grammar.typhon_ast import (
     set_defined_name,
@@ -197,7 +197,7 @@ class _DefinedNameRetriever(ast.NodeVisitor):
                     )
                 )
         if has_trailing_comma and node.args + node.keywords:
-            set_call_trailing_comma_anchor(node, commas[-1])
+            set_trailing_comma_anchor(node, commas[-1])
             commas = commas[:-1]
         set_call_argument_comma_anchors(node, commas)
         self.generic_visit(node)
