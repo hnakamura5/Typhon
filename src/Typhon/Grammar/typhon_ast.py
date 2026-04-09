@@ -149,6 +149,41 @@ def clear_lossless_token_info(module: ast.Module) -> None:
         delattr(module, _LOSSLESS_TOKEN_INFO)
 
 
+_LEADING_COMMENTS = "_typh_leading_comments"
+_TRAILING_COMMENTS = "_typh_trailing_comments"
+_DANGLING_COMMENTS = "_typh_dangling_comments"
+
+
+def get_leading_comments(node: ast.AST) -> list[TokenInfo]:
+    return getattr(node, _LEADING_COMMENTS, [])
+
+
+def set_leading_comments(node: ast.AST, comments: list[TokenInfo]) -> None:
+    setattr(node, _LEADING_COMMENTS, comments)
+
+
+def get_trailing_comments(node: ast.AST) -> list[TokenInfo]:
+    return getattr(node, _TRAILING_COMMENTS, [])
+
+
+def set_trailing_comments(node: ast.AST, comments: list[TokenInfo]) -> None:
+    setattr(node, _TRAILING_COMMENTS, comments)
+
+
+def get_dangling_comments(node: ast.AST) -> list[TokenInfo]:
+    return getattr(node, _DANGLING_COMMENTS, [])
+
+
+def set_dangling_comments(node: ast.AST, comments: list[TokenInfo]) -> None:
+    setattr(node, _DANGLING_COMMENTS, comments)
+
+
+def clear_comments(node: ast.AST) -> None:
+    for attr in (_LEADING_COMMENTS, _TRAILING_COMMENTS, _DANGLING_COMMENTS):
+        if hasattr(node, attr):
+            delattr(node, attr)
+
+
 _WRAPPER_PAREN_TOKENS = "wrapper_paren_tokens"
 
 

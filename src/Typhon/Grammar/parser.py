@@ -111,6 +111,9 @@ def parse_string(
     )
     if parsed:
         gather_errors(parsed)
+        all_tokens = tokenizer.read_all_tokens()
+        if isinstance(parsed, ast.Module):
+            set_lossless_token_info(parsed, all_tokens)
     return parsed
 
 
