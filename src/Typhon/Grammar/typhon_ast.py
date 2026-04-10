@@ -184,6 +184,31 @@ def clear_comments(node: ast.AST) -> None:
             delattr(node, attr)
 
 
+def has_comments(node: ast.AST) -> bool:
+    return (
+        bool(get_leading_comments(node))
+        or bool(get_trailing_comments(node))
+        or bool(get_dangling_comments(node))
+    )
+
+
+_IS_BLOCK_COMMENT = "_typh_is_block_comment"
+
+
+def is_block_comment(token: TokenInfo) -> bool:
+    return getattr(token, _IS_BLOCK_COMMENT, False)
+
+
+def set_is_block_comment(token: TokenInfo, is_block: bool = True) -> TokenInfo:
+    setattr(token, _IS_BLOCK_COMMENT, is_block)
+    return token
+
+
+def clear_is_block_comment(token: TokenInfo) -> None:
+    if hasattr(token, _IS_BLOCK_COMMENT):
+        delattr(token, _IS_BLOCK_COMMENT)
+
+
 _WRAPPER_PAREN_TOKENS = "wrapper_paren_tokens"
 
 

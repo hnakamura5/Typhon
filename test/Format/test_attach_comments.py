@@ -122,9 +122,7 @@ def test_dangling_comment_empty_function_body():
 
 
 def test_dangling_comment_end_of_block():
-    module = _parse_and_attach(
-        "def f() {\n    let x = 1\n    # end of body\n}\n"
-    )
+    module = _parse_and_attach("def f() {\n    let x = 1\n    # end of body\n}\n")
     func_def = _find_stmt(module, 0)
     assert isinstance(func_def, ast.FunctionDef)
     dangling = get_dangling_comments(func_def)

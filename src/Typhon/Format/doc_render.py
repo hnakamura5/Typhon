@@ -71,7 +71,10 @@ def _fits(
     while remaining >= 0 and len(probe_stack) > 0:
         indent, mode, doc = probe_stack.pop()
 
-        if isinstance(doc, Nil | BreakParent | Trim | Cursor):
+        if isinstance(doc, BreakParent):
+            return False
+
+        if isinstance(doc, Nil | Trim | Cursor):
             continue
 
         if isinstance(doc, Text):
@@ -405,6 +408,23 @@ def render_doc_to_string(
         else:
             write_newline(indent, literal=False)
         continue
+
+    # Flush any remaining line suffixes at the end of the document
+    if len(pending_line_suffixes) > 0:
+        for suffix_cmd in reversed(pending_line_suffixes):
+            stack.append(suffix_cmd)
+        pending_line_suffixes.clear()
+        while len(stack) > 0:
+            s_indent, s_mode, s_current = stack.pop()
+            if isinstance(s_current, Concat):
+                for part in reversed(s_current.parts):
+                    stack.append((s_indent, s_mode, part))
+            elif isinstance(s_current, Text):
+                write_text(s_current.value)
+            elif isinstance(s_current, Nil):
+                pass
+            elif isinstance(s_current, Group):
+                stack.append((s_indent, s_mode, s_current.content))
 
     return newline_text.join(lines)
 

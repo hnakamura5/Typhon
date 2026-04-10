@@ -46,39 +46,24 @@ def _has_pos(node: ast.AST) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _collect_positioned_nodes(module: ast.Module) -> list[ast.AST]:
-    """Return all AST nodes that carry position info, sorted by start position."""
-    nodes: list[ast.AST] = []
+def _collect_expr_nodes(module: ast.Module) -> list[ast.expr]:
+    """Return all expression nodes sorted by start position."""
+    exprs: list[ast.expr] = []
     for node in ast.walk(module):
-        if _has_pos(node) and node is not module:
-            nodes.append(node)
-    nodes.sort(key=_node_start)
-    return nodes
+        if isinstance(node, ast.expr) and _has_pos(node):
+            exprs.append(node)
+    exprs.sort(key=_node_start)
+    return exprs
 
 
 def _collect_stmt_nodes(module: ast.Module) -> list[ast.stmt]:
     """Return all statement nodes sorted by start position."""
     stmts: list[ast.stmt] = []
     for node in ast.walk(module):
-        if isinstance(node, ast.stmt) and node is not module:
+        if isinstance(node, ast.stmt):
             stmts.append(node)
     stmts.sort(key=_node_start)
     return stmts
-
-
-def _get_children_stmts(node: ast.AST) -> list[ast.stmt]:
-    """Return direct child statements of a node (body, orelse, handlers, finalbody, etc.)."""
-    children: list[ast.stmt] = []
-    for field_name in ("body", "orelse", "handlers", "finalbody"):
-        field = getattr(node, field_name, None)
-        if isinstance(field, list):
-            for child in field:
-                if isinstance(child, ast.stmt):
-                    children.append(child)
-    # match_case bodies
-    if isinstance(node, ast.match_case) and isinstance(node.body, list):
-        children.extend(s for s in node.body if isinstance(s, ast.stmt))
-    return children
 
 
 # ---------------------------------------------------------------------------
@@ -148,6 +133,7 @@ def attach_comments(module: ast.Module) -> None:
         return
 
     stmts = _collect_stmt_nodes(module)
+    exprs = _collect_expr_nodes(module)
     if not stmts:
         # Only comments, no statements — attach all as dangling on module
         set_dangling_comments(module, comments)
@@ -194,6 +180,32 @@ def attach_comments(module: ast.Module) -> None:
         if attached:
             continue
 
+        # --- 1b. Trailing on expression: same line, after an expression node ---
+        best_trailing_expr: ast.expr | None = None
+        for expr in exprs:
+            expr_end_line = expr.end_lineno
+            if expr_end_line is None:
+                continue
+            if comment_line == expr_end_line and comment.start[1] > (
+                expr.end_col_offset or 0
+            ):
+                if best_trailing_expr is None:
+                    best_trailing_expr = expr
+                else:
+                    bt_start = _node_start(best_trailing_expr)
+                    e_start = _node_start(expr)
+                    bt_end = _node_end(best_trailing_expr)
+                    e_end = _node_end(expr)
+                    if e_start >= bt_start and e_end <= bt_end:
+                        best_trailing_expr = expr
+        if best_trailing_expr is not None:
+            trailing = get_trailing_comments(best_trailing_expr)
+            set_trailing_comments(best_trailing_expr, trailing + [comment])
+            attached = True
+
+        if attached:
+            continue
+
         # --- 2. Leading: comment on a line just before a statement ---
         # Find the first statement that starts after the comment line
         idx = bisect_right(stmt_start_lines, comment_line)
@@ -211,7 +223,10 @@ def attach_comments(module: ast.Module) -> None:
                     # If another statement's range covers the comment line,
                     # the comment belongs inside that statement, not as leading
                     # — unless that statement also contains next_stmt (parent-child).
-                    if s.lineno <= comment_line <= s_end and comment_line < next_stmt.lineno:
+                    if (
+                        s.lineno <= comment_line <= s_end
+                        and comment_line < next_stmt.lineno
+                    ):
                         next_end = next_stmt.end_lineno or next_stmt.lineno
                         if not (s.lineno <= next_stmt.lineno and next_end <= s_end):
                             is_leading = False
@@ -220,6 +235,23 @@ def attach_comments(module: ast.Module) -> None:
                     leading = get_leading_comments(next_stmt)
                     set_leading_comments(next_stmt, leading + [comment])
                     attached = True
+
+        if attached:
+            continue
+
+        # --- 2b. Leading on expression: comment just before an expression ---
+        # Covers inline block comments (e.g. ``#(x)# expr``) and line comments
+        # on a preceding line inside expression-level constructs (calls, lists, etc.).
+        expr_starts = [_node_start(e) for e in exprs]
+        eidx = bisect_left(expr_starts, comment_end)
+        # Skip expressions that start strictly before the comment ends
+        while eidx < len(exprs) and _node_start(exprs[eidx]) < comment_end:
+            eidx += 1
+        if eidx < len(exprs):
+            next_expr = exprs[eidx]
+            leading = get_leading_comments(next_expr)
+            set_leading_comments(next_expr, leading + [comment])
+            attached = True
 
         if attached:
             continue

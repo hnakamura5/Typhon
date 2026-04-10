@@ -5,6 +5,8 @@ from tokenize import TokenInfo, generate_tokens
 import tokenize
 import re
 from dataclasses import dataclass
+
+from ..Grammar.typhon_ast import set_is_block_comment
 from ..Driver.debugging import debug_print, debug_verbose_print
 from enum import Enum, auto
 
@@ -470,12 +472,14 @@ def _generate_and_postprocess_tokens(
                         f"end=({block_comment.end_line}, {block_comment.end_col})"
                     )
                 )
-                yield TokenInfo(
-                    type=tokenize.COMMENT,
-                    string=block_comment.comment,
-                    start=(block_comment.start_line, block_comment.start_col),
-                    end=(block_comment.end_line, block_comment.end_col),
-                    line=block_comment.lines,
+                yield set_is_block_comment(
+                    TokenInfo(
+                        type=tokenize.COMMENT,
+                        string=block_comment.comment,
+                        start=(block_comment.start_line, block_comment.start_col),
+                        end=(block_comment.end_line, block_comment.end_col),
+                        line=block_comment.lines,
+                    )
                 )
             # The length of the last line of block comment.
             block_comment_last_line_len = (
@@ -552,12 +556,14 @@ def _generate_and_postprocess_tokens(
                     f"end=({block_comment.end_line}, {block_comment.end_col})"
                 )
             )
-            yield TokenInfo(
-                type=tokenize.COMMENT,
-                string=block_comment.comment,
-                start=(block_comment.start_line, block_comment.start_col),
-                end=(block_comment.end_line, block_comment.end_col),
-                line=block_comment.lines,
+            yield set_is_block_comment(
+                TokenInfo(
+                    type=tokenize.COMMENT,
+                    string=block_comment.comment,
+                    start=(block_comment.start_line, block_comment.start_col),
+                    end=(block_comment.end_line, block_comment.end_col),
+                    line=block_comment.lines,
+                )
             )
 
 

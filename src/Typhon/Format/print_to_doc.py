@@ -12,16 +12,21 @@ from Typhon.Grammar.typhon_ast import (
     get_args_of_function_type,
     get_constant_raw_tokens,
     get_control_comprehension_def,
+    get_dangling_comments,
     get_function_literal_def,
+    get_leading_comments,
     get_let_pattern_body,
     get_record_literal_fields,
     get_record_type_fields,
     get_return_of_function_type,
     get_star_arg_of_function_type,
     get_star_kwds_of_function_type,
+    get_trailing_comments,
     get_type_annotation,
     get_wrapper_paren_tokens,
+    has_comments,
     is_attributes_pattern,
+    is_block_comment,
     is_control_comprehension,
     is_elseless_if_exp,
     is_empty_pass,
@@ -49,6 +54,7 @@ from ..Driver.debugging import debug_verbose_print
 
 from .doc_datatype import (
     Anchor,
+    BREAK_PARENT,
     Doc,
     NIL,
     align,
@@ -57,6 +63,7 @@ from .doc_datatype import (
     concat,
     group,
     line_or_space,
+    line_suffix,
     softline,
     hardline,
     indent,
@@ -239,28 +246,61 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return False
 
     def _visit_doc(self, node: ast.AST) -> Doc:
-        return cast(Doc, self.visit(node))
+        doc = cast(Doc, self.visit(node))
+        if isinstance(node, ast.expr):
+            if leading := self._leading_comments_doc(node):
+                doc = concat([leading, doc])
+            if trailing := self._trailing_comment_doc(node):
+                doc = concat([doc, trailing])
+        return doc
 
-    def _block_doc(self, body: list[ast.stmt]) -> Doc:
+    def _block_doc(self, body: list[ast.stmt], container: ast.AST | None = None) -> Doc:
         if len(body) == 0:
+            # Empty block: check for dangling comments from the container
+            if container is not None:
+                if dangling := self._dangling_comments_doc(container):
+                    return group(
+                        [
+                            space(),
+                            text("{"),
+                            indent([hardline(), dangling]),
+                            hardline(),
+                            text("}"),
+                        ]
+                    )
             return concat([space(), text("{"), text("}")])
         if len(body) == 1:
             # Special inlining case for single pass and ...
             stmt = body[0]
-            if isinstance(stmt, ast.Pass):
-                if is_empty_pass(stmt):
-                    return concat([space(), text("{"), text("}")])
-                return concat(
-                    [space(), text("{"), space(), text("pass"), space(), text("}")]
-                )
-            if (
-                isinstance(stmt, ast.Expr)
-                and isinstance(stmt.value, ast.Constant)
-                and stmt.value.value == Ellipsis
-            ):
-                return concat(
-                    [space(), text("{"), space(), text("..."), space(), text("}")]
-                )
+            if not has_comments(stmt):
+                if isinstance(stmt, ast.Pass):
+                    if is_empty_pass(stmt):
+                        return concat([space(), text("{"), text("}")])
+                    return concat(
+                        [
+                            space(),
+                            text("{"),
+                            space(),
+                            text("pass"),
+                            space(),
+                            text("}"),
+                        ]
+                    )
+                if (
+                    isinstance(stmt, ast.Expr)
+                    and isinstance(stmt.value, ast.Constant)
+                    and stmt.value.value == Ellipsis
+                ):
+                    return concat(
+                        [
+                            space(),
+                            text("{"),
+                            space(),
+                            text("..."),
+                            space(),
+                            text("}"),
+                        ]
+                    )
         return group(
             [
                 space(),
@@ -268,7 +308,10 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 indent(
                     [
                         hardline(),
-                        join(hardline(), [self._visit_doc(stmt) for stmt in body]),
+                        join(
+                            hardline(),
+                            [self._stmt_doc_with_comments(stmt) for stmt in body],
+                        ),
                     ]
                 ),
                 hardline(),
@@ -290,10 +333,79 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         )
         return text(f"<Unsupported syntax: {type(node).__name__}>")
 
+    # Convert a comment token string to Doc, handling multi-line block comments.
+    def _comment_text_doc(self, comment_string: str) -> Doc:
+        lines = comment_string.split("\n")
+        if len(lines) == 1:
+            return text(comment_string)
+        return join(hardline(), [text(line) for line in lines])
+
+    def _leading_comments_doc(self, node: ast.AST) -> Doc | None:
+        comments = get_leading_comments(node)
+        if not comments:
+            return None
+        node_line = getattr(node, "lineno", None)
+        parts: list[Doc] = []
+        for c in comments:
+            parts.append(self._comment_text_doc(c.string))
+            # Same-line block comments use a space separator; others use hardline.
+            if node_line is not None and c.start[0] == node_line:
+                parts.append(space())
+            else:
+                parts.append(hardline())
+        return concat(parts)
+
+    def _trailing_comment_doc(self, node: ast.AST) -> Doc | None:
+        comments = get_trailing_comments(node)
+        if not comments:
+            return None
+        parts: list[Doc] = []
+        for c in comments:
+            parts.append(
+                line_suffix(concat([text("  "), self._comment_text_doc(c.string)]))
+            )
+            # Line comments (# ...) extend to end of line;
+            # force enclosing group to break so a newline follows.
+            if not is_block_comment(c):
+                parts.append(BREAK_PARENT)
+        return concat(parts)
+
+    def _dangling_comments_doc(self, node: ast.AST) -> Doc | None:
+        comments = get_dangling_comments(node)
+        if not comments:
+            return None
+        parts: list[Doc] = []
+        for c in comments:
+            parts.append(self._comment_text_doc(c.string))
+        return join(hardline(), parts)
+
+    def _stmt_doc_with_comments(self, node: ast.stmt) -> Doc:
+        """Wrap a statement's Doc with its leading, trailing, and dangling comments."""
+        body = self._visit_doc(node)
+        parts: list[Doc] = []
+        if leading := self._leading_comments_doc(node):
+            parts.append(leading)
+        parts.append(body)
+        if trailing := self._trailing_comment_doc(node):
+            parts.append(trailing)
+        if dangling := self._dangling_comments_doc(node):
+            parts.append(dangling)  # TODO: Is this OK?
+        if not parts:
+            return NIL
+        if len(parts) == 1:
+            return parts[0]
+        return concat(parts)
+
     def visit_Module(self, node: ast.Module) -> Doc:
         if len(node.body) == 0:
+            if dangling := self._dangling_comments_doc(node):
+                return dangling
             return NIL
-        return join(hardline(), [self._visit_doc(stmt) for stmt in node.body])
+        stmt_docs = [self._stmt_doc_with_comments(stmt) for stmt in node.body]
+        result = join(hardline(), stmt_docs)
+        if dangling := self._dangling_comments_doc(node):
+            result = concat([result, hardline(), dangling])
+        return result
 
     def visit_Delete(self, node: ast.Delete) -> Doc:
         return self._unsupported_syntax_doc(node)
@@ -1325,7 +1437,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     paren(join(comma(), args)),
                 ]
             )
-        class_head.extend([self._block_doc(node.body)])
+        class_head.extend([self._block_doc(node.body, container=node)])
         return concat(deco_docs + [concat(class_head)])
 
     def _arguments_doc(self, args: ast.arguments) -> Doc:
@@ -1400,7 +1512,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             head_parts.extend(
                 [space(), text("->"), space(), self._visit_doc(node.returns)]
             )
-        head_parts.extend([self._block_doc(node.body)])
+        head_parts.extend([self._block_doc(node.body, container=node)])
         return concat(deco_docs + [concat(head_parts)])
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Doc:
