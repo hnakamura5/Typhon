@@ -15,6 +15,9 @@ import tokenize
 from bisect import bisect_left, bisect_right
 from typing import Sequence
 
+from Typhon.Grammar.position import get_pos_attributes
+
+from ..Driver.debugging import debug_verbose_print
 from ..Grammar.typhon_ast import (
     get_lossless_token_info,
     get_leading_comments,
@@ -60,6 +63,9 @@ def _collect_stmt_nodes(module: ast.Module) -> list[ast.stmt]:
     """Return all statement nodes sorted by start position."""
     stmts: list[ast.stmt] = []
     for node in ast.walk(module):
+        debug_verbose_print(
+            lambda: f"Visiting node: {ast.dump(node)} (type {type(node).__name__})"
+        )
         if isinstance(node, ast.stmt):
             stmts.append(node)
     stmts.sort(key=_node_start)
@@ -139,9 +145,14 @@ def attach_comments(module: ast.Module) -> None:
         set_dangling_comments(module, comments)
         return
 
+    debug_verbose_print(
+        lambda: (
+            f"Collected statements {stmts} and expressions {exprs} for comment attachment"
+        )
+    )
+
     # Build start-line index for fast lookup
     stmt_start_lines = [s.lineno for s in stmts]
-
     parent_map = _build_parent_map(module)
 
     for comment in comments:
@@ -149,6 +160,11 @@ def attach_comments(module: ast.Module) -> None:
         comment_start: _Pos = comment.start
         comment_end: _Pos = comment.end
 
+        debug_verbose_print(
+            lambda: (
+                f"Processing comment: {comment.string} at {comment_start}-{comment_end}"
+            )
+        )
         attached = False
 
         # --- 1. Trailing: comment on the same line as a node's end ---
@@ -159,6 +175,11 @@ def attach_comments(module: ast.Module) -> None:
             stmt_end_line = stmt.end_lineno
             if stmt_end_line is None:
                 continue
+            debug_verbose_print(
+                lambda: (
+                    f"Checking stmt {ast.dump(stmt)} ending at line {stmt_end_line} for trailing comment @ {get_pos_attributes(stmt)}"
+                )
+            )
             if comment_line == stmt_end_line and comment.start[1] > (
                 stmt.end_col_offset or 0
             ):
@@ -175,9 +196,12 @@ def attach_comments(module: ast.Module) -> None:
         if best_trailing is not None:
             trailing = get_trailing_comments(best_trailing)
             set_trailing_comments(best_trailing, trailing + [comment])
+            debug_verbose_print(
+                lambda: (
+                    f"Attached as trailing comment to stmt ending at {ast.dump(best_trailing) if best_trailing else None}"
+                )
+            )
             attached = True
-
-        if attached:
             continue
 
         # --- 1b. Trailing on expression: same line, after an expression node ---
@@ -186,6 +210,11 @@ def attach_comments(module: ast.Module) -> None:
             expr_end_line = expr.end_lineno
             if expr_end_line is None:
                 continue
+            debug_verbose_print(
+                lambda: (
+                    f"Checking expr {ast.dump(expr)} ending at line {expr_end_line} for trailing comment"
+                )
+            )
             if comment_line == expr_end_line and comment.start[1] > (
                 expr.end_col_offset or 0
             ):
@@ -201,9 +230,12 @@ def attach_comments(module: ast.Module) -> None:
         if best_trailing_expr is not None:
             trailing = get_trailing_comments(best_trailing_expr)
             set_trailing_comments(best_trailing_expr, trailing + [comment])
+            debug_verbose_print(
+                lambda: (
+                    f"Attached as trailing comment to expr ending at {ast.dump(best_trailing_expr) if best_trailing_expr else None}"
+                )
+            )
             attached = True
-
-        if attached:
             continue
 
         # --- 2. Leading: comment on a line just before a statement ---
@@ -234,10 +266,13 @@ def attach_comments(module: ast.Module) -> None:
                 if is_leading:
                     leading = get_leading_comments(next_stmt)
                     set_leading_comments(next_stmt, leading + [comment])
+                    debug_verbose_print(
+                        lambda: (
+                            f"Attached as leading comment to stmt starting at {ast.dump(next_stmt) if next_stmt else None}"
+                        )
+                    )
                     attached = True
-
-        if attached:
-            continue
+                    continue
 
         # --- 2b. Leading on expression: comment just before an expression ---
         # Covers inline block comments (e.g. ``#(x)# expr``) and line comments
@@ -251,9 +286,12 @@ def attach_comments(module: ast.Module) -> None:
             next_expr = exprs[eidx]
             leading = get_leading_comments(next_expr)
             set_leading_comments(next_expr, leading + [comment])
+            debug_verbose_print(
+                lambda: (
+                    f"Attached as leading comment to expr starting at {ast.dump(next_expr) if next_expr else None}"
+                )
+            )
             attached = True
-
-        if attached:
             continue
 
         # --- 3. Dangling: inside a container but not adjacent to any child stmt ---
@@ -262,3 +300,8 @@ def attach_comments(module: ast.Module) -> None:
         )
         dangling = get_dangling_comments(container)
         set_dangling_comments(container, dangling + [comment])
+        debug_verbose_print(
+            lambda: (
+                f"Attached as dangling comment to container starting at {ast.dump(container) if container else None}"
+            )
+        )

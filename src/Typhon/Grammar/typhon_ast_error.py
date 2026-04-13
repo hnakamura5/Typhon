@@ -4,8 +4,11 @@ from dataclasses import dataclass
 from typing import Unpack, cast
 from tokenize import TokenInfo
 from .position import (
+    BlockStmtAnchors,
     PosAttributes,
     get_empty_pos_attributes,
+    name_from_anchor_token,
+    set_block_stmt_anchors,
     unpack_pos_default,
     get_pos_attributes,
     PosNode,
@@ -111,6 +114,7 @@ def maybe_invalid_stmt[T: PosNode](
     node: T,
     open_anchor: PosNode | TokenInfo,
     close_anchor: PosNode | TokenInfo,
+    begin_tokens: list[TokenInfo | None] | None = None,
     message: str | None = None,
     message_anchor: PosNode | TokenInfo | None = None,
 ) -> T:
@@ -124,7 +128,7 @@ def maybe_invalid_stmt[T: PosNode](
             (end_lineno, end_col_offset),
         )
         add_error_node(node, [error])
-    if open_paren is None:
+    if open_paren is None:  # Missing open paren
         start_loc, end_loc = _pos_of_anchor(open_anchor)
         debug_print(
             lambda: (
@@ -133,7 +137,7 @@ def maybe_invalid_stmt[T: PosNode](
         )
         error = parser.build_expected_error("'('", start_loc, end_loc)
         add_error_node(node, [error])
-    if close_paren is None:
+    if close_paren is None:  # Missing close paren
         start_loc, end_loc = _pos_of_anchor(close_anchor)
         debug_print(
             lambda: (
@@ -142,6 +146,24 @@ def maybe_invalid_stmt[T: PosNode](
         )
         error = parser.build_expected_error("')'", start_loc, end_loc)
         add_error_node(node, [error])
+    if open_paren and close_paren:
+        begin_token_anchors = (
+            [name_from_anchor_token(tok) for tok in begin_tokens if tok]
+            if begin_tokens
+            else []
+        )
+        set_block_stmt_anchors(
+            node,
+            BlockStmtAnchors(
+                begin_token_anchors=begin_token_anchors,
+                open_paren_anchor=name_from_anchor_token(open_paren),
+                close_paren_anchor=name_from_anchor_token(close_paren),
+                open_anchor=name_from_anchor_token(open_anchor),
+                close_anchor=name_from_anchor_token(close_anchor),
+                inner_separator_anchors=[],
+            ),
+        )
+
     return node
 
 
@@ -270,6 +292,7 @@ def recover_maybe_invalid_function_def_raw(
     *,
     open_anchor: PosNode | TokenInfo,
     close_anchor: PosNode | TokenInfo,
+    begin_tokens: list[TokenInfo | None] | None = None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.FunctionDef | ast.AsyncFunctionDef:
     errors: list[SyntaxError] = []
@@ -322,6 +345,7 @@ def recover_maybe_invalid_function_def_raw(
         ),
         open_anchor=open_anchor,
         close_anchor=close_anchor,
+        begin_tokens=begin_tokens,
     )
     if errors:
         add_error_node(result, errors)
@@ -337,6 +361,7 @@ def recover_maybe_invalid_class_def_raw(
     type_params: list[ast.type_param],
     *,
     open_anchor: PosNode | TokenInfo,
+    begin_tokens: list[TokenInfo | None] | None = None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.ClassDef:
     open_paren, call_args, close_paren = bases_parens or (
@@ -386,6 +411,7 @@ def recover_maybe_invalid_class_def_raw(
             node=class_def,
             open_anchor=open_anchor,
             close_anchor=close_anchor,
+            begin_tokens=begin_tokens,
         )
     if error:
         add_error_node(class_def, [error])

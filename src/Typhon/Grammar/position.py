@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+from dataclasses import dataclass
 from tokenize import TokenInfo
 from typing import TypedDict, Tuple
 
@@ -115,16 +116,27 @@ def get_empty_pos_attributes() -> PosAttributes:
 
 
 def name_from_anchor_token(
-    token: TokenInfo, ctx: ast.expr_context = ast.Load()
+    token: TokenInfo | PosNode, ctx: ast.expr_context = ast.Load()
 ) -> ast.Name:
-    return ast.Name(
-        id=token.string,
-        lineno=token.start[0],
-        col_offset=token.start[1],
-        end_lineno=token.end[0],
-        end_col_offset=token.end[1],
-        ctx=ctx,
-    )
+    if isinstance(token, TokenInfo):
+        return ast.Name(
+            id=token.string,
+            lineno=token.start[0],
+            col_offset=token.start[1],
+            end_lineno=token.end[0],
+            end_col_offset=token.end[1],
+            ctx=ctx,
+        )
+    else:  # PosNode
+        pos = get_pos_attributes(token)
+        return ast.Name(
+            id="",  # Placeholder, the actual name doesn't matter for position tracking
+            lineno=pos["lineno"],
+            col_offset=pos["col_offset"],
+            end_lineno=pos["end_lineno"],
+            end_col_offset=pos["end_col_offset"],
+            ctx=ctx,
+        )
 
 
 _COMPLETION_TRIGGER_ANCHOR = "_typh_completion_trigger_anchor"
@@ -204,3 +216,55 @@ def get_trailing_comma_anchor(node: ast.expr) -> ast.Name | None:
 def clear_trailing_comma_anchor(node: ast.expr):
     if hasattr(node, _TRAILING_COMMA_ANCHOR):
         delattr(node, _TRAILING_COMMA_ANCHOR)
+
+
+@dataclass
+class BlockStmtAnchors:
+    # Sequent of tokens beggining of the statements. (e.g. 'async' and 'def')
+    begin_token_anchors: list[ast.Name]
+    open_paren_anchor: ast.Name
+    close_paren_anchor: ast.Name
+    open_anchor: ast.Name
+    close_anchor: ast.Name
+    # 'in' in for, ';' in if-let, 'as' in except and so on.
+    inner_separator_anchors: list[ast.Name]
+
+
+@dataclass
+class InlineStmtAnchors:
+    begin_token_anchors: list[ast.Name]
+    appendix_anchor: ast.Name  # `else` for let-else
+
+
+_STMT_OPEN_PAREN_ANCHOR = "_typh_stmt_open_paren_anchor"
+
+
+def set_block_stmt_anchors[T: PosNode](node: T, anchor: BlockStmtAnchors | None) -> T:
+    setattr(node, _STMT_OPEN_PAREN_ANCHOR, anchor)
+    return node
+
+
+def get_block_stmt_anchors(node: PosNode) -> BlockStmtAnchors | None:
+    return getattr(node, _STMT_OPEN_PAREN_ANCHOR, None)
+
+
+def clear_block_stmt_anchors(node: PosNode):
+    if hasattr(node, _STMT_OPEN_PAREN_ANCHOR):
+        delattr(node, _STMT_OPEN_PAREN_ANCHOR)
+
+
+_INLINE_STMT_ANCHOR = "_typh_inline_stmt_anchor"
+
+
+def set_inline_stmt_anchor[T: PosNode](node: T, anchor: InlineStmtAnchors | None) -> T:
+    setattr(node, _INLINE_STMT_ANCHOR, anchor)
+    return node
+
+
+def get_inline_stmt_anchor(node: PosNode) -> InlineStmtAnchors | None:
+    return getattr(node, _INLINE_STMT_ANCHOR, None)
+
+
+def clear_inline_stmt_anchor(node: PosNode):
+    if hasattr(node, _INLINE_STMT_ANCHOR):
+        delattr(node, _INLINE_STMT_ANCHOR)
