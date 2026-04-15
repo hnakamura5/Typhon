@@ -210,7 +210,7 @@ class MatchBasedSourceMap:
         filter_node_type: type[ast.AST] | None = None,
         filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
-        unparsed_node = self.unparsed_interval_tree.range_to_single_container_node(
+        unparsed_node = self.unparsed_interval_tree.range_to_minimal_container_node(
             range_unparsed,
             filter_fn_by_node_type(filter_node_type, filter_pred),
         )
@@ -359,7 +359,7 @@ class MatchBasedSourceMap:
         filter_node_type: type[ast.AST] | None = None,
         filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
-        return self.origin_interval_tree.range_to_single_container_node(
+        return self.origin_interval_tree.range_to_minimal_container_node(
             range_origin,
             filter_fn_by_node_type(filter_node_type, filter_pred),
         )

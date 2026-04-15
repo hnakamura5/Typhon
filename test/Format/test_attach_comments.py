@@ -1,18 +1,23 @@
 import ast
 
-from Typhon.Format.attach_comments import attach_comments
+from Typhon.Format.attach_comments import attach_comments, attach_comments_v2
 from Typhon.Grammar.parser import parse_string
 from Typhon.Grammar.typhon_ast import (
     get_dangling_comments,
     get_leading_comments,
     get_trailing_comments,
 )
+from Typhon.SourceMap.source_ast_cache import SourceAstCache
 
 
 def _parse_and_attach(source: str) -> ast.Module:
     module = parse_string(source, mode="exec")
     assert isinstance(module, ast.Module)
-    attach_comments(module)
+    # attach_comments(module)
+    attach_comments_v2(
+        module,
+        SourceAstCache(module, source, "<string>"),
+    )
     return module
 
 

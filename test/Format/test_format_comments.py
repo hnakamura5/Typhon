@@ -1,15 +1,20 @@
 import ast
 
-from Typhon.Format.attach_comments import attach_comments
+from Typhon.Format.attach_comments import attach_comments, attach_comments_v2
 from Typhon.Format.doc_render import render_doc_to_string
 from Typhon.Format.print_to_doc import print_to_doc
 from Typhon.Grammar.parser import parse_string
+from Typhon.SourceMap.source_ast_cache import SourceAstCache
 
 
 def _format(source: str) -> str:
     module = parse_string(source, mode="exec")
     assert isinstance(module, ast.Module)
-    attach_comments(module)
+    # attach_comments(module)
+    attach_comments_v2(
+        module,
+        SourceAstCache(module, source, "<string>"),
+    )
     return render_doc_to_string(print_to_doc(module))
 
 

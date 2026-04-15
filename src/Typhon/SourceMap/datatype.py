@@ -13,13 +13,13 @@ class Pos:
 
     @staticmethod
     def from_start_pos_attributes(attr: PosAttributes) -> "Pos":
-        return Pos(line=attr["lineno"], column=attr["col_offset"])
+        return Pos(line=attr["lineno"] - 1, column=attr["col_offset"])
 
     @staticmethod
     def from_end_pos_attributes(attr: PosAttributes) -> "Pos | None":
         if attr["end_lineno"] is None or attr["end_col_offset"] is None:
             return None
-        return Pos(line=attr["end_lineno"], column=attr["end_col_offset"])
+        return Pos(line=attr["end_lineno"] - 1, column=attr["end_col_offset"])
 
     @staticmethod
     def from_node_start(node: ast.AST) -> "Pos | None":
@@ -330,7 +330,7 @@ class RangeIntervalTree[T]:
                 result.append((Range.from_interval(interval), interval.data))  # type: ignore[misc]
         return result
 
-    def range_to_single_container_node(
+    def range_to_minimal_container_node(
         self,
         range: Range,
         filter_fn: Callable[[T], bool] | None = None,

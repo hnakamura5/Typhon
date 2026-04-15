@@ -68,7 +68,7 @@ class SourceAstCache:
         filter_node_type: type[ast.AST] | None = None,
         filter_pred: Callable[[ast.AST], bool] | None = None,
     ) -> ast.AST | None:
-        return self.node_interval_tree.range_to_single_container_node(
+        return self.node_interval_tree.range_to_minimal_container_node(
             range,
             filter_fn_by_node_type(filter_node_type, filter_pred),
         )

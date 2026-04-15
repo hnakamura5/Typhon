@@ -380,11 +380,11 @@ dotted_name[ImportDotNames]:
 # ---------------
 
 block[List[ast.stmt]] (memo):
-    | '{' a=statements* '}' ~ { sum(a, []) if len(a) > 0 else [set_is_empty_pass(ast.Pass(LOCATIONS))]  }
+    | '{' a=statements*  rb='}' ~ { sum(a, []) if len(a) > 0 else [set_is_empty_pass(ast.Pass(**get_pos_attributes(rb)))]  }
 
 maybe_block[List[ast.stmt]]:
     | lb=['{'] a=statements* rb=['}'] ~ {
-        maybe_invalid_block(self, lb, rb, sum(a, []) if len(a) > 0 else [set_is_empty_pass(ast.Pass(LOCATIONS))])
+        maybe_invalid_block(self, lb, rb, sum(a, []) if len(a) > 0 else [set_is_empty_pass(ast.Pass(**get_pos_attributes(rb)) if rb else get_empty_pos_attributes())])
     }
 
 decorators: decorator+

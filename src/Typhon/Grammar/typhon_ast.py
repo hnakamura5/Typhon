@@ -162,6 +162,11 @@ def set_leading_comments(node: ast.AST, comments: list[TokenInfo]) -> None:
     setattr(node, _LEADING_COMMENTS, comments)
 
 
+def add_leading_comments(node: ast.AST, comments: list[TokenInfo]) -> None:
+    existing_comments = get_leading_comments(node)
+    set_leading_comments(node, existing_comments + comments)
+
+
 def get_trailing_comments(node: ast.AST) -> list[TokenInfo]:
     return getattr(node, _TRAILING_COMMENTS, [])
 
@@ -170,12 +175,22 @@ def set_trailing_comments(node: ast.AST, comments: list[TokenInfo]) -> None:
     setattr(node, _TRAILING_COMMENTS, comments)
 
 
+def add_trailling_comments(node: ast.AST, comments: list[TokenInfo]) -> None:
+    existing_comments = get_trailing_comments(node)
+    set_trailing_comments(node, existing_comments + comments)
+
+
 def get_dangling_comments(node: ast.AST) -> list[TokenInfo]:
     return getattr(node, _DANGLING_COMMENTS, [])
 
 
 def set_dangling_comments(node: ast.AST, comments: list[TokenInfo]) -> None:
     setattr(node, _DANGLING_COMMENTS, comments)
+
+
+def add_dangling_comments(node: ast.AST, comments: list[TokenInfo]) -> None:
+    existing_comments = get_dangling_comments(node)
+    set_dangling_comments(node, existing_comments + comments)
 
 
 def clear_comments(node: ast.AST) -> None:

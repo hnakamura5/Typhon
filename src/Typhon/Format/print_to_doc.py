@@ -351,7 +351,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             # Same-line block comments use a space separator; others use hardline.
             if node_line is not None and c.start[0] == node_line:
                 parts.append(space())
-            else:
+            elif not (isinstance(node, ast.Pass) and is_empty_pass(node)):
                 parts.append(hardline())
         return concat(parts)
 
@@ -366,13 +366,18 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             )
             # Line comments (# ...) extend to end of line;
             # force enclosing group to break so a newline follows.
-            if not is_block_comment(c):
-                parts.append(BREAK_PARENT)
+            # TODO: If this is expression (so in group) this makes assignment broken.
+            # if not is_block_comment(c):
+            #     parts.append(BREAK_PARENT)
         return concat(parts)
 
     def _dangling_comments_doc(self, node: ast.AST) -> Doc | None:
-        return None  # TODO: For test
         comments = get_dangling_comments(node)
+        debug_verbose_print(
+            lambda: (
+                f"Dangling comments for node {ast.dump(node, include_attributes=True)}: {[c.string for c in comments]}"
+            )
+        )
         if not comments:
             return None
         parts: list[Doc] = []
@@ -382,10 +387,10 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
 
     def _stmt_doc_with_comments(self, node: ast.stmt) -> Doc:
         """Wrap a statement's Doc with its leading, trailing, and dangling comments."""
-        body = self._visit_doc(node)
         parts: list[Doc] = []
         if leading := self._leading_comments_doc(node):
             parts.append(leading)
+        body = self._visit_doc(node)
         parts.append(body)
         if trailing := self._trailing_comment_doc(node):
             parts.append(trailing)
@@ -395,6 +400,11 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             return NIL
         if len(parts) == 1:
             return parts[0]
+        debug_verbose_print(
+            lambda: (
+                f"Stmt with comments: {ast.dump(node, include_attributes=True)}, parts: {parts}, concatenated: {concat(parts)}"
+            )
+        )
         return concat(parts)
 
     def visit_Module(self, node: ast.Module) -> Doc:

@@ -249,9 +249,10 @@ def line_suffix(content: Doc) -> Doc:
 def join(sep: Doc, parts: list[Doc]) -> Doc:
     if len(parts) == 0:
         return NIL
-
     joined: list[Doc] = [parts[0]]
     for part in parts[1:]:
+        if isinstance(part, Nil):
+            continue
         joined.append(sep)
         joined.append(part)
     return concat(joined)
