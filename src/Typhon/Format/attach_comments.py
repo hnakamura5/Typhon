@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass
-import tokenize
+from tokenize import TokenInfo, COMMENT, ENDMARKER
 from bisect import bisect_left, bisect_right
 from typing import Sequence, Literal
 
@@ -23,6 +23,7 @@ from Typhon.SourceMap.source_ast_cache import SourceAstCache
 from ..Driver.debugging import debug_verbose_print
 from ..Grammar.typhon_ast import (
     add_dangling_comments,
+    add_leading_comments,
     add_trailling_comments,
     get_lossless_token_info,
     get_leading_comments,
@@ -97,10 +98,10 @@ def _build_parent_map(module: ast.Module) -> dict[int, ast.AST]:
 
 
 def _extract_comments(
-    tokens: Sequence[tokenize.TokenInfo],
-) -> list[tokenize.TokenInfo]:
+    tokens: Sequence[TokenInfo],
+) -> list[TokenInfo]:
     """Filter comment tokens from the full token list."""
-    return [t for t in tokens if t.type == tokenize.COMMENT]
+    return [t for t in tokens if t.type == COMMENT]
 
 
 def _find_enclosing_container(
@@ -312,59 +313,43 @@ def attach_comments(module: ast.Module) -> None:
 
 
 @dataclass
-class SequentialComments:
-    comments: list[tokenize.TokenInfo]
-    index_begin: int
-    index_end: int
-    before_tok: tokenize.TokenInfo | None
-    after_tok: tokenize.TokenInfo | None
+class CommentInfo:
+    comment: TokenInfo
+    index: int
+    before_non_comment_tok: TokenInfo | None
+    after_non_comment_tok: TokenInfo | None
 
 
-def _gather_comments(tokens: Sequence[tokenize.TokenInfo]) -> list[SequentialComments]:
+# Grouping rules:
+# - Consecutive comment tokens in the same line are grouped together.
+def _gather_comments(tokens: Sequence[TokenInfo]) -> list[CommentInfo]:
     """Group consecutive comment tokens and identify adjacent nodes."""
-    result: list[SequentialComments] = []
-    current_group: list[tokenize.TokenInfo] = []
-    current_group_start_idx: int | None = None
-    current_group_before_tok: tokenize.TokenInfo | None = None
+    result: list[CommentInfo] = []
+    before_non_comment_tok: TokenInfo | None = None
     for i, tok in enumerate(tokens):
-        if tok.type == tokenize.COMMENT:
-            if current_group_start_idx is None:
-                current_group_start_idx = i
-            current_group.append(tok)
-        else:
-            if current_group:
-                # End of a comment group
-                assert current_group_start_idx is not None
-                result.append(
-                    SequentialComments(
-                        comments=current_group,
-                        index_begin=current_group_start_idx,
-                        index_end=i,
-                        before_tok=current_group_before_tok,
-                        after_tok=tok,
-                    )
+        if tok.type == COMMENT:
+            result.append(
+                CommentInfo(
+                    comment=tok,
+                    index=i,
+                    before_non_comment_tok=before_non_comment_tok,
+                    after_non_comment_tok=None,  # to be filled in next iteration
                 )
-                current_group = []
-                current_group_start_idx = None
-            current_group_before_tok = tok
-    # Handle trailing comment group at end of file
-    if current_group:
-        assert current_group_start_idx is not None
-        result.append(
-            SequentialComments(
-                comments=current_group,
-                index_begin=current_group_start_idx,
-                index_end=len(tokens),
-                before_tok=current_group_before_tok,
-                after_tok=None,
             )
-        )
+        else:
+            before_non_comment_tok = tok
+            # Fill in after_non_comment_tok for the comments if not already set
+            for i in range(len(result) - 1, -1, -1):
+                if result[i].after_non_comment_tok is None:
+                    result[i].after_non_comment_tok = tok
+                else:
+                    break
     return result
 
 
 def _node_attachable_comment_to(
     ast_cache: SourceAstCache,
-    anchor_tok: tokenize.TokenInfo,
+    anchor_tok: TokenInfo,
     filter_node_type: type[ast.AST] | None = None,
     *,
     before: bool,
@@ -392,7 +377,7 @@ def _node_attachable_comment_to(
 
 
 def _select_before_or_after(
-    comments: SequentialComments,
+    comment: CommentInfo,
     before_node: ast.AST | None,
     after_node: ast.AST | None,
 ) -> tuple[Literal["before"] | Literal["after"], ast.AST]:
@@ -405,7 +390,7 @@ def _select_before_or_after(
     # If both nodes are present, select the one based on line similarity.
     before_line = get_pos_attributes(before_node)["end_lineno"]
     after_line = get_pos_attributes(after_node)["lineno"]
-    comment_line = comments.comments[0].start[0]
+    comment_line = comment.comment.start[0]
     if before_line == comment_line:
         return "before", before_node
     else:
@@ -414,46 +399,45 @@ def _select_before_or_after(
 
 def _try_attach_to_ast_node(
     ast_cache: SourceAstCache,
-    comments: SequentialComments,
+    comment: CommentInfo,
     filter_node_type: type[ast.AST] | None = None,
 ) -> bool:
     # Try attaching to the minimal node before/after the comment group.
     after_node: ast.AST | None = None
-    if after_tok := comments.after_tok:
+    if after_tok := comment.after_non_comment_tok:
         after_node = _node_attachable_comment_to(
             ast_cache, after_tok, filter_node_type, before=False
         )
         if after_node:
             debug_verbose_print(
                 lambda: (
-                    f"  Attachable as leading comment group {comments.comments} to node {filter_node_type} type {ast.dump(after_node)} at {get_pos_attributes(after_node)}"
+                    f"  Attachable as leading comment group {comment.comment} to node {filter_node_type} type {ast.dump(after_node)} at {get_pos_attributes(after_node)}"
                 )
             )
     before_node: ast.AST | None = None
-    if before_tok := comments.before_tok:
+    if before_tok := comment.before_non_comment_tok:
         before_node = _node_attachable_comment_to(
             ast_cache, before_tok, filter_node_type, before=True
         )
         if before_node:
             debug_verbose_print(
                 lambda: (
-                    f"  Attachable as trailing comment group {comments.comments} to node {filter_node_type} type {ast.dump(before_node)} at {get_pos_attributes(before_node)}"
+                    f"  Attachable as trailing comment group {comment.comment} to node {filter_node_type} type {ast.dump(before_node)} at {get_pos_attributes(before_node)}"
                 )
             )
     if not before_node and not after_node:
         return False
     # Select the best attachment point based on proximity and node type.
-    selected, selected_node = _select_before_or_after(comments, before_node, after_node)
+    selected, selected_node = _select_before_or_after(comment, before_node, after_node)
+    debug_verbose_print(
+        lambda: (
+            f"  Selected {selected} node {ast.dump(selected_node)} for comment group {comment.comment}"
+        )
+    )
     if selected == "after":
-        set_leading_comments(
-            selected_node,
-            get_leading_comments(selected_node) + comments.comments,
-        )
+        add_leading_comments(selected_node, [comment.comment])
     else:
-        set_trailing_comments(
-            selected_node,
-            get_trailing_comments(selected_node) + comments.comments,
-        )
+        add_trailling_comments(selected_node, [comment.comment])
     return True
 
 
@@ -463,25 +447,25 @@ def attach_comments_v2(module: ast.Module, ast_cache: SourceAstCache) -> None:
     if tokens is None:
         return
     comments = _gather_comments(tokens)
-    for comment_group in comments:
+    for comment in comments:
         debug_verbose_print(
             lambda: (
-                f"Processing comment group {comment_group.comments} from index {comment_group.index_begin} to {comment_group.index_end}, before_tok={comment_group.before_tok}, after_tok={comment_group.after_tok}"
+                f"Processing comment group {comment.comment} from index {comment.index}, before_tok={comment.before_non_comment_tok}, after_tok={comment.after_non_comment_tok}"
             )
         )
-        if _try_attach_to_ast_node(ast_cache, comment_group, ast.stmt):
+        if _try_attach_to_ast_node(ast_cache, comment, ast.stmt):
             # First try attaching to statements, which are more likely to be the intended targets for comments.
             continue
-        if _try_attach_to_ast_node(ast_cache, comment_group):
+        if _try_attach_to_ast_node(ast_cache, comment):
             # Next try other nodes, which can capture inline comments.
             continue
         if (
-            comment_group.after_tok
-            and comment_group.after_tok.type == tokenize.ENDMARKER
+            comment.after_non_comment_tok
+            and comment.after_non_comment_tok.type == ENDMARKER
         ):
             # Comments are the last tokens in the module
             debug_verbose_print(lambda: "  Appended to module.")
-            add_dangling_comments(ast_cache.module, comment_group.comments)
+            add_dangling_comments(ast_cache.module, [comment.comment])
             continue
         # Fallback: attach as dangling.
         debug_verbose_print(
@@ -489,3 +473,4 @@ def attach_comments_v2(module: ast.Module, ast_cache: SourceAstCache) -> None:
                 "Could not attach comment group to adjacent nodes, attaching as dangling to module"
             )
         )
+        add_dangling_comments(ast_cache.module, [comment.comment])

@@ -47,7 +47,10 @@ from Typhon.Grammar.typhon_ast import (
     is_static,
     is_var_assign,
 )
-from ..Grammar.position import get_trailing_comma_anchor
+from ..Grammar.position import (
+    get_call_argument_comma_anchors,
+    get_trailing_comma_anchor,
+)
 from Typhon.Grammar.unparse_custom import CustomUnparseHelper
 from Typhon.Transform.visitor import TyphonASTRawVisitor
 from ..Driver.debugging import debug_verbose_print
@@ -55,6 +58,7 @@ from ..Driver.debugging import debug_verbose_print
 from .doc_datatype import (
     Anchor,
     BREAK_PARENT,
+    BreakParent,
     Doc,
     NIL,
     align,
@@ -62,6 +66,7 @@ from .doc_datatype import (
     anchor,
     concat,
     group,
+    if_break,
     line_or_space,
     line_suffix,
     softline,
@@ -272,34 +277,41 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         if len(body) == 1:
             # Special inlining case for single pass and ...
             stmt = body[0]
-            if not has_comments(stmt):
-                if isinstance(stmt, ast.Pass):
-                    if is_empty_pass(stmt):  # Placeholder pass for empty block
-                        return concat([space(), text("{"), text("}")])
-                    return concat(
+            if has_comments(stmt):
+                # Placeholder pass for empty block
+                if isinstance(stmt, ast.Pass) and is_empty_pass(stmt):
+                    # This block must only contains the comment
+                    result = concat(
                         [
                             space(),
                             text("{"),
-                            space(),
-                            text("pass"),
-                            space(),
+                            indent([hardline(), self._stmt_doc_with_comments(stmt)]),
+                            hardline(),
                             text("}"),
                         ]
+                    )
+                    debug_verbose_print(
+                        lambda: (
+                            f"Empty block with pass statement: {ast.dump(stmt, include_attributes=True)} doc: {result}"
+                        )
+                    )
+                    return result
+            else:
+                if isinstance(stmt, ast.Pass):
+                    if is_empty_pass(stmt):  # empty block
+                        return concat([space(), text("{"), text("}")])
+                    # prefer flat form { pass }
+                    return concat(
+                        [space(), text("{"), space(), text("pass"), space(), text("}")]
                     )
                 if (
                     isinstance(stmt, ast.Expr)
                     and isinstance(stmt.value, ast.Constant)
                     and stmt.value.value == Ellipsis
                 ):
+                    # prefer flat form { ... }
                     return concat(
-                        [
-                            space(),
-                            text("{"),
-                            space(),
-                            text("..."),
-                            space(),
-                            text("}"),
-                        ]
+                        [space(), text("{"), space(), text("..."), space(), text("}")]
                     )
         return group(
             [
@@ -346,13 +358,31 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             return None
         node_line = getattr(node, "lineno", None)
         parts: list[Doc] = []
-        for c in comments:
+        for i, c in enumerate(comments):
+            is_last = i == len(comments) - 1
+            next_c = comments[i + 1] if not is_last else None
+            next_line = next_c.start[0] if next_c else (node_line or None)
             parts.append(self._comment_text_doc(c.string))
-            # Same-line block comments use a space separator; others use hardline.
-            if node_line is not None and c.start[0] == node_line:
-                parts.append(space())
-            elif not (isinstance(node, ast.Pass) and is_empty_pass(node)):
+            break_here = False
+            # Line comment
+            break_here |= not is_block_comment(c)
+            # Next token is on different line
+            break_here |= next_line is not None and c.end[0] != next_line
+            # Statement to be start in new line
+            break_here |= isinstance(node, ast.stmt) and is_last
+            debug_verbose_print(
+                lambda: (
+                    f"Leading comment: {c.string!r}, break_here: {break_here}, "
+                    f"comment end line: {c.end[0]}, next token line: {next_line}, "
+                    f"node line: {node_line}, is_block_comment: {is_block_comment(c)}"
+                )
+            )
+            if isinstance(node, ast.Pass) and is_empty_pass(node):
+                pass  # TODO: too ad-hoc?
+            elif break_here:
                 parts.append(hardline())
+            else:
+                parts.append(space())
         return concat(parts)
 
     def _trailing_comment_doc(self, node: ast.AST) -> Doc | None:
@@ -361,14 +391,28 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             return None
         parts: list[Doc] = []
         for c in comments:
-            parts.append(
-                line_suffix(concat([text("  "), self._comment_text_doc(c.string)]))
-            )
-            # Line comments (# ...) extend to end of line;
-            # force enclosing group to break so a newline follows.
-            # TODO: If this is expression (so in group) this makes assignment broken.
-            # if not is_block_comment(c):
-            #     parts.append(BREAK_PARENT)
+            if is_block_comment(c):
+                parts.extend([line_or_space(), self._comment_text_doc(c.string)])
+            else:
+                # Line comment
+                parts.append(
+                    line_suffix(concat([text("  "), self._comment_text_doc(c.string)]))
+                )
+                # parts.extend([text("  "), self._comment_text_doc(c.string)])
+                # if not isinstance(node, ast.stmt):
+                #     # Force line break even node is not statement.
+                #     # statement has already breakafter it.
+                #     parts.append(hardline())
+                parts.append(BreakParent())
+
+                # parts.append(
+                #     line_suffix(concat([text("  "), self._comment_text_doc(c.string)]))
+                # )
+                # Line comments (# ...) extend to end of line;
+                # force enclosing group to break so a newline follows.
+                # TODO: If this is expression (so in group) this makes assignment broken.
+                # if not is_block_comment(c):
+                # parts.append(hardline())
         return concat(parts)
 
     def _dangling_comments_doc(self, node: ast.AST) -> Doc | None:
@@ -390,6 +434,12 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         parts: list[Doc] = []
         if leading := self._leading_comments_doc(node):
             parts.append(leading)
+        debug_verbose_print(
+            lambda: (
+                f"Generating doc for stmt: {ast.dump(node, include_attributes=True)}\n"
+                f"    Leading comments doc: {leading}, parts: {parts}\n"
+            )
+        )
         body = self._visit_doc(node)
         parts.append(body)
         if trailing := self._trailing_comment_doc(node):
@@ -613,16 +663,35 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             for kw in node.keywords
         ]
         all_args = args_docs + kw_docs
-        has_trailing_comma = get_trailing_comma_anchor(node) is not None
-        if has_trailing_comma and len(all_args) > 0:
-            args_doc = concat(
-                [
-                    join(concat([text(","), hardline()]), all_args),
-                    text(","),
-                ]
-            )
-        else:
-            args_doc = join(comma(), all_args)
+        comma_anchors = get_call_argument_comma_anchors(node)
+        trailing_comma = get_trailing_comma_anchor(node)
+        args_doc_parts: list[Doc] = []
+        for i, arg_doc in enumerate(all_args):
+            args_doc_parts.append(arg_doc)
+            is_last = i == len(all_args) - 1
+            if is_last:
+                if trailing_comma:
+                    args_doc_parts.append(self._visit_doc(trailing_comma))
+            else:
+                if comma_anchors:
+                    args_doc_parts.append(self._visit_doc(comma_anchors[i]))
+                    args_doc_parts.append(line_or_space())
+                    # args_doc_parts.append(if_break(NIL, line_or_space()))
+                else:
+                    args_doc_parts.append(comma())
+                if trailing_comma:
+                    # args_doc_parts.append(if_break(NIL, hardline()))
+                    args_doc_parts.append(BreakParent())
+        args_doc = concat(args_doc_parts)
+        # if trailing_comma and len(all_args) > 0:
+        #     args_doc = concat(
+        #         [
+        #             join(concat([text(","), hardline()]), all_args),
+        #             text(","),
+        #         ]
+        #     )
+        # else:
+        #     args_doc = join(comma(), all_args)
         doc = group(
             [
                 self._visit_doc(node.func),

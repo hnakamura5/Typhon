@@ -22,7 +22,7 @@ from .typhon_ast import (
     make_genexp, make_listcomp, make_setcomp, make_dictcomp,
     make_with_comp, make_try_comp, make_try_comp_except, make_match_comp,
     make_match_comp_case, make_while_comp, make_if_let_comp,
-    make_while_let_comp, make_let_comp,
+    make_while_let_comp, make_let_comp, make_try,
     make_record_literal, make_record_type, make_attributes_pattern, make_tuple_pattern, make_for_let_pattern, make_with_let_pattern, make_inline_with_let_pattern, make_class_def,
     make_match_case, make_alias, make_import_from, make_arguments, make_attribute,
     make_arg, make_match_class, ImportDotNames,  set_completion_trigger_anchor_token,
@@ -30,7 +30,7 @@ from .typhon_ast import (
     set_wrapper_paren_tokens, set_constant_raw_tokens
 )
 from .position import (
-    get_pos_attributes, set_completion_trigger_anchor,
+    get_pos_attributes, set_completion_trigger_anchor, TrailingBlock,
 )
 from .typhon_ast_error import (
     maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, recover_invalid_for, recover_invalid_try, recover_maybe_invalid_function_def_raw,
@@ -380,11 +380,17 @@ dotted_name[ImportDotNames]:
 # ---------------
 
 block[List[ast.stmt]] (memo):
-    | '{' a=statements*  rb='}' ~ { sum(a, []) if len(a) > 0 else [set_is_empty_pass(ast.Pass(**get_pos_attributes(rb)))]  }
+    | lb='{' a=statements*  rb='}' ~ {
+        maybe_invalid_block(self, lb, rb,
+            sum(a, []) if len(a) > 0 else [set_is_empty_pass(ast.Pass(**get_pos_attributes(rb)))]
+        )
+     }
 
 maybe_block[List[ast.stmt]]:
     | lb=['{'] a=statements* rb=['}'] ~ {
-        maybe_invalid_block(self, lb, rb, sum(a, []) if len(a) > 0 else [set_is_empty_pass(ast.Pass(**get_pos_attributes(rb)) if rb else get_empty_pos_attributes())])
+        maybe_invalid_block(self, lb, rb,
+            sum(a, []) if len(a) > 0 else [set_is_empty_pass(ast.Pass(**get_pos_attributes(rb)) if rb else get_empty_pos_attributes())]
+        )
     }
 
 decorators: decorator+
@@ -556,18 +562,18 @@ default: '=' a=expression { a } | invalid_default
 
 if_stmt[ast.stmt]:
     | k='if' lp=['('] a=named_expression rp=[')'] NEWLINE* b=maybe_block c=elif_stmt {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a, begin_tokens=[k],
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a, begin_tokens=[k], body=b,
             node=ast.If(test=a, body=b, orelse=c or [], LOCATIONS)
         )
      }
     | k='if' lp=['('] a=named_expression rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a, begin_tokens=[k],
-            node=ast.If(test=a, body=b, orelse=c or [], LOCATIONS)
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a, begin_tokens=[k], body=b, else_block=c,
+            node=ast.If(test=a, body=b, orelse=c.body if c else [], LOCATIONS)
         )
      }
     # if-let statement as pattern matching
     | k='if' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=elif_stmt {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k],
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k], body=b,
             close_anchor=(cond or pat_sub[-1][1]),
             node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
                     node=make_if_let(decl_type=d, pattern_subjects=pat_sub, cond=cond,
@@ -577,29 +583,29 @@ if_stmt[ast.stmt]:
      }
     | k='if' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k],
-            close_anchor=(cond or pat_sub[-1][1]),
+            close_anchor=(cond or pat_sub[-1][1]), body=b, else_block=c,
             node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
                     node=make_if_let(decl_type=d, pattern_subjects=pat_sub, cond=cond,
-                                    body=b, orelse=c, is_let_else=False, LOCATIONS)
+                                    body=b, orelse=c.body if c else [], is_let_else=False, LOCATIONS)
             )
         )
      }
 
 elif_stmt[List[ast.stmt]]:
     | k='elif' lp=['('] a=named_expression rp=[')'] NEWLINE* b=maybe_block c=elif_stmt {
-        [maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a, begin_tokens=[k],
+        [maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a, begin_tokens=[k], body=b,
             node=ast.If(test=a, body=b, orelse=c or [], LOCATIONS)
         )]
      }
     | k='elif' lp=['('] a=named_expression rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
-        [maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a, begin_tokens=[k],
-            node=ast.If(test=a, body=b, orelse=c or [], LOCATIONS)
+        [maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a, begin_tokens=[k], body=b, else_block=c,
+            node=ast.If(test=a, body=b, orelse=c.body if c else [], LOCATIONS)
         )]
      }
     # elif-let statement as pattern matching
     | k='elif' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=elif_stmt {
         [maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k],
-            close_anchor=(cond or pat_sub[-1][1]),
+            close_anchor=(cond or pat_sub[-1][1]), body=b,
             node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
                     node=make_if_let(decl_type=d, pattern_subjects=pat_sub, cond=cond,
                                     body=b, orelse=c or [], is_let_else=False, LOCATIONS)
@@ -608,16 +614,16 @@ elif_stmt[List[ast.stmt]]:
      }
     | k='elif' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
         [maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k],
-            close_anchor=(cond or pat_sub[-1][1]),
+            close_anchor=(cond or pat_sub[-1][1]), body=b, else_block=c,
             node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
                     node=make_if_let(decl_type=d, pattern_subjects=pat_sub, cond=cond,
-                                    body=b, orelse=c or [], is_let_else=False, LOCATIONS)
+                                    body=b, orelse=c.body if c else [], is_let_else=False, LOCATIONS)
             )
         )]
      }
 
-else_block[List[ast.stmt]]:
-    | 'else' b=maybe_block { b }
+else_block[TrailingBlock]:
+    | e='else' b=maybe_block { TrailingBlock(e, b) }
 
 
 # While statement
@@ -625,16 +631,16 @@ else_block[List[ast.stmt]]:
 
 while_stmt[ast.While]:
     | k='while' lp=['('] a=named_expression rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a, begin_tokens=[k],
-            node=ast.While(test=a, body=b, orelse=c or [], LOCATIONS)
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a, begin_tokens=[k], body=b, else_block=c,
+            node=ast.While(test=a, body=b, orelse=c.body if c else [], LOCATIONS)
         )
      }
     # while-let statement as pattern matching
     | k='while' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k],
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k], body=b, else_block=c,
             close_anchor=(cond or pat_sub[-1][1]),
             node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
-                node=make_while_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c, LOCATIONS)
+                node=make_while_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c.body if c else [], LOCATIONS)
             )
         )
      }
@@ -644,15 +650,15 @@ while_stmt[ast.While]:
 
 for_stmt[Union[ast.For, ast.AsyncFor]]:
     | is_async=['async'] k='for' lp=['('] d=decl_keyword t=decl_star_target a=[star_annotation] 'in' ~ ex=star_expressions rp=[')'] tc=[TYPE_COMMENT] NEWLINE* b=maybe_block el=[else_block] {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=ex,
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=ex, body=b, else_block=el,
             begin_tokens=[is_async, k],
-            node=make_for_stmt(decl_type=d.string, target=t, type_annotation=a, iter=ex, body=b, orelse=el or [], type_comment=tc, is_async=is_async is not None, LOCATIONS)
+            node=make_for_stmt(decl_type=d.string, target=t, type_annotation=a, iter=ex, body=b, orelse=el.body if el else [], type_comment=tc, is_async=is_async is not None, LOCATIONS)
         )
      }
     | is_async=['async'] k='for' lp=['('] d=decl_keyword pat=pattern 'in' ~ ex=star_expressions rp=[')'] tc=[TYPE_COMMENT] NEWLINE* b=maybe_block el=[else_block] {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=ex,
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=ex, body=b, else_block=el,
             begin_tokens=[is_async, k],
-            node=make_for_let_pattern(self, decl_type=d.string, pattern=pat, iter=ex, body=b, orelse=el or [], type_comment=tc, is_async=is_async is not None, LOCATIONS)
+            node=make_for_let_pattern(self, decl_type=d.string, pattern=pat, iter=ex, body=b, orelse=el.body if el else [], type_comment=tc, is_async=is_async is not None, LOCATIONS)
         )
      }
      # Invaid for recovery
@@ -671,12 +677,12 @@ with_stmt[Union[ast.With, ast.AsyncWith]]:
 block_with[Union[ast.With, ast.AsyncWith]]:
     | is_async=['async'] k='with' lp=['('] a=with_item rp=[')'] NEWLINE* b=maybe_block {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a[-1].context_expr,
-            begin_tokens=[is_async, k],
+            begin_tokens=[is_async, k], body=b,
             node=make_with_stmt(is_async=is_async is not None, items=a, body=b, is_inline=False, LOCATIONS)
         )
      }
     | is_async=['async'] k='with' lp=['('] a=with_pattern_item rp=[')'] NEWLINE* b=maybe_block {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a[1][-1][1],
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=a[1][-1][1], body=b,
             begin_tokens=[is_async, k],
             node=make_with_let_pattern(self, is_async=is_async is not None, decl_type=a[0], pattern_subjects=a[1], body=b, LOCATIONS)
         )
@@ -702,37 +708,29 @@ with_pattern_item[Tuple[str, List[Tuple[ast.pattern, ast.expr]]]]:
 # Try statement
 # -------------
 
-try_stmt[ast.Try]:
+try_stmt[ast.stmt]:
     | try_stmt_with_error
-    | 'try' b=maybe_block f=finally_block {
-        ast.Try(body=b, handlers=[], orelse=[], finalbody=f, LOCATIONS)
+    | t='try' b=maybe_block f=finally_block {
+        make_try(is_star=False, try_token=t, body=b, handlers=[], else_block=None, finally_block=f, LOCATIONS)
      }
-    | 'try' b=maybe_block ex=except_star_block+ el=[else_block] f=[finally_block] {
-        self.check_version(
-            (3, 11),
-            "Exception groups are",
-            (
-                ast.TryStar(body=b, handlers=ex, orelse=el or [], finalbody=f or [], LOCATIONS)
-                if sys.version_info >= (3, 11)
-                else None
-            )
-        )
+    | t='try' b=maybe_block ex=except_star_block+ el=[else_block] f=[finally_block] {
+        make_try(is_star=True , try_token=t, body=b, handlers=ex, else_block=el, finally_block=f,  LOCATIONS)
      }
-    | 'try' b=maybe_block ex=except_block+ el=[else_block] f=[finally_block] {
-        ast.Try(body=b, handlers=ex, orelse=el or [], finalbody=f or [], LOCATIONS)
+    | t='try' b=maybe_block ex=except_block+ el=[else_block] f=[finally_block] {
+        make_try(is_star=False, try_token=t, body=b, handlers=ex, else_block=el, finally_block=f,  LOCATIONS)
      }
 
 try_stmt_with_error[ast.Try]:
     | 'try' b=maybe_block ex=except_block+ ex_s=except_star_block+ el=[else_block] f=[finally_block] {
         recover_invalid_try(self,
             message="cannot have both 'except' and 'except*' on the same 'try'",
-            node=ast.Try(body=b, handlers=(ex + ex_s), orelse=el or [], finalbody=f or [], LOCATIONS)
+            node=ast.Try(body=b, handlers=(ex + ex_s), orelse=el.body if el else [], finalbody=f.body if f else [], LOCATIONS)
         )
      }
     | 'try' b=maybe_block  ex_s=except_star_block+ ex=except_block+ el=[else_block] f=[finally_block] {
         recover_invalid_try(self,
             message="cannot have both 'except' and 'except*' on the same 'try'",
-            node=ast.Try(body=b, handlers=(ex_s + ex), orelse=el or [], finalbody=f or [], LOCATIONS)
+            node=ast.Try(body=b, handlers=(ex_s + ex), orelse=el.body if el else [], finalbody=f.body if f else [], LOCATIONS)
         )
      }
     | 'try' b=maybe_block !('except' | 'finally') {
@@ -754,33 +752,33 @@ except_star_block[ast.ExceptHandler]:
         )
      }
     | a='except' k='*' NEWLINE* &'{' b=maybe_block {
-        maybe_invalid_stmt(self, None, None, open_anchor=k, close_anchor=k, begin_tokens=[a, k],
+        maybe_invalid_stmt(self, None, None, open_anchor=k, close_anchor=k, begin_tokens=[a, k], body=b,
             message="expected one or more exception types for except *",
             node=ast.ExceptHandler(type=None, name=None, body=b, LOCATIONS)
         )
      }
     | k='except' '*' lp=['('] e=expression t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* &'{' b=maybe_block {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or e), begin_tokens=[k],
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or e), begin_tokens=[k], body=b,
             node=ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS)
         )
      }
 
 except_block[ast.ExceptHandler]:
     | k='except' !'*' lp=['('] a=expression ',' es=expressions t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* b=maybe_block {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or es.elts[-1]), begin_tokens=[k],
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or es.elts[-1]), begin_tokens=[k], body=b,
             message="multiple exception types must be parenthesized",
             node=ast.ExceptHandler(type=a, name=t, body=b, LOCATIONS)
         )
      }
     | k='except' !'*' lp=['('] e=expression t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* b=maybe_block {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or e), begin_tokens=[k],
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or e), begin_tokens=[k], body=b,
             node=ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS)
         )
      }
     | 'except' !'*' b=maybe_block { ast.ExceptHandler(type=None, name=None, body=b, LOCATIONS) }
 
-finally_block[List[ast.stmt]]:
-    | 'finally' a=maybe_block { a }
+finally_block[TrailingBlock]:
+    | f='finally' a=maybe_block { TrailingBlock(f, a) }
 
 
 # Match statement
@@ -791,7 +789,7 @@ finally_block[List[ast.stmt]]:
 match_stmt["ast.Match"]:
     | k="match" lp=['('] subject=subject_expr rp=[')'] NEWLINE* lb=['{'] cases=case_block+ rb=['}'] {
         maybe_invalid_braces(self, lb, rb, open_anchor=(rp or subject),
-            node=maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=subject, begin_tokens=[k],
+            node=maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=subject, begin_tokens=[k], body=cases,
                 node=ast.Match(subject=subject, cases=cases, LOCATIONS)
             )
         )
@@ -811,7 +809,7 @@ subject_expr:
 
 case_block["ast.match_case"]:
     | k="case" lp=['('] pattern=patterns rp=[')'] NEWLINE* guard=guard? NEWLINE* body=maybe_block {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=pattern, begin_tokens=[k],
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=pattern, begin_tokens=[k], body=body,
             node=make_match_case(pattern=pattern, guard=guard, body=body, LOCATIONS)
         )
      }

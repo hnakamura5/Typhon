@@ -2,10 +2,11 @@ import ast
 import copy
 from dataclasses import dataclass
 from typing import Unpack, cast
-from tokenize import TokenInfo
+from tokenize import TokenInfo, tokenize
 from .position import (
     BlockStmtAnchors,
     PosAttributes,
+    TrailingBlock,
     get_empty_pos_attributes,
     name_from_anchor_token,
     set_block_stmt_anchors,
@@ -13,6 +14,8 @@ from .position import (
     get_pos_attributes,
     PosNode,
     unpack_pos_tuple,
+    get_block_braces,
+    set_block_braces,
 )
 from .typhon_ast import (
     CallArgs,
@@ -56,6 +59,8 @@ def maybe_invalid_block(
                 (lineno, col_offset + 1),
             )
             add_error_node(stmt, [error_close])
+    if open_brace and close_brace:
+        set_block_braces(body, open_brace, close_brace)
     return body
 
 
@@ -116,6 +121,9 @@ def maybe_invalid_stmt[T: PosNode](
     close_anchor: PosNode | TokenInfo,
     begin_tokens: list[TokenInfo | None] | None = None,
     message: str | None = None,
+    # body and else_block are for taking brace anchors to attach comments.
+    body: list[ast.stmt] | None = None,
+    else_block: TrailingBlock | None = None,
     message_anchor: PosNode | TokenInfo | None = None,
 ) -> T:
     lineno, col_offset, end_lineno, end_col_offset = unpack_pos_default(
@@ -147,23 +155,17 @@ def maybe_invalid_stmt[T: PosNode](
         error = parser.build_expected_error("')'", start_loc, end_loc)
         add_error_node(node, [error])
     if open_paren and close_paren:
-        begin_token_anchors = (
-            [name_from_anchor_token(tok) for tok in begin_tokens if tok]
-            if begin_tokens
-            else []
-        )
+        brace_anchors = get_block_braces(body) if body else None
         set_block_stmt_anchors(
             node,
-            BlockStmtAnchors(
-                begin_token_anchors=begin_token_anchors,
-                open_paren_anchor=name_from_anchor_token(open_paren),
-                close_paren_anchor=name_from_anchor_token(close_paren),
-                open_anchor=name_from_anchor_token(open_anchor),
-                close_anchor=name_from_anchor_token(close_anchor),
-                inner_separator_anchors=[],
+            BlockStmtAnchors.make(
+                keywords=[tok for tok in begin_tokens if tok] if begin_tokens else [],
+                parens=(open_paren, close_paren),
+                braces=brace_anchors,
+                else_block=else_block,
+                finally_block=None,
             ),
         )
-
     return node
 
 

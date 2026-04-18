@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass
+import keyword
+from re import A
 from tokenize import TokenInfo
 from typing import TypedDict, Tuple
 
@@ -218,16 +220,69 @@ def clear_trailing_comma_anchor(node: ast.expr):
         delattr(node, _TRAILING_COMMA_ANCHOR)
 
 
+# Represents 'else' and 'finally' blocks
+@dataclass
+class TrailingBlock:
+    keyword: TokenInfo
+    body: list[ast.stmt]
+
+
 @dataclass
 class BlockStmtAnchors:
     # Sequent of tokens beggining of the statements. (e.g. 'async' and 'def')
     begin_token_anchors: list[ast.Name]
-    open_paren_anchor: ast.Name
-    close_paren_anchor: ast.Name
-    open_anchor: ast.Name
-    close_anchor: ast.Name
-    # 'in' in for, ';' in if-let, 'as' in except and so on.
+    open_paren_anchor: ast.Name | None
+    close_paren_anchor: ast.Name | None
+    open_brace_anchor: ast.Name | None
+    close_brace_anchor: ast.Name | None
+    # for else in if-else, for-else, while-else and so on.
+    else_brace_open_anchor: ast.Name | None
+    else_brace_close_anchor: ast.Name | None
+    # finally block
+    finally_open_anchor: ast.Name | None
+    finally_close_anchor: ast.Name | None
     inner_separator_anchors: list[ast.Name]
+
+    @staticmethod
+    def make(
+        *,
+        keywords: list[TokenInfo],
+        parens: tuple[TokenInfo, TokenInfo] | None = None,
+        braces: tuple[TokenInfo, TokenInfo] | None = None,
+        else_block: TrailingBlock | None = None,
+        finally_block: TrailingBlock | None = None,
+    ) -> BlockStmtAnchors:
+        inner_separator_anchors: list[ast.Name] = []
+        else_braces = None
+        finally_braces = None
+        if else_block is not None:
+            else_braces = get_block_braces(else_block.body)
+            inner_separator_anchors.append(name_from_anchor_token(else_block.keyword))
+        if finally_block is not None:
+            finally_braces = get_block_braces(finally_block.body)
+            inner_separator_anchors.append(
+                name_from_anchor_token(finally_block.keyword)
+            )
+        return BlockStmtAnchors(
+            begin_token_anchors=[name_from_anchor_token(k) for k in keywords],
+            open_paren_anchor=name_from_anchor_token(parens[0]) if parens else None,
+            close_paren_anchor=name_from_anchor_token(parens[1]) if parens else None,
+            open_brace_anchor=name_from_anchor_token(braces[0]) if braces else None,
+            close_brace_anchor=name_from_anchor_token(braces[1]) if braces else None,
+            else_brace_open_anchor=name_from_anchor_token(else_braces[0])
+            if else_braces
+            else None,
+            else_brace_close_anchor=name_from_anchor_token(else_braces[1])
+            if else_braces
+            else None,
+            finally_open_anchor=name_from_anchor_token(finally_braces[0])
+            if finally_braces
+            else None,
+            finally_close_anchor=name_from_anchor_token(finally_braces[1])
+            if finally_braces
+            else None,
+            inner_separator_anchors=inner_separator_anchors,
+        )
 
 
 @dataclass
@@ -268,3 +323,25 @@ def get_inline_stmt_anchor(node: PosNode) -> InlineStmtAnchors | None:
 def clear_inline_stmt_anchor(node: PosNode):
     if hasattr(node, _INLINE_STMT_ANCHOR):
         delattr(node, _INLINE_STMT_ANCHOR)
+
+
+_BLOCK_BRACES = "_typh_block_braces"
+
+
+def get_block_braces(body: list[ast.stmt]) -> tuple[TokenInfo, TokenInfo] | None:
+    if not body:
+        return None
+    return getattr(body[0], _BLOCK_BRACES, None)
+
+
+def set_block_braces(
+    body: list[ast.stmt], open_brace: TokenInfo, close_brace: TokenInfo
+):
+    assert body, "Cannot set block braces on empty body"
+    setattr(body[0], _BLOCK_BRACES, (open_brace, close_brace))
+
+
+def clear_block_braces(body: list[ast.stmt]):
+    if body:
+        if hasattr(body[0], _BLOCK_BRACES):
+            delattr(body[0], _BLOCK_BRACES)

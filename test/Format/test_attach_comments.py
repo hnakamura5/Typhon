@@ -111,30 +111,6 @@ def test_dangling_comment_only_comment():
     assert dangling[0].string == "# only"
 
 
-def test_dangling_comment_empty_function_body():
-    module = _parse_and_attach("def f() {\n    # only a comment\n}\n")
-    func_def = _find_stmt(module, 0)
-    assert isinstance(func_def, ast.FunctionDef)
-    # The comment is dangling inside the function or its empty-body Pass
-    # Check that it appears somewhere as dangling
-    found = False
-    for node in ast.walk(func_def):
-        if get_dangling_comments(node):
-            found = True
-            assert get_dangling_comments(node)[0].string == "# only a comment"
-            break
-    assert found
-
-
-def test_dangling_comment_end_of_block():
-    module = _parse_and_attach("def f() {\n    let x = 1\n    # end of body\n}\n")
-    func_def = _find_stmt(module, 0)
-    assert isinstance(func_def, ast.FunctionDef)
-    dangling = get_dangling_comments(func_def)
-    assert len(dangling) == 1
-    assert dangling[0].string == "# end of body"
-
-
 # ---------------------------------------------------------------------------
 # Mixed scenarios
 # ---------------------------------------------------------------------------

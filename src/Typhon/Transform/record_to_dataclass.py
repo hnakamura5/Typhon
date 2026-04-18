@@ -159,10 +159,6 @@ class _GatherRecords(TyphonASTVisitor):
         )
 
     def visit_Name(self, node: RecordLiteral):
-        # if is_record_literal(node):
-        #     self._visit_RecordLiteral(node)
-        # elif is_record_type(node):
-        #     self._visit_RecordType(node)
         return self.generic_visit(node)
 
 

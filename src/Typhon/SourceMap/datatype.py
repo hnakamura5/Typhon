@@ -303,7 +303,7 @@ class RangeIntervalTree[T]:
     ) -> list[RangeInterval[T]]:
         containers = self._container_intervals(range)
         debug_verbose_print(
-            lambda: f"Minimal containers for range {range}: {containers}"
+            lambda: f"    Minimal containers for range {range}: {containers}"
         )
         if not containers:
             return []
@@ -326,7 +326,7 @@ class RangeIntervalTree[T]:
                     is_minimal = False
                     break
             if is_minimal:
-                debug_verbose_print(lambda: f"  Minimal container: {interval}")
+                debug_verbose_print(lambda: f"    Minimal container: {interval}")
                 result.append((Range.from_interval(interval), interval.data))  # type: ignore[misc]
         return result
 

@@ -17,18 +17,22 @@ from tokenize import TokenInfo
 
 from ..Driver.debugging import debug_print, debug_verbose_print, is_testing_reparser
 from .position import (
+    BlockStmtAnchors,
     PosAttributes,
+    TrailingBlock,
     get_call_argument_comma_anchors,
     get_trailing_comma_anchor,
     get_pos_attributes,
     get_empty_pos_attributes,
     pos_attribute_to_range,
     name_from_anchor_token,
+    set_block_stmt_anchors,
     set_call_argument_comma_anchors,
     set_trailing_comma_anchor,
     set_return_type_annotation_anchor,
     set_completion_trigger_anchor,
     get_completion_trigger_anchor,
+    get_block_braces,
 )
 from .syntax_errors import add_error_node
 
@@ -293,6 +297,23 @@ def set_is_empty_pass(node: ast.Pass, is_empty: bool = True) -> ast.Pass:
 def clear_is_empty_pass(node: ast.Pass) -> None:
     if hasattr(node, _EMPTY_PASS):
         delattr(node, _EMPTY_PASS)
+
+
+_INTERNAL_FALLBACK_STMT = "_typh_internal_fallback_stmt"
+
+
+def is_internal_fallback_stmt(node: ast.stmt) -> bool:
+    return getattr(node, _INTERNAL_FALLBACK_STMT, False)
+
+
+def set_is_internal_fallback_stmt(node: ast.stmt, is_fallback: bool = True) -> ast.stmt:
+    setattr(node, _INTERNAL_FALLBACK_STMT, is_fallback)
+    return node
+
+
+def clear_is_internal_fallback_stmt(node: ast.stmt) -> None:
+    if hasattr(node, _INTERNAL_FALLBACK_STMT):
+        delattr(node, _INTERNAL_FALLBACK_STMT)
 
 
 # Normal assignments, let assignments for variable declarations,
@@ -1158,18 +1179,22 @@ def _make_nested_match_for_multiple_let(
             guard=None,
             body=[
                 # raise TypeError in 'unreachable' case. 'cast' and so on can still cause failure even if the pattern is irrefutable after type check.
-                ast.Raise(
-                    set_is_internal_name(
-                        ast.Name(
-                            id="TypeError", ctx=ast.Load(), **get_empty_pos_attributes()
-                        )
-                    ),
-                    None,
-                    # **kwargs, # TODO: appropriate position?
-                    **get_empty_pos_attributes(),
+                set_is_internal_fallback_stmt(
+                    ast.Raise(
+                        set_is_internal_name(
+                            ast.Name(
+                                id="TypeError",
+                                ctx=ast.Load(),
+                                **get_empty_pos_attributes(),
+                            )
+                        ),
+                        None,
+                        # **kwargs, # TODO: appropriate position?
+                        **get_empty_pos_attributes(),
+                    )
+                    if type_error_on_failure
+                    else ast.Pass(**(else_pos or kwargs))
                 )
-                if type_error_on_failure
-                else ast.Pass(**(else_pos or kwargs))
             ],
         )
         if type_error_on_failure:
@@ -1581,6 +1606,47 @@ def make_match_class(
         **pos_attribute_to_range(kwargs),
     )
     set_match_class_keyword_names(result, kwd_attrs)
+    return result
+
+
+def make_try(
+    is_star: bool,
+    try_token: TokenInfo,
+    body: list[ast.stmt],
+    handlers: list[ast.ExceptHandler],
+    else_block: TrailingBlock | None,
+    finally_block: TrailingBlock | None,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.Try | ast.TryStar:
+    orelse: list[ast.stmt] = else_block.body if else_block else []
+    finalbody: list[ast.stmt] = finally_block.body if finally_block else []
+    if is_star:
+        result = ast.TryStar(
+            body=body,
+            handlers=handlers,
+            orelse=orelse,
+            finalbody=finalbody,
+            **kwargs,
+        )
+    else:
+        result = ast.Try(
+            body=body,
+            handlers=handlers,
+            orelse=orelse,
+            finalbody=finalbody,
+            **kwargs,
+        )
+    brace_tokens = get_block_braces(body)
+    set_block_stmt_anchors(
+        result,
+        BlockStmtAnchors.make(
+            keywords=[try_token],
+            parens=None,
+            braces=brace_tokens,
+            else_block=else_block,
+            finally_block=finally_block,
+        ),
+    )
     return result
 
 

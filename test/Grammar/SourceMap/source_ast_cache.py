@@ -1,5 +1,6 @@
 import ast
 
+from Typhon.Driver.debugging import debug_verbose_print
 from Typhon.Grammar.parser import parse_string
 from Typhon.SourceMap.datatype import Pos, Range
 from Typhon.SourceMap.source_ast_cache import SourceAstCache
@@ -111,6 +112,12 @@ def test_source_ast_cache_if_let_stmt_and_expr():
     assert stmt_range == Range(Pos(2, 4), Pos(6, 5))  # the whole if-else statement
 
     expr = cache.source_range_to_node(Range(Pos(2, 34), Pos(2, 39)), ast.expr)
+    debug_verbose_print(
+        lambda: (
+            f"Extracted expr from range: {expr}\n"
+            f"Expected source code: {Range(Pos(2, 34), Pos(2, 39)).of_string(code_stmt_if_let)}"
+        )
+    )
     assert isinstance(expr, ast.Compare)
     expr_range = Range.from_ast_node(expr)
     assert expr_range is not None
