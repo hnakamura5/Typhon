@@ -250,6 +250,38 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             return True
         return False
 
+    def _visit_anchor_or(self, anchor: ast.Name | None, default: Doc):
+        if anchor is not None:
+            return self._visit_doc(anchor)
+        return default
+
+    def _comma_combined_doc(
+        self,
+        elts: list[Doc],
+        comma_anchors: list[ast.Name] | None,
+        trailing_comma: ast.Name | None,
+    ) -> Doc:
+        parts: list[Doc] = []
+        if trailing_comma:
+            parts.append(BreakParent())
+        for i, elt in enumerate(elts):
+            parts.append(elt)
+            is_last = i == len(elts) - 1
+            if is_last:
+                if trailing_comma:
+                    parts.append(self._visit_doc(trailing_comma))
+                else:
+                    # Append trailling comma if call is multi-line.
+                    parts.append(if_break(text(","), text("")))
+            else:
+                parts.append(
+                    self._visit_anchor_or(
+                        comma_anchors[i] if comma_anchors else None, comma()
+                    )
+                )
+                parts.append(line_or_space())
+        return concat(parts)
+
     def _visit_doc(self, node: ast.AST) -> Doc:
         doc = cast(Doc, self.visit(node))
         if isinstance(node, ast.expr):
@@ -662,36 +694,11 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             else concat([text("**"), self._visit_doc(kw.value)])
             for kw in node.keywords
         ]
-        all_args = args_docs + kw_docs
         comma_anchors = get_call_argument_comma_anchors(node)
         trailing_comma = get_trailing_comma_anchor(node)
-        args_doc_parts: list[Doc] = []
-        for i, arg_doc in enumerate(all_args):
-            args_doc_parts.append(arg_doc)
-            is_last = i == len(all_args) - 1
-            if is_last:
-                if trailing_comma:
-                    args_doc_parts.append(self._visit_doc(trailing_comma))
-            else:
-                if comma_anchors:
-                    args_doc_parts.append(self._visit_doc(comma_anchors[i]))
-                    args_doc_parts.append(line_or_space())
-                    # args_doc_parts.append(if_break(NIL, line_or_space()))
-                else:
-                    args_doc_parts.append(comma())
-                if trailing_comma:
-                    # args_doc_parts.append(if_break(NIL, hardline()))
-                    args_doc_parts.append(BreakParent())
-        args_doc = concat(args_doc_parts)
-        # if trailing_comma and len(all_args) > 0:
-        #     args_doc = concat(
-        #         [
-        #             join(concat([text(","), hardline()]), all_args),
-        #             text(","),
-        #         ]
-        #     )
-        # else:
-        #     args_doc = join(comma(), all_args)
+        args_doc = self._comma_combined_doc(
+            args_docs + kw_docs, comma_anchors, trailing_comma
+        )
         doc = group(
             [
                 self._visit_doc(node.func),

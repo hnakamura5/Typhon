@@ -257,7 +257,7 @@ let x = f(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, aaaaaaaaaaaaaaaaaaaaaaaaaaaa
 result_long_call = """
 let x = f(
     aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
-    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
 )
 """
 
@@ -572,12 +572,12 @@ let vvvvvvvvvvvvvvvvvvvv = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(xxxxxxxxx,
 result_method_chain_long_wrap = """
 let vvvvvvvvvvvvvvvvvvvv = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa(
     xxxxxxxxx,
-    yyyyyyyyyy
+    yyyyyyyyyy,
 )
 .bbbbbbbbbbbbbbbbbbbb(xxxxxxxxx, yyyyyyyyyy)
 ?.ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc(
     xxxxxxxxx,
-    yyyyyyyyyy
+    yyyyyyyyyy,
 )
 """
 
@@ -807,7 +807,7 @@ let s = f"value={very_long_function_name(aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 result_fstring_long_expr = """
 let s = f"value={very_long_function_name(
     aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
-    bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
 )}"
 """
 
@@ -1015,7 +1015,7 @@ let x = (
     foo(
         aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
         bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
-        ccccccccccccccccccccccccccccccc
+        ccccccccccccccccccccccccccccccc,
     ),
     (if(aaaaaaaaaaaaaaaaaaaaa)
          bbbbbbbbbbbbbbbbbbbb

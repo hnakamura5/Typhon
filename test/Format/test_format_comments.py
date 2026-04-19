@@ -256,7 +256,7 @@ let x = f(
 result_expression_trailing_comment_on_call = """
 let x = f(
     a,  # first
-    #(second)# b
+    #(second)# b,
 )
 """
 
@@ -278,7 +278,7 @@ let x = f(
 result_expression_trailing_comment_stays_on_multiline_call = """
 let x = f(
     very_long_argument_name,  # note
-    another_very_long_argument_name
+    another_very_long_argument_name,
 )
 """
 
