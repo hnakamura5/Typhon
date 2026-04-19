@@ -2,7 +2,7 @@
 # TODO: Never forget implementation here is temporal hack.
 import ast
 
-from .position import get_trailing_comma_anchor
+from .position import get_expr_comma_anchors
 from .typhon_ast import get_type_ignore_comment
 
 
@@ -27,7 +27,8 @@ class CustomUnparser(ast._Unparser):
     ):
         super().visit_Call(node)
         # Ad-hoc insertion of trailing comma. Mainly for signature help.
-        if get_trailing_comma_anchor(node):
+        comma_anchors = get_expr_comma_anchors(node)
+        if comma_anchors is not None and comma_anchors.trailing_comma is not None:
             self._source[-1] = ","
             self._source.extend(")")
 

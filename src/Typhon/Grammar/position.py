@@ -164,23 +164,27 @@ def clear_completion_trigger_anchor(node: ast.AST):
         delattr(node, _COMPLETION_TRIGGER_ANCHOR)
 
 
-_CALL_ARGUMENT_COMMA_ANCHORS = "_typh_call_argument_comma_anchors"
+@dataclass
+class ExprCommaAnchors:
+    commas: list[ast.Name]
+    trailing_comma: ast.Name | None = None
 
 
-def set_call_argument_comma_anchors(
-    node: ast.Call, anchors: list[ast.Name] | None
-) -> ast.Call:
-    setattr(node, _CALL_ARGUMENT_COMMA_ANCHORS, anchors)
+_EXPR_COMMA_ANCHORS = "_typh_expr_comma_anchors"
+
+
+def set_expr_comma_anchors[T: ast.expr](node: T, anchors: ExprCommaAnchors | None) -> T:
+    setattr(node, _EXPR_COMMA_ANCHORS, anchors)
     return node
 
 
-def get_call_argument_comma_anchors(node: ast.Call) -> list[ast.Name] | None:
-    return getattr(node, _CALL_ARGUMENT_COMMA_ANCHORS, None)
+def get_expr_comma_anchors(node: ast.expr) -> ExprCommaAnchors | None:
+    return getattr(node, _EXPR_COMMA_ANCHORS, None)
 
 
-def clear_call_argument_comma_anchors(node: ast.Call):
-    if hasattr(node, _CALL_ARGUMENT_COMMA_ANCHORS):
-        delattr(node, _CALL_ARGUMENT_COMMA_ANCHORS)
+def clear_expr_comma_anchors(node: ast.expr):
+    if hasattr(node, _EXPR_COMMA_ANCHORS):
+        delattr(node, _EXPR_COMMA_ANCHORS)
 
 
 _RETURN_TYPE_ANNOTATION_ANCHOR = "_typh_return_type_annotation_anchor"
@@ -201,23 +205,6 @@ def get_return_type_annotation_anchor(
 def clear_return_type_annotation_anchor(node: ast.FunctionDef | ast.AsyncFunctionDef):
     if hasattr(node, _RETURN_TYPE_ANNOTATION_ANCHOR):
         delattr(node, _RETURN_TYPE_ANNOTATION_ANCHOR)
-
-
-_TRAILING_COMMA_ANCHOR = "_typh_trailing_comma_anchor"
-
-
-def set_trailing_comma_anchor[T: ast.expr](node: T, anchor: ast.Name | None) -> T:
-    setattr(node, _TRAILING_COMMA_ANCHOR, anchor)
-    return node
-
-
-def get_trailing_comma_anchor(node: ast.expr) -> ast.Name | None:
-    return getattr(node, _TRAILING_COMMA_ANCHOR, None)
-
-
-def clear_trailing_comma_anchor(node: ast.expr):
-    if hasattr(node, _TRAILING_COMMA_ANCHOR):
-        delattr(node, _TRAILING_COMMA_ANCHOR)
 
 
 # Represents 'else' and 'finally' blocks

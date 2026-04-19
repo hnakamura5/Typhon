@@ -1,8 +1,10 @@
 import ast
 
+from Typhon.Format.attach_comments import attach_comments_v2
 from Typhon.Format.doc_render import render_doc_to_string
 from Typhon.Format.print_to_doc import print_to_doc
 from Typhon.Grammar.parser import parse_string
+from Typhon.SourceMap.source_ast_cache import SourceAstCache
 
 
 def _parse_module(source: str) -> ast.Module:
@@ -13,6 +15,7 @@ def _parse_module(source: str) -> ast.Module:
 
 def _render_source(source: str) -> str:
     module = _parse_module(source)
+    attach_comments_v2(module, SourceAstCache(module, source, "<test>"))
     return render_doc_to_string(print_to_doc(module))
 
 
@@ -43,6 +46,15 @@ def assert_render_pipeline(source: str, expected: str) -> None:
     result_from_messed_up = _render_source(messed_up)
     assert result_from_messed_up.strip() == expected.strip(), (
         f"Formatter did not normalize messed up source. Expected:\n{expected}\n\nGot:\n{result_from_messed_up}\n\nOriginal source:\n{source}\n\nOriginal messed up source:\n{messed_up}"
+    )
+
+
+def assert_render_pipeline_comment_sensitive(source: str, expected: str) -> None:
+    result = _render_source(source)
+    assert result == expected.strip(), f"Expected:\n{expected}\n\nGot:\n{result}"
+    round_tripped = _render_source(result)
+    assert round_tripped.strip() == expected.strip(), (
+        f"Round trip failed. Expected:\n{expected}\n\nGot:\n{round_tripped}"
     )
 
 
@@ -211,6 +223,135 @@ let x = {
 def test_format_dict_with_trailing_comma():
     assert_render_pipeline(
         code_dict_with_trailing_comma, result_dict_with_trailing_comma
+    )
+
+
+code_subscript_with_trailing_comma = """
+let x = arr[1,2,]
+"""
+result_subscript_with_trailing_comma = """
+let x =
+    arr[
+        (
+            1,
+            2,
+        )
+    ]
+"""
+
+
+def test_format_subscript_with_trailing_comma():
+    assert_render_pipeline(
+        code_subscript_with_trailing_comma,
+        result_subscript_with_trailing_comma,
+    )
+
+
+code_list_with_comma_comment = """
+let x = [
+    1, # first item
+    2,
+]
+"""
+result_list_with_comma_comment = """
+let x = [
+    1,  # first item
+    2,
+]
+"""
+
+
+def test_format_list_with_comma_comment():
+    assert_render_pipeline_comment_sensitive(
+        code_list_with_comma_comment,
+        result_list_with_comma_comment,
+    )
+
+
+code_tuple_with_comma_comment = """
+let x = (
+    1, # first item
+    2,
+)
+"""
+result_tuple_with_comma_comment = """
+let x = (
+    1,  # first item
+    2,
+)
+"""
+
+
+def test_format_tuple_with_comma_comment():
+    assert_render_pipeline_comment_sensitive(
+        code_tuple_with_comma_comment,
+        result_tuple_with_comma_comment,
+    )
+
+
+code_set_with_comma_comment = """
+let x = {
+    1, # first item
+    2,
+}
+"""
+result_set_with_comma_comment = """
+let x = {
+    1,  # first item
+    2,
+}
+"""
+
+
+def test_format_set_with_comma_comment():
+    assert_render_pipeline_comment_sensitive(
+        code_set_with_comma_comment,
+        result_set_with_comma_comment,
+    )
+
+
+code_dict_with_comma_comment = """
+let x = {
+    "a": 1, # first item
+    "b": 2,
+}
+"""
+result_dict_with_comma_comment = """
+let x = {
+    "a": 1,  # first item
+    "b": 2,
+}
+"""
+
+
+def test_format_dict_with_comma_comment():
+    assert_render_pipeline_comment_sensitive(
+        code_dict_with_comma_comment,
+        result_dict_with_comma_comment,
+    )
+
+
+code_subscript_with_comma_comment = """
+let x = arr[
+    1, # first item
+    2
+]
+"""
+result_subscript_with_comma_comment = """
+let x =
+    arr[
+        (
+            1,  # first item
+            2
+        )
+    ]
+"""
+
+
+def test_format_subscript_with_comma_comment():
+    assert_render_pipeline_comment_sensitive(
+        code_subscript_with_comma_comment,
+        result_subscript_with_comma_comment,
     )
 
 

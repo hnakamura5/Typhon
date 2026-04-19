@@ -11,9 +11,8 @@ from ..Grammar.typhon_ast import (
     set_is_internal_name,
 )
 from ..Grammar.position import (
-    get_call_argument_comma_anchors,
-    get_trailing_comma_anchor,
     get_completion_trigger_anchor,
+    get_expr_comma_anchors,
     get_return_type_annotation_anchor,
 )
 
@@ -105,19 +104,25 @@ class MatchingVisitor(ast.NodeVisitor):
             if right_completion_anchor is not None:
                 with self._with_right(right_completion_anchor):
                     self.visit(completion_anchor)
-        if isinstance(node, ast.Call) and isinstance(right, ast.Call):
-            if call_comma_anchors := get_call_argument_comma_anchors(node):
-                if right_call_comma_anchors := get_call_argument_comma_anchors(right):
+        if isinstance(node, ast.expr) and isinstance(right, ast.expr):
+            comma_anchors = get_expr_comma_anchors(node)
+            right_comma_anchors = get_expr_comma_anchors(right)
+            if comma_anchors is not None:
+                if right_comma_anchors is not None:
                     self._visit_list(
-                        call_comma_anchors,
-                        right_call_comma_anchors,
+                        comma_anchors.commas,
+                        right_comma_anchors.commas,
                         allow_len_mismatch=True,
                     )
-            if trailing_comma_anchor := get_trailing_comma_anchor(node):
-                right_trailing_comma_anchor = get_trailing_comma_anchor(right)
+            if comma_anchors and comma_anchors.trailing_comma is not None:
+                right_trailing_comma_anchor = (
+                    right_comma_anchors.trailing_comma
+                    if right_comma_anchors is not None
+                    else None
+                )
                 if right_trailing_comma_anchor is not None:
                     with self._with_right(right_trailing_comma_anchor):
-                        self.visit(trailing_comma_anchor)
+                        self.visit(comma_anchors.trailing_comma)
         # Recursively visit fields
         for field, value in ast.iter_fields(node):
             right_value = getattr(right, field, None)

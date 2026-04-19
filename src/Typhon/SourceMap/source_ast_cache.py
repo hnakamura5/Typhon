@@ -7,12 +7,11 @@ from ..Driver.debugging import debug_verbose_print
 from ..Grammar.position import (
     PosNode,
     get_block_stmt_anchors,
-    get_call_argument_comma_anchors,
     get_completion_trigger_anchor,
+    get_expr_comma_anchors,
     get_inline_stmt_anchor,
     get_pos_attributes_if_exists,
     get_return_type_annotation_anchor,
-    get_trailing_comma_anchor,
 )
 from ..Grammar.typhon_ast import (
     PythonScope,
@@ -69,15 +68,12 @@ class _SourceAstIndexVisitor(TyphonASTRawVisitor):
         if completion_anchor := get_completion_trigger_anchor(node):
             self._visit_anchor(completion_anchor)
 
-        if isinstance(node, ast.Call):
-            for anchor in get_call_argument_comma_anchors(node) or []:
-                self._visit_anchor(anchor)
-            if trailing_comma_anchor := get_trailing_comma_anchor(node):
-                self._visit_anchor(trailing_comma_anchor)
-
-        if isinstance(node, ast.expr) and not isinstance(node, ast.Call):
-            if trailing_comma_anchor := get_trailing_comma_anchor(node):
-                self._visit_anchor(trailing_comma_anchor)
+        if isinstance(node, ast.expr):
+            if comma_anchors := get_expr_comma_anchors(node):
+                for comma_anchor in comma_anchors.commas:
+                    self._visit_anchor(comma_anchor)
+                if comma_anchors.trailing_comma is not None:
+                    self._visit_anchor(comma_anchors.trailing_comma)
 
         if isinstance(node, PosNode):
             if block_anchors := get_block_stmt_anchors(node):

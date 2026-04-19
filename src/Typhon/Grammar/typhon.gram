@@ -26,7 +26,7 @@ from .typhon_ast import (
     make_record_literal, make_record_type, make_attributes_pattern, make_tuple_pattern, make_for_let_pattern, make_with_let_pattern, make_inline_with_let_pattern, make_class_def,
     make_match_case, make_alias, make_import_from, make_arguments, make_attribute,
     make_arg, make_match_class, ImportDotNames,  set_completion_trigger_anchor_token,
-    CallArgs, set_call_anchors, set_is_empty_pass, set_trailing_comma_anchor_token,
+    CallArgs, set_call_anchors, set_is_empty_pass, set_expr_comma_anchors_from_sequence,
     set_wrapper_paren_tokens, set_constant_raw_tokens
 )
 from .position import (
@@ -1270,13 +1270,15 @@ typing_arrow_type[ast.expr]:
 
 expressions:
     | '(' a=expression b=(',' c=expression { c })+ t=[','] ')' {
-        set_trailing_comma_anchor_token(
+        set_expr_comma_anchors_from_sequence(
             ast.Tuple(elts=[a] + b, ctx=Load, LOCATIONS),
+            [a] + b,
             t,
         ) }
     | a=expression c=',' {
-        set_trailing_comma_anchor_token(
+        set_expr_comma_anchors_from_sequence(
             ast.Tuple(elts=[a], ctx=Load, LOCATIONS),
+            [a],
             c,
         ) }
     | expression
@@ -1292,13 +1294,15 @@ yield_expr:
 
 star_expressions:
     | '(' a=star_expression b=(',' c=star_expression { c })+ t=[','] ')' {
-        set_trailing_comma_anchor_token(
+        set_expr_comma_anchors_from_sequence(
             ast.Tuple(elts=[a] + b, ctx=Load, LOCATIONS),
+            [a] + b,
             t,
         ) }
     | '(' a=star_expression c=',' ')' {
-        set_trailing_comma_anchor_token(
+        set_expr_comma_anchors_from_sequence(
             ast.Tuple(elts=[a], ctx=Load, LOCATIONS),
+            [a],
             c,
         ) }
     | star_expression
@@ -1518,8 +1522,12 @@ primary:
 
 slices:
     | a=slice !',' { a }
-    | a=','.(slice | starred_expression)+ [','] {
-        ast.Tuple(elts=a, ctx=Load, LOCATIONS)
+    | a=','.(slice | starred_expression)+ t=[','] {
+        set_expr_comma_anchors_from_sequence(
+            ast.Tuple(elts=a, ctx=Load, LOCATIONS),
+            a,
+            t,
+        )
         if sys.version_info >= (3, 9) else
         (
             ast.ExtSlice(dims=a, LOCATIONS)
@@ -1649,8 +1657,9 @@ strings (memo): a=(fstring|STRING)+ {
 
 list[ast.List]:
     | '[' a=star_named_expressions_trailing ']' {
-        set_trailing_comma_anchor_token(
+        set_expr_comma_anchors_from_sequence(
             ast.List(elts=a[0], ctx=Load, LOCATIONS),
+            a[0],
             a[1],
         )
      }
@@ -1658,16 +1667,18 @@ list[ast.List]:
 
 tuple[ast.Tuple]:
     | '(' y=star_named_expression c=',' z=[star_named_expressions_trailing] ')' {
-        set_trailing_comma_anchor_token(
+        set_expr_comma_anchors_from_sequence(
             ast.Tuple(elts=[y] + (z[0] if z is not None else []), ctx=Load, LOCATIONS),
+            [y] + (z[0] if z is not None else []),
             c if z is None else z[1],
         )
      }
 
 set[ast.Set]:
     | '{' a=star_named_expressions_trailing '}' {
-        set_trailing_comma_anchor_token(
+        set_expr_comma_anchors_from_sequence(
             ast.Set(elts=a[0], LOCATIONS),
+            a[0],
             a[1],
         )
      }
@@ -1677,12 +1688,13 @@ set[ast.Set]:
 
 dict[ast.Dict]:
     | '{' a=','.double_starred_kvpair+ c=[','] '}' {
-        set_trailing_comma_anchor_token(
+        set_expr_comma_anchors_from_sequence(
             ast.Dict(
                 keys=[kv[0] for kv in a],
                 values=[kv[1] for kv in a],
                 LOCATIONS,
             ),
+            [kv[1] for kv in a],
             c,
         )
      }
@@ -1709,8 +1721,9 @@ record_literal_field[Tuple[ast.Name, ast.expr | None, ast.expr]]:
 
 record_literal[ast.Name]:
     | '{|' fs=','.record_literal_field+ c=[','] '|}' {
-        set_trailing_comma_anchor_token(
+        set_expr_comma_anchors_from_sequence(
             make_record_literal(fs, LOCATIONS),
+            [v for _, _, v in fs],
             c,
         )
      }
@@ -1719,8 +1732,9 @@ record_type_field[Tuple[ast.Name, ast.expr]]:
     | a=symbol b=annotation { (a, b) }
 record_type[ast.Name]:
     | '{|' fs=','.record_type_field+ c=[','] '|}' {
-        set_trailing_comma_anchor_token(
+        set_expr_comma_anchors_from_sequence(
             make_record_type(fs, LOCATIONS),
+            [t for _, t in fs],
             c,
         )
      }

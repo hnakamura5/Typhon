@@ -2,11 +2,12 @@ import ast
 
 from ..Driver.debugging import debug_verbose_print
 from ..Grammar.position import (
+    ExprCommaAnchors,
     get_pos_attributes,
-    set_call_argument_comma_anchors,
-    set_trailing_comma_anchor,
+    set_expr_comma_anchors,
 )
 from ..Grammar.typhon_ast import (
+    set_expr_comma_anchors_from_sequence,
     set_defined_name,
     set_import_from_names,
     set_is_internal_name,
@@ -197,9 +198,21 @@ class _DefinedNameRetriever(ast.NodeVisitor):
                     )
                 )
         if has_trailing_comma and node.args + node.keywords:
-            set_trailing_comma_anchor(node, commas[-1])
-            commas = commas[:-1]
-        set_call_argument_comma_anchors(node, commas)
+            set_expr_comma_anchors(
+                node,
+                ExprCommaAnchors(
+                    commas=commas[:-1],
+                    trailing_comma=commas[-1],
+                ),
+            )
+        else:
+            set_expr_comma_anchors(
+                node,
+                ExprCommaAnchors(
+                    commas=commas,
+                    trailing_comma=None,
+                ),
+            )
         self.generic_visit(node)
 
     def visit_Subscript(self, node: ast.Subscript):
@@ -207,6 +220,22 @@ class _DefinedNameRetriever(ast.NodeVisitor):
         open_bracket_col = node.value.end_col_offset
         if open_bracket_col is not None:
             set_completion_trigger_anchor_at(node, pos["lineno"], open_bracket_col, "[")
+        self.generic_visit(node)
+
+    def visit_Tuple(self, node: ast.Tuple):
+        set_expr_comma_anchors_from_sequence(node, node.elts, None)
+        self.generic_visit(node)
+
+    def visit_List(self, node: ast.List):
+        set_expr_comma_anchors_from_sequence(node, node.elts, None)
+        self.generic_visit(node)
+
+    def visit_Set(self, node: ast.Set):
+        set_expr_comma_anchors_from_sequence(node, node.elts, None)
+        self.generic_visit(node)
+
+    def visit_Dict(self, node: ast.Dict):
+        set_expr_comma_anchors_from_sequence(node, node.values, None)
         self.generic_visit(node)
 
     def visit_arg(self, node: ast.arg):

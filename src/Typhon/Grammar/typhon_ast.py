@@ -18,17 +18,16 @@ from tokenize import TokenInfo
 from ..Driver.debugging import debug_print, debug_verbose_print, is_testing_reparser
 from .position import (
     BlockStmtAnchors,
+    ExprCommaAnchors,
     PosAttributes,
     TrailingBlock,
-    get_call_argument_comma_anchors,
-    get_trailing_comma_anchor,
+    get_expr_comma_anchors,
     get_pos_attributes,
     get_empty_pos_attributes,
     pos_attribute_to_range,
     name_from_anchor_token,
     set_block_stmt_anchors,
-    set_call_argument_comma_anchors,
-    set_trailing_comma_anchor,
+    set_expr_comma_anchors,
     set_return_type_annotation_anchor,
     set_completion_trigger_anchor,
     get_completion_trigger_anchor,
@@ -2878,16 +2877,74 @@ class CallArgs:
         )
 
 
-def set_call_argument_comma_anchor_tokens(
-    call_node: ast.Call,
+def set_expr_comma_anchor_tokens[T: ast.expr](
+    node: T,
     commas: list[TokenInfo],
-) -> ast.Call:
-    names = [set_is_internal_name(name_from_anchor_token(comma)) for comma in commas]
-    debug_verbose_print(
-        lambda: f"Setting call argument comma anchors: {[name.id for name in names]}"
+    trailing_comma: TokenInfo | None = None,
+) -> T:
+    comma_anchors = [set_is_internal_name(name_from_anchor_token(c)) for c in commas]
+    trailing_comma_anchor = (
+        set_is_internal_name(name_from_anchor_token(trailing_comma))
+        if trailing_comma is not None
+        else None
     )
-    set_call_argument_comma_anchors(call_node, names)
-    return call_node
+    debug_verbose_print(
+        lambda: (
+            "Setting expression comma anchors: "
+            f"commas={len(comma_anchors)}, trailing={trailing_comma_anchor is not None}"
+        )
+    )
+    return set_expr_comma_anchors(
+        node,
+        ExprCommaAnchors(
+            commas=comma_anchors,
+            trailing_comma=trailing_comma_anchor,
+        ),
+    )
+
+
+def set_expr_comma_anchors_from_sequence[T: ast.expr](
+    node: T,
+    items: list[ast.expr],
+    trailing_comma: TokenInfo | None,
+) -> T:
+    if not items:
+        return set_expr_comma_anchors(node, None)
+    comma_owner_count = len(items) if trailing_comma is not None else len(items) - 1
+    anchors: list[ast.Name] = []
+    for item in items[:comma_owner_count]:
+        pos = get_pos_attributes(item)
+        end_line = pos["end_lineno"] or pos["lineno"]
+        end_col = pos["end_col_offset"] or (pos["col_offset"] + 1)
+        anchors.append(
+            set_is_internal_name(
+                ast.Name(
+                    id=",",
+                    ctx=ast.Load(),
+                    lineno=end_line,
+                    col_offset=end_col,
+                    end_lineno=end_line,
+                    end_col_offset=end_col + 1,
+                )
+            )
+        )
+
+    if trailing_comma is not None:
+        return set_expr_comma_anchors(
+            node,
+            ExprCommaAnchors(
+                commas=anchors[:-1],
+                trailing_comma=anchors[-1],
+            ),
+        )
+
+    return set_expr_comma_anchors(
+        node,
+        ExprCommaAnchors(
+            commas=anchors,
+            trailing_comma=None,
+        ),
+    )
 
 
 def set_call_anchors(
@@ -2896,42 +2953,20 @@ def set_call_anchors(
     open_paren: TokenInfo,
 ) -> ast.Call:
     if call_args is not None:
-        call_node = set_call_argument_comma_anchor_tokens(call_node, call_args.commas)
-        call_node = set_trailing_comma_anchor_token(call_node, call_args.trailing_comma)
+        call_node = set_expr_comma_anchor_tokens(
+            call_node,
+            call_args.commas,
+            call_args.trailing_comma,
+        )
     set_completion_trigger_anchor_token(call_node, open_paren)
     return call_node
 
 
-def maybe_copy_call_argument_comma_anchors(
-    from_node: ast.Call, to_node: ast.Call
-) -> ast.Call:
-    anchor = get_call_argument_comma_anchors(from_node)
-    return set_call_argument_comma_anchors(to_node, anchor)
+def maybe_copy_expr_comma_anchors[T: ast.expr](from_node: T, to_node: T) -> T:
+    return set_expr_comma_anchors(to_node, get_expr_comma_anchors(from_node))
 
 
-def set_trailing_comma_anchor_token[T: ast.expr](
-    node: T,
-    comma: TokenInfo | None,
-) -> T:
-    if comma is None:
-        return node
-    name = set_is_internal_name(name_from_anchor_token(comma))
-    debug_verbose_print(lambda: f"Setting call trailing comma anchor: {name.id}")
-    set_trailing_comma_anchor(node, name)
-    return node
-
-
-def maybe_copy_trailing_comma_anchor(
-    from_node: ast.Call, to_node: ast.Call
-) -> ast.Call:
-    anchor = get_trailing_comma_anchor(from_node)
-    if anchor is None:
-        return to_node
-    return to_node
-
-
-def maybe_copy_anchors_in_call(from_node: ast.Call, to_node: ast.Call) -> ast.Call:
+def maybe_copy_expr_anchors[T: ast.expr](from_node: T, to_node: T) -> T:
     to_node = maybe_copy_completion_trigger_anchor(from_node, to_node)
-    to_node = maybe_copy_call_argument_comma_anchors(from_node, to_node)
-    to_node = maybe_copy_trailing_comma_anchor(from_node, to_node)
+    to_node = maybe_copy_expr_comma_anchors(from_node, to_node)
     return to_node

@@ -48,8 +48,7 @@ from Typhon.Grammar.typhon_ast import (
     is_var_assign,
 )
 from ..Grammar.position import (
-    get_call_argument_comma_anchors,
-    get_trailing_comma_anchor,
+    get_expr_comma_anchors,
 )
 from Typhon.Grammar.unparse_custom import CustomUnparseHelper
 from Typhon.Transform.visitor import TyphonASTRawVisitor
@@ -260,6 +259,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         elts: list[Doc],
         comma_anchors: list[ast.Name] | None,
         trailing_comma: ast.Name | None,
+        add_if_break_last_comma: bool = False,
     ) -> Doc:
         parts: list[Doc] = []
         if trailing_comma:
@@ -270,8 +270,8 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             if is_last:
                 if trailing_comma:
                     parts.append(self._visit_doc(trailing_comma))
-                else:
-                    # Append trailling comma if call is multi-line.
+                elif add_if_break_last_comma:
+                    # Append trailing comma when this group breaks.
                     parts.append(if_break(text(","), text("")))
             else:
                 parts.append(
@@ -694,10 +694,14 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             else concat([text("**"), self._visit_doc(kw.value)])
             for kw in node.keywords
         ]
-        comma_anchors = get_call_argument_comma_anchors(node)
-        trailing_comma = get_trailing_comma_anchor(node)
+        comma_anchor_info = get_expr_comma_anchors(node)
+        comma_anchors = comma_anchor_info.commas if comma_anchor_info else None
+        trailing_comma = comma_anchor_info.trailing_comma if comma_anchor_info else None
         args_doc = self._comma_combined_doc(
-            args_docs + kw_docs, comma_anchors, trailing_comma
+            args_docs + kw_docs,
+            comma_anchors,
+            trailing_comma,
+            add_if_break_last_comma=True,
         )
         doc = group(
             [
@@ -741,12 +745,12 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return concat([text("*"), self._visit_doc(node.value)])
 
     def visit_List(self, node: ast.List) -> Doc:
-        has_trailing_comma = get_trailing_comma_anchor(node) is not None
-        items = [self._visit_doc(e) for e in node.elts]
-        if has_trailing_comma and len(items) > 0:
-            inner = concat([join(concat([text(","), hardline()]), items), text(",")])
-        else:
-            inner = join(comma(), items)
+        comma_anchor_info = get_expr_comma_anchors(node)
+        inner = self._comma_combined_doc(
+            [self._visit_doc(e) for e in node.elts],
+            comma_anchor_info.commas if comma_anchor_info else None,
+            comma_anchor_info.trailing_comma if comma_anchor_info else None,
+        )
         doc = bracket(
             [
                 inner,
@@ -755,7 +759,6 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return self._maybe_wrap_group_paren(node, doc)
 
     def visit_Dict(self, node: ast.Dict) -> Doc:
-        has_trailing_comma = get_trailing_comma_anchor(node) is not None
         entries: list[Doc] = []
         for key, value in zip(node.keys, node.values):
             if key is None:
@@ -771,47 +774,35 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                         ]
                     )
                 )
-        if has_trailing_comma and len(entries) > 0:
-            entries_doc = concat(
-                [
-                    join(concat([text(","), hardline()]), entries),
-                    text(","),
-                ]
-            )
-        else:
-            entries_doc = join(comma(), entries)
+        comma_anchor_info = get_expr_comma_anchors(node)
+        entries_doc = self._comma_combined_doc(
+            entries,
+            comma_anchor_info.commas if comma_anchor_info else None,
+            comma_anchor_info.trailing_comma if comma_anchor_info else None,
+        )
         return brace(entries_doc)
 
     def visit_Set(self, node: ast.Set) -> Doc:
-        has_trailing_comma = get_trailing_comma_anchor(node) is not None
-        items = [self._visit_doc(e) for e in node.elts]
-        if has_trailing_comma and len(items) > 0:
-            items_doc = concat(
-                [
-                    join(concat([text(","), hardline()]), items),
-                    text(","),
-                ]
-            )
-        else:
-            items_doc = join(comma(), items)
+        comma_anchor_info = get_expr_comma_anchors(node)
+        items_doc = self._comma_combined_doc(
+            [self._visit_doc(e) for e in node.elts],
+            comma_anchor_info.commas if comma_anchor_info else None,
+            comma_anchor_info.trailing_comma if comma_anchor_info else None,
+        )
         return brace(items_doc)
 
     def visit_Tuple(self, node: ast.Tuple) -> Doc:
-        has_trailing_comma = get_trailing_comma_anchor(node) is not None
-        if has_trailing_comma and len(node.elts) > 0:
-            inner = concat(
-                [
-                    join(
-                        concat([text(","), hardline()]),
-                        [self._visit_doc(e) for e in node.elts],
-                    ),
-                    text(","),
-                ]
-            )
-        elif len(node.elts) == 1:
+        comma_anchor_info = get_expr_comma_anchors(node)
+        if len(node.elts) == 1 and (
+            comma_anchor_info is None or comma_anchor_info.trailing_comma is None
+        ):
             inner = concat([self._visit_doc(node.elts[0]), comma()])
         else:
-            inner = join(comma(), [self._visit_doc(e) for e in node.elts])
+            inner = self._comma_combined_doc(
+                [self._visit_doc(e) for e in node.elts],
+                comma_anchor_info.commas if comma_anchor_info else None,
+                comma_anchor_info.trailing_comma if comma_anchor_info else None,
+            )
         return paren(inner)
 
     def visit_comprehension(self, node: ast.comprehension) -> Doc:
@@ -1636,16 +1627,12 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             parts.extend([space(), text("="), space(), self._visit_doc(value)])
             field_docs.append(concat(parts))
 
-        has_trailing_comma = get_trailing_comma_anchor(node) is not None
-        if has_trailing_comma and len(field_docs) > 0:
-            fields_doc = concat(
-                [
-                    join(concat([text(","), hardline()]), field_docs),
-                    text(","),
-                ]
-            )
-        else:
-            fields_doc = join(comma(), field_docs)
+        comma_anchor_info = get_expr_comma_anchors(node)
+        fields_doc = self._comma_combined_doc(
+            field_docs,
+            comma_anchor_info.commas if comma_anchor_info else None,
+            comma_anchor_info.trailing_comma if comma_anchor_info else None,
+        )
         return group(
             [
                 text("{|"),
@@ -1665,16 +1652,12 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             concat([text(name.id), text(":"), space(), self._visit_doc(annotation)])
             for name, annotation in fields
         ]
-        has_trailing_comma = get_trailing_comma_anchor(node) is not None
-        if has_trailing_comma:
-            fields_doc = concat(
-                [
-                    join(concat([text(","), hardline()]), field_docs),
-                    text(","),
-                ]
-            )
-        else:
-            fields_doc = join(comma(), field_docs)
+        comma_anchor_info = get_expr_comma_anchors(node)
+        fields_doc = self._comma_combined_doc(
+            field_docs,
+            comma_anchor_info.commas if comma_anchor_info else None,
+            comma_anchor_info.trailing_comma if comma_anchor_info else None,
+        )
         return group(
             [
                 text("{|"),
