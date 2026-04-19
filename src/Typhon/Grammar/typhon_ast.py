@@ -26,6 +26,8 @@ from .position import (
     set_class_base_comma_anchors,
     set_class_type_param_comma_anchors,
     set_function_arg_comma_anchors,
+    set_function_literal_arg_comma_anchors,
+    set_function_type_arg_comma_anchors,
     set_function_type_param_comma_anchors,
     get_expr_comma_anchors,
     get_pos_attributes,
@@ -831,6 +833,11 @@ def make_function_literal(
     )
     name = ast.Name(func_id, **kwargs)
     set_function_literal_def(name, func_def)
+    set_function_literal_arg_comma_anchors_from_sequence(
+        name,
+        _argument_items(args),
+        None,
+    )
     if is_inline_return:
         set_function_literal_inline_return(name)
     return name
@@ -921,9 +928,12 @@ def make_arrow_type(
     set_args_of_function_type(result, args)
     set_return_of_function_type(result, returns)
     _check_arrow_type_args(args, star_etc)
+    anchor_items: list[ast.AST] = [*args]
     if star_etc:
         set_star_arg_of_function_type(result, star_etc[0])
         set_star_kwds_of_function_type(result, star_etc[1])
+        anchor_items.extend([star_etc[0], star_etc[1]])
+    set_function_type_arg_comma_anchors_from_sequence(result, anchor_items, None)
     return result
 
 
@@ -940,9 +950,12 @@ def make_arrow_type_single_chain(
         set_args_of_function_type(result, args)
         set_return_of_function_type(result, returns[0])
         _check_arrow_type_args(args, star_etc)
+        anchor_items: list[ast.AST] = [*args]
         if star_etc:
             set_star_arg_of_function_type(result, star_etc[0])
             set_star_kwds_of_function_type(result, star_etc[1])
+            anchor_items.extend([star_etc[0], star_etc[1]])
+        set_function_type_arg_comma_anchors_from_sequence(result, anchor_items, None)
     elif len(returns) == 0:
         raise SyntaxError("Arrow type must have one or more return types")
     else:
@@ -956,9 +969,12 @@ def make_arrow_type_single_chain(
         set_args_of_function_type(result, args)
         set_return_of_function_type(result, return_type)
         _check_arrow_type_args(args, star_etc)
+        anchor_items: list[ast.AST] = [*args]
         if star_etc:
             set_star_arg_of_function_type(result, star_etc[0])
             set_star_kwds_of_function_type(result, star_etc[1])
+            anchor_items.extend([star_etc[0], star_etc[1]])
+        set_function_type_arg_comma_anchors_from_sequence(result, anchor_items, None)
     return result
 
 
@@ -3080,6 +3096,32 @@ def set_function_arg_comma_anchors_from_sequence[
     )
 
 
+def set_function_literal_arg_comma_anchors_from_sequence(
+    node: ast.Name,
+    items: list[ast.AST],
+    trailing_comma: TokenInfo | None,
+) -> ast.Name:
+    return _set_comma_anchors_from_sequence(
+        node,
+        items,
+        trailing_comma,
+        set_function_literal_arg_comma_anchors,
+    )
+
+
+def set_function_type_arg_comma_anchors_from_sequence(
+    node: ast.Name,
+    items: list[ast.AST],
+    trailing_comma: TokenInfo | None,
+) -> ast.Name:
+    return _set_comma_anchors_from_sequence(
+        node,
+        items,
+        trailing_comma,
+        set_function_type_arg_comma_anchors,
+    )
+
+
 def set_function_type_param_comma_anchors_from_sequence[
     T: ast.FunctionDef | ast.AsyncFunctionDef
 ](
@@ -3118,3 +3160,13 @@ def maybe_copy_expr_anchors[T: ast.expr](from_node: T, to_node: T) -> T:
     to_node = maybe_copy_completion_trigger_anchor(from_node, to_node)
     to_node = maybe_copy_expr_comma_anchors(from_node, to_node)
     return to_node
+
+
+def _argument_items(args: ast.arguments) -> list[ast.AST]:
+    result: list[ast.AST] = [*args.posonlyargs, *args.args]
+    if args.vararg is not None:
+        result.append(args.vararg)
+    result.extend(args.kwonlyargs)
+    if args.kwarg is not None:
+        result.append(args.kwarg)
+    return result

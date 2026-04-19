@@ -53,6 +53,8 @@ from ..Grammar.position import (
     get_class_base_comma_anchors,
     get_class_type_param_comma_anchors,
     get_function_arg_comma_anchors,
+    get_function_literal_arg_comma_anchors,
+    get_function_type_arg_comma_anchors,
     get_function_type_param_comma_anchors,
 )
 from Typhon.Grammar.unparse_custom import CustomUnparseHelper
@@ -1723,7 +1725,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         parts: list[Doc] = [text(arg.arg)]
         if arg.annotation is not None:
             parts.extend([text(":"), space(), self._visit_doc(arg.annotation)])
-        return concat(parts)
+        return self._doc_with_comments(arg, concat(parts))
 
     def visit_FunctionType(self, node: FunctionType) -> Doc:
         arguments_doc: list[Doc] = []
@@ -1733,12 +1735,21 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             arguments_doc.append(concat([text("*"), self._arg_doc(star_arg)]))
         if star_kwds := get_star_kwds_of_function_type(node):
             arguments_doc.append(concat([text("**"), self._arg_doc(star_kwds)]))
+        comma_anchor_info = get_function_type_arg_comma_anchors(node)
         return_type = get_return_of_function_type(node)
         return self._maybe_wrap_group_paren(
             node,
             group(
                 [
-                    paren(join(comma(), arguments_doc)),
+                    paren(
+                        self._comma_combined_doc(
+                            arguments_doc,
+                            comma_anchor_info.commas if comma_anchor_info else None,
+                            comma_anchor_info.trailing_comma
+                            if comma_anchor_info
+                            else None,
+                        )
+                    ),
                     space(),
                     text("->"),
                     space(),
@@ -1754,10 +1765,11 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         assert func_def is not None, (
             "FunctionLiteral must have a corresponding FunctionDef"
         )
+        arg_comma_anchor_info = get_function_literal_arg_comma_anchors(node)
         head_parts: list[Doc] = []
         head_parts.extend(
             [
-                paren(self._arguments_doc(func_def.args)),
+                paren(self._arguments_doc(func_def.args, arg_comma_anchor_info)),
                 space(),
             ]
         )

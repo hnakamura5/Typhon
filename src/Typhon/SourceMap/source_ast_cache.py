@@ -12,12 +12,16 @@ from ..Grammar.position import (
     get_completion_trigger_anchor,
     get_expr_comma_anchors,
     get_function_arg_comma_anchors,
+    get_function_literal_arg_comma_anchors,
+    get_function_type_arg_comma_anchors,
     get_function_type_param_comma_anchors,
     get_inline_stmt_anchor,
     get_pos_attributes_if_exists,
     get_return_type_annotation_anchor,
 )
 from ..Grammar.typhon_ast import (
+    is_function_literal,
+    is_function_type,
     PythonScope,
     get_record_literal_fields,
     get_record_type_fields,
@@ -92,6 +96,22 @@ class _SourceAstIndexVisitor(TyphonASTRawVisitor):
                     self._visit_anchor(comma_anchor)
                 if class_type_param_anchors.trailing_comma is not None:
                     self._visit_anchor(class_type_param_anchors.trailing_comma)
+
+        if isinstance(node, ast.Name) and is_function_literal(node):
+            if function_literal_arg_anchors := get_function_literal_arg_comma_anchors(
+                node
+            ):
+                for comma_anchor in function_literal_arg_anchors.commas:
+                    self._visit_anchor(comma_anchor)
+                if function_literal_arg_anchors.trailing_comma is not None:
+                    self._visit_anchor(function_literal_arg_anchors.trailing_comma)
+
+        if isinstance(node, ast.Name) and is_function_type(node):
+            if function_type_arg_anchors := get_function_type_arg_comma_anchors(node):
+                for comma_anchor in function_type_arg_anchors.commas:
+                    self._visit_anchor(comma_anchor)
+                if function_type_arg_anchors.trailing_comma is not None:
+                    self._visit_anchor(function_type_arg_anchors.trailing_comma)
 
         if completion_anchor := get_completion_trigger_anchor(node):
             self._visit_anchor(completion_anchor)

@@ -488,3 +488,45 @@ def test_function_type_params_and_params_with_comments():
         code_function_type_params_and_params_with_comments,
         result_function_type_params_and_params_with_comments,
     )
+
+
+code_function_literal_params_with_comments = """
+let f = (
+    a: int,  # first
+    #(second)# b: int,
+) => a + b
+"""
+result_function_literal_params_with_comments = """
+let f = (
+    a: int,  # first
+    #(second)# b: int
+) => a + b
+"""
+
+
+def test_function_literal_params_with_comments():
+    _assert_format(
+        code_function_literal_params_with_comments,
+        result_function_literal_params_with_comments,
+    )
+
+
+code_function_type_args_with_comments = """
+type F = (
+    a: int,  # first
+    #(second)# b: str,
+) -> bool
+"""
+result_function_type_args_with_comments = """
+type F = (
+    a: int,  # first
+    #(second)# b: str
+) -> bool
+"""
+
+
+def test_function_type_args_with_comments():
+    _assert_format(
+        code_function_type_args_with_comments,
+        result_function_type_args_with_comments,
+    )
