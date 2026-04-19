@@ -291,6 +291,7 @@ def recover_maybe_invalid_function_def_raw(
     body: list[ast.stmt],
     type_comment: str | None,
     type_params: list[ast.type_param],
+    type_params_trailing_comma: TokenInfo | None,
     *,
     open_anchor: PosNode | TokenInfo,
     close_anchor: PosNode | TokenInfo,
@@ -343,6 +344,7 @@ def recover_maybe_invalid_function_def_raw(
             type_comment=type_comment,
             type_params=type_params,
             close_paren_anchor=close_paren,
+            type_params_trailing_comma=type_params_trailing_comma,
             **kwargs,
         ),
         open_anchor=open_anchor,
@@ -361,6 +363,7 @@ def recover_maybe_invalid_class_def_raw(
     body: list[ast.stmt],
     decorator_list: list[ast.expr],
     type_params: list[ast.type_param],
+    type_params_trailing_comma: TokenInfo | None,
     *,
     open_anchor: PosNode | TokenInfo,
     begin_tokens: list[TokenInfo | None] | None = None,
@@ -403,6 +406,9 @@ def recover_maybe_invalid_class_def_raw(
         body=body,
         decorator_list=decorator_list,
         type_params=type_params,
+        base_commas=call_args.commas,
+        base_trailing_comma=call_args.trailing_comma,
+        type_params_trailing_comma=type_params_trailing_comma,
         **kwargs,
     )
     if bases:

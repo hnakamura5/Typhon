@@ -92,6 +92,48 @@ def test_trailing_on_innermost_stmt():
     assert t2[0].string == "# after y"
 
 
+def test_leading_comment_on_function_def_stmt():
+    module = _parse_and_attach("# before function\ndef f() {\n    pass\n}\n")
+    stmt = _find_stmt(module, 0)
+    assert isinstance(stmt, ast.FunctionDef)
+    leading = get_leading_comments(stmt)
+    assert len(leading) == 1
+    assert leading[0].string == "# before function"
+
+
+def test_trailing_comment_on_function_def_stmt():
+    module = _parse_and_attach("def f() { # after function\n    pass\n}\n")
+    stmt = _find_stmt(module, 0)
+    assert isinstance(stmt, ast.FunctionDef)
+    trailing = get_trailing_comments(stmt)
+    assert trailing == []
+    first_body_stmt = stmt.body[0]
+    leading = get_leading_comments(first_body_stmt)
+    assert len(leading) == 1
+    assert leading[0].string == "# after function"
+
+
+def test_leading_comment_on_class_def_stmt():
+    module = _parse_and_attach("# before class\nclass C {\n    pass\n}\n")
+    stmt = _find_stmt(module, 0)
+    assert isinstance(stmt, ast.ClassDef)
+    leading = get_leading_comments(stmt)
+    assert len(leading) == 1
+    assert leading[0].string == "# before class"
+
+
+def test_trailing_comment_on_class_def_stmt():
+    module = _parse_and_attach("class C { # after class\n    pass\n}\n")
+    stmt = _find_stmt(module, 0)
+    assert isinstance(stmt, ast.ClassDef)
+    trailing = get_trailing_comments(stmt)
+    assert trailing == []
+    first_body_stmt = stmt.body[0]
+    leading = get_leading_comments(first_body_stmt)
+    assert len(leading) == 1
+    assert leading[0].string == "# after class"
+
+
 # ---------------------------------------------------------------------------
 # Dangling comments
 # ---------------------------------------------------------------------------

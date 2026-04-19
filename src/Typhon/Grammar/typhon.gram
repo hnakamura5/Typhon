@@ -437,7 +437,8 @@ class_def_raw[ast.ClassDef]:
                 bases_parens=bases,
                 body=c,
                 decorator_list=[],
-                type_params=t or [],
+                type_params=t[0] if t else [],
+                type_params_trailing_comma=t[1] if t else None,
                 open_anchor=(n[0] if n else k),
                 begin_tokens=[k],
                 LOCATIONS,
@@ -466,7 +467,8 @@ function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
             returns=a,
             body=b,
             type_comment=tc,
-            type_params=t or [],
+            type_params=t[0] if t else [],
+            type_params_trailing_comma=t[1] if t else None,
             open_anchor=(n[0] if n else k),
             close_anchor=(params or (n[0] if n else k)),
             begin_tokens=[st, asc, k],
@@ -1132,7 +1134,7 @@ type_alias["ast.TypeAlias"]:
                         end_lineno=n.end[0],
                         end_col_offset=n.end[1],
                     ),
-                    type_params=t or [],
+                    type_params=t[0] if t else [],
                     value=b,
                     LOCATIONS
                 )
@@ -1145,7 +1147,7 @@ type_alias["ast.TypeAlias"]:
 # Type parameter declaration
 # --------------------------
 
-type_params[List[ast.type_param]]: '[' t=type_param_seq  ']' {
+type_params[Tuple[List[ast.type_param], TokenInfo | None]]: '[' t=type_param_seq  ']' {
     self.check_version(
         (3, 12),
         "Type parameter lists are",
@@ -1153,7 +1155,7 @@ type_params[List[ast.type_param]]: '[' t=type_param_seq  ']' {
     )
  }
 
-type_param_seq: a=','.type_param+ [','] { a }
+type_param_seq[Tuple[List[ast.type_param], TokenInfo | None]]: a=','.type_param+ c=[','] { (a, c) }
 
 type_param[ast.type_param](memo):
     | a=NAME b=[type_param_bound] {

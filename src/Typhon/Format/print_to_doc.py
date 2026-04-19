@@ -48,7 +48,12 @@ from Typhon.Grammar.typhon_ast import (
     is_var_assign,
 )
 from ..Grammar.position import (
+    ExprCommaAnchors,
     get_expr_comma_anchors,
+    get_class_base_comma_anchors,
+    get_class_type_param_comma_anchors,
+    get_function_arg_comma_anchors,
+    get_function_type_param_comma_anchors,
 )
 from Typhon.Grammar.unparse_custom import CustomUnparseHelper
 from Typhon.Transform.visitor import TyphonASTRawVisitor
@@ -363,12 +368,6 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             ]
         )
 
-    def _typed_name_doc(self, arg: ast.arg) -> Doc:
-        base = text(arg.arg)
-        if arg.annotation is None:
-            return base
-        return concat([base, text(":"), space(), self._visit_doc(arg.annotation)])
-
     def _unsupported_syntax_doc(self, node: ast.AST) -> Doc:
         debug_verbose_print(
             lambda: (
@@ -487,6 +486,20 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 f"Stmt with comments: {ast.dump(node, include_attributes=True)}, parts: {parts}, concatenated: {concat(parts)}"
             )
         )
+        return concat(parts)
+
+    def _doc_with_comments(self, node: ast.AST, body: Doc) -> Doc:
+        """Wrap a node Doc with its leading, trailing, and dangling comments."""
+        parts: list[Doc] = []
+        if leading := self._leading_comments_doc(node):
+            parts.append(leading)
+        parts.append(body)
+        if trailing := self._trailing_comment_doc(node):
+            parts.append(trailing)
+        if dangling := self._dangling_comments_doc(node):
+            parts.extend([hardline(), dangling])
+        if len(parts) == 1:
+            return parts[0]
         return concat(parts)
 
     def visit_Module(self, node: ast.Module) -> Doc:
@@ -1075,16 +1088,27 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             parts: list[Doc] = [text(node.name)]
             if node.bound is not None:
                 parts.extend([text(":"), space(), self._visit_doc(node.bound)])
-            return concat(parts)
+            return self._doc_with_comments(node, concat(parts))
         elif isinstance(node, ast.TypeVarTuple):
-            return concat([text("*"), text(node.name)])
+            return self._doc_with_comments(node, concat([text("*"), text(node.name)]))
         elif isinstance(node, ast.ParamSpec):
-            return concat([text("**"), text(node.name)])
-        return self._unsupported_syntax_doc(node)
+            return self._doc_with_comments(
+                node,
+                concat([text("**"), text(node.name)]),
+            )
+        return self._doc_with_comments(node, self._unsupported_syntax_doc(node))
 
-    def _type_params_doc(self, type_params: list[ast.type_param]) -> Doc:
+    def _type_params_doc(
+        self,
+        type_params: list[ast.type_param],
+        comma_anchor_info: ExprCommaAnchors | None = None,
+    ) -> Doc:
         return bracket(
-            join(comma(), [self._type_param_doc(p) for p in type_params]),
+            self._comma_combined_doc(
+                [self._type_param_doc(p) for p in type_params],
+                comma_anchor_info.commas if comma_anchor_info else None,
+                comma_anchor_info.trailing_comma if comma_anchor_info else None,
+            ),
         )
 
     def visit_TypeAlias(self, node: ast.TypeAlias) -> Doc:
@@ -1506,71 +1530,97 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 for k in node.keywords
             ]
         )
+        base_comma_anchor_info = get_class_base_comma_anchors(node)
+        type_param_comma_anchor_info = get_class_type_param_comma_anchors(node)
         class_head = [text("class"), space(), text(node.name)]
         if len(node.type_params) > 0:
-            class_head.append(self._type_params_doc(node.type_params))
+            class_head.append(
+                self._type_params_doc(node.type_params, type_param_comma_anchor_info)
+            )
         if len(args) > 0:
             class_head.extend(
                 [
-                    paren(join(comma(), args)),
+                    paren(
+                        self._comma_combined_doc(
+                            args,
+                            base_comma_anchor_info.commas
+                            if base_comma_anchor_info
+                            else None,
+                            base_comma_anchor_info.trailing_comma
+                            if base_comma_anchor_info
+                            else None,
+                        )
+                    ),
                 ]
             )
         class_head.extend([self._block_doc(node.body, container=node)])
         return concat(deco_docs + [concat(class_head)])
 
-    def _arguments_doc(self, args: ast.arguments) -> Doc:
+    def _typed_arg_doc(
+        self,
+        arg: ast.arg,
+        *,
+        prefix: str = "",
+        default: ast.expr | None = None,
+    ) -> Doc:
+        parts: list[Doc] = []
+        if prefix:
+            parts.append(text(prefix))
+        parts.append(text(arg.arg))
+        if arg.annotation is not None:
+            parts.extend([text(":"), space(), self._visit_doc(arg.annotation)])
+        if default is not None:
+            parts.extend([space(), text("="), space(), self._visit_doc(default)])
+        return self._doc_with_comments(arg, concat(parts))
+        # return self._doc_with_comments(arg, concat(parts))
+
+    def _arguments_doc(
+        self,
+        args: ast.arguments,
+        comma_anchor_info: ExprCommaAnchors | None = None,
+    ) -> Doc:
         params: list[Doc] = []
         for arg in args.posonlyargs:
-            params.append(self._typed_name_doc(arg))
+            params.append(self._typed_arg_doc(arg))
         if len(args.posonlyargs) > 0:
             params.append(text("/"))
         for index, arg in enumerate(args.args):
             default_index = index - (len(args.args) - len(args.defaults))
             if default_index >= 0:
                 params.append(
-                    concat(
-                        [
-                            self._typed_name_doc(arg),
-                            space(),
-                            text("="),
-                            space(),
-                            self._visit_doc(args.defaults[default_index]),
-                        ]
-                    )
+                    self._typed_arg_doc(arg, default=args.defaults[default_index])
                 )
             else:
-                params.append(self._typed_name_doc(arg))
+                params.append(self._typed_arg_doc(arg))
 
         if args.vararg is not None:
-            params.append(concat([text("*"), self._typed_name_doc(args.vararg)]))
+            params.append(self._typed_arg_doc(args.vararg, prefix="*"))
         elif len(args.kwonlyargs) > 0:
             params.append(text("*"))
 
         for kw_arg, kw_default in zip(args.kwonlyargs, args.kw_defaults):
             if kw_default is None:
-                params.append(self._typed_name_doc(kw_arg))
+                params.append(self._typed_arg_doc(kw_arg))
             else:
-                params.append(
-                    concat(
-                        [
-                            self._typed_name_doc(kw_arg),
-                            space(),
-                            text("="),
-                            space(),
-                            self._visit_doc(kw_default),
-                        ]
-                    )
-                )
+                params.append(self._typed_arg_doc(kw_arg, default=kw_default))
 
         if args.kwarg is not None:
-            params.append(concat([text("**"), self._typed_name_doc(args.kwarg)]))
+            params.append(self._typed_arg_doc(args.kwarg, prefix="**"))
 
-        return group(join(comma(), params))
+        return group(
+            self._comma_combined_doc(
+                params,
+                comma_anchor_info.commas if comma_anchor_info else None,
+                comma_anchor_info.trailing_comma if comma_anchor_info else None,
+            )
+        )
 
     def _visit_FcuntionDef_AsyncFunctionDef(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef
     ) -> Doc:
         deco_docs = self._visit_Decorators(node.decorator_list)
+        arg_comma_anchor_info = get_function_arg_comma_anchors(node)
+        type_param_comma_anchor_info = get_function_type_param_comma_anchors(node)
         head_parts: list[Doc] = []
         if is_static(node):
             head_parts.extend([text("static"), space()])
@@ -1584,8 +1634,10 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             ]
         )
         if len(node.type_params) > 0:
-            head_parts.append(self._type_params_doc(node.type_params))
-        head_parts.append(paren(self._arguments_doc(node.args)))
+            head_parts.append(
+                self._type_params_doc(node.type_params, type_param_comma_anchor_info)
+            )
+        head_parts.append(paren(self._arguments_doc(node.args, arg_comma_anchor_info)))
         if node.returns is not None:
             head_parts.extend(
                 [space(), text("->"), space(), self._visit_doc(node.returns)]

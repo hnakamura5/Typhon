@@ -226,3 +226,67 @@ def test_match_typhon_expr_subscript_comma_anchor():
         Range(start=Pos(0, 7), end=Pos(0, 8)),
         ",",
     )
+
+
+code_class_def_comma_anchor = """
+class Box[T, U](object, object,) {
+    pass
+}
+"""
+transformed_code_class_def_comma_anchor = """
+class Box[T, U](object, object):
+    pass
+"""
+
+
+def test_match_typhon_stmt_class_def_comma_anchor():
+    assert_transform(
+        code_class_def_comma_anchor,
+        transformed_code_class_def_comma_anchor,
+    )
+    assert_typh_code_match_unparse(code_class_def_comma_anchor)
+    sa = SourceMapAsserter(code_class_def_comma_anchor)
+    sa.assert_range_text(
+        Range(start=Pos(1, 11), end=Pos(1, 12)),
+        ",",
+        Range(start=Pos(0, 11), end=Pos(0, 12)),
+        ",",
+    )
+    sa.assert_range_text(
+        Range(start=Pos(1, 22), end=Pos(1, 23)),
+        ",",
+        Range(start=Pos(0, 22), end=Pos(0, 23)),
+        ",",
+    )
+
+
+code_function_def_comma_anchor = """
+def f[T, U](a, b,) {
+    pass
+}
+"""
+transformed_code_function_def_comma_anchor = """
+def f[T, U](a, b):
+    pass
+"""
+
+
+def test_match_typhon_stmt_function_def_comma_anchor():
+    assert_transform(
+        code_function_def_comma_anchor,
+        transformed_code_function_def_comma_anchor,
+    )
+    assert_typh_code_match_unparse(code_function_def_comma_anchor)
+    sa = SourceMapAsserter(code_function_def_comma_anchor)
+    sa.assert_range_text(
+        Range(start=Pos(1, 7), end=Pos(1, 8)),
+        ",",
+        Range(start=Pos(0, 7), end=Pos(0, 8)),
+        ",",
+    )
+    sa.assert_range_text(
+        Range(start=Pos(1, 13), end=Pos(1, 14)),
+        ",",
+        Range(start=Pos(0, 13), end=Pos(0, 14)),
+        ",",
+    )

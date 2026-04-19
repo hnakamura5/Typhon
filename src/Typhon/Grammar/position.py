@@ -187,6 +187,88 @@ def clear_expr_comma_anchors(node: ast.expr):
         delattr(node, _EXPR_COMMA_ANCHORS)
 
 
+_CLASS_BASE_COMMA_ANCHORS = "_typh_class_base_comma_anchors"
+_CLASS_TYPE_PARAM_COMMA_ANCHORS = "_typh_class_type_param_comma_anchors"
+
+
+def set_class_base_comma_anchors(
+    node: ast.ClassDef, anchors: ExprCommaAnchors | None
+) -> ast.ClassDef:
+    setattr(node, _CLASS_BASE_COMMA_ANCHORS, anchors)
+    return node
+
+
+def get_class_base_comma_anchors(node: ast.ClassDef) -> ExprCommaAnchors | None:
+    return getattr(node, _CLASS_BASE_COMMA_ANCHORS, None)
+
+
+def clear_class_base_comma_anchors(node: ast.ClassDef):
+    if hasattr(node, _CLASS_BASE_COMMA_ANCHORS):
+        delattr(node, _CLASS_BASE_COMMA_ANCHORS)
+
+
+def set_class_type_param_comma_anchors(
+    node: ast.ClassDef, anchors: ExprCommaAnchors | None
+) -> ast.ClassDef:
+    setattr(node, _CLASS_TYPE_PARAM_COMMA_ANCHORS, anchors)
+    return node
+
+
+def get_class_type_param_comma_anchors(
+    node: ast.ClassDef,
+) -> ExprCommaAnchors | None:
+    return getattr(node, _CLASS_TYPE_PARAM_COMMA_ANCHORS, None)
+
+
+def clear_class_type_param_comma_anchors(node: ast.ClassDef):
+    if hasattr(node, _CLASS_TYPE_PARAM_COMMA_ANCHORS):
+        delattr(node, _CLASS_TYPE_PARAM_COMMA_ANCHORS)
+
+
+_FUNCTION_ARG_COMMA_ANCHORS = "_typh_function_arg_comma_anchors"
+_FUNCTION_TYPE_PARAM_COMMA_ANCHORS = "_typh_function_type_param_comma_anchors"
+
+
+def set_function_arg_comma_anchors[T: ast.FunctionDef | ast.AsyncFunctionDef](
+    node: T,
+    anchors: ExprCommaAnchors | None,
+) -> T:
+    setattr(node, _FUNCTION_ARG_COMMA_ANCHORS, anchors)
+    return node
+
+
+def get_function_arg_comma_anchors(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> ExprCommaAnchors | None:
+    return getattr(node, _FUNCTION_ARG_COMMA_ANCHORS, None)
+
+
+def clear_function_arg_comma_anchors(node: ast.FunctionDef | ast.AsyncFunctionDef):
+    if hasattr(node, _FUNCTION_ARG_COMMA_ANCHORS):
+        delattr(node, _FUNCTION_ARG_COMMA_ANCHORS)
+
+
+def set_function_type_param_comma_anchors[T: ast.FunctionDef | ast.AsyncFunctionDef](
+    node: T,
+    anchors: ExprCommaAnchors | None,
+) -> T:
+    setattr(node, _FUNCTION_TYPE_PARAM_COMMA_ANCHORS, anchors)
+    return node
+
+
+def get_function_type_param_comma_anchors(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> ExprCommaAnchors | None:
+    return getattr(node, _FUNCTION_TYPE_PARAM_COMMA_ANCHORS, None)
+
+
+def clear_function_type_param_comma_anchors(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+):
+    if hasattr(node, _FUNCTION_TYPE_PARAM_COMMA_ANCHORS):
+        delattr(node, _FUNCTION_TYPE_PARAM_COMMA_ANCHORS)
+
+
 _RETURN_TYPE_ANNOTATION_ANCHOR = "_typh_return_type_annotation_anchor"
 
 

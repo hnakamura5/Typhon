@@ -302,3 +302,189 @@ let x = 1
 
 def test_trailing_comment_at_end():
     _assert_format(code_trailing_comment_at_end, result_trailing_comment_at_end)
+
+
+# ---------------------------------------------------------------------------
+# Comments on definition statements (function/class)
+# ---------------------------------------------------------------------------
+
+
+code_leading_comment_before_function_def = """
+# function note
+def f() {
+    pass
+}
+"""
+result_leading_comment_before_function_def = """
+# function note
+def f() { pass }
+"""
+
+
+def test_leading_comment_before_function_def():
+    _assert_format(
+        code_leading_comment_before_function_def,
+        result_leading_comment_before_function_def,
+    )
+
+
+code_trailing_comment_on_function_def = """
+def f() {  # function trailing
+    pass
+}
+"""
+result_trailing_comment_on_function_def = """
+def f() {
+    # function trailing
+    pass
+}
+"""
+
+
+def test_trailing_comment_on_function_def():
+    _assert_format(
+        code_trailing_comment_on_function_def,
+        result_trailing_comment_on_function_def,
+    )
+
+
+code_leading_comment_before_class_def = """
+# class note
+class C {
+    pass
+}
+"""
+result_leading_comment_before_class_def = """
+# class note
+class C { pass }
+"""
+
+
+def test_leading_comment_before_class_def():
+    _assert_format(
+        code_leading_comment_before_class_def,
+        result_leading_comment_before_class_def,
+    )
+
+
+code_trailing_comment_on_class_def = """
+class C {  # class trailing
+    pass
+}
+"""
+result_trailing_comment_on_class_def = """
+class C {
+    # class trailing
+    pass
+}
+"""
+
+
+def test_trailing_comment_on_class_def():
+    _assert_format(
+        code_trailing_comment_on_class_def,
+        result_trailing_comment_on_class_def,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Comments around bases/parameters/type parameters
+# ---------------------------------------------------------------------------
+
+
+code_class_bases_with_comments = """
+class C(
+    BaseA,  # base a
+    #(base b)# BaseB,
+) {
+    pass
+}
+"""
+result_class_bases_with_comments = """
+class C(
+    BaseA,  # base a
+    #(base b)# BaseB,
+) { pass }
+"""
+
+
+def test_class_bases_with_comments():
+    _assert_format(
+        code_class_bases_with_comments,
+        result_class_bases_with_comments,
+    )
+
+
+code_function_params_with_comments = """
+def f(
+    a,  # first
+    #(second)# b,
+) {
+    pass
+}
+"""
+result_function_params_with_comments = """
+def f(
+    a,  # first
+    #(second)# b
+) { pass }
+"""
+
+
+def test_function_params_with_comments():
+    _assert_format(
+        code_function_params_with_comments,
+        result_function_params_with_comments,
+    )
+
+
+code_class_type_params_with_comments = """
+class Box[
+    T,  # type t
+    #(type u)# U,
+] {
+    pass
+}
+"""
+result_class_type_params_with_comments = """
+class Box[
+    T,  # type t
+    #(type u)# U,
+] { pass }
+"""
+
+
+def test_class_type_params_with_comments():
+    _assert_format(
+        code_class_type_params_with_comments,
+        result_class_type_params_with_comments,
+    )
+
+
+code_function_type_params_and_params_with_comments = """
+def g[
+    T,  # type t
+    #(type u)# U,
+](
+    x,  # arg x
+    #(arg y)# y,
+) {
+    pass
+}
+"""
+result_function_type_params_and_params_with_comments = """
+def g[
+    T,  # type t
+    #(type u)# U,
+](
+    x,  # arg x
+    #(arg y)# y
+) { pass }
+"""
+
+
+def test_function_type_params_and_params_with_comments():
+    _assert_format(
+        code_function_type_params_and_params_with_comments,
+        result_function_type_params_and_params_with_comments,
+    )

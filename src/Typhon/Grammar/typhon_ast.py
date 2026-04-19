@@ -9,6 +9,7 @@ from typing import (
     Optional,
     List,
     Any,
+    Callable,
 )
 import ast
 from dataclasses import dataclass
@@ -19,8 +20,13 @@ from ..Driver.debugging import debug_print, debug_verbose_print, is_testing_repa
 from .position import (
     BlockStmtAnchors,
     ExprCommaAnchors,
+    PosNode,
     PosAttributes,
     TrailingBlock,
+    set_class_base_comma_anchors,
+    set_class_type_param_comma_anchors,
+    set_function_arg_comma_anchors,
+    set_function_type_param_comma_anchors,
     get_expr_comma_anchors,
     get_pos_attributes,
     get_empty_pos_attributes,
@@ -1507,6 +1513,8 @@ def make_function_def(
     type_comment: str | None,
     type_params: list[ast.type_param],
     close_paren_anchor: TokenInfo | None,
+    arg_trailing_comma: TokenInfo | None = None,
+    type_params_trailing_comma: TokenInfo | None = None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.FunctionDef | ast.AsyncFunctionDef:
     if is_async:
@@ -1537,6 +1545,22 @@ def make_function_def(
             result,
             name_from_anchor_token(close_paren_anchor, ctx=ast.Load()),
         )
+    arg_items: list[ast.AST] = [*args.posonlyargs, *args.args]
+    if args.vararg is not None:
+        arg_items.append(args.vararg)
+    arg_items.extend(args.kwonlyargs)
+    if args.kwarg is not None:
+        arg_items.append(args.kwarg)
+    result = set_function_arg_comma_anchors_from_sequence(
+        result,
+        arg_items,
+        arg_trailing_comma,
+    )
+    result = set_function_type_param_comma_anchors_from_sequence(
+        result,
+        type_params,
+        type_params_trailing_comma,
+    )
     return result
 
 
@@ -1547,6 +1571,9 @@ def make_class_def(
     body: list[ast.stmt],
     decorator_list: list[ast.expr],
     type_params: list[ast.type_param],
+    base_commas: list[TokenInfo] | None = None,
+    base_trailing_comma: TokenInfo | None = None,
+    type_params_trailing_comma: TokenInfo | None = None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.ClassDef:
     name_str = name.string if isinstance(name, TokenInfo) else name
@@ -1564,6 +1591,23 @@ def make_class_def(
         name
         if isinstance(name, TokenInfo)
         else ast.Name(id=name, ctx=ast.Store(), **kwargs),
+    )
+    if base_commas is not None:
+        result = set_class_base_comma_anchor_tokens(
+            result,
+            base_commas,
+            base_trailing_comma,
+        )
+    else:
+        result = set_class_base_comma_anchors_from_sequence(
+            result,
+            [*bases, *keywords],
+            base_trailing_comma,
+        )
+    result = set_class_type_param_comma_anchors_from_sequence(
+        result,
+        type_params,
+        type_params_trailing_comma,
     )
     return result
 
@@ -2903,17 +2947,39 @@ def set_expr_comma_anchor_tokens[T: ast.expr](
     )
 
 
-def set_expr_comma_anchors_from_sequence[T: ast.expr](
+def _set_comma_anchor_tokens[T: ast.AST](
     node: T,
-    items: list[ast.expr],
+    commas: list[TokenInfo],
     trailing_comma: TokenInfo | None,
+    setter: Callable[[T, ExprCommaAnchors | None], T],
+) -> T:
+    comma_anchors = [set_is_internal_name(name_from_anchor_token(c)) for c in commas]
+    trailing_comma_anchor = (
+        set_is_internal_name(name_from_anchor_token(trailing_comma))
+        if trailing_comma is not None
+        else None
+    )
+    return setter(
+        node,
+        ExprCommaAnchors(
+            commas=comma_anchors,
+            trailing_comma=trailing_comma_anchor,
+        ),
+    )
+
+
+def _set_comma_anchors_from_sequence[T: ast.AST](
+    node: T,
+    items: list[ast.AST],
+    trailing_comma: TokenInfo | None,
+    setter: Callable[[T, ExprCommaAnchors | None], T],
 ) -> T:
     if not items:
-        return set_expr_comma_anchors(node, None)
+        return setter(node, None)
     comma_owner_count = len(items) if trailing_comma is not None else len(items) - 1
     anchors: list[ast.Name] = []
     for item in items[:comma_owner_count]:
-        pos = get_pos_attributes(item)
+        pos = get_pos_attributes(cast(PosNode, item))
         end_line = pos["end_lineno"] or pos["lineno"]
         end_col = pos["end_col_offset"] or (pos["col_offset"] + 1)
         anchors.append(
@@ -2930,7 +2996,7 @@ def set_expr_comma_anchors_from_sequence[T: ast.expr](
         )
 
     if trailing_comma is not None:
-        return set_expr_comma_anchors(
+        return setter(
             node,
             ExprCommaAnchors(
                 commas=anchors[:-1],
@@ -2938,12 +3004,94 @@ def set_expr_comma_anchors_from_sequence[T: ast.expr](
             ),
         )
 
-    return set_expr_comma_anchors(
+    return setter(
         node,
         ExprCommaAnchors(
             commas=anchors,
             trailing_comma=None,
         ),
+    )
+
+
+def set_expr_comma_anchors_from_sequence[T: ast.expr](
+    node: T,
+    items: list[ast.expr],
+    trailing_comma: TokenInfo | None,
+) -> T:
+    return _set_comma_anchors_from_sequence(
+        node,
+        cast(list[ast.AST], items),
+        trailing_comma,
+        set_expr_comma_anchors,
+    )
+
+
+def set_class_base_comma_anchor_tokens(
+    node: ast.ClassDef,
+    commas: list[TokenInfo],
+    trailing_comma: TokenInfo | None = None,
+) -> ast.ClassDef:
+    return _set_comma_anchor_tokens(
+        node,
+        commas,
+        trailing_comma,
+        set_class_base_comma_anchors,
+    )
+
+
+def set_class_base_comma_anchors_from_sequence(
+    node: ast.ClassDef,
+    items: list[ast.AST],
+    trailing_comma: TokenInfo | None,
+) -> ast.ClassDef:
+    return _set_comma_anchors_from_sequence(
+        node,
+        items,
+        trailing_comma,
+        set_class_base_comma_anchors,
+    )
+
+
+def set_class_type_param_comma_anchors_from_sequence(
+    node: ast.ClassDef,
+    type_params: list[ast.type_param],
+    trailing_comma: TokenInfo | None,
+) -> ast.ClassDef:
+    return _set_comma_anchors_from_sequence(
+        node,
+        cast(list[ast.AST], type_params),
+        trailing_comma,
+        set_class_type_param_comma_anchors,
+    )
+
+
+def set_function_arg_comma_anchors_from_sequence[
+    T: ast.FunctionDef | ast.AsyncFunctionDef
+](
+    node: T,
+    items: list[ast.AST],
+    trailing_comma: TokenInfo | None,
+) -> T:
+    return _set_comma_anchors_from_sequence(
+        node,
+        items,
+        trailing_comma,
+        set_function_arg_comma_anchors,
+    )
+
+
+def set_function_type_param_comma_anchors_from_sequence[
+    T: ast.FunctionDef | ast.AsyncFunctionDef
+](
+    node: T,
+    type_params: list[ast.type_param],
+    trailing_comma: TokenInfo | None,
+) -> T:
+    return _set_comma_anchors_from_sequence(
+        node,
+        cast(list[ast.AST], type_params),
+        trailing_comma,
+        set_function_type_param_comma_anchors,
     )
 
 
