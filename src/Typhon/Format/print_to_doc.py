@@ -48,7 +48,9 @@ from Typhon.Grammar.typhon_ast import (
     is_var_assign,
 )
 from ..Grammar.position import (
+    PosNode,
     ExprCommaAnchors,
+    get_block_stmt_anchors,
     get_expr_comma_anchors,
     get_class_base_comma_anchors,
     get_class_type_param_comma_anchors,
@@ -298,21 +300,69 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 doc = concat([doc, trailing])
         return doc
 
-    def _block_doc(self, body: list[ast.stmt], container: ast.AST | None = None) -> Doc:
-        if len(body) == 0:
-            # Empty block: check for dangling comments from the container
-            if container is not None:
-                if dangling := self._dangling_comments_doc(container):
+    def _stmt_paren(self, node: ast.AST, content: Doc | list[Doc]) -> Doc:
+        if isinstance(content, list):
+            content = concat(content)
+        if isinstance(node, PosNode):
+            if anchors := get_block_stmt_anchors(node):
+                if (
+                    anchors.open_paren_anchor is not None
+                    and anchors.close_paren_anchor is not None
+                ):
                     return group(
-                        [
-                            space(),
-                            text("{"),
-                            indent([hardline(), dangling]),
-                            hardline(),
-                            text("}"),
-                        ]
+                        concat(
+                            [
+                                self._visit_doc(anchors.open_paren_anchor),
+                                indent([softline(), content]),
+                                softline(),
+                                self._visit_doc(anchors.close_paren_anchor),
+                            ]
+                        )
                     )
-            return concat([space(), text("{"), text("}")])
+        return paren(content)
+
+    def _stmt_begin_keyword_doc(self, node: ast.AST, keyword: str) -> Doc:
+        if isinstance(node, PosNode):
+            if anchors := get_block_stmt_anchors(node):
+                for token_anchor in anchors.begin_token_anchors:
+                    if token_anchor.id == keyword:
+                        return self._visit_doc(token_anchor)
+        return text(keyword)
+
+    def _stmt_inner_separator_doc(self, node: ast.AST, keyword: str) -> Doc:
+        if isinstance(node, PosNode):
+            if anchors := get_block_stmt_anchors(node):
+                for token_anchor in anchors.inner_separator_anchors:
+                    if token_anchor.id == keyword:
+                        return self._visit_doc(token_anchor)
+        return text(keyword)
+
+    def _block_doc(
+        self,
+        body: list[ast.stmt],
+        container: ast.AST | None = None,
+        block_kind: Literal["body", "else", "finally"] = "body",
+    ) -> Doc:
+        open_brace_doc: Doc = text("{")
+        close_brace_doc: Doc = text("}")
+        if container is not None and isinstance(container, PosNode):
+            if anchors := get_block_stmt_anchors(container):
+                if block_kind == "body":
+                    open_anchor = anchors.open_brace_anchor
+                    close_anchor = anchors.close_brace_anchor
+                elif block_kind == "else":
+                    open_anchor = anchors.else_brace_open_anchor
+                    close_anchor = anchors.else_brace_close_anchor
+                else:
+                    open_anchor = anchors.finally_open_anchor
+                    close_anchor = anchors.finally_close_anchor
+                if open_anchor is not None:
+                    open_brace_doc = self._visit_doc(open_anchor)
+                if close_anchor is not None:
+                    close_brace_doc = self._visit_doc(close_anchor)
+
+        if len(body) == 0:
+            return concat([space(), open_brace_doc, close_brace_doc])
         if len(body) == 1:
             # Special inlining case for single pass and ...
             stmt = body[0]
@@ -323,10 +373,10 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     result = concat(
                         [
                             space(),
-                            text("{"),
+                            open_brace_doc,
                             indent([hardline(), self._stmt_doc_with_comments(stmt)]),
                             hardline(),
-                            text("}"),
+                            close_brace_doc,
                         ]
                     )
                     debug_verbose_print(
@@ -338,10 +388,17 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             else:
                 if isinstance(stmt, ast.Pass):
                     if is_empty_pass(stmt):  # empty block
-                        return concat([space(), text("{"), text("}")])
+                        return concat([space(), open_brace_doc, close_brace_doc])
                     # prefer flat form { pass }
                     return concat(
-                        [space(), text("{"), space(), text("pass"), space(), text("}")]
+                        [
+                            space(),
+                            open_brace_doc,
+                            space(),
+                            text("pass"),
+                            space(),
+                            close_brace_doc,
+                        ]
                     )
                 if (
                     isinstance(stmt, ast.Expr)
@@ -350,12 +407,19 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 ):
                     # prefer flat form { ... }
                     return concat(
-                        [space(), text("{"), space(), text("..."), space(), text("}")]
+                        [
+                            space(),
+                            open_brace_doc,
+                            space(),
+                            text("..."),
+                            space(),
+                            close_brace_doc,
+                        ]
                     )
         return group(
             [
                 space(),
-                text("{"),
+                open_brace_doc,
                 indent(
                     [
                         hardline(),
@@ -366,7 +430,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     ]
                 ),
                 hardline(),
-                text("}"),
+                close_brace_doc,
             ]
         )
 
@@ -1207,10 +1271,14 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             cond_doc = self._visit_doc(node.test)
         body_doc = group(
             [
-                text(keyword),
+                (
+                    text("elif")
+                    if keyword == "elif"
+                    else self._stmt_begin_keyword_doc(node, keyword)
+                ),
                 self._space_between_statement_keywords_and_paren,
-                paren(cond_doc),
-                self._block_doc(body),
+                self._stmt_paren(node, cond_doc),
+                self._block_doc(body, container=node),
             ]
         )
         return body_doc
@@ -1224,7 +1292,14 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             return group(
                 [body_doc, space(), self._if_chain_doc(node.orelse[0], "elif")]
             )
-        return group([body_doc, space(), text("else"), self._block_doc(node.orelse)])
+        return group(
+            [
+                body_doc,
+                space(),
+                self._stmt_inner_separator_doc(node, "else"),
+                self._block_doc(node.orelse, container=node, block_kind="else"),
+            ]
+        )
 
     def visit_If(self, node: ast.If) -> Doc:
         return self._if_chain_doc(node, "if")
@@ -1232,7 +1307,14 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     def visit_While(self, node: ast.While) -> Doc:
         doc = self._if_while_body("while", node)
         if len(node.orelse) > 0:
-            doc = concat([doc, space(), text("else"), self._block_doc(node.orelse)])
+            doc = concat(
+                [
+                    doc,
+                    space(),
+                    self._stmt_inner_separator_doc(node, "else"),
+                    self._block_doc(node.orelse, container=node, block_kind="else"),
+                ]
+            )
         return doc
 
     def visit_For(self, node: ast.For) -> Doc:
@@ -1247,27 +1329,35 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             target = concat([target, text(":"), space(), self._visit_doc(type_ann)])
         doc = concat(
             [
-                text("for"),
+                self._stmt_begin_keyword_doc(node, "for"),
                 self._space_between_statement_keywords_and_paren,
-                paren(
+                self._stmt_paren(
+                    node,
                     [
                         target,
                         space(),
                         text("in"),
                         space(),
                         self._visit_doc(node.iter),
-                    ]
+                    ],
                 ),
-                self._block_doc(node.body),
+                self._block_doc(node.body, container=node),
             ]
         )
         if len(node.orelse) > 0:
-            doc = concat([doc, space(), text("else"), self._block_doc(node.orelse)])
+            doc = concat(
+                [
+                    doc,
+                    space(),
+                    self._stmt_inner_separator_doc(node, "else"),
+                    self._block_doc(node.orelse, container=node, block_kind="else"),
+                ]
+            )
         return doc
 
     def visit_AsyncFor(self, node: ast.AsyncFor) -> Doc:
         for_doc = self.visit_For(cast(ast.For, node))
-        return concat([text("async"), space(), for_doc])
+        return concat([self._stmt_begin_keyword_doc(node, "async"), space(), for_doc])
 
     def _withitem_doc(self, node: ast.withitem) -> Doc:
         context_expr_doc = self._visit_doc(node.context_expr)
@@ -1292,7 +1382,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
 
     def visit_With(self, node: ast.With) -> Doc:
         parts = [
-            text("with"),
+            self._stmt_begin_keyword_doc(node, "with"),
             self._space_between_statement_keywords_and_paren,
         ]
         items = join(
@@ -1303,24 +1393,24 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             parts.append(items)
             parts.append(hardline())
         else:
-            parts.append(paren(items))
-            parts.extend([self._block_doc(node.body)])
+            parts.append(self._stmt_paren(node, items))
+            parts.extend([self._block_doc(node.body, container=node)])
         doc = concat(parts)
         return doc
 
     def visit_AsyncWith(self, node: ast.AsyncWith) -> Doc:
         with_doc = self.visit_With(cast(ast.With, node))
-        return concat([text("async"), space(), with_doc])
+        return concat([self._stmt_begin_keyword_doc(node, "async"), space(), with_doc])
 
     def _except_handler_doc(
         self, node: ast.ExceptHandler, *, is_star: bool = False
     ) -> Doc:
         keyword = "except*" if is_star else "except"
         if node.type is None:
-            head = text(keyword)
+            head = self._stmt_begin_keyword_doc(node, keyword)
         else:
             head_parts: list[Doc] = [
-                text(keyword),
+                self._stmt_begin_keyword_doc(node, keyword),
                 self._space_between_statement_keywords_and_paren,
             ]
             if node.name is not None:
@@ -1331,11 +1421,11 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     space(),
                     text(node.name),
                 ]
-                head_parts.append(paren(as_parts))
+                head_parts.append(self._stmt_paren(node, as_parts))
             else:
-                head_parts.append(paren(self._visit_doc(node.type)))
+                head_parts.append(self._stmt_paren(node, self._visit_doc(node.type)))
             head = concat(head_parts)
-        return concat([head, self._block_doc(node.body)])
+        return concat([head, self._block_doc(node.body, container=node)])
 
     def _try_body_doc(
         self,
@@ -1343,13 +1433,32 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         *,
         is_star: bool = False,
     ) -> Doc:
-        parts: list[Doc] = [text("try"), self._block_doc(node.body)]
+        parts: list[Doc] = [
+            self._stmt_begin_keyword_doc(node, "try"),
+            self._block_doc(node.body, container=node),
+        ]
         for handler in node.handlers:
             parts.extend([space(), self._except_handler_doc(handler, is_star=is_star)])
         if len(node.orelse) > 0:
-            parts.extend([space(), text("else"), self._block_doc(node.orelse)])
+            parts.extend(
+                [
+                    space(),
+                    self._stmt_inner_separator_doc(node, "else"),
+                    self._block_doc(node.orelse, container=node, block_kind="else"),
+                ]
+            )
         if len(node.finalbody) > 0:
-            parts.extend([space(), text("finally"), self._block_doc(node.finalbody)])
+            parts.extend(
+                [
+                    space(),
+                    self._stmt_inner_separator_doc(node, "finally"),
+                    self._block_doc(
+                        node.finalbody,
+                        container=node,
+                        block_kind="finally",
+                    ),
+                ]
+            )
         return concat(parts)
 
     def visit_Try(self, node: ast.Try) -> Doc:
@@ -1499,7 +1608,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             [
                 text("match"),
                 self._space_between_statement_keywords_and_paren,
-                paren(self._visit_doc(node.subject)),
+                self._stmt_paren(node, self._visit_doc(node.subject)),
                 space(),
                 text("{"),
                 indent(
@@ -1542,7 +1651,8 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         if len(args) > 0:
             class_head.extend(
                 [
-                    paren(
+                    self._stmt_paren(
+                        node,
                         self._comma_combined_doc(
                             args,
                             base_comma_anchor_info.commas
@@ -1551,7 +1661,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                             base_comma_anchor_info.trailing_comma
                             if base_comma_anchor_info
                             else None,
-                        )
+                        ),
                     ),
                 ]
             )
@@ -1639,7 +1749,11 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             head_parts.append(
                 self._type_params_doc(node.type_params, type_param_comma_anchor_info)
             )
-        head_parts.append(paren(self._arguments_doc(node.args, arg_comma_anchor_info)))
+        head_parts.append(
+            self._stmt_paren(
+                node, self._arguments_doc(node.args, arg_comma_anchor_info)
+            )
+        )
         if node.returns is not None:
             head_parts.extend(
                 [space(), text("->"), space(), self._visit_doc(node.returns)]
@@ -1865,7 +1979,12 @@ class _PrintComprehensionToDocVisitor(_PrintToDocVisitor):
         return self._visit_doc(node.value)
 
     @override
-    def _block_doc(self, body: list[ast.stmt]) -> Doc:
+    def _block_doc(
+        self,
+        body: list[ast.stmt],
+        container: ast.AST | None = None,
+        block_kind: Literal["body", "else", "finally"] = "body",
+    ) -> Doc:
         # 'Block' must be single expression or yield.
         assert len(body) == 1
         stmt = body[0]

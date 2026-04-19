@@ -255,3 +255,55 @@ def test_function_type_args_with_comments():
         code_function_type_args_with_comments,
         result_function_type_args_with_comments,
     )
+
+
+code_if_block_comments_around_paren = """
+if #(before paren)#(x > 0)#(after paren)# {
+    pass
+}
+"""
+result_if_block_comments_around_paren = """
+if #(before paren)# (x > 0) #(after paren)# { pass }
+"""
+
+
+def test_if_block_comments_around_paren():
+    assert_render_pipeline_comment_sensitive(
+        code_if_block_comments_around_paren,
+        result_if_block_comments_around_paren,
+    )
+
+
+code_for_block_comments_around_paren = """
+for (let x in xs)#(after paren)# {
+    pass
+}
+"""
+result_for_block_comments_around_paren = """
+for (let x in xs) #(after paren)# { pass }
+"""
+
+
+def test_for_block_comments_around_paren():
+    assert_render_pipeline_comment_sensitive(
+        code_for_block_comments_around_paren,
+        result_for_block_comments_around_paren,
+    )
+
+
+code_with_block_comments_around_paren = """
+with #(before paren)#(ctx)#(after paren)# {
+    pass
+}
+"""
+result_with_block_comments_around_paren = """
+with
+#(before paren)# (ctx) #(after paren)# { pass }
+"""
+
+
+def test_with_block_comments_around_paren():
+    assert_render_pipeline_comment_sensitive(
+        code_with_block_comments_around_paren,
+        result_with_block_comments_around_paren,
+    )
