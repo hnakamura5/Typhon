@@ -298,6 +298,14 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 doc = concat([leading, doc])
             if trailing := self._trailing_comment_doc(node):
                 doc = concat([doc, trailing])
+            if dangling := self._dangling_comments_doc(node):
+                doc = concat([doc, hardline(), dangling])
+            debug_verbose_print(
+                lambda: (
+                    f"Generating doc with comments for expr: {ast.dump(node, include_attributes=True)}\n"
+                    f"    Leading: {leading}, Trailing: {trailing}, Dangling: {dangling}, Doc: {doc}\n"
+                )
+            )
         return doc
 
     def _stmt_paren(self, node: ast.AST, content: Doc | list[Doc]) -> Doc:
@@ -488,28 +496,26 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             return None
         parts: list[Doc] = []
         for c in comments:
+            is_comment_same_line = getattr(node, "end_lineno", None) == c.start[0]
             if is_block_comment(c):
-                parts.extend([line_or_space(), self._comment_text_doc(c.string)])
+                if is_comment_same_line:
+                    parts.append(line_or_space())
+                else:
+                    parts.append(hardline())
+                parts.append(self._comment_text_doc(c.string))
             else:
                 # Line comment
+                if not is_comment_same_line:
+                    parts.append(hardline())
                 parts.append(
                     line_suffix(concat([text("  "), self._comment_text_doc(c.string)]))
                 )
-                # parts.extend([text("  "), self._comment_text_doc(c.string)])
-                # if not isinstance(node, ast.stmt):
-                #     # Force line break even node is not statement.
-                #     # statement has already breakafter it.
-                #     parts.append(hardline())
                 parts.append(BreakParent())
-
-                # parts.append(
-                #     line_suffix(concat([text("  "), self._comment_text_doc(c.string)]))
-                # )
-                # Line comments (# ...) extend to end of line;
-                # force enclosing group to break so a newline follows.
-                # TODO: If this is expression (so in group) this makes assignment broken.
-                # if not is_block_comment(c):
-                # parts.append(hardline())
+            debug_verbose_print(
+                lambda: (
+                    f"Trailing comment: {c.string!r} for node {ast.dump(node, include_attributes=True)}, parts: {parts} is_block_comment: {is_block_comment(c)}"
+                )
+            )
         return concat(parts)
 
     def _dangling_comments_doc(self, node: ast.AST) -> Doc | None:
@@ -531,18 +537,19 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         parts: list[Doc] = []
         if leading := self._leading_comments_doc(node):
             parts.append(leading)
-        debug_verbose_print(
-            lambda: (
-                f"Generating doc for stmt: {ast.dump(node, include_attributes=True)}\n"
-                f"    Leading comments doc: {leading}, parts: {parts}\n"
-            )
-        )
         body = self._visit_doc(node)
         parts.append(body)
         if trailing := self._trailing_comment_doc(node):
             parts.append(trailing)
         if dangling := self._dangling_comments_doc(node):
             parts.append(dangling)  # TODO: Is this OK?
+        if leading or trailing or dangling:
+            debug_verbose_print(
+                lambda: (
+                    f"Generating doc with comments for stmt: {ast.dump(node, include_attributes=True)}\n"
+                    f"    Leading: {leading}, Trailing: {trailing}, Dangling: {dangling}, Parts: {parts}\n"
+                )
+            )
         if not parts:
             return NIL
         if len(parts) == 1:
@@ -564,6 +571,13 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             parts.append(trailing)
         if dangling := self._dangling_comments_doc(node):
             parts.extend([hardline(), dangling])
+        if leading or trailing or dangling:
+            debug_verbose_print(
+                lambda: (
+                    f"Generating doc with comments: {ast.dump(node, include_attributes=True)}\n"
+                    f"    Leading: {leading}, Trailing: {trailing}, Dangling: {dangling}, Parts: {parts}\n"
+                )
+            )
         if len(parts) == 1:
             return parts[0]
         return concat(parts)
@@ -1186,7 +1200,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         if len(node.type_params) > 0:
             parts.append(self._type_params_doc(node.type_params))
         parts.extend([space(), text("="), space(), self._visit_doc(node.value)])
-        return concat(parts)
+        return group(parts)
 
     def _let_patterns_match_doc(
         self, body: list[ast.stmt], innermost_body: list[ast.stmt]
@@ -1327,9 +1341,10 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         )
         if type_ann := get_type_annotation(node):
             target = concat([target, text(":"), space(), self._visit_doc(type_ann)])
-        doc = concat(
+        keyword = self._stmt_begin_keyword_doc(node, "for")
+        doc = group(
             [
-                self._stmt_begin_keyword_doc(node, "for"),
+                keyword,
                 self._space_between_statement_keywords_and_paren,
                 self._stmt_paren(
                     node,
@@ -1357,7 +1372,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
 
     def visit_AsyncFor(self, node: ast.AsyncFor) -> Doc:
         for_doc = self.visit_For(cast(ast.For, node))
-        return concat([self._stmt_begin_keyword_doc(node, "async"), space(), for_doc])
+        return group([self._stmt_begin_keyword_doc(node, "async"), space(), for_doc])
 
     def _withitem_doc(self, node: ast.withitem) -> Doc:
         context_expr_doc = self._visit_doc(node.context_expr)
@@ -1395,12 +1410,12 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         else:
             parts.append(self._stmt_paren(node, items))
             parts.extend([self._block_doc(node.body, container=node)])
-        doc = concat(parts)
+        doc = group(parts)
         return doc
 
     def visit_AsyncWith(self, node: ast.AsyncWith) -> Doc:
         with_doc = self.visit_With(cast(ast.With, node))
-        return concat([self._stmt_begin_keyword_doc(node, "async"), space(), with_doc])
+        return group([self._stmt_begin_keyword_doc(node, "async"), space(), with_doc])
 
     def _except_handler_doc(
         self, node: ast.ExceptHandler, *, is_star: bool = False
@@ -1459,7 +1474,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     ),
                 ]
             )
-        return concat(parts)
+        return group(parts)
 
     def visit_Try(self, node: ast.Try) -> Doc:
         return self._try_body_doc(node, is_star=False)
@@ -1604,7 +1619,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return concat([concat(head), self._block_doc(node.body)])
 
     def visit_Match(self, node: ast.Match) -> Doc:
-        return concat(
+        return group(
             [
                 text("match"),
                 self._space_between_statement_keywords_and_paren,
@@ -1628,7 +1643,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         )
 
     def _visit_Decorators(self, decos: list[ast.expr]) -> list[Doc]:
-        return [concat([text("@"), self._visit_doc(d), hardline()]) for d in decos]
+        return [group([text("@"), self._visit_doc(d), hardline()]) for d in decos]
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Doc:
         deco_docs = self._visit_Decorators(node.decorator_list)
@@ -1666,7 +1681,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 ]
             )
         class_head.extend([self._block_doc(node.body, container=node)])
-        return concat(deco_docs + [concat(class_head)])
+        return group(deco_docs + [group(class_head)])
 
     def _typed_arg_doc(
         self,
@@ -1684,7 +1699,6 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         if default is not None:
             parts.extend([space(), text("="), space(), self._visit_doc(default)])
         return self._doc_with_comments(arg, concat(parts))
-        # return self._doc_with_comments(arg, concat(parts))
 
     def _arguments_doc(
         self,
@@ -1759,7 +1773,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 [space(), text("->"), space(), self._visit_doc(node.returns)]
             )
         head_parts.extend([self._block_doc(node.body, container=node)])
-        return concat(deco_docs + [concat(head_parts)])
+        return group(deco_docs + [group(head_parts)])
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Doc:
         return self._visit_FcuntionDef_AsyncFunctionDef(node)
@@ -1908,7 +1922,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             if stmt := func_def.body[0]:
                 if isinstance(stmt, ast.Return) and stmt.value is not None:
                     # Special case for single return value.
-                    return concat(head_parts + [space(), self._visit_doc(stmt.value)])
+                    return group(head_parts + [space(), self._visit_doc(stmt.value)])
         return self._maybe_wrap_group_paren(
             node, group(head_parts + [self._block_doc(func_def.body)])
         )

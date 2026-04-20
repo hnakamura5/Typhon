@@ -387,6 +387,15 @@ def _select_before_or_after(
         return "after", after_node
     assert before_node and after_node, "At least one node must be present"
     assert isinstance(before_node, PosNode) and isinstance(after_node, PosNode)
+    # if (
+    #     comment.before_non_comment_tok is not None
+    #     and comment.after_non_comment_tok is not None
+    #     and comment.after_non_comment_tok.string == "("
+    # ):
+    #     if comment.before_non_comment_tok.string == "for":
+    #         return "after", after_node
+    #     if comment.before_non_comment_tok.string in {"if", "while", "with"}:
+    #         return "before", before_node
     # If both nodes are present, select the one based on line similarity.
     before_line = get_pos_attributes(before_node)["end_lineno"]
     after_line = get_pos_attributes(after_node)["lineno"]

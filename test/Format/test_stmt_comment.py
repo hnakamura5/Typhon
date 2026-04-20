@@ -274,20 +274,20 @@ def test_if_block_comments_around_paren():
     )
 
 
-code_for_block_comments_around_paren = """
-for (let x in xs)#(after paren)# {
+code_for_block_comments_before_and_after_paren = """
+for #(before paren)#(let x in xs)#(after paren)# {
     pass
 }
 """
-result_for_block_comments_around_paren = """
-for (let x in xs) #(after paren)# { pass }
+result_for_block_comments_before_and_after_paren = """
+for #(before paren)# (let x in xs) #(after paren)# { pass }
 """
 
 
-def test_for_block_comments_around_paren():
+def test_for_block_comments_before_and_after_paren():
     assert_render_pipeline_comment_sensitive(
-        code_for_block_comments_around_paren,
-        result_for_block_comments_around_paren,
+        code_for_block_comments_before_and_after_paren,
+        result_for_block_comments_before_and_after_paren,
     )
 
 
@@ -297,8 +297,7 @@ with #(before paren)#(ctx)#(after paren)# {
 }
 """
 result_with_block_comments_around_paren = """
-with
-#(before paren)# (ctx) #(after paren)# { pass }
+with #(before paren)# (ctx) #(after paren)# { pass }
 """
 
 

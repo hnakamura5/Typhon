@@ -410,8 +410,8 @@ def _generate_and_postprocess_tokens(
     head_space_lines: list[str],
 ) -> Iterator[TokenInfo]:
     """Generate tokens from readline, handling head space and  block comments."""
-    line_offset_already_consumed = 0
     block_comment_already_output: set[_BlockComment] = set()
+    line_offset_already_consumed = 0
     # Adjust token positions from generated tokens, and mix in block comment tokens.
     for tok in generate_tokens_ignore_error(readline):
         debug_verbose_print(
@@ -428,22 +428,17 @@ def _generate_and_postprocess_tokens(
             tok.end[0],
             tok.end[1] + len(head_space_lines[tok.end[0] - 1]),
         )
-        # Gather unconsumed block comments before this token.
+        # Cleanup unconsumed block comments before this token.
         tok_start_line, tok_start_col = start
         while (
             unconsumed_block_comment
             and (block_comment := unconsumed_block_comment[0])
-            and (
-                block_comment.end_line < tok_start_line
-                or (
-                    block_comment.end_line == tok_start_line
-                    and block_comment.end_col <= tok_start_col
-                )
-            )
+            and block_comment.end_line < tok_start_line
+            # Do not pop comments in same line here to attach to exact position later.
         ):
             debug_verbose_print(
                 lambda: (
-                    f"pop block comment token: {block_comment.comment!r} start=({block_comment.start_line}, {block_comment.start_col}) end=({block_comment.end_line}, {block_comment.end_col})"
+                    f"pop block comment token: {block_comment.comment!r} start=({block_comment.start_line}, {block_comment.start_col}) end=({block_comment.end_line}, {block_comment.end_col}) because it's before token {tok.string!r} at start={start}"
                 )
             )
             # Pop away comments that will never affect to remaining tokens.

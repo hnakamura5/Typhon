@@ -1,5 +1,6 @@
 import ast
 
+from Typhon.Driver.debugging import debug_verbose_print
 from Typhon.Format.attach_comments import attach_comments_v2
 from Typhon.Format.doc_render import render_doc_to_string
 from Typhon.Format.print_to_doc import print_to_doc
@@ -16,7 +17,9 @@ def _parse_module(source: str) -> ast.Module:
 def _render_source(source: str) -> str:
     module = _parse_module(source)
     attach_comments_v2(module, SourceAstCache(module, source, "<test>"))
-    return render_doc_to_string(print_to_doc(module))
+    doc = print_to_doc(module)
+    debug_verbose_print(lambda: f"Printed doc for source:\n{source}\n\nis:\n{doc}\n")
+    return render_doc_to_string(doc)
 
 
 def _mess_up_source(source: str) -> str:
