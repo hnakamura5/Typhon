@@ -1203,19 +1203,6 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
 
     def _type_params_doc(
         self,
-        type_params: list[ast.type_param],
-        comma_anchor_info: ExprCommaAnchors | None = None,
-    ) -> Doc:
-        return bracket(
-            self._comma_combined_doc(
-                [self._type_param_doc(p) for p in type_params],
-                comma_anchor_info.commas if comma_anchor_info else None,
-                comma_anchor_info.trailing_comma if comma_anchor_info else None,
-            ),
-        )
-
-    def _stmt_type_params_doc(
-        self,
         node: ast.AST,
         type_params: list[ast.type_param],
         comma_anchor_info: ExprCommaAnchors | None = None,
@@ -1231,12 +1218,12 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
 
     def visit_TypeAlias(self, node: ast.TypeAlias) -> Doc:
         parts: list[Doc] = [
-            text("type"),
+            self._stmt_begin_keyword_doc(node, "type"),
             space(),
             self._visit_doc(node.name),
         ]
         if len(node.type_params) > 0:
-            parts.append(self._type_params_doc(node.type_params))
+            parts.append(self._type_params_doc(node, node.type_params))
         parts.extend([space(), text("="), space(), self._visit_doc(node.value)])
         return group(parts)
 
@@ -1699,7 +1686,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         class_head = [text("class"), space(), text(node.name)]
         if len(node.type_params) > 0:
             class_head.append(
-                self._stmt_type_params_doc(
+                self._type_params_doc(
                     node,
                     node.type_params,
                     type_param_comma_anchor_info,
@@ -1803,7 +1790,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         )
         if len(node.type_params) > 0:
             head_parts.append(
-                self._stmt_type_params_doc(
+                self._type_params_doc(
                     node,
                     node.type_params,
                     type_param_comma_anchor_info,

@@ -274,6 +274,23 @@ def test_function_type_param_brackets_with_comments():
     )
 
 
+code_type_alias_type_param_brackets_with_comments = """
+type Alias #(before type params)#[
+    T
+]#(after type params)# = int
+"""
+result_type_alias_type_param_brackets_with_comments = """
+type Alias #(before type params)#[T] #(after type params)# = int
+"""
+
+
+def test_type_alias_type_param_brackets_with_comments():
+    assert_render_pipeline_comment_sensitive(
+        code_type_alias_type_param_brackets_with_comments,
+        result_type_alias_type_param_brackets_with_comments,
+    )
+
+
 code_function_type_args_with_comments = """
 type F = (
     a: int,  # first

@@ -30,7 +30,8 @@ from .typhon_ast import (
     set_wrapper_paren_tokens, set_constant_raw_tokens
 )
 from .position import (
-    get_pos_attributes, set_completion_trigger_anchor, TrailingBlock,
+    BlockStmtAnchors, get_pos_attributes, set_block_stmt_anchors,
+    set_completion_trigger_anchor, TrailingBlock,
 )
 from .typhon_ast_error import (
     maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, recover_invalid_for, recover_invalid_try, recover_maybe_invalid_function_def_raw,
@@ -1122,23 +1123,29 @@ keyword_pattern[Tuple[ast.Name, ast.pattern]]:
 # ---------------
 
 type_alias["ast.TypeAlias"]:
-    | "type" n=NAME t=[type_params] '=' b=typing_expression {
+    | k="type" n=NAME t=[type_params] '=' b=typing_expression {
         self.check_version(
             (3, 12),
             "Type statement is",
             (
-                ast.TypeAlias(
-                    name=ast.Name(
-                        id=n.string,
-                        ctx=Store,
-                        lineno=n.start[0],
-                        col_offset=n.start[1],
-                        end_lineno=n.end[0],
-                        end_col_offset=n.end[1],
+                set_block_stmt_anchors(
+                    ast.TypeAlias(
+                        name=ast.Name(
+                            id=n.string,
+                            ctx=Store,
+                            lineno=n.start[0],
+                            col_offset=n.start[1],
+                            end_lineno=n.end[0],
+                            end_col_offset=n.end[1],
+                        ),
+                        type_params=t[0] if t else [],
+                        value=b,
+                        LOCATIONS
                     ),
-                    type_params=t[0] if t else [],
-                    value=b,
-                    LOCATIONS
+                    BlockStmtAnchors.make(
+                        keywords=[k],
+                        type_param_brackets=(t[2], t[3]) if t else None,
+                    ),
                 )
                 if sys.version_info >= (3, 12)
                 else None
