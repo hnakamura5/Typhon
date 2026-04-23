@@ -236,6 +236,44 @@ def test_function_type_params_and_params_with_comments():
     )
 
 
+code_class_type_param_brackets_with_comments = """
+class Box #(before type params)#[
+    T
+]#(after type params)# {
+    pass
+}
+"""
+result_class_type_param_brackets_with_comments = """
+class Box#(before type params)# [T] #(after type params)# { pass }
+"""
+
+
+def test_class_type_param_brackets_with_comments():
+    assert_render_pipeline_comment_sensitive(
+        code_class_type_param_brackets_with_comments,
+        result_class_type_param_brackets_with_comments,
+    )
+
+
+code_function_type_param_brackets_with_comments = """
+def f #(before type params)#[
+    T
+]#(after type params)#() {
+    pass
+}
+"""
+result_function_type_param_brackets_with_comments = """
+def f#(before type params)# [T] #(after type params)#() { pass }
+"""
+
+
+def test_function_type_param_brackets_with_comments():
+    assert_render_pipeline_comment_sensitive(
+        code_function_type_param_brackets_with_comments,
+        result_function_type_param_brackets_with_comments,
+    )
+
+
 code_function_type_args_with_comments = """
 type F = (
     a: int,  # first

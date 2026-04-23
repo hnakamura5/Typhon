@@ -340,6 +340,8 @@ class TrailingBlock:
 class BlockStmtAnchors:
     # Sequent of tokens beggining of the statements. (e.g. 'async' and 'def')
     begin_token_anchors: list[ast.Name]
+    open_type_param_bracket_anchor: ast.Name | None
+    close_type_param_bracket_anchor: ast.Name | None
     open_paren_anchor: ast.Name | None
     close_paren_anchor: ast.Name | None
     open_brace_anchor: ast.Name | None
@@ -356,6 +358,7 @@ class BlockStmtAnchors:
     def make(
         *,
         keywords: list[TokenInfo],
+        type_param_brackets: tuple[TokenInfo, TokenInfo] | None = None,
         parens: tuple[TokenInfo, TokenInfo] | None = None,
         braces: tuple[TokenInfo, TokenInfo] | None = None,
         else_block: TrailingBlock | None = None,
@@ -374,6 +377,16 @@ class BlockStmtAnchors:
             )
         return BlockStmtAnchors(
             begin_token_anchors=[name_from_anchor_token(k) for k in keywords],
+            open_type_param_bracket_anchor=(
+                name_from_anchor_token(type_param_brackets[0])
+                if type_param_brackets
+                else None
+            ),
+            close_type_param_bracket_anchor=(
+                name_from_anchor_token(type_param_brackets[1])
+                if type_param_brackets
+                else None
+            ),
             open_paren_anchor=name_from_anchor_token(parens[0]) if parens else None,
             close_paren_anchor=name_from_anchor_token(parens[1]) if parens else None,
             open_brace_anchor=name_from_anchor_token(braces[0]) if braces else None,

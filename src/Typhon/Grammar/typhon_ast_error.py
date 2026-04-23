@@ -111,6 +111,29 @@ def _next_col(pos: tuple[int, int]) -> tuple[int, int]:
     return pos[0], pos[1] + 1
 
 
+def _set_define_block_stmt_anchors(
+    node: PosNode,
+    *,
+    begin_tokens: list[TokenInfo | None] | None,
+    type_param_brackets: tuple[TokenInfo, TokenInfo] | None,
+    open_paren: TokenInfo | None,
+    close_paren: TokenInfo | None,
+    body: list[ast.stmt] | None,
+) -> None:
+    brace_anchors = get_block_braces(body) if body else None
+    anchors = BlockStmtAnchors.make(
+        keywords=[tok for tok in begin_tokens if tok] if begin_tokens else [],
+        type_param_brackets=type_param_brackets,
+        parens=(open_paren, close_paren)
+        if open_paren is not None and close_paren is not None
+        else None,
+        braces=brace_anchors,
+        else_block=None,
+        finally_block=None,
+    )
+    set_block_stmt_anchors(node, anchors)
+
+
 def maybe_invalid_stmt[T: PosNode](
     parser: Parser,
     open_paren: TokenInfo | None,
@@ -292,6 +315,7 @@ def recover_maybe_invalid_function_def_raw(
     type_comment: str | None,
     type_params: list[ast.type_param],
     type_params_trailing_comma: TokenInfo | None,
+    type_param_brackets: tuple[TokenInfo, TokenInfo] | None,
     *,
     open_anchor: PosNode | TokenInfo,
     close_anchor: PosNode | TokenInfo,
@@ -351,6 +375,14 @@ def recover_maybe_invalid_function_def_raw(
         close_anchor=close_anchor,
         begin_tokens=begin_tokens,
     )
+    _set_define_block_stmt_anchors(
+        result,
+        begin_tokens=begin_tokens,
+        type_param_brackets=type_param_brackets,
+        open_paren=open_paren,
+        close_paren=close_paren,
+        body=body,
+    )
     if errors:
         add_error_node(result, errors)
     return result
@@ -364,6 +396,7 @@ def recover_maybe_invalid_class_def_raw(
     decorator_list: list[ast.expr],
     type_params: list[ast.type_param],
     type_params_trailing_comma: TokenInfo | None,
+    type_param_brackets: tuple[TokenInfo, TokenInfo] | None,
     *,
     open_anchor: PosNode | TokenInfo,
     begin_tokens: list[TokenInfo | None] | None = None,
@@ -421,6 +454,14 @@ def recover_maybe_invalid_class_def_raw(
             close_anchor=close_anchor,
             begin_tokens=begin_tokens,
         )
+    _set_define_block_stmt_anchors(
+        class_def,
+        begin_tokens=begin_tokens,
+        type_param_brackets=type_param_brackets,
+        open_paren=open_paren,
+        close_paren=close_paren,
+        body=body,
+    )
     if error:
         add_error_node(class_def, [error])
     return class_def

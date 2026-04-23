@@ -127,6 +127,10 @@ class _SourceAstIndexVisitor(TyphonASTRawVisitor):
             if block_anchors := get_block_stmt_anchors(node):
                 for anchor in block_anchors.begin_token_anchors:
                     self._visit_anchor(anchor)
+                if block_anchors.open_type_param_bracket_anchor is not None:
+                    self._visit_anchor(block_anchors.open_type_param_bracket_anchor)
+                if block_anchors.close_type_param_bracket_anchor is not None:
+                    self._visit_anchor(block_anchors.close_type_param_bracket_anchor)
                 if block_anchors.open_paren_anchor is not None:
                     self._visit_anchor(block_anchors.open_paren_anchor)
                 if block_anchors.close_paren_anchor is not None:

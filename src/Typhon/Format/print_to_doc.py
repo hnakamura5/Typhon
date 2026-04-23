@@ -329,6 +329,29 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     )
         return paren(content)
 
+    def _stmt_type_param_bracket(self, node: ast.AST, content: Doc | list[Doc]) -> Doc:
+        if isinstance(content, list):
+            content = concat(content)
+        if isinstance(node, PosNode):
+            if anchors := get_block_stmt_anchors(node):
+                if (
+                    anchors.open_type_param_bracket_anchor is not None
+                    and anchors.close_type_param_bracket_anchor is not None
+                ):
+                    return group(
+                        concat(
+                            [
+                                self._visit_doc(anchors.open_type_param_bracket_anchor),
+                                indent([softline(), content]),
+                                softline(),
+                                self._visit_doc(
+                                    anchors.close_type_param_bracket_anchor
+                                ),
+                            ]
+                        )
+                    )
+        return bracket(content)
+
     def _stmt_begin_keyword_doc(self, node: ast.AST, keyword: str) -> Doc:
         if isinstance(node, PosNode):
             if anchors := get_block_stmt_anchors(node):
@@ -1191,6 +1214,21 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             ),
         )
 
+    def _stmt_type_params_doc(
+        self,
+        node: ast.AST,
+        type_params: list[ast.type_param],
+        comma_anchor_info: ExprCommaAnchors | None = None,
+    ) -> Doc:
+        return self._stmt_type_param_bracket(
+            node,
+            self._comma_combined_doc(
+                [self._type_param_doc(p) for p in type_params],
+                comma_anchor_info.commas if comma_anchor_info else None,
+                comma_anchor_info.trailing_comma if comma_anchor_info else None,
+            ),
+        )
+
     def visit_TypeAlias(self, node: ast.TypeAlias) -> Doc:
         parts: list[Doc] = [
             text("type"),
@@ -1661,7 +1699,11 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         class_head = [text("class"), space(), text(node.name)]
         if len(node.type_params) > 0:
             class_head.append(
-                self._type_params_doc(node.type_params, type_param_comma_anchor_info)
+                self._stmt_type_params_doc(
+                    node,
+                    node.type_params,
+                    type_param_comma_anchor_info,
+                )
             )
         if len(args) > 0:
             class_head.extend(
@@ -1761,7 +1803,11 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         )
         if len(node.type_params) > 0:
             head_parts.append(
-                self._type_params_doc(node.type_params, type_param_comma_anchor_info)
+                self._stmt_type_params_doc(
+                    node,
+                    node.type_params,
+                    type_param_comma_anchor_info,
+                )
             )
         head_parts.append(
             self._stmt_paren(
