@@ -560,7 +560,7 @@ param_star_annotation: a=NAME b=star_annotation {
  }
 annotation: ':' a=typing_expression { a }
 star_annotation: ':' a=typing_star_expression { a }
-default: '=' a=expression { a } | invalid_default
+default: '=' a=expression { a }
 
 # If statement
 # ------------
@@ -799,7 +799,6 @@ match_stmt["ast.Match"]:
             )
         )
      }
-    | invalid_match_stmt
 
 # Version checking here allows to avoid tracking down every single possible production
 subject_expr:
@@ -838,7 +837,16 @@ as_pattern["ast.MatchAs"]:
     | pattern=or_pattern 'as' target=pattern_capture_target_annot {
         set_type_annotation(ast.MatchAs(pattern=pattern, name=target[0].id, LOCATIONS), target[1])
      }
-    | invalid_as_pattern
+    | as_pattern_with_error
+
+# TODO: Recover this
+as_pattern_with_error[NoReturn]:
+    | or_pattern 'as' a="_" {
+        self.raise_syntax_error_known_location("cannot use '_' as a target of as pattern", a)
+     }
+    | or_pattern 'as' !NAME {
+        self.raise_syntax_error("invalid as pattern target")
+     }
 
 or_pattern["ast.MatchOr"]:
     | patterns='|'.closed_pattern+ {
@@ -1048,11 +1056,22 @@ class_pattern["ast.MatchClass"]:
             close_anchor=keywords[-1][1],
         )
      }
-    | invalid_class_pattern
+    | class_pattern_with_error
 
 class_pattern_rp:
     | rp=')' { rp }
     | &('if' | '{' | ')' | ']' | '}' | ',' | '|' | 'as') { None }
+
+# TODO: Recover this
+class_pattern_with_error[NoReturn]:
+    | name_or_attr '(' a=class_argument_pattern_with_error  {
+        self.raise_syntax_error_known_range(
+            "positional patterns follow keyword patterns", a[0], a[-1]
+        )
+     }
+
+class_argument_pattern_with_error[List[ast.pattern]]:
+    | [positional_patterns ','] keyword_patterns ',' a=positional_patterns { a }
 
 attribute_capture_pattern[tuple[ast.Name, ast.pattern | None]]:
     | '.' p=keyword_pattern { p }
@@ -1082,7 +1101,7 @@ positional_as_pattern["ast.MatchAs"]:
     | pattern=positional_or_pattern 'as' target=positional_pattern_capture_target_annot {
         set_type_annotation(ast.MatchAs(pattern=pattern, name=target[0].id, LOCATIONS), target[1])
      }
-    | invalid_as_pattern
+    | as_pattern_with_error
 
 positional_or_pattern["ast.MatchOr"]:
     | patterns='|'.positional_closed_pattern+ {
@@ -1210,9 +1229,7 @@ typing_expression[ast.expr](memo):
     | t=typing_expression_impl { set_is_typing_expression(t) }
 
 typing_expression_impl[ast.expr](memo):
-    #| invalid_expression
     | &'(' typing_arrow_type
-    #| typing_disjunction
     | typing_arrow_single_param_type
 
 typing_arrow_single_param_type[ast.expr]:
@@ -1295,7 +1312,6 @@ expressions:
     | expression
 
 expression (memo):
-    # | invalid_expression # TODO: Recover this!
     | a=atom &EXPR_END { a } # Shortcut for atom. Makes parser 10~20% faster.
     | pipe_operator
 
@@ -1350,7 +1366,6 @@ assignment_expression:
 
 named_expression:
     | assignment_expression
-  #  | invalid_named_expression
     | a=expression !':=' { a }
 
 pipe_operator (memo):
@@ -1644,7 +1659,6 @@ fstring_replacement_field[ast.FormattedValue]:
             LOCATIONS
         )
      }
-    # | invalid_replacement_field
 fstring_conversion[int]:
     | conv_token="!" conv=NAME { self.check_fstring_conversion(conv_token, conv) }
 fstring_full_format_spec:
@@ -1710,7 +1724,6 @@ dict[ast.Dict]:
         )
      }
     | '{' '}' { ast.Dict(keys=[], values=[], LOCATIONS) }
-    | '{' invalid_double_starred_kvpairs '}'
 
 star_named_expressions_trailing[Tuple[List[ast.expr], TokenInfo | None]]:
     | a=','.star_named_expression+ c=[','] { (a, c) }
@@ -2055,17 +2068,14 @@ kwarg_or_double_starreds[Tuple[ast.keyword | None, TokenInfo | None]]:
 
 
 starred_expression[ast.Starred]:
-  #  | invalid_starred_expression
     | '*' a=expression { ast.Starred(value=a, ctx=Load, LOCATIONS) }
     | '*' { self.raise_syntax_error("Invalid star expression") }
 
 kwarg_or_starred[ast.keyword | ast.expr]:
-  #  | invalid_kwarg
     | a=NAME '=' b=expression { ast.keyword(arg=a.string, value=b, LOCATIONS) }
     | a=starred_expression { a }
 
 kwarg_or_double_starred[ast.keyword]:
-  #  | invalid_kwarg
     | a=NAME '=' b=expression { ast.keyword(arg=a.string, value=b, LOCATIONS) }   # XXX Unreachable
     | '**' a=expression { ast.keyword(arg=None, value=a, LOCATIONS) }
 
@@ -2201,333 +2211,6 @@ type_expressions[List[ast.expr]]:
 
 func_type_comment:
     | NEWLINE t=TYPE_COMMENT &(NEWLINE INDENT) { t.string }  # Must be followed by indented block
-  #  | invalid_double_type_comments
     | TYPE_COMMENT
 
 # ========================= END OF THE GRAMMAR ===========================
-
-
-
-# ========================= START OF INVALID RULES =======================
-
-# From here on, there are rules for invalid syntax with specialised error messages
-invalid_arguments[NoReturn]:
-    | ((','.(starred_expression | ( assignment_expression | expression !':=') !'=')+ ',' kwargs) | kwargs) a=',' ','.(starred_expression !'=')+ {
-        self.raise_syntax_error_starting_from(
-            "iterable argument unpacking follows keyword argument unpacking",
-            a,
-        )
-     }
-    | a=expression b=for_if_clauses ',' [call_args | expression for_if_clauses] {
-        self.raise_syntax_error_known_range(
-            "Generator expression must be parenthesized",
-            a,
-            (b[-1].ifs[-1] if b[-1].ifs else b[-1].iter)
-        )
-     }
-    | a=NAME b='=' expression for_if_clauses {
-        self.raise_syntax_error_known_range(
-            "invalid syntax. Maybe you meant '==' or ':=' instead of '='?", a, b
-        )
-     }
-    | (call_args ',')? a=NAME b='=' &(',' | ')') {
-        self.raise_syntax_error_known_range("expected argument value expression", a, b)
-     }
-    | a=call_args b=for_if_clauses {
-        self.raise_syntax_error_known_range(
-            "Generator expression must be parenthesized",
-            a[0][-1],
-            (b[-1].ifs[-1] if b[-1].ifs else b[-1].iter),
-        ) if len(a[0]) > 1 else None
-     }
-    | call_args ',' a=expression b=for_if_clauses {
-        self.raise_syntax_error_known_range(
-            "Generator expression must be parenthesized",
-            a,
-            (b[-1].ifs[-1] if b[-1].ifs else b[-1].iter),
-        )
-     }
-    | a=call_args ',' a=call_args {
-        self.raise_syntax_error(
-            "positional argument follows keyword argument unpacking"
-            if a[1][-1].arg is None else
-            "positional argument follows keyword argument",
-        )
-     }
-invalid_kwarg[NoReturn]:
-    | a=('True'|'False'|'None') b='=' {
-        self.raise_syntax_error_known_range(f"cannot assign to {a.string}", a, b)
-     }
-    | a=NAME b='=' expression for_if_clauses {
-        self.raise_syntax_error_known_range(
-            "invalid syntax. Maybe you meant '==' or ':=' instead of '='?", a, b
-        )
-     }
-    | !(NAME '=') a=expression b='=' {
-        self.raise_syntax_error_known_range(
-            "expression cannot contain assignment, perhaps you meant \"==\"?", a, b,
-        )
-     }
-    | a='**' expression '=' b=expression {
-        self.raise_syntax_error_known_range(
-            "cannot assign to keyword argument unpacking", a, b
-        )
-     }
-
-# IMPORTANT: Note that the "_without_invalid" suffix causes the rule to
-# not call invalid rules under it
-expression_without_invalid[ast.AST]:
-    | pipe_operator
-
-invalid_expression[NoReturn]:
-    # !(NAME STRING) is not matched so we don't show this error with some invalid string prefixes like: kf"dsfsdf"
-    # Soft keywords need to also be ignored because they can be parsed as NAME NAME
-    | !(NAME STRING | SOFT_KEYWORD) a=pipe_operator b=expression_without_invalid {
-        (
-            self.raise_syntax_error_known_range("invalid syntax. Perhaps you forgot a comma?", a, b)
-            if not isinstance(a, ast.Name) or a.id not in ("print", "exec")
-            else None
-        )
-     }
-
-invalid_named_expression[NoReturn]:
-    | a=expression ':=' expression {
-        self.raise_syntax_error_known_location(
-            f"cannot use assignment expressions with {self.get_expr_name(a)}", a
-        )
-     }
-    # Use in_raw_rule
-    | a=NAME '=' b=bitwise_or !('='|':=') {
-        (
-            None
-            if self.in_recursive_rule else
-            self.raise_syntax_error_known_range(
-                "invalid syntax. Maybe you meant '==' or ':=' instead of '='?", a, b
-            )
-        )
-     }
-    | !(list|tuple|genexp|'True'|'None'|'False') a=bitwise_or b='=' bitwise_or !('='|':=') {
-        (
-            None
-            if self.in_recursive_rule else
-            self.raise_syntax_error_known_location(
-                f"cannot assign to {self.get_expr_name(a)} here. Maybe you meant '==' instead of '='?", a
-            )
-        )
-     }
-
-invalid_assignment[NoReturn]:
-    | a=invalid_ann_assign_target ':' expression {
-        self.raise_syntax_error_known_location(
-            f"only single target (not {self.get_expr_name(a)}) can be annotated", a
-        )
-     }
-    | a=star_named_expression ',' star_named_expressions* ':' expression {
-        self.raise_syntax_error_known_location("only single target (not tuple) can be annotated", a) }
-    | a=expression ':' expression {
-        self.raise_syntax_error_known_location("illegal target for annotation", a) }
-    | (star_targets '=')* a=star_expressions '=' {
-        self.raise_syntax_error_invalid_target(Target.STAR_TARGETS, a)
-     }
-    | (star_targets '=')* a=yield_expr '=' {
-        self.raise_syntax_error_known_location("assignment to yield expression not possible", a)
-     }
-    | a=star_expressions augassign (yield_expr | star_expressions) {
-        self.raise_syntax_error_known_location(
-            f"'{self.get_expr_name(a)}' is an illegal expression for augmented assignment", a
-        )
-     }
-invalid_ann_assign_target[ast.AST]:
-    | a=list { a }
-    | a=tuple { a }
-    | '(' a=invalid_ann_assign_target ')' { a }
-invalid_del_stmt[NoReturn]:
-    | 'del' a=star_expressions {
-        self.raise_syntax_error_invalid_target(Target.DEL_TARGETS, a)
-     }
-invalid_comprehension[NoReturn]:
-    | ('[' | '(' | '{') a=starred_expression for_if_clauses {
-        self.raise_syntax_error_known_location("iterable unpacking cannot be used in comprehension", a)
-     }
-    | ('[' | '{') a=star_named_expression ',' b=star_named_expressions for_if_clauses {
-        self.raise_syntax_error_known_range(
-            "did you forget parentheses around the comprehension target?", a, b[-1]
-        )
-     }
-    | ('[' | '{') a=star_named_expression b=',' for_if_clauses {
-        self.raise_syntax_error_known_range(
-            "did you forget parentheses around the comprehension target?", a, b
-        )
-     }
-invalid_dict_comprehension[NoReturn]:
-    | '{' a='**' bitwise_or for_if_clauses '}' {
-        self.raise_syntax_error_known_location("dict unpacking cannot be used in dict comprehension", a)
-     }
-invalid_parameters[NoReturn]:
-    | a="/" ',' {
-        self.raise_syntax_error_known_location("at least one argument must precede /", a)
-     }
-    | (slash_no_default | slash_with_default) param_maybe_default* a='/' {
-        self.raise_syntax_error_known_location("/ may appear only once", a)
-     }
-    | slash_no_default? param_no_default* invalid_parameters_helper a=param_no_default {
-        self.raise_syntax_error_known_location(
-            "parameter without a default follows parameter with a default", a
-        )
-     }
-    # | param_no_default* a='(' param_no_default+ ','? b=')' {
-    #     self.raise_syntax_error_known_range(
-    #         "Function parameters cannot be parenthesized", a, b
-    #     )
-    #  }
-    | (slash_no_default | slash_with_default)? param_maybe_default* '*' (',' | param_no_default) param_maybe_default* a='/' {
-        self.raise_syntax_error_known_location("/ must be ahead of *", a)
-     }
-    | param_maybe_default+ '/' a='*' {
-        self.raise_syntax_error_known_location("expected comma between / and *", a)
-     }
-invalid_default:
-    | a='=' &(')'|',') {
-        self.raise_syntax_error_known_location("expected default value expression", a)
-     }
-invalid_star_etc:
-    | a='*' (')' | ',' (')' | '**')) {
-        self.raise_syntax_error_known_location("named arguments must follow bare *", a)
-     }
-    | '*' ',' TYPE_COMMENT { self.raise_syntax_error("bare * has associated type comment") }
-    | '*' param a='=' {
-        self.raise_syntax_error_known_location("var-positional argument cannot have default value", a)
-     }
-    | '*' (param_no_default | ',') param_maybe_default* a='*' (param_no_default | ',') {
-        self.raise_syntax_error_known_location("* argument may appear only once", a)
-     }
-invalid_kwds:
-    | '**' param a='=' {
-        self.raise_syntax_error_known_location("var-keyword argument cannot have default value", a)
-     }
-    | '**' param ',' a=param {
-        self.raise_syntax_error_known_location("arguments cannot follow var-keyword argument", a)
-     }
-    | '**' param ',' a=('*'|'**'|'/') {
-        self.raise_syntax_error_known_location("arguments cannot follow var-keyword argument", a)
-     }
-invalid_parameters_helper: # This is only there to avoid type errors
-    | a=slash_with_default { [a] }
-    | a=param_with_default+
-
-invalid_double_type_comments[NoReturn]:
-    | TYPE_COMMENT NEWLINE TYPE_COMMENT NEWLINE INDENT {
-        self.raise_syntax_error("Cannot have two type comments on def")
-     }
-invalid_with_item[NoReturn]:
-    | expression 'as' a=expression &(',' | ')' | ':') {
-        self.raise_syntax_error_invalid_target(Target.STAR_TARGETS, a)
-     }
-
-invalid_for_target[NoReturn]:
-    | 'async'? 'for' a=star_expressions {
-        self.raise_syntax_error_invalid_target(Target.FOR_TARGETS, a)
-     }
-
-invalid_group[NoReturn]:
-    | '(' a=starred_expression ')' {
-        self.raise_syntax_error_known_location("cannot use starred expression here", a)
-     }
-    | '(' a='**' expression ')' {
-        self.raise_syntax_error_known_location("cannot use double starred expression here", a)
-     }
-invalid_import:
-    | a='import' ','.dotted_name+ 'from' dotted_name {
-        self.raise_syntax_error_starting_from(
-            "Did you mean to use 'from ... import ...' instead?", a
-        )
-     }
-invalid_import_from_targets[NoReturn]:
-    | import_from_as_names ',' NEWLINE {
-        self.raise_syntax_error("trailing comma not allowed without surrounding parentheses")
-     }
-
-invalid_match_stmt[NoReturn]:
-    | "match" !'(' { self.raise_syntax_error("expected '('") }
-    | "match" '(' subject=subject_expr ')' NEWLINE* !'{' {
-        self.raise_syntax_error("expected '{'")
-     }
-
-invalid_as_pattern[NoReturn]:
-    | or_pattern 'as' a="_" {
-        self.raise_syntax_error_known_location("cannot use '_' as a target of as pattern", a)
-     }
-    | or_pattern 'as' !NAME {
-        self.raise_syntax_error("invalid as pattern target")
-     }
-invalid_class_pattern[NoReturn]:
-    | name_or_attr '(' a=invalid_class_argument_pattern  {
-        self.raise_syntax_error_known_range(
-            "positional patterns follow keyword patterns", a[0], a[-1]
-        )
-     }
-invalid_class_argument_pattern[List[ast.pattern]]:
-    | [positional_patterns ','] keyword_patterns ',' a=positional_patterns { a }
-
-invalid_double_starred_kvpairs[None]:
-    | ','.double_starred_kvpair+ ',' invalid_kvpair
-    | expression ':' a='*' bitwise_or {
-        self.raise_syntax_error_starting_from("cannot use a starred expression in a dictionary value", a)
-     }
-    | expression a=':' &('}'|',') {
-        self.raise_syntax_error_known_location("expression expected after dictionary key and ':'", a)
-     }
-invalid_kvpair[None]:
-    | a=expression !(':') {
-        self.raise_raw_syntax_error(
-            "':' expected after dictionary key",
-            (a.lineno, a.col_offset),
-            (a.end_lineno, a.end_col_offset)
-        )
-     }
-    | expression ':' a='*' bitwise_or {
-        self.raise_syntax_error_starting_from("cannot use a starred expression in a dictionary value", a)
-     }
-    | expression a=':' &('}'|',') {
-        self.raise_syntax_error_known_location(
-            "expression expected after dictionary key and ':'", a
-        )
-     }
-    | expression a=':' {
-        self.raise_syntax_error_known_location("expression expected after dictionary key and ':'", a)
-     }
-invalid_starred_expression:
-    | a='*' expression '=' b=expression {
-        self.raise_syntax_error_known_range(
-            "cannot assign to iterable argument unpacking", a, b
-        )
-     }
-invalid_replacement_field:
-    | '{' a='=' { self.raise_syntax_error_known_location("f-string: valid expression required before '='", a) }
-    | '{' a='!' { self.raise_syntax_error_known_location("f-string: valid expression required before '!'", a) }
-    | '{' a=':' { self.raise_syntax_error_known_location("f-string: valid expression required before ':'", a) }
-    | '{' a='}' { self.raise_syntax_error_known_location("f-string: valid expression required before '}'", a) }
-    | '{' !(yield_expr | star_expressions) {
-        self.raise_syntax_error_on_next_token(
-            "f-string: expecting a valid expression after '{'"
-        )
-     }
-    | '{' (yield_expr | star_expressions) !('=' | '!' | ':' | '}') {
-        self.raise_syntax_error_on_next_token("f-string: expecting '=', or '!', or ':', or '}'") }
-    | '{' (yield_expr | star_expressions) '=' !('!' | ':' | '}') {
-       self.raise_syntax_error_on_next_token("f-string: expecting '!', or ':', or '}'")
-     }
-    | '{' (yield_expr | star_expressions) '='? invalid_conversion_character
-    | '{' (yield_expr | star_expressions) '='? ['!' NAME] !(':' | '}') {
-        self.raise_syntax_error_on_next_token("f-string: expecting ':' or '}'")
-     }
-    | '{' (yield_expr | star_expressions) '='? ['!' NAME] ':' fstring_format_spec* !'}' {
-        self.raise_syntax_error_on_next_token("f-string: expecting '}', or format specs")
-     }
-    | '{' (yield_expr | star_expressions) '='? ['!' NAME] !'}' {
-        self.raise_syntax_error_on_next_token("f-string: expecting '}'")
-     }
-
-invalid_conversion_character:
-    | '!' &(':' | '}') { self.raise_syntax_error_on_next_token("f-string: missing conversion character") }
-    | '!' !NAME { self.raise_syntax_error_on_next_token("f-string: invalid conversion character") }
