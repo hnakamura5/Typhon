@@ -3,7 +3,7 @@ import sys
 
 from Typhon.SourceMap.source_ast_cache import SourceAstCache
 
-from ..Format.attach_comments import attach_comments, attach_comments_v2
+from ..Format.attach_comments import attach_comments
 from ..Format.doc_render import render_doc_to_string
 from ..Format.print_to_doc import print_to_doc
 from ..Grammar.parser import parse_file
@@ -37,7 +37,7 @@ def _format_file_or_error(source: Path) -> tuple[str | None, list[SyntaxError]]:
     if len(syntax_errors) > 0:
         return None, syntax_errors
     # attach_comments(parsed)
-    attach_comments_v2(
+    attach_comments(
         parsed,
         SourceAstCache(parsed, source.read_text(encoding="utf-8"), source.as_posix()),
     )

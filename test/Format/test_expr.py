@@ -175,10 +175,8 @@ let x = arr[1,2,]
 result_subscript_with_trailing_comma = """
 let x =
     arr[
-        (
-            1,
-            2,
-        )
+        1,
+        2,
     ]
 """
 
@@ -187,6 +185,24 @@ def test_format_subscript_with_trailing_comma():
     assert_render_pipeline(
         code_subscript_with_trailing_comma,
         result_subscript_with_trailing_comma,
+    )
+
+
+code_tuple_subscript_with_trailing_comma = """
+let x = arr[(1,2),]
+"""
+result_tuple_subscript_with_trailing_comma = """
+let x =
+    arr[
+        (1, 2),
+    ]
+"""
+
+
+def test_format_tuple_subscript_with_trailing_comma():
+    assert_render_pipeline(
+        code_tuple_subscript_with_trailing_comma,
+        result_tuple_subscript_with_trailing_comma,
     )
 
 

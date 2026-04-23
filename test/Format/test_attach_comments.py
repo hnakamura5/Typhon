@@ -1,6 +1,6 @@
 import ast
 
-from Typhon.Format.attach_comments import attach_comments, attach_comments_v2
+from Typhon.Format.attach_comments import attach_comments
 from Typhon.Grammar.parser import parse_string
 from Typhon.Grammar.typhon_ast import (
     get_dangling_comments,
@@ -14,7 +14,7 @@ def _parse_and_attach(source: str) -> ast.Module:
     module = parse_string(source, mode="exec")
     assert isinstance(module, ast.Module)
     # attach_comments(module)
-    attach_comments_v2(
+    attach_comments(
         module,
         SourceAstCache(module, source, "<string>"),
     )
@@ -194,5 +194,5 @@ def test_no_comments_leaves_empty():
 def test_no_tokens_does_nothing():
     """Module without lossless token info should not crash."""
     module = ast.Module(body=[], type_ignores=[])
-    attach_comments(module)
+    attach_comments(module, SourceAstCache(module, "", "<string>"))
     assert get_dangling_comments(module) == []

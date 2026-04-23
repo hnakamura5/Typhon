@@ -381,3 +381,9 @@ def show_token(
     tokens = tokenizer.read_all_tokens()
     for tok in tokens:
         print(f"    {tok}")
+
+
+def source_to_tokens(source: str) -> list[TokenInfo]:
+    tok_stream = token_stream_factory(io.StringIO(source).readline)
+    tokenizer = TokenizerCustom(tok_stream)
+    return tokenizer.read_all_tokens()

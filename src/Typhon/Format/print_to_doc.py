@@ -839,12 +839,17 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return self._maybe_wrap_group_paren(node, doc)
 
     def visit_Subscript(self, node: ast.Subscript) -> Doc:
+        # Special ad-hoc case where slice is tuple.
+        # x[a, b] is x[(a, b)] in AST.
+        # Problematic case is x[(a, b)], that is x[((a, b))] in AST, which is different semantics than the original code.
+        if isinstance(node.slice, ast.Tuple):
+            slice_doc = self._tuple_inner_doc(node.slice)
+        else:
+            slice_doc = self._visit_doc(node.slice)
         doc = group(
             [
                 self._visit_doc(node.value),
-                bracket(
-                    self._visit_doc(node.slice), optional_bracket=is_optional(node)
-                ),
+                bracket(slice_doc, optional_bracket=is_optional(node)),
             ]
         )
         return self._maybe_wrap_group_paren(node, doc)
@@ -907,7 +912,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         )
         return brace(items_doc)
 
-    def visit_Tuple(self, node: ast.Tuple) -> Doc:
+    def _tuple_inner_doc(self, node: ast.Tuple) -> Doc:
         comma_anchor_info = get_expr_comma_anchors(node)
         if len(node.elts) == 1 and (
             comma_anchor_info is None or comma_anchor_info.trailing_comma is None
@@ -919,6 +924,10 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 comma_anchor_info.commas if comma_anchor_info else None,
                 comma_anchor_info.trailing_comma if comma_anchor_info else None,
             )
+        return inner
+
+    def visit_Tuple(self, node: ast.Tuple) -> Doc:
+        inner = self._tuple_inner_doc(node)
         return paren(inner)
 
     def visit_comprehension(self, node: ast.comprehension) -> Doc:
