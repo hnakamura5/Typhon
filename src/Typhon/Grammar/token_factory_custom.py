@@ -412,11 +412,16 @@ def _generate_and_postprocess_tokens(
     """Generate tokens from readline, handling head space and  block comments."""
     block_comment_already_output: set[_BlockComment] = set()
     line_offset_already_consumed = 0
+    debug_verbose_print(
+        lambda: (
+            f"Start generating tokens _generate_and_postprocess_tokens with unconsumed_block_comment={unconsumed_block_comment} head_space_lines={head_space_lines}"
+        )
+    )
     # Adjust token positions from generated tokens, and mix in block comment tokens.
     for tok in generate_tokens_ignore_error(readline):
         debug_verbose_print(
             lambda: (
-                f"Generated token: {tok.string!r} type={tok.type} start={tok.start} end={tok.end}"
+                f"  Generated token: {tok.string!r} type={tok.type} start={tok.start} end={tok.end}"
             )
         )
         # Retrieve the line head spaces for this line.
@@ -438,7 +443,7 @@ def _generate_and_postprocess_tokens(
         ):
             debug_verbose_print(
                 lambda: (
-                    f"pop block comment token: {block_comment.comment!r} start=({block_comment.start_line}, {block_comment.start_col}) end=({block_comment.end_line}, {block_comment.end_col}) because it's before token {tok.string!r} at start={start}"
+                    f"  pop block comment token: {block_comment.comment!r} start=({block_comment.start_line}, {block_comment.start_col}) end=({block_comment.end_line}, {block_comment.end_col}) because it's before token {tok.string!r} at start={start}"
                 )
             )
             # Pop away comments that will never affect to remaining tokens.
@@ -461,13 +466,7 @@ def _generate_and_postprocess_tokens(
             # This block comment is before the token, yield here first.
             if block_comment not in block_comment_already_output:
                 block_comment_already_output.add(block_comment)
-                debug_verbose_print(
-                    lambda: (
-                        f"Yielding block comment at start=({block_comment.start_line}, {block_comment.start_col}) "
-                        f"end=({block_comment.end_line}, {block_comment.end_col})"
-                    )
-                )
-                yield set_is_block_comment(
+                result = set_is_block_comment(
                     TokenInfo(
                         type=tokenize.COMMENT,
                         string=block_comment.comment,
@@ -476,6 +475,13 @@ def _generate_and_postprocess_tokens(
                         line=block_comment.lines,
                     )
                 )
+                debug_verbose_print(
+                    lambda: (
+                        f"Yielding block comment {result!r} at start=({block_comment.start_line}, {block_comment.start_col}) "
+                        f"end=({block_comment.end_line}, {block_comment.end_col})"
+                    )
+                )
+                yield result
             # The length of the last line of block comment.
             block_comment_last_line_len = (
                 block_comment.end_col - block_comment.start_col
@@ -485,7 +491,7 @@ def _generate_and_postprocess_tokens(
             # Adjust start position
             debug_verbose_print(
                 lambda: (
-                    f"Adjusting token start {tok.string!r} adjusted_start: {(adjusted_start_line, adjusted_start_col)} adjusted_end:{(adjusted_end_col, adjusted_end_col)} block_comment.start_col: {block_comment.start_col} block_comment.end_col:{block_comment.end_col} block_comment_last_line_len: {block_comment_last_line_len}  block_comment.start_line: {block_comment.start_line} block_comment.end_line: {block_comment.end_line}"
+                    f"  Adjusting token start {tok.string!r} adjusted_start: {(adjusted_start_line, adjusted_start_col)} adjusted_end:{(adjusted_end_col, adjusted_end_col)} block_comment.start_col: {block_comment.start_col} block_comment.end_col:{block_comment.end_col} block_comment_last_line_len: {block_comment_last_line_len}  block_comment.start_line: {block_comment.start_line} block_comment.end_line: {block_comment.end_line}"
                 )
             )
             # Line start adjustment: shift down by number of lines in block comment.
@@ -525,33 +531,28 @@ def _generate_and_postprocess_tokens(
             )
             debug_verbose_print(
                 lambda: (
-                    f"Block Comment Adjusting token {tok.string!r} to start=({adjusted_start_line}, {adjusted_start_col}) "
+                    f"  Block Comment Adjusting token {tok.string!r} to start=({adjusted_start_line}, {adjusted_start_col}) "
                     f"end=({adjusted_end_line}, {adjusted_end_col}) due to block comment"
                 )
             )
-        debug_verbose_print(
-            lambda: (
-                f"Yielding token {tok.string!r} at adjusted start=({adjusted_start_line}, {adjusted_start_col}) "
-                f"end=({adjusted_end_line}, {adjusted_end_col})"
-            )
-        )
-        yield TokenInfo(
+        result = TokenInfo(
             type=_regularize_token_type(tok.type),
             string=tok.string,
             start=(adjusted_start_line, adjusted_start_col),
             end=(adjusted_end_line, adjusted_end_col),
             line=tok.line,
         )
+        debug_verbose_print(
+            lambda: (
+                f"Yielding token {result!r} at adjusted start=({adjusted_start_line}, {adjusted_start_col}) "
+                f"end=({adjusted_end_line}, {adjusted_end_col})"
+            )
+        )
+        yield result
     for block_comment in unconsumed_block_comment:
         # Yield remaining unconsumed block comments at the end.
         if block_comment not in block_comment_already_output:
-            debug_verbose_print(
-                lambda: (
-                    f"Yielding remaining block comment at end: start=({block_comment.start_line}, {block_comment.start_col}) "
-                    f"end=({block_comment.end_line}, {block_comment.end_col})"
-                )
-            )
-            yield set_is_block_comment(
+            result = set_is_block_comment(
                 TokenInfo(
                     type=tokenize.COMMENT,
                     string=block_comment.comment,
@@ -560,6 +561,13 @@ def _generate_and_postprocess_tokens(
                     line=block_comment.lines,
                 )
             )
+            debug_verbose_print(
+                lambda: (
+                    f"Yielding remaining block comment {result!r} at end: start=({block_comment.start_line}, {block_comment.start_col}) "
+                    f"end=({block_comment.end_line}, {block_comment.end_col})"
+                )
+            )
+            yield result
 
 
 def token_stream_factory(readline: Callable[[], str]) -> Iterator[TokenInfo]:
