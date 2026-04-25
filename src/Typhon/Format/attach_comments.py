@@ -14,6 +14,7 @@ from ..Grammar.typhon_ast import (
     add_leading_comments,
     add_trailling_comments,
     get_lossless_token_info,
+    is_function_literal_def,
 )
 
 
@@ -65,6 +66,14 @@ def _node_attachable_comment_to(
     tok_node = ast_cache.source_range_to_node(tok_range, filter_node_type)
     if not tok_node:
         return None
+    if filter_node_type is ast.stmt:
+        parent: ast.AST | None = tok_node
+        while parent is not None:
+            if isinstance(
+                parent, (ast.FunctionDef, ast.AsyncFunctionDef)
+            ) and is_function_literal_def(parent):
+                return None
+            parent = ast_cache.parent_map.get(parent)
     if not isinstance(tok_node, PosNode):
         return None
     tok_node_range = Range.from_pos_attr(get_pos_attributes(tok_node))
@@ -92,6 +101,13 @@ def _select_before_or_after(
         return "after", after_node
     assert before_node and after_node, "At least one node must be present"
     assert isinstance(before_node, PosNode) and isinstance(after_node, PosNode)
+    if (
+        comment.after_non_comment_tok is not None
+        and comment.after_non_comment_tok.string in {".", "import"}
+        and isinstance(after_node, ast.Name)
+        and after_node.id == comment.after_non_comment_tok.string
+    ):
+        return "after", after_node
     # If both nodes are present, select the one based on line similarity.
     before_line = get_pos_attributes(before_node)["end_lineno"]
     after_line = get_pos_attributes(after_node)["lineno"]

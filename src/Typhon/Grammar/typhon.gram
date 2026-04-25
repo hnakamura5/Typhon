@@ -22,11 +22,13 @@ from .typhon_ast import (
     make_genexp, make_listcomp, make_setcomp, make_dictcomp,
     make_with_comp, make_try_comp, make_try_comp_except, make_match_comp,
     make_match_comp_case, make_while_comp, make_if_let_comp,
-    make_while_let_comp, make_let_comp, make_try,
+    make_while_let_comp, make_let_comp, make_try, make_except_handler,
     make_record_literal, make_record_type, make_attributes_pattern, make_tuple_pattern, make_for_let_pattern, make_with_let_pattern, make_inline_with_let_pattern, make_class_def,
     make_match_case, make_alias, make_import_from, make_arguments, make_attribute,
-    make_arg, make_match_class, ImportDotNames,  set_completion_trigger_anchor_token,
-    CallArgs, set_call_anchors, set_is_empty_pass, set_expr_comma_anchors_from_sequence,
+    make_arg, make_keyword, make_type_var, make_type_var_tuple, make_param_spec,
+    make_formatted_value, make_match_class, ImportDotNames,  set_completion_trigger_anchor_token,
+    set_defined_name_token,
+    set_prefix_trigger_anchor_token, CallArgs, set_call_anchors, set_is_empty_pass, set_expr_comma_anchors_from_sequence,
     set_wrapper_paren_tokens, set_constant_raw_tokens
 )
 from .position import (
@@ -280,9 +282,9 @@ declaration_assignment[List[ast.stmt]]:
 
 # let-else / var-else
 declaration_else:
-    | d=decl_keyword pat_sub=','.pattern_assignment+ e=['else' b=block {b}] {
+    | d=decl_keyword pat_sub=','.pattern_assignment+ e=[k='else' b=block { TrailingBlock(k, b) }] {
         let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
-            node=make_if_let(decl_type=d, pattern_subjects=pat_sub, cond=None, body=[], orelse=e, is_let_else=True, LOCATIONS)
+            node=make_if_let(decl_type=d, pattern_subjects=pat_sub, cond=None, body=[], orelse=e.body if e else [], is_let_else=True, else_block=e, LOCATIONS)
         )
      }
 
@@ -291,7 +293,7 @@ declaration_single_assignment[Tuple[ast.expr, Optional[ast.expr], Optional[ast.e
     | a=decl_star_target '=' c=annotated_rhs { (a, None, c) }
 
 pattern_assignment[Tuple[ast.pattern, ast.expr]]:
-    | pattern=pattern '=' subject=star_named_expression { (pattern, subject) }
+    | pattern=pattern eq='=' subject=star_named_expression { (pattern, set_prefix_trigger_anchor_token(subject, eq)) }
 
 # Operator like form statements
 # -----------------------------
@@ -328,9 +330,13 @@ import_stmt[ast.Import]:
 # Import statements
 # -----------------
 
-import_name[ast.Import]: 'import' a=dotted_as_names { ast.Import(names=a, LOCATIONS) }
+import_name[ast.Import]: k='import' a=dotted_as_names {
+    set_block_stmt_anchors(ast.Import(names=a, LOCATIONS), BlockStmtAnchors.make(keywords=[k]))
+}
 dotted_as_names[List[ast.alias]]:
-    | a=','.dotted_as_name+ { a }
+    | a=dotted_as_name b=(c=',' z=dotted_as_name { (c, z) })* {
+        [a] + [set_completion_trigger_anchor_token(z, c) for c, z in b]
+     }
 
 dotted_as_name[ast.alias]:
     | a=dotted_name b=[ c='as' z=[NAME] { (c, z) }] {
@@ -343,14 +349,20 @@ dotted_as_name[ast.alias]:
 
 # note below: the ('.' | '...') is necessary because '...' is tokenized as ELLIPSIS
 import_from[ast.ImportFrom]:
-    | 'from' a=('.' | '...')* b=dotted_name 'import' c=import_from_targets {
-        set_completion_trigger_anchor_token(
-            make_import_from(module=b, names=c, level=self.extract_import_level(a), LOCATIONS), a[-1] if a else None
+    | f='from' a=('.' | '...')* b=dotted_name i='import' c=import_from_targets {
+        set_block_stmt_anchors(
+            set_completion_trigger_anchor_token(
+                make_import_from(module=b, names=c, level=self.extract_import_level(a), LOCATIONS), a[-1] if a else None
+            ),
+            BlockStmtAnchors.make(keywords=[f, i]),
         )
      }
-    | 'from' a=('.' | '...')+ 'import' b=import_from_targets {
-        set_completion_trigger_anchor_token(
-            make_import_from(module=None, names=b, level=self.extract_import_level(a), LOCATIONS), a[-1]
+    | f='from' a=('.' | '...')+ i='import' b=import_from_targets {
+        set_block_stmt_anchors(
+            set_completion_trigger_anchor_token(
+                make_import_from(module=None, names=b, level=self.extract_import_level(a), LOCATIONS), a[-1]
+            ),
+            BlockStmtAnchors.make(keywords=[f, i]),
         )
      }
 import_from_targets[List[ast.alias]]:
@@ -359,7 +371,9 @@ import_from_targets[List[ast.alias]]:
     | '*' { [ast.alias(name="*", asname=None, LOCATIONS)] }
   #  | invalid_import_from_targets
 import_from_as_names[List[ast.alias]]:
-    | a=','.import_from_as_name+ { a }
+    | a=import_from_as_name b=(c=',' z=import_from_as_name { (c, z) })* {
+        [a] + [set_completion_trigger_anchor_token(z, c) for c, z in b]
+     }
 import_from_as_name[ast.alias]:
     | a=NAME b=[ c='as' z=[NAME] { (c, z) }] {
             make_alias(self, name=maybe_invalid_import_dot_names(self, None, a, None, LOCATIONS),
@@ -439,8 +453,9 @@ class_def_raw[ast.ClassDef]:
                 body=c,
                 decorator_list=[],
                 type_params=t[0] if t else [],
-                type_params_trailing_comma=t[1] if t else None,
-                type_param_brackets=(t[2], t[3]) if t else None,
+                type_param_commas=t[1] if t else [],
+                type_params_trailing_comma=t[2] if t else None,
+                type_param_brackets=(t[3], t[4]) if t else None,
                 open_anchor=(n[0] if n else k),
                 begin_tokens=[k],
                 LOCATIONS,
@@ -456,7 +471,7 @@ function_def[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
     | f=function_def_raw {self.set_decorators(f, [])}
 
 function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
-    | st=['static'] asc=['async'] k='def' n=[NAME_OR_UNUSABLE] t=[type_params] lp=['('] params=[params] rp=[')'] colon=[':'] a=[typing_arrow_return_type] tc=[func_type_comment] NEWLINE*  b=maybe_block {
+    | st=['static'] asc=['async'] k='def' n=[NAME_OR_UNUSABLE] t=[type_params] lp=['('] params=[params] rp=[')'] colon=[':'] a=[arrow='->' z=typing_expression { (arrow, z) }] tc=[func_type_comment] NEWLINE*  b=maybe_block {
         recover_maybe_invalid_function_def_raw(
             self,
             is_async=(asc is not None),
@@ -466,12 +481,14 @@ function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
             args=params,
             close_paren=rp,
             invalid_colon=colon,
-            returns=a,
+            returns=a[1] if a else None,
+            return_arrow=a[0] if a else None,
             body=b,
             type_comment=tc,
             type_params=t[0] if t else [],
-            type_params_trailing_comma=t[1] if t else None,
-            type_param_brackets=(t[2], t[3]) if t else None,
+            type_param_commas=t[1] if t else [],
+            type_params_trailing_comma=t[2] if t else None,
+            type_param_brackets=(t[3], t[4]) if t else None,
             open_anchor=(n[0] if n else k),
             close_anchor=(params or (n[0] if n else k)),
             begin_tokens=[st, asc, k],
@@ -577,8 +594,8 @@ if_stmt[ast.stmt]:
         )
      }
     # if-let statement as pattern matching
-    | k='if' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=elif_stmt {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k], body=b,
+    | k='if' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[s=';' a=named_expression { set_prefix_trigger_anchor_token(a, s) }] rp=[')'] NEWLINE* b=maybe_block c=elif_stmt {
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k, d], body=b,
             close_anchor=(cond or pat_sub[-1][1]),
             node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
                     node=make_if_let(decl_type=d, pattern_subjects=pat_sub, cond=cond,
@@ -586,8 +603,8 @@ if_stmt[ast.stmt]:
             )
         )
      }
-    | k='if' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k],
+    | k='if' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[s=';' a=named_expression { set_prefix_trigger_anchor_token(a, s) }] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k, d],
             close_anchor=(cond or pat_sub[-1][1]), body=b, else_block=c,
             node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
                     node=make_if_let(decl_type=d, pattern_subjects=pat_sub, cond=cond,
@@ -608,8 +625,8 @@ elif_stmt[List[ast.stmt]]:
         )]
      }
     # elif-let statement as pattern matching
-    | k='elif' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=elif_stmt {
-        [maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k],
+    | k='elif' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[s=';' a=named_expression { set_prefix_trigger_anchor_token(a, s) }] rp=[')'] NEWLINE* b=maybe_block c=elif_stmt {
+        [maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k, d],
             close_anchor=(cond or pat_sub[-1][1]), body=b,
             node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
                     node=make_if_let(decl_type=d, pattern_subjects=pat_sub, cond=cond,
@@ -617,8 +634,8 @@ elif_stmt[List[ast.stmt]]:
             )
         )]
      }
-    | k='elif' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
-        [maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k],
+    | k='elif' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[s=';' a=named_expression { set_prefix_trigger_anchor_token(a, s) }] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
+        [maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k, d],
             close_anchor=(cond or pat_sub[-1][1]), body=b, else_block=c,
             node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
                     node=make_if_let(decl_type=d, pattern_subjects=pat_sub, cond=cond,
@@ -641,8 +658,8 @@ while_stmt[ast.While]:
         )
      }
     # while-let statement as pattern matching
-    | k='while' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k], body=b, else_block=c,
+    | k='while' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[s=';' a=named_expression { set_prefix_trigger_anchor_token(a, s) }] rp=[')'] NEWLINE* b=maybe_block c=[else_block] {
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, begin_tokens=[k, d], body=b, else_block=c,
             close_anchor=(cond or pat_sub[-1][1]),
             node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
                 node=make_while_let(pattern_subjects=pat_sub, cond=cond, body=b, orelse=c.body if c else [], LOCATIONS)
@@ -750,37 +767,37 @@ try_stmt_with_error[ast.Try]:
 # ----------------
 
 except_star_block[ast.ExceptHandler]:
-    | ex='except' k='*' lp=['('] a=expression ',' es=expressions t=['as' z=NAME { z.string }] rp=[')'] b=maybe_block {
+    | ex='except' k='*' lp=['('] a=expression ',' es=expressions t=['as' z=NAME { z }] rp=[')'] b=maybe_block {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or es.elts[-1]), begin_tokens=[ex, k],
             message="multiple exception types must be parenthesized",
-            node=ast.ExceptHandler(type=a, name=t, body=b, LOCATIONS)
+            node=make_except_handler(a, t, b, LOCATIONS)
         )
      }
     | a='except' k='*' NEWLINE* &'{' b=maybe_block {
         maybe_invalid_stmt(self, None, None, open_anchor=k, close_anchor=k, begin_tokens=[a, k], body=b,
             message="expected one or more exception types for except *",
-            node=ast.ExceptHandler(type=None, name=None, body=b, LOCATIONS)
+            node=make_except_handler(None, None, b, LOCATIONS)
         )
      }
-    | k='except' '*' lp=['('] e=expression t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* &'{' b=maybe_block {
-        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or e), begin_tokens=[k], body=b,
-            node=ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS)
+    | k='except' s='*' lp=['('] e=expression t=['as' z=NAME { z }] rp=[')'] NEWLINE* &'{' b=maybe_block {
+        maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or e), begin_tokens=[k, s], body=b,
+            node=make_except_handler(e, t, b, LOCATIONS)
         )
      }
 
 except_block[ast.ExceptHandler]:
-    | k='except' !'*' lp=['('] a=expression ',' es=expressions t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* b=maybe_block {
+    | k='except' !'*' lp=['('] a=expression ',' es=expressions t=['as' z=NAME { z }] rp=[')'] NEWLINE* b=maybe_block {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or es.elts[-1]), begin_tokens=[k], body=b,
             message="multiple exception types must be parenthesized",
-            node=ast.ExceptHandler(type=a, name=t, body=b, LOCATIONS)
+            node=make_except_handler(a, t, b, LOCATIONS)
         )
      }
-    | k='except' !'*' lp=['('] e=expression t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* b=maybe_block {
+    | k='except' lp=['('] e=expression t=['as' z=NAME { z }] rp=[')'] NEWLINE* &'{' b=maybe_block {
         maybe_invalid_stmt(self, lp, rp, open_anchor=k, close_anchor=(t or e), begin_tokens=[k], body=b,
-            node=ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS)
+            node=make_except_handler(e, t, b, LOCATIONS)
         )
      }
-    | 'except' !'*' b=maybe_block { ast.ExceptHandler(type=None, name=None, body=b, LOCATIONS) }
+    | 'except' !'*' b=maybe_block { make_except_handler(None, None, b, LOCATIONS) }
 
 finally_block[TrailingBlock]:
     | f='finally' a=maybe_block { TrailingBlock(f, a) }
@@ -788,9 +805,6 @@ finally_block[TrailingBlock]:
 
 # Match statement
 # ---------------
-
-# We cannot do version checks here since the production will occur after any other
-# production which will have failed since the ast module does not have the right nodes.
 match_stmt["ast.Match"]:
     | k="match" lp=['('] subject=subject_expr rp=[')'] NEWLINE* lb=['{'] cases=case_block+ rb=['}'] {
         maybe_invalid_braces(self, lb, rb, open_anchor=(rp or subject),
@@ -835,7 +849,7 @@ pattern:
 
 as_pattern["ast.MatchAs"]:
     | pattern=or_pattern 'as' target=pattern_capture_target_annot {
-        set_type_annotation(ast.MatchAs(pattern=pattern, name=target[0].id, LOCATIONS), target[1])
+        set_type_annotation(set_defined_name_token(ast.MatchAs(pattern=pattern, name=target[0].id, LOCATIONS), target[0]), target[1])
      }
     | as_pattern_with_error
 
@@ -921,7 +935,7 @@ imaginary_number[ast.Constant]:
 
 capture_pattern:
     | target=pattern_capture_target_annot {
-        set_type_annotation(ast.MatchAs(pattern=None, name=target[0].id, LOCATIONS), target[1])
+        set_type_annotation(set_defined_name_token(ast.MatchAs(pattern=None, name=target[0].id, LOCATIONS), target[0]), target[1])
      }
 
 # Allow '=' after name for if-net statement
@@ -1099,7 +1113,7 @@ positional_pattern:
 
 positional_as_pattern["ast.MatchAs"]:
     | pattern=positional_or_pattern 'as' target=positional_pattern_capture_target_annot {
-        set_type_annotation(ast.MatchAs(pattern=pattern, name=target[0].id, LOCATIONS), target[1])
+        set_type_annotation(set_defined_name_token(ast.MatchAs(pattern=pattern, name=target[0].id, LOCATIONS), target[0]), target[1])
      }
     | as_pattern_with_error
 
@@ -1116,7 +1130,7 @@ positional_pattern_capture_target_annot[tuple[ast.Name, ast.expr | None]]:
 
 positional_capture_pattern:
     | target=positional_pattern_capture_target_annot {
-        set_type_annotation(ast.MatchAs(pattern=None, name=target[0].id, **get_pos_attributes(target[0])), target[1])
+        set_type_annotation(set_defined_name_token(ast.MatchAs(pattern=None, name=target[0].id, **get_pos_attributes(target[0])), target[0]), target[1])
      }
 
 positional_value_pattern["ast.MatchValue"]:
@@ -1163,7 +1177,7 @@ type_alias["ast.TypeAlias"]:
                     ),
                     BlockStmtAnchors.make(
                         keywords=[k],
-                        type_param_brackets=(t[2], t[3]) if t else None,
+                        type_param_brackets=(t[3], t[4]) if t else None,
                     ),
                 )
                 if sys.version_info >= (3, 12)
@@ -1175,19 +1189,22 @@ type_alias["ast.TypeAlias"]:
 # Type parameter declaration
 # --------------------------
 
-type_params[Tuple[List[ast.type_param], TokenInfo | None, TokenInfo, TokenInfo]]: lb='[' t=type_param_seq rb=']' {
+type_params[Tuple[List[ast.type_param], List[TokenInfo], TokenInfo | None, TokenInfo, TokenInfo]]: lb='[' t=type_param_seq rb=']' {
     self.check_version(
         (3, 12),
         "Type parameter lists are",
-        (t[0], t[1], lb, rb)
+        (t[0], t[1], t[2], lb, rb)
     )
  }
 
-type_param_seq[Tuple[List[ast.type_param], TokenInfo | None]]: a=','.type_param+ c=[','] { (a, c) }
+type_param_seq[Tuple[List[ast.type_param], List[TokenInfo], TokenInfo | None]]:
+    | a=type_param b=(c=',' z=type_param { (c, z) })* t=[','] {
+        ([a] + [pair[1] for pair in b], [pair[0] for pair in b], t)
+     }
 
 type_param[ast.type_param](memo):
     | a=NAME b=[type_param_bound] {
-        ast.TypeVar(name=a.string, bound=b, LOCATIONS)
+        make_type_var(a, b, LOCATIONS)
         if sys.version_info >= (3, 12)
         else object()
      }
@@ -1200,7 +1217,7 @@ type_param[ast.type_param](memo):
         )
      }
     | '*' a=NAME {
-        ast.TypeVarTuple(name=a.string, LOCATIONS)
+        make_type_var_tuple(a, LOCATIONS)
         if sys.version_info >= (3, 12)
         else object()
      }
@@ -1213,7 +1230,7 @@ type_param[ast.type_param](memo):
         )
      }
     | '**' a=NAME {
-        ast.ParamSpec(name=a.string, LOCATIONS)
+        make_param_spec(a, LOCATIONS)
         if sys.version_info >= (3, 12)
         else object()
      }
@@ -1289,19 +1306,22 @@ typing_arrow_return_type[ast.expr]:
     | '->' a=typing_expression { a }
 
 typing_arrow_type[ast.expr]:
-    | '(' a=typing_arrow_param* c=[typing_arrow_star_etc] ')' r=typing_arrow_return_type {
-        make_arrow_type(a, c, r, LOCATIONS)
+    | lp='(' a=typing_arrow_param* c=[typing_arrow_star_etc] ')' r=typing_arrow_return_type {
+        make_arrow_type(a, c, r, open_paren=lp, LOCATIONS)
     }
 
 # EXPRESSIONS
 # -----------
 
 expressions:
-    | '(' a=expression b=(',' c=expression { c })+ t=[','] ')' {
-        set_expr_comma_anchors_from_sequence(
-            ast.Tuple(elts=[a] + b, ctx=Load, LOCATIONS),
-            [a] + b,
-            t,
+    | lp='(' a=expression b=(',' c=expression { c })+ t=[','] ')' {
+        set_completion_trigger_anchor_token(
+            set_expr_comma_anchors_from_sequence(
+                ast.Tuple(elts=[a] + b, ctx=Load, LOCATIONS),
+                [a] + b,
+                t,
+            ),
+            lp,
         ) }
     | a=expression c=',' {
         set_expr_comma_anchors_from_sequence(
@@ -1316,7 +1336,9 @@ expression (memo):
     | pipe_operator
 
 yield_expr:
-    | 'yield' 'from' a=expression { ast.YieldFrom(value=a, LOCATIONS) }
+    | 'yield' f='from' a=expression {
+        ast.YieldFrom(value=set_prefix_trigger_anchor_token(a, f), LOCATIONS)
+     }
     | 'yield' a=[star_expressions] { ast.Yield(value=a, LOCATIONS) }
 
 star_expressions:
@@ -1616,7 +1638,7 @@ group:
 
 
 function_literal:
-    | '(' p=params ')' a=[typing_arrow_return_type] '=>' ~ b=(block | expression) { make_function_literal(args=p, returns=a, body=b, LOCATIONS) }
+    | lp='(' p=params ')' a=[typing_arrow_return_type] arrow='=>' ~ b=(block | expression) { make_function_literal(args=p, returns=a, body=b, open_paren=lp, arrow=arrow, LOCATIONS) }
 
 
 # Expression Error Recovery
@@ -1647,16 +1669,14 @@ fstring_mid[ast.expr]:
     | fstring_replacement_field
     | t=FSTRING_MIDDLE { set_constant_raw_tokens(ast.Constant(value=t.string, LOCATIONS), [t]) }
 fstring_replacement_field[ast.FormattedValue]:
-    | '{' a=(yield_expr | star_expressions) debug_expr="="? conversion=[fstring_conversion] format=[fstring_full_format_spec] rbrace='}' {
-        ast.FormattedValue(
+    | lbrace='{' a=(yield_expr | star_expressions) debug_expr="="? conversion=[fstring_conversion] format=[fstring_full_format_spec] rbrace='}' {
+        make_formatted_value(
             value=a,
-            conversion=(
-                conversion.string.encode()[0]
-                if conversion else
-                (b'r'[0] if debug_expr else -1)
-            ),
+            conversion=conversion,
             format_spec=format,
-            LOCATIONS
+            open_brace=lbrace,
+            debug_expr=debug_expr is not None,
+            LOCATIONS,
         )
      }
 fstring_conversion[int]:
@@ -1681,30 +1701,39 @@ strings (memo): a=(fstring|STRING)+ {
  }
 
 list[ast.List]:
-    | '[' a=star_named_expressions_trailing ']' {
-        set_expr_comma_anchors_from_sequence(
-            ast.List(elts=a[0], ctx=Load, LOCATIONS),
-            a[0],
-            a[1],
+    | lb='[' a=star_named_expressions_trailing ']' {
+        set_completion_trigger_anchor_token(
+            set_expr_comma_anchors_from_sequence(
+                ast.List(elts=a[0], ctx=Load, LOCATIONS),
+                a[0],
+                a[1],
+            ),
+            lb,
         )
      }
-    | '[' ']' { ast.List(elts=[], ctx=Load, LOCATIONS) }
+    | lb='[' ']' { set_completion_trigger_anchor_token(ast.List(elts=[], ctx=Load, LOCATIONS), lb) }
 
 tuple[ast.Tuple]:
-    | '(' y=star_named_expression c=',' z=[star_named_expressions_trailing] ')' {
-        set_expr_comma_anchors_from_sequence(
-            ast.Tuple(elts=[y] + (z[0] if z is not None else []), ctx=Load, LOCATIONS),
-            [y] + (z[0] if z is not None else []),
-            c if z is None else z[1],
+    | lp='(' y=star_named_expression c=',' z=[star_named_expressions_trailing] ')' {
+        set_completion_trigger_anchor_token(
+            set_expr_comma_anchors_from_sequence(
+                ast.Tuple(elts=[y] + (z[0] if z is not None else []), ctx=Load, LOCATIONS),
+                [y] + (z[0] if z is not None else []),
+                c if z is None else z[1],
+            ),
+            lp,
         )
      }
 
 set[ast.Set]:
-    | '{' a=star_named_expressions_trailing '}' {
-        set_expr_comma_anchors_from_sequence(
-            ast.Set(elts=a[0], LOCATIONS),
-            a[0],
-            a[1],
+    | lb='{' a=star_named_expressions_trailing '}' {
+        set_completion_trigger_anchor_token(
+            set_expr_comma_anchors_from_sequence(
+                ast.Set(elts=a[0], LOCATIONS),
+                a[0],
+                a[1],
+            ),
+            lb,
         )
      }
 
@@ -1712,18 +1741,21 @@ set[ast.Set]:
 # -----
 
 dict[ast.Dict]:
-    | '{' a=','.double_starred_kvpair+ c=[','] '}' {
-        set_expr_comma_anchors_from_sequence(
-            ast.Dict(
-                keys=[kv[0] for kv in a],
-                values=[kv[1] for kv in a],
-                LOCATIONS,
+    | lb='{' a=','.double_starred_kvpair+ c=[','] '}' {
+        set_completion_trigger_anchor_token(
+            set_expr_comma_anchors_from_sequence(
+                ast.Dict(
+                    keys=[kv[0] for kv in a],
+                    values=[kv[1] for kv in a],
+                    LOCATIONS,
+                ),
+                [kv[1] for kv in a],
+                c,
             ),
-            [kv[1] for kv in a],
-            c,
+            lb,
         )
      }
-    | '{' '}' { ast.Dict(keys=[], values=[], LOCATIONS) }
+    | lb='{' '}' { set_completion_trigger_anchor_token(ast.Dict(keys=[], values=[], LOCATIONS), lb) }
 
 star_named_expressions_trailing[Tuple[List[ast.expr], TokenInfo | None]]:
     | a=','.star_named_expression+ c=[','] { (a, c) }
@@ -1732,7 +1764,7 @@ double_starred_kvpairs[List[Tuple[ast.expr | None, ast.expr]]]:
     | a=','.double_starred_kvpair+ [','] { a }
 
 double_starred_kvpair[Tuple[ast.expr | None, ast.expr]]:
-    | '**' a=bitwise_or { (None, a) }
+    | op='**' a=bitwise_or { (None, set_prefix_trigger_anchor_token(a, op)) }
     | kvpair
 
 kvpair[Tuple[ast.expr, ast.expr]]: a=expression ':' b=expression { (a, b) }
@@ -1744,22 +1776,28 @@ record_literal_field[Tuple[ast.Name, ast.expr | None, ast.expr]]:
     | a=symbol b=annotation? '=' c=expression { (a, b, c) }
 
 record_literal[ast.Name]:
-    | '{|' fs=','.record_literal_field+ c=[','] '|}' {
-        set_expr_comma_anchors_from_sequence(
-            make_record_literal(fs, LOCATIONS),
-            [v for _, _, v in fs],
-            c,
+    | lb='{|' fs=','.record_literal_field+ c=[','] '|}' {
+        set_completion_trigger_anchor_token(
+            set_expr_comma_anchors_from_sequence(
+                make_record_literal(fs, LOCATIONS),
+                [v for _, _, v in fs],
+                c,
+            ),
+            lb,
         )
      }
 
 record_type_field[Tuple[ast.Name, ast.expr]]:
     | a=symbol b=annotation { (a, b) }
 record_type[ast.Name]:
-    | '{|' fs=','.record_type_field+ c=[','] '|}' {
-        set_expr_comma_anchors_from_sequence(
-            make_record_type(fs, LOCATIONS),
-            [t for _, t in fs],
-            c,
+    | lb='{|' fs=','.record_type_field+ c=[','] '|}' {
+        set_completion_trigger_anchor_token(
+            set_expr_comma_anchors_from_sequence(
+                make_record_type(fs, LOCATIONS),
+                [t for _, t in fs],
+                c,
+            ),
+            lb,
         )
      }
 
@@ -2072,12 +2110,12 @@ starred_expression[ast.Starred]:
     | '*' { self.raise_syntax_error("Invalid star expression") }
 
 kwarg_or_starred[ast.keyword | ast.expr]:
-    | a=NAME '=' b=expression { ast.keyword(arg=a.string, value=b, LOCATIONS) }
+    | a=NAME '=' b=expression { make_keyword(a, b, LOCATIONS) }
     | a=starred_expression { a }
 
 kwarg_or_double_starred[ast.keyword]:
-    | a=NAME '=' b=expression { ast.keyword(arg=a.string, value=b, LOCATIONS) }   # XXX Unreachable
-    | '**' a=expression { ast.keyword(arg=None, value=a, LOCATIONS) }
+    | a=NAME '=' b=expression { make_keyword(a, b, LOCATIONS) }   # XXX Unreachable
+    | op='**' a=expression { make_keyword(None, a, prefix=op, LOCATIONS) }
 
 # ASSIGNMENT TARGETS
 # ==================

@@ -27,7 +27,7 @@
                 "chat.tools.autoApprove": true,
                 "chat.tools.edits.autoApprove": true,
                 "chat.tools.terminal.autoApprove": true,
-                "chat.agent.maxRequests": 100
+                "chat.agent.maxRequests": 1000
             }
         }
     }

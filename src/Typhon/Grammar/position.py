@@ -164,6 +164,23 @@ def clear_completion_trigger_anchor(node: ast.AST):
         delattr(node, _COMPLETION_TRIGGER_ANCHOR)
 
 
+_PREFIX_TRIGGER_ANCHOR = "_typh_prefix_trigger_anchor"
+
+
+def set_prefix_trigger_anchor[T: ast.AST](node: T, anchor: ast.Name | None) -> T:
+    setattr(node, _PREFIX_TRIGGER_ANCHOR, anchor)
+    return node
+
+
+def get_prefix_trigger_anchor(node: ast.AST) -> ast.Name | None:
+    return getattr(node, _PREFIX_TRIGGER_ANCHOR, None)
+
+
+def clear_prefix_trigger_anchor(node: ast.AST):
+    if hasattr(node, _PREFIX_TRIGGER_ANCHOR):
+        delattr(node, _PREFIX_TRIGGER_ANCHOR)
+
+
 @dataclass
 class ExprCommaAnchors:
     commas: list[ast.Name]

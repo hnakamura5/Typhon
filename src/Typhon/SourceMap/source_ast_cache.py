@@ -10,6 +10,7 @@ from ..Grammar.position import (
     get_class_type_param_comma_anchors,
     get_block_stmt_anchors,
     get_completion_trigger_anchor,
+    get_prefix_trigger_anchor,
     get_expr_comma_anchors,
     get_function_arg_comma_anchors,
     get_function_literal_arg_comma_anchors,
@@ -20,9 +21,14 @@ from ..Grammar.position import (
     get_return_type_annotation_anchor,
 )
 from ..Grammar.typhon_ast import (
+    get_defined_name,
+    get_function_literal_def,
+    get_import_from_names,
+    get_lossless_token_info,
     is_function_literal,
     is_function_type,
     PythonScope,
+    set_prefix_trigger_anchor_token,
     get_record_literal_fields,
     get_record_type_fields,
     is_internal_fallback_stmt,
@@ -69,6 +75,27 @@ class _SourceAstIndexVisitor(TyphonASTRawVisitor):
         self.visit(anchor)
 
     def _visit_attached_anchor_nodes(self, node: ast.AST) -> None:
+        if isinstance(
+            node,
+            (
+                ast.FunctionDef,
+                ast.AsyncFunctionDef,
+                ast.ClassDef,
+                ast.ExceptHandler,
+                ast.MatchAs,
+                ast.alias,
+                ast.Attribute,
+                ast.arg,
+                ast.keyword,
+                ast.FormattedValue,
+                ast.TypeVar,
+                ast.TypeVarTuple,
+                ast.ParamSpec,
+            ),
+        ):
+            if defined_name := get_defined_name(node):
+                self._visit_anchor(defined_name)
+
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if return_type_anchor := get_return_type_annotation_anchor(node):
                 self._visit_anchor(return_type_anchor)
@@ -97,6 +124,10 @@ class _SourceAstIndexVisitor(TyphonASTRawVisitor):
                 if class_type_param_anchors.trailing_comma is not None:
                     self._visit_anchor(class_type_param_anchors.trailing_comma)
 
+        if isinstance(node, ast.ImportFrom):
+            for import_name in get_import_from_names(node):
+                self._visit_anchor(import_name)
+
         if isinstance(node, ast.Name) and is_function_literal(node):
             if function_literal_arg_anchors := get_function_literal_arg_comma_anchors(
                 node
@@ -115,6 +146,9 @@ class _SourceAstIndexVisitor(TyphonASTRawVisitor):
 
         if completion_anchor := get_completion_trigger_anchor(node):
             self._visit_anchor(completion_anchor)
+
+        if prefix_anchor := get_prefix_trigger_anchor(node):
+            self._visit_anchor(prefix_anchor)
 
         if isinstance(node, ast.expr):
             if comma_anchors := get_expr_comma_anchors(node):
@@ -211,7 +245,48 @@ class SourceAstCache:
         self.parent_map: dict[ast.AST, ast.AST | None] = {module: None}
         self.node_interval_tree = RangeIntervalTree[ast.AST]()
         self.nodes_by_line: dict[int, list[tuple[Range, ast.AST]]] = {}
+        self._set_stmt_separator_prefix_anchors()
         self._setup_interval_trees()
+
+    def _set_stmt_separator_prefix_anchors(self) -> None:
+        tokens = get_lossless_token_info(self.module) or []
+        semicolon_tokens = [tok for tok in tokens if tok.string == ";"]
+        if not semicolon_tokens:
+            return
+
+        parents: list[ast.AST] = list(ast.walk(self.module))
+        for node in parents:
+            if isinstance(node, ast.Name) and is_function_literal(node):
+                if func_def := get_function_literal_def(node):
+                    parents.append(func_def)
+
+        for parent in parents:
+            for _, value in ast.iter_fields(parent):
+                if not (
+                    isinstance(value, list)
+                    and len(value) > 1
+                    and all(isinstance(stmt, ast.stmt) for stmt in value)
+                ):
+                    continue
+                stmt_list = value
+                for prev_stmt, next_stmt in zip(stmt_list, stmt_list[1:]):
+                    if get_prefix_trigger_anchor(next_stmt) is not None:
+                        continue
+                    prev_pos = get_pos_attributes_if_exists(prev_stmt)
+                    next_pos = get_pos_attributes_if_exists(next_stmt)
+                    if prev_pos is None or next_pos is None:
+                        continue
+                    prev_end = (
+                        prev_pos["end_lineno"] or prev_pos["lineno"],
+                        prev_pos["end_col_offset"] or prev_pos["col_offset"],
+                    )
+                    next_start = (next_pos["lineno"], next_pos["col_offset"])
+                    if prev_end >= next_start:
+                        continue
+                    for token in semicolon_tokens:
+                        if prev_end <= token.start and token.end <= next_start:
+                            set_prefix_trigger_anchor_token(next_stmt, token)
+                            break
 
     def _setup_parent_map(self) -> None:
         _SourceAstIndexVisitor(

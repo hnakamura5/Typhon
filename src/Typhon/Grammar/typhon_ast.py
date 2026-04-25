@@ -39,6 +39,8 @@ from .position import (
     set_return_type_annotation_anchor,
     set_completion_trigger_anchor,
     get_completion_trigger_anchor,
+    set_prefix_trigger_anchor,
+    get_prefix_trigger_anchor,
     get_block_braces,
 )
 from .syntax_errors import add_error_node
@@ -807,6 +809,8 @@ def make_function_literal(
     args: ast.arguments,
     returns: ast.expr | None,
     body: Union[list[ast.stmt], ast.expr],
+    open_paren: TokenInfo | None = None,
+    arrow: TokenInfo | None = None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.Lambda | FunctionLiteral:
     func_id = "__function_literal"  # TODO: Get unique name?
@@ -831,7 +835,8 @@ def make_function_literal(
     func_def = ast.FunctionDef(
         func_id, args, body_stmts, [], returns, type_comment=None, **kwargs
     )
-    name = ast.Name(func_id, **kwargs)
+    name = set_completion_trigger_anchor_token(ast.Name(func_id, **kwargs), open_paren)
+    name = set_prefix_trigger_anchor_token(name, arrow)
     set_function_literal_def(name, func_def)
     set_function_literal_arg_comma_anchors_from_sequence(
         name,
@@ -921,10 +926,14 @@ def make_arrow_type(
     args: list[ast.arg],
     star_etc: Tuple[ast.arg, ast.arg] | None,
     returns: ast.expr,
+    open_paren: TokenInfo | None = None,
     **kwargs: Unpack[PosAttributes],
 ) -> FunctionType:
     # TODO: temporal name
-    result = ast.Name("__arrow_type", **kwargs)
+    result = set_completion_trigger_anchor_token(
+        ast.Name("__arrow_type", **kwargs),
+        open_paren,
+    )
     set_args_of_function_type(result, args)
     set_return_of_function_type(result, returns)
     _check_arrow_type_args(args, star_etc)
@@ -1133,15 +1142,25 @@ def make_if_let(
     body: list[ast.stmt],
     orelse: list[ast.stmt] | None,
     is_let_else: bool,
+    else_block: TrailingBlock | None = None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.If:
     decl_type_str = decl_type.string if isinstance(decl_type, TokenInfo) else decl_type
-    return set_is_let_else(
+    result = set_is_let_else(
         _make_if_let_multiple(
             decl_type_str, pattern_subjects, cond, body, orelse, is_let_else, **kwargs
         ),
         is_let_else,
     )
+    if is_let_else and isinstance(decl_type, TokenInfo):
+        set_block_stmt_anchors(
+            result,
+            BlockStmtAnchors.make(
+                keywords=[decl_type],
+                else_block=else_block,
+            ),
+        )
+    return result
 
 
 def _make_if_let_single_case(
@@ -1407,9 +1426,16 @@ DefinesName = (
     ast.FunctionDef
     | ast.AsyncFunctionDef
     | ast.ClassDef
+    | ast.ExceptHandler
+    | ast.MatchAs
     | ast.alias
     | ast.Attribute
     | ast.arg
+    | ast.keyword
+    | ast.FormattedValue
+    | ast.TypeVar
+    | ast.TypeVarTuple
+    | ast.ParamSpec
 )
 
 
@@ -1502,6 +1528,31 @@ def maybe_copy_completion_trigger_anchor[T: ast.AST](from_node: T, to_node: T) -
     return set_completion_trigger_anchor(to_node, anchor)
 
 
+def set_prefix_trigger_anchor_token[T: ast.AST](node: T, token: TokenInfo | None) -> T:
+    if token is None:
+        return set_prefix_trigger_anchor(node, None)
+    anchor = name_from_anchor_token(token, ctx=ast.Load())
+    set_is_internal_name(anchor)
+    return set_prefix_trigger_anchor(node, anchor)
+
+
+def maybe_copy_prefix_trigger_anchor[T: ast.AST](from_node: T, to_node: T) -> T:
+    anchor = get_prefix_trigger_anchor(from_node)
+    return set_prefix_trigger_anchor(to_node, anchor)
+
+
+def set_stmt_prefix_separator_anchors(
+    first: ast.stmt,
+    rest: list[tuple[TokenInfo, ast.stmt]],
+) -> list[ast.stmt]:
+    result = [first]
+    for separator, stmt in rest:
+        if separator.string == ";":
+            set_prefix_trigger_anchor_token(stmt, separator)
+        result.append(stmt)
+    return result
+
+
 _MATCH_CLASS_KEYWORD_NAMES = "_typh_match_class_keyword_names"
 
 
@@ -1525,11 +1576,13 @@ def make_function_def(
     name: TokenInfo | str,
     args: ast.arguments,
     returns: ast.expr | None,
+    return_arrow: TokenInfo | None,
     body: list[ast.stmt],
     type_comment: str | None,
     type_params: list[ast.type_param],
     close_paren_anchor: TokenInfo | None,
     arg_trailing_comma: TokenInfo | None = None,
+    type_param_commas: list[TokenInfo] | None = None,
     type_params_trailing_comma: TokenInfo | None = None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.FunctionDef | ast.AsyncFunctionDef:
@@ -1556,6 +1609,8 @@ def make_function_def(
     set_is_static(result, is_static)
     if isinstance(name, TokenInfo):
         set_defined_name_token(result, name)
+    if returns is not None:
+        set_prefix_trigger_anchor_token(returns, return_arrow)
     if close_paren_anchor is not None:
         set_return_type_annotation_anchor(
             result,
@@ -1572,11 +1627,18 @@ def make_function_def(
         arg_items,
         arg_trailing_comma,
     )
-    result = set_function_type_param_comma_anchors_from_sequence(
-        result,
-        type_params,
-        type_params_trailing_comma,
-    )
+    if type_param_commas is not None:
+        result = set_function_type_param_comma_anchor_tokens(
+            result,
+            type_param_commas,
+            type_params_trailing_comma,
+        )
+    else:
+        result = set_function_type_param_comma_anchors_from_sequence(
+            result,
+            type_params,
+            type_params_trailing_comma,
+        )
     return result
 
 
@@ -1589,6 +1651,7 @@ def make_class_def(
     type_params: list[ast.type_param],
     base_commas: list[TokenInfo] | None = None,
     base_trailing_comma: TokenInfo | None = None,
+    type_param_commas: list[TokenInfo] | None = None,
     type_params_trailing_comma: TokenInfo | None = None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.ClassDef:
@@ -1620,11 +1683,18 @@ def make_class_def(
             [*bases, *keywords],
             base_trailing_comma,
         )
-    result = set_class_type_param_comma_anchors_from_sequence(
-        result,
-        type_params,
-        type_params_trailing_comma,
-    )
+    if type_param_commas is not None:
+        result = set_class_type_param_comma_anchor_tokens(
+            result,
+            type_param_commas,
+            type_params_trailing_comma,
+        )
+    else:
+        result = set_class_type_param_comma_anchors_from_sequence(
+            result,
+            type_params,
+            type_params_trailing_comma,
+        )
     return result
 
 
@@ -1648,6 +1718,51 @@ def make_attribute(
         attr,
         ctx,
     )
+
+
+def make_keyword(
+    arg: TokenInfo | None,
+    value: ast.expr,
+    prefix: TokenInfo | None = None,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.keyword:
+    result = set_prefix_trigger_anchor_token(
+        ast.keyword(
+            arg=arg.string if arg else None,
+            value=value,
+            **kwargs,
+        ),
+        prefix,
+    )
+    if arg is not None:
+        set_defined_name_token(result, arg)
+    return result
+
+
+def make_formatted_value(
+    value: ast.expr,
+    conversion: TokenInfo | None,
+    format_spec: ast.JoinedStr | None,
+    open_brace: TokenInfo,
+    debug_expr: bool,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.FormattedValue:
+    result = set_completion_trigger_anchor_token(
+        ast.FormattedValue(
+            value=value,
+            conversion=(
+                conversion.string.encode()[0]
+                if conversion
+                else (b"r"[0] if debug_expr else -1)
+            ),
+            format_spec=format_spec,
+            **kwargs,
+        ),
+        open_brace,
+    )
+    if conversion is not None:
+        set_defined_name_token(result, conversion, ctx=ast.Load())
+    return result
 
 
 def make_match_class(
@@ -1709,6 +1824,23 @@ def make_try(
     return result
 
 
+def make_except_handler(
+    exc_type: ast.expr | None,
+    name: TokenInfo | None,
+    body: list[ast.stmt],
+    **kwargs: Unpack[PosAttributes],
+) -> ast.ExceptHandler:
+    result = ast.ExceptHandler(
+        type=exc_type,
+        name=name.string if name is not None else None,
+        body=body,
+        **kwargs,
+    )
+    if name is not None:
+        set_defined_name_token(result, name)
+    return result
+
+
 _IMPORT_FROM_NAMES = "_typh_import_from_names"
 
 
@@ -1758,8 +1890,8 @@ def make_import_from(
     if module:
         import_names = [
             set_completion_trigger_anchor_token(
-                name_from_anchor_token(n, ctx=ast.Load())
-                if n
+                name_from_anchor_token(name, ctx=ast.Load())
+                if name
                 else set_is_internal_name(
                     ast.Name(
                         id=_TYPH_MISSING_NAME_IMPORT,
@@ -1769,7 +1901,7 @@ def make_import_from(
                 ),
                 dot,
             )
-            for n, dot in zip(module.names, module.dots)
+            for name, dot in zip(module.names, module.dots)
         ]
         set_import_from_names(result, import_names)
         if module.name_missing_dot_errors:
@@ -1790,9 +1922,15 @@ def make_alias(
         **kwargs,
     )
     if asname is not None:
-        set_defined_name_token(result, asname)
+        name_anchor = name_from_anchor_token(asname)
+        if astoken is not None:
+            set_completion_trigger_anchor_token(name_anchor, astoken)
+        set_defined_name(result, name_anchor)
     elif name.names and name.names[-1] is not None:
-        set_defined_name_token(result, name.names[-1])
+        name_anchor = name_from_anchor_token(name.names[-1])
+        if name.dots and name.dots[-1] is not None:
+            set_completion_trigger_anchor_token(name_anchor, name.dots[-1])
+        set_defined_name(result, name_anchor)
     if name.name_missing_dot_errors:
         add_error_node(result, name.name_missing_dot_errors)
     if not asname and astoken:
@@ -2280,7 +2418,6 @@ def make_if_let_comp(
     control_id = "__if_let_comp"
     func_def = make_function_def(
         is_async=False,
-        is_static=False,
         name=control_id,
         args=_empty_args(),
         body=[
@@ -2854,6 +2991,37 @@ def make_arg(
     return node
 
 
+def make_type_var(
+    name: TokenInfo,
+    bound: ast.expr | None,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.TypeVar:
+    return set_defined_name_token(
+        ast.TypeVar(name=name.string, bound=bound, **kwargs),
+        name,
+    )
+
+
+def make_type_var_tuple(
+    name: TokenInfo,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.TypeVarTuple:
+    return set_defined_name_token(
+        ast.TypeVarTuple(name=name.string, **kwargs),
+        name,
+    )
+
+
+def make_param_spec(
+    name: TokenInfo,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.ParamSpec:
+    return set_defined_name_token(
+        ast.ParamSpec(name=name.string, **kwargs),
+        name,
+    )
+
+
 def make_arguments(
     pos_only: Optional[List[Tuple[ast.arg, None]]],
     pos_only_with_default: List[Tuple[ast.arg, Any]],
@@ -3012,11 +3180,13 @@ def _set_comma_anchors_from_sequence[T: ast.AST](
         )
 
     if trailing_comma is not None:
+        trailing_comma_anchor = name_from_anchor_token(trailing_comma, ctx=ast.Load())
+        set_is_internal_name(trailing_comma_anchor)
         return setter(
             node,
             ExprCommaAnchors(
                 commas=anchors[:-1],
-                trailing_comma=anchors[-1],
+                trailing_comma=trailing_comma_anchor,
             ),
         )
 
@@ -3052,6 +3222,19 @@ def set_class_base_comma_anchor_tokens(
         commas,
         trailing_comma,
         set_class_base_comma_anchors,
+    )
+
+
+def set_class_type_param_comma_anchor_tokens(
+    node: ast.ClassDef,
+    commas: list[TokenInfo],
+    trailing_comma: TokenInfo | None = None,
+) -> ast.ClassDef:
+    return _set_comma_anchor_tokens(
+        node,
+        commas,
+        trailing_comma,
+        set_class_type_param_comma_anchors,
     )
 
 
@@ -3132,6 +3315,21 @@ def set_function_type_param_comma_anchors_from_sequence[
     return _set_comma_anchors_from_sequence(
         node,
         cast(list[ast.AST], type_params),
+        trailing_comma,
+        set_function_type_param_comma_anchors,
+    )
+
+
+def set_function_type_param_comma_anchor_tokens[
+    T: ast.FunctionDef | ast.AsyncFunctionDef
+](
+    node: T,
+    commas: list[TokenInfo],
+    trailing_comma: TokenInfo | None = None,
+) -> T:
+    return _set_comma_anchor_tokens(
+        node,
+        commas,
         trailing_comma,
         set_function_type_param_comma_anchors,
     )
