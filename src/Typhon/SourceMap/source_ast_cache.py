@@ -144,8 +144,8 @@ class _SourceAstIndexVisitor(TyphonASTRawVisitor):
                 if function_type_arg_anchors.trailing_comma is not None:
                     self._visit_anchor(function_type_arg_anchors.trailing_comma)
 
-        if completion_anchor := get_completion_trigger_anchor(node):
-            self._visit_anchor(completion_anchor)
+        # if completion_anchor := get_completion_trigger_anchor(node):
+        #     self._visit_anchor(completion_anchor)
 
         if prefix_anchor := get_prefix_format_anchor(node):
             self._visit_anchor(prefix_anchor)
@@ -156,10 +156,16 @@ class _SourceAstIndexVisitor(TyphonASTRawVisitor):
                     self._visit_anchor(comma_anchor)
                 if comma_anchors.trailing_comma is not None:
                     self._visit_anchor(comma_anchors.trailing_comma)
+                if comma_anchors.surround_open is not None:
+                    self._visit_anchor(comma_anchors.surround_open)
+                if comma_anchors.surround_close is not None:
+                    self._visit_anchor(comma_anchors.surround_close)
+                for keyword_anchor in comma_anchors.keywords or []:
+                    self._visit_anchor(keyword_anchor)
 
         if isinstance(node, PosNode):
             if block_anchors := get_block_stmt_anchors(node):
-                for anchor in block_anchors.begin_token_anchors:
+                for anchor in block_anchors.keywords:
                     self._visit_anchor(anchor)
                 if block_anchors.open_type_param_bracket_anchor is not None:
                     self._visit_anchor(block_anchors.open_type_param_bracket_anchor)
@@ -237,6 +243,8 @@ class SourceAstCache:
         module: ast.Module,
         source_code: str,
         source_file_path: str,
+        *,
+        format_mode: bool = False,
     ):
         self.module = module
         self.source_code = source_code
@@ -247,6 +255,7 @@ class SourceAstCache:
         self.nodes_by_line: dict[int, list[tuple[Range, ast.AST]]] = {}
         self._set_stmt_separator_prefix_anchors()
         self._setup_interval_trees()
+        self._format_mode = format_mode
 
     def _set_stmt_separator_prefix_anchors(self) -> None:
         tokens = get_lossless_token_info(self.module) or []

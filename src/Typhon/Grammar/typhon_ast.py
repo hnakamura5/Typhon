@@ -809,8 +809,9 @@ def make_function_literal(
     args: ast.arguments,
     returns: ast.expr | None,
     body: Union[list[ast.stmt], ast.expr],
-    open_paren: TokenInfo | None = None,
-    arrow: TokenInfo | None = None,
+    open_paren: TokenInfo,
+    close_paren: TokenInfo,
+    arrow: TokenInfo,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.Lambda | FunctionLiteral:
     func_id = "__function_literal"  # TODO: Get unique name?
@@ -818,6 +819,7 @@ def make_function_literal(
     if isinstance(body, list):
         body_stmts = body
         is_inline_return = False
+        brace_anchors = get_block_braces(body)
     else:
         if is_inline_expr(body) and is_arguments_inlineable(args) and returns is None:
             # Make lambda expression if possible.
@@ -831,9 +833,14 @@ def make_function_literal(
                 end_col_offset=body.end_col_offset,
             )
         ]
+        brace_anchors = None
         is_inline_return = True
     func_def = ast.FunctionDef(
         func_id, args, body_stmts, [], returns, type_comment=None, **kwargs
+    )
+    set_block_stmt_anchors(
+        func_def,
+        BlockStmtAnchors.make(keywords=[], braces=brace_anchors),
     )
     name = set_completion_trigger_anchor_token(ast.Name(func_id, **kwargs), open_paren)
     name = set_prefix_format_anchor_token(name, arrow)
@@ -842,6 +849,23 @@ def make_function_literal(
         name,
         _argument_items(args),
         None,
+    )
+    debug_verbose_print(
+        lambda: (
+            f"make_function_literal: args={args}, returns={returns}, "
+            f"body={body}, is_inline_return={is_inline_return}, "
+            f"open_paren={open_paren}, close_paren={close_paren}"
+        )
+    )
+    set_expr_format_anchors(
+        name,
+        ExprFormatAnchors.make(
+            commas=None,
+            trailing_comma=None,
+            keywords=[arrow],
+            surround_open=open_paren,
+            surround_close=close_paren,
+        ),
     )
     if is_inline_return:
         set_function_literal_inline_return(name)
@@ -1569,7 +1593,6 @@ def make_function_def(
     name: TokenInfo | str,
     args: ast.arguments,
     returns: ast.expr | None,
-    return_arrow: TokenInfo | None,
     body: list[ast.stmt],
     type_comment: str | None,
     type_params: list[ast.type_param],
@@ -1602,8 +1625,6 @@ def make_function_def(
     set_is_static(result, is_static)
     if isinstance(name, TokenInfo):
         set_defined_name_token(result, name)
-    if returns is not None:
-        set_prefix_format_anchor_token(returns, return_arrow)
     if close_paren_anchor is not None:
         set_return_type_annotation_anchor(
             result,
@@ -2204,7 +2225,6 @@ def make_with_comp(
             ),
         ],
         returns=None,
-        return_arrow=None,
         type_comment=None,
         type_params=[],
         close_paren_anchor=None,
@@ -2266,7 +2286,6 @@ def make_try_comp(
             )
         ],
         returns=None,
-        return_arrow=None,
         type_comment=None,
         type_params=[],
         close_paren_anchor=None,
@@ -2361,7 +2380,6 @@ def make_match_comp(
             ),
         ],
         returns=None,
-        return_arrow=None,
         type_comment=None,
         type_params=[],
         close_paren_anchor=None,
@@ -2394,7 +2412,6 @@ def make_while_comp(
             ),
         ],
         returns=None,
-        return_arrow=None,
         type_comment=None,
         type_params=[],
         close_paren_anchor=None,
@@ -2432,7 +2449,6 @@ def make_if_let_comp(
             )
         ],
         returns=None,
-        return_arrow=None,
         type_comment=None,
         type_params=[],
         close_paren_anchor=None,
@@ -2465,7 +2481,6 @@ def make_while_let_comp(
             )
         ],
         returns=None,
-        return_arrow=None,
         type_comment=None,
         type_params=[],
         close_paren_anchor=None,
@@ -2522,7 +2537,6 @@ def make_let_comp(
         args=_empty_args(),
         body=stmts,
         returns=None,
-        return_arrow=None,
         type_comment=None,
         type_params=[],
         close_paren_anchor=None,
@@ -3105,6 +3119,17 @@ class CallArgs:
             trailing_comma=comma,
         )
 
+    def get_last_anchor(self) -> PosNode | TokenInfo | None:
+        if self.trailing_comma is not None:
+            return self.trailing_comma
+        if self.commas:
+            return self.commas[-1]
+        if self.keywords:
+            return self.keywords[-1].value
+        if self.positionals:
+            return self.positionals[-1]
+        return None
+
 
 def set_expr_comma_anchor_tokens[T: ast.expr](
     node: T,
@@ -3182,7 +3207,6 @@ def _set_comma_anchors_from_sequence[T: ast.AST](
                 )
             )
         )
-
     if trailing_comma is not None:
         trailing_comma_anchor = name_from_anchor_token(trailing_comma, ctx=ast.Load())
         set_is_internal_name(trailing_comma_anchor)
@@ -3193,7 +3217,6 @@ def _set_comma_anchors_from_sequence[T: ast.AST](
                 trailing_comma=trailing_comma_anchor,
             ),
         )
-
     return setter(
         node,
         ExprFormatAnchors(
@@ -3343,13 +3366,27 @@ def set_call_anchors(
     call_node: ast.Call,
     call_args: CallArgs | None,
     open_paren: TokenInfo,
+    close_paren: TokenInfo | None,
 ) -> ast.Call:
-    if call_args is not None:
-        call_node = set_expr_comma_anchor_tokens(
-            call_node,
-            call_args.commas,
-            call_args.trailing_comma,
+    debug_verbose_print(
+        lambda: (
+            f"Setting call anchors: args={len(call_args.positionals) if call_args else 0}, "
+            f"keywords={len(call_args.keywords) if call_args else 0}, "
+            f"commas={len(call_args.commas) if call_args else 0}, "
+            f"trailing_comma={call_args.trailing_comma is not None if call_args else False}"
+            f", open_paren={open_paren}, close_paren={close_paren}"
         )
+    )
+    call_node = set_expr_format_anchors(
+        call_node,
+        ExprFormatAnchors.make(
+            commas=call_args.commas if call_args else None,
+            trailing_comma=call_args.trailing_comma if call_args else None,
+            keywords=None,
+            surround_open=open_paren,
+            surround_close=close_paren,
+        ),
+    )
     set_completion_trigger_anchor_token(call_node, open_paren)
     return call_node
 

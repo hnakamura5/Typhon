@@ -415,7 +415,7 @@ decorator:
         self.check_version((3, 9), "Generic decorator are",  a)
      }
 dec_maybe_call:
-    | dn=dec_primary o=('('|'?(') z=[call_arguments] ')' {
+    | dn=dec_primary o=('('|'?(') z=[call_arguments] c=')' {
         maybe_optional(
             set_call_anchors(
                 ast.Call(
@@ -423,7 +423,7 @@ dec_maybe_call:
                     args=z.positionals if z else [],
                     keywords=z.keywords if z else [],
                     LOCATIONS
-                ), z, o
+                ), z, o, c
             ), o.string
         )
      }
@@ -471,7 +471,7 @@ function_def[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
     | f=function_def_raw {self.set_decorators(f, [])}
 
 function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
-    | st=['static'] asc=['async'] k='def' n=[NAME_OR_UNUSABLE] t=[type_params] lp=['('] params=[params] rp=[')'] colon=[':'] a=[arrow='->' z=typing_expression { (arrow, z) }] tc=[func_type_comment] NEWLINE*  b=maybe_block {
+    | st=['static'] asc=['async'] k='def' n=[NAME_OR_UNUSABLE] t=[type_params] lp=['('] params=[params] rp=[')'] colon=[':'] a=[typing_arrow_return_type] tc=[func_type_comment] NEWLINE*  b=maybe_block {
         recover_maybe_invalid_function_def_raw(
             self,
             is_async=(asc is not None),
@@ -481,8 +481,7 @@ function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
             args=params,
             close_paren=rp,
             invalid_colon=colon,
-            returns=a[1] if a else None,
-            return_arrow=a[0] if a else None,
+            returns=a,
             body=b,
             type_comment=tc,
             type_params=t[0] if t else [],
@@ -1216,8 +1215,8 @@ type_param[ast.type_param](memo):
             colon
         )
      }
-    | '*' a=NAME {
-        make_type_var_tuple(a, LOCATIONS)
+    | op='*' a=NAME {
+        set_prefix_format_anchor_token(make_type_var_tuple(a, LOCATIONS), op)
         if sys.version_info >= (3, 12)
         else object()
      }
@@ -1229,8 +1228,8 @@ type_param[ast.type_param](memo):
             colon
         )
      }
-    | '**' a=NAME {
-        make_param_spec(a, LOCATIONS)
+    | op='**' a=NAME {
+        set_prefix_format_anchor_token(make_param_spec(a, LOCATIONS), op)
         if sys.version_info >= (3, 12)
         else object()
      }
@@ -1250,7 +1249,7 @@ typing_expression_impl[ast.expr](memo):
     | typing_arrow_single_param_type
 
 typing_arrow_single_param_type[ast.expr]:
-    | !'(' a=typing_disjunction r=('->' a=typing_arrow_single_param_type { a })+ {
+    | !'(' a=typing_disjunction r=(op='->' a=typing_arrow_single_param_type {  set_prefix_format_anchor_token(a, op) })+ {
         make_arrow_type_single_chain(a, None, r, LOCATIONS)
      }
     | typing_disjunction
@@ -1292,18 +1291,20 @@ typing_arrow_param[ast.arg]:
     | a=typing_arrow_param_annot_or_type &')' { a }
 
 typing_arrow_kwds[ast.arg]:
-    | '**' a=typing_arrow_param { a }
+    | op='**' a=typing_arrow_param { set_prefix_format_anchor_token(a, op) }
 
 typing_arrow_param_star_annotation:
     | a=param_star_annotation ',' tc=TYPE_COMMENT? { self.set_arg_type_comment(a, tc) }
     | a=param_star_annotation tc=TYPE_COMMENT? &')' { self.set_arg_type_comment(a, tc) }
 
 typing_arrow_star_etc[Tuple[ast.arg, ast.arg]]:
-    | '*' a=typing_arrow_param c=[typing_arrow_kwds] { (a,c) }
-    | '*' a=typing_arrow_param_star_annotation c=[typing_arrow_kwds] { (a,c) }
+    | op='*' a=typing_arrow_param c=[typing_arrow_kwds] { ( set_prefix_format_anchor_token(a, op), c) }
+    | op='*' a=typing_arrow_param_star_annotation c=[typing_arrow_kwds] {
+        ( set_prefix_format_anchor_token(a, op), c)
+     }
 
 typing_arrow_return_type[ast.expr]:
-    | '->' a=typing_expression { a }
+    | op='->' a=typing_expression { set_prefix_format_anchor_token(a, op) }
 
 typing_arrow_type[ast.expr]:
     | lp='(' a=typing_arrow_param* c=[typing_arrow_star_etc] ')' r=typing_arrow_return_type {
@@ -1359,13 +1360,13 @@ star_expressions:
     | star_expression
 
 star_expression (memo):
-    | '*' a=bitwise_or { ast.Starred(value=a, ctx=Load, LOCATIONS) }
+    | op='*' a=bitwise_or { set_prefix_format_anchor_token(ast.Starred(value=a, ctx=Load, LOCATIONS), op) }
     | expression
 
 star_named_expressions: a=','.star_named_expression+ [','] { a }
 
 star_named_expression:
-    | '*' a=bitwise_or { ast.Starred(value=a, ctx=Load, LOCATIONS) }
+    | op='*' a=bitwise_or { set_prefix_format_anchor_token(ast.Starred(value=a, ctx=Load, LOCATIONS), op) }
     | named_expression
 
 assignment_expression:
@@ -1405,7 +1406,7 @@ coalescing (memo):
     | arrow_single_param
 
 arrow_single_param[ast.expr]:
-    | !'(' a=disjunction r=('->' a=typing_expression { a })+ {
+    | !'(' a=disjunction r=typing_arrow_return_type+ {
         make_arrow_type_single_chain(a, None, r, LOCATIONS)
      }
     | disjunction
@@ -1537,26 +1538,36 @@ primary:
     | a=primary o=('.' | '?.') !NAME {
         attribute_access_recovery(self, value=a, access_dot=o, ctx=ast.Load, LOCATIONS)
      }
-    | a=primary b=comprehension_paren { ast.Call(func=a, args=[b], keywords=[], LOCATIONS) }
-    | a=primary b=question_comprehension_paren {
-        maybe_optional(ast.Call(func=a, args=[b], keywords=[], LOCATIONS), '?')
-     }
-    | a=primary o=('('|'?(') b=[call_arguments] ')' {
-        maybe_optional(
-            set_call_anchors(
-                ast.Call(
-                    func=a,
-                    args=b.positionals if b else [],
-                    keywords=b.keywords if b else [],
-                    LOCATIONS,
-                ), b, o
-            ), o.string
+    | a=primary o=('('|'?(') b=comprehension_internal c=[')'] {
+        maybe_invalid_close_paren(self, c,
+            node=maybe_optional(
+                set_call_anchors(
+                    ast.Call(func=a, args=[b], keywords=[], LOCATIONS), None, o, c
+                ), o.string
+            ), close_anchor=b
         )
      }
-    | a=primary o=('['|'?[') b=slices ']' {
+    | a=primary o=('('|'?(') b=[call_arguments] c=[')'] {
+        maybe_invalid_close_paren(self, c,
+            node=maybe_optional(
+                set_call_anchors(
+                    ast.Call(
+                        func=a,
+                        args=b.positionals if b else [],
+                        keywords=b.keywords if b else [],
+                        LOCATIONS,
+                    ), b, o, c
+                ), o.string
+            ), close_anchor=b.get_last_anchor() or o if b else o
+        )
+     }
+    | a=primary o=('['|'?[') b=slices c=']' {
         maybe_optional(
             set_completion_trigger_anchor_token(
-                ast.Subscript(value=a, slice=b, ctx=Load, LOCATIONS), o
+                set_expr_format_anchors(
+                    ast.Subscript(value=a, slice=b, ctx=Load, LOCATIONS),
+                    ExprFormatAnchors.make(surround_open=o, surround_close=c)
+                ), o
             ),
             o.string
         )
@@ -1628,7 +1639,7 @@ group:
 
 
 function_literal:
-    | lp='(' p=params ')' a=[typing_arrow_return_type] arrow='=>' ~ b=(block | expression) { make_function_literal(args=p, returns=a, body=b, open_paren=lp, arrow=arrow, LOCATIONS) }
+    | lp='(' p=params rp=')' a=[typing_arrow_return_type] arrow='=>' ~ b=(block | expression) { make_function_literal(args=p, returns=a, body=b, open_paren=lp, close_paren=rp, arrow=arrow, LOCATIONS) }
 
 
 # Expression Error Recovery
@@ -2062,6 +2073,15 @@ comprehension_paren:
     | while_comp
     | let_comp
 
+comprehension_internal:
+    | genexp_internal
+    | if_comp_internal
+    | with_comp_internal
+    | try_comp_internal
+    | match_comp_internal
+    | while_comp_internal
+    | let_comp_internal
+
 question_comprehension_paren:
     | question_genexp
     | question_if_comp_exp
@@ -2149,9 +2169,12 @@ star_target_may_annot[ast.Name | ast.Tuple | ast.List | ast.Attribute | ast.Subs
 
 target_with_star_atom[ast.Name | ast.Tuple | ast.List | ast.Attribute | ast.Subscript](memo):
     | a=t_primary dot='.' b=NAME !t_lookahead { make_attribute(value=a, attr=b, ctx=Store, dot=dot, LOCATIONS) }
-    | a=t_primary o='[' b=slices ']' !t_lookahead {
+    | a=t_primary o='[' b=slices c=']' !t_lookahead {
         set_completion_trigger_anchor_token(
-            ast.Subscript(value=a, slice=b, ctx=Store, LOCATIONS), o
+            set_expr_format_anchors(
+                 ast.Subscript(value=a, slice=b, ctx=Store, LOCATIONS),
+                 ExprFormatAnchors.make(surround_open=o, surround_close=c)
+            ), o
         )
      }
     | star_atom
@@ -2178,20 +2201,27 @@ single_subscript_attribute_target:
 # Assignment target primary.
 t_primary:
     | a=t_primary dot='.' b=NAME &t_lookahead { make_attribute(value=a, attr=b, ctx=Load, dot=dot, LOCATIONS) }
-    | a=t_primary o='[' b=slices ']' &t_lookahead {
+    | a=t_primary o='[' b=slices c=']' &t_lookahead {
         set_completion_trigger_anchor_token(
-            ast.Subscript(value=a, slice=b, ctx=Load, LOCATIONS), o
+            set_expr_format_anchors(
+                ast.Subscript(value=a, slice=b, ctx=Load, LOCATIONS),
+                ExprFormatAnchors.make(surround_open=o, surround_close=c)
+            ), o
         )
      }
-    | a=t_primary b=genexp &t_lookahead { ast.Call(func=a, args=[b], keywords=[], LOCATIONS) }
-    | a=t_primary o='(' b=[call_arguments] ')' &t_lookahead {
+    | a=t_primary o='(' b=comprehension_internal c=')' &t_lookahead {
+        set_call_anchors(
+            ast.Call(func=a, args=[b], keywords=[], LOCATIONS), b, o, c
+        )
+     }
+    | a=t_primary o='(' b=[call_arguments] c=')' &t_lookahead {
         set_call_anchors(
             ast.Call(
                 func=a,
                 args=b.positionals if b else [],
                 keywords=b.keywords if b else [],
                 LOCATIONS,
-            ), b, o
+            ), b, o, c
         )
      }
     | a=atom &t_lookahead { a }
@@ -2205,9 +2235,12 @@ del_targets: a=','.del_target+ [','] { a }
 
 del_target (memo):
     | a=t_primary dot='.' b=NAME !t_lookahead { make_attribute(value=a, attr=b, ctx=Del, dot=dot, LOCATIONS) }
-    | a=t_primary o='[' b=slices ']' !t_lookahead {
+    | a=t_primary o='[' b=slices c=']' !t_lookahead {
         set_completion_trigger_anchor_token(
-            ast.Subscript(value=a, slice=b, ctx=Del, LOCATIONS), o
+            set_expr_format_anchors(
+                 ast.Subscript(value=a, slice=b, ctx=Del, LOCATIONS),
+                 ExprFormatAnchors.make(surround_open=o, surround_close=c)
+            ), o
         )
      }
     | del_t_atom

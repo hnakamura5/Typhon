@@ -94,8 +94,7 @@ class RecoveredClass {}
 panic_definition_recovery = """
 def _typh_invalid_name():
     []
-    broken_func
-    pass
+    broken_func(a,)
     return 1
 
 class RecoveredClass:
@@ -113,7 +112,7 @@ def test_panic_definition_recovery():
                 ("expected ')'", Range(Pos(1, 3), Pos(1, 4))),
                 ("expected function name", Range(Pos(1, 3), Pos(1, 4))),
                 ("expected '{'", Range(Pos(1, 4), Pos(1, 5))),
-                ("unknown tokens", Range(Pos(1, 18), Pos(1, 21))),
+                ("expected ')'", Range(Pos(1, 21), Pos(1, 22))),
             ],
         )
 

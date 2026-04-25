@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ast
 from contextlib import contextmanager
-from typing import Callable, Literal, cast, override
+from typing import Literal, cast, override
 
 from Typhon.Format.doc_render import DEFAULT_INDENT_WIDTH
 from Typhon.Grammar.typhon_ast import (
@@ -236,7 +236,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     ) -> Doc:
         if anchor := get_completion_trigger_anchor(node):
             anchor_doc = self._visit_doc(anchor)
-            if optional_prefix and is_optional(node):
+            if optional_prefix and isinstance(node, ast.expr) and is_optional(node):
                 return concat([text(optional_prefix), anchor_doc])
             return anchor_doc
         return default
@@ -246,35 +246,40 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             return default
         return concat([self._completion_trigger_doc(node, text("")), default])
 
-    def _wrapped_with_open_anchor(
+    def _wrapped_with_expr_anchor(
         self,
         node: ast.AST,
         content: Doc,
-        *,
-        close_text: str,
-        default_builder: Callable[[Doc], Doc],
-        optional_prefix: str | None = None,
-        is_empty: bool = False,
     ) -> Doc:
-        if get_completion_trigger_anchor(node) is None:
-            return default_builder(content)
-        open_doc = self._completion_trigger_doc(
-            node,
-            text(""),
-            optional_prefix=optional_prefix,
+        expr_anchors = (
+            get_expr_format_anchors(node) if isinstance(node, ast.expr) else None
         )
-        if is_empty:
-            return concat([open_doc, text(close_text)])
-        return group(
-            concat(
+        debug_verbose_print(
+            lambda: (
+                f"Visiting node with expr anchors: {ast.dump(node, include_attributes=True)}\n"
+                f"    Anchors: {expr_anchors}, Content: {content}\n"
+            )
+        )
+        if not expr_anchors:
+            return content
+        if expr_anchors.surround_open is not None:
+            assert expr_anchors.surround_close is not None, (
+                f"Expected surround close anchor for node type {type(node).__name__} when surround open anchor is present"
+            )
+            open_doc = self._visit_doc(expr_anchors.surround_open)
+            close_doc = self._visit_doc(expr_anchors.surround_close)
+            if content is NIL:
+                return concat([open_doc, close_doc])
+            return group(
                 [
                     open_doc,
                     indent([softline(), content]),
                     softline(),
-                    text(close_text),
+                    close_doc,
                 ]
             )
-        )
+        else:
+            return content
 
     # Ad-hoc preference to represent complex expression (with brace) should
     # be broken in the right-hand-side of assignment.
@@ -431,7 +436,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     def _stmt_begin_keyword_doc(self, node: ast.AST, keyword: str) -> Doc:
         if isinstance(node, PosNode):
             if anchors := get_block_stmt_anchors(node):
-                for token_anchor in anchors.begin_token_anchors:
+                for token_anchor in anchors.keywords:
                     if token_anchor.id == keyword:
                         return self._visit_doc(token_anchor)
         return text(keyword)
@@ -440,6 +445,14 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         if isinstance(node, PosNode):
             if anchors := get_block_stmt_anchors(node):
                 for token_anchor in anchors.inner_separator_anchors:
+                    if token_anchor.id == keyword:
+                        return self._visit_doc(token_anchor)
+        return text(keyword)
+
+    def _expr_keyword_doc(self, node: ast.AST, keyword: str) -> Doc:
+        if isinstance(node, ast.expr):
+            if anchors := get_expr_format_anchors(node):
+                for token_anchor in anchors.keywords or []:
                     if token_anchor.id == keyword:
                         return self._visit_doc(token_anchor)
         return text(keyword)
@@ -966,17 +979,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         doc = group(
             [
                 self._visit_doc(node.func),
-                self._wrapped_with_open_anchor(
-                    node,
-                    args_doc,
-                    close_text=")",
-                    default_builder=lambda content: paren(
-                        content,
-                        is_optional(node),
-                    ),
-                    optional_prefix="?",
-                    is_empty=len(node.args) + len(node.keywords) == 0,
-                ),
+                self._wrapped_with_expr_anchor(node, args_doc),
             ],
         )
         return self._maybe_wrap_group_paren(node, doc)
@@ -1007,16 +1010,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         doc = group(
             [
                 self._visit_doc(node.value),
-                self._wrapped_with_open_anchor(
-                    node,
-                    slice_doc,
-                    close_text="]",
-                    default_builder=lambda content: bracket(
-                        content,
-                        optional_bracket=is_optional(node),
-                    ),
-                    optional_prefix="?",
-                ),
+                self._wrapped_with_expr_anchor(node, slice_doc),
             ]
         )
         return self._maybe_wrap_group_paren(node, doc)
@@ -1040,7 +1034,12 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         )
 
     def visit_Starred(self, node: ast.Starred) -> Doc:
-        return concat([text("*"), self._visit_doc(node.value)])
+        return concat(
+            [
+                self._prefix_anchor_doc(node, text("*")),
+                self._visit_doc(node.value),
+            ]
+        )
 
     def visit_List(self, node: ast.List) -> Doc:
         comma_anchor_info = get_expr_format_anchors(node)
@@ -1049,13 +1048,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             comma_anchor_info.commas if comma_anchor_info else None,
             comma_anchor_info.trailing_comma if comma_anchor_info else None,
         )
-        doc = self._wrapped_with_open_anchor(
-            node,
-            inner,
-            close_text="]",
-            default_builder=lambda content: bracket([content]),
-            is_empty=len(node.elts) == 0,
-        )
+        doc = self._wrapped_with_expr_anchor(node, inner)
         return self._maybe_wrap_group_paren(node, doc)
 
     def visit_Dict(self, node: ast.Dict) -> Doc:
@@ -1087,13 +1080,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             comma_anchor_info.commas if comma_anchor_info else None,
             comma_anchor_info.trailing_comma if comma_anchor_info else None,
         )
-        return self._wrapped_with_open_anchor(
-            node,
-            entries_doc,
-            close_text="}",
-            default_builder=brace,
-            is_empty=len(node.keys) == 0,
-        )
+        return self._wrapped_with_expr_anchor(node, entries_doc)
 
     def visit_Set(self, node: ast.Set) -> Doc:
         comma_anchor_info = get_expr_format_anchors(node)
@@ -1102,13 +1089,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             comma_anchor_info.commas if comma_anchor_info else None,
             comma_anchor_info.trailing_comma if comma_anchor_info else None,
         )
-        return self._wrapped_with_open_anchor(
-            node,
-            items_doc,
-            close_text="}",
-            default_builder=brace,
-            is_empty=len(node.elts) == 0,
-        )
+        return self._wrapped_with_expr_anchor(node, items_doc)
 
     def _tuple_inner_doc(self, node: ast.Tuple) -> Doc:
         comma_anchor_info = get_expr_format_anchors(node)
@@ -1126,13 +1107,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
 
     def visit_Tuple(self, node: ast.Tuple) -> Doc:
         inner = self._tuple_inner_doc(node)
-        return self._wrapped_with_open_anchor(
-            node,
-            inner,
-            close_text=")",
-            default_builder=paren,
-            is_empty=len(node.elts) == 0,
-        )
+        return self._wrapped_with_expr_anchor(node, inner)
 
     def _keyword_doc(self, kw: ast.keyword) -> Doc:
         if kw.arg is None:
@@ -1482,12 +1457,22 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         elif isinstance(node, ast.TypeVarTuple):
             return self._doc_with_comments(
                 node,
-                concat([text("*"), self._defined_name_doc(node, text(node.name))]),
+                concat(
+                    [
+                        self._prefix_anchor_doc(node, text("*")),
+                        self._defined_name_doc(node, text(node.name)),
+                    ]
+                ),
             )
         elif isinstance(node, ast.ParamSpec):
             return self._doc_with_comments(
                 node,
-                concat([text("**"), self._defined_name_doc(node, text(node.name))]),
+                concat(
+                    [
+                        self._prefix_anchor_doc(node, text("**")),
+                        self._defined_name_doc(node, text(node.name)),
+                    ]
+                ),
             )
         return self._doc_with_comments(node, self._unsupported_syntax_doc(node))
 
@@ -1864,7 +1849,9 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             for key, pattern in zip(node.keys, node.patterns)
         ]
         if node.rest is not None:
-            entries.append(concat([text("**"), text(node.rest)]))
+            entries.append(
+                concat([self._prefix_anchor_doc(node, text("**")), text(node.rest)])
+            )
         return brace(join(comma_space(), entries))
 
     def visit_MatchStar(self, node: ast.MatchStar) -> Doc:
@@ -1880,7 +1867,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     self._visit_doc(type_ann),
                 ]
             )
-        return concat([text("*"), star_target])
+        return concat([self._prefix_anchor_doc(node, text("*")), star_target])
 
     def visit_MatchAs(self, node: ast.MatchAs) -> Doc:
         if node.pattern is None and node.name is None:
@@ -2025,7 +2012,12 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             [
                 concat([text(k.arg), text("="), self._visit_doc(k.value)])
                 if k.arg is not None
-                else concat([text("**"), self._visit_doc(k.value)])
+                else concat(
+                    [
+                        self._prefix_anchor_doc(k.value, text("**")),
+                        self._visit_doc(k.value),
+                    ]
+                )
                 for k in node.keywords
             ]
         )
@@ -2107,7 +2099,8 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 params.append(self._typed_arg_doc(arg))
 
         if args.vararg is not None:
-            params.append(self._typed_arg_doc(args.vararg, prefix="*"))
+            params.append(self._prefix_anchor_doc(args.vararg, text("*")))
+            params.append(self._typed_arg_doc(args.vararg))
         elif len(args.kwonlyargs) > 0:
             params.append(text("*"))
 
@@ -2118,7 +2111,8 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 params.append(self._typed_arg_doc(kw_arg, default=kw_default))
 
         if args.kwarg is not None:
-            params.append(self._typed_arg_doc(args.kwarg, prefix="**"))
+            params.append(self._prefix_anchor_doc(args.kwarg, text("**")))
+            params.append(self._typed_arg_doc(args.kwarg))
 
         return group(
             self._comma_combined_doc(
@@ -2128,7 +2122,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             )
         )
 
-    def _visit_FcuntionDef_AsyncFunctionDef(
+    def _visit_FunctionDef_AsyncFunctionDef(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef
     ) -> Doc:
         deco_docs = self._visit_Decorators(node.decorator_list)
@@ -2172,10 +2166,10 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return group(deco_docs + [group(head_parts)])
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Doc:
-        return self._visit_FcuntionDef_AsyncFunctionDef(node)
+        return self._visit_FunctionDef_AsyncFunctionDef(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> Doc:
-        return self._visit_FcuntionDef_AsyncFunctionDef(node)
+        return self._visit_FunctionDef_AsyncFunctionDef(node)
 
     def visit_Lambda(self, node: ast.Lambda) -> Doc:
         return self._maybe_wrap_group_paren(
@@ -2224,19 +2218,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             comma_anchor_info.commas if comma_anchor_info else None,
             comma_anchor_info.trailing_comma if comma_anchor_info else None,
         )
-        return self._wrapped_with_open_anchor(
-            node,
-            fields_doc,
-            close_text="|}",
-            default_builder=lambda content: group(
-                [
-                    text("{|"),
-                    indent([softline(), content]),
-                    softline(),
-                    text("|}"),
-                ]
-            ),
-        )
+        return self._wrapped_with_expr_anchor(node, fields_doc)
 
     def visit_RecordType(self, node: ast.Name) -> Doc:
         fields = get_record_type_fields(node)
@@ -2261,19 +2243,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             comma_anchor_info.commas if comma_anchor_info else None,
             comma_anchor_info.trailing_comma if comma_anchor_info else None,
         )
-        return self._wrapped_with_open_anchor(
-            node,
-            fields_doc,
-            close_text="|}",
-            default_builder=lambda content: group(
-                [
-                    text("{|"),
-                    indent([softline(), content]),
-                    softline(),
-                    text("|}"),
-                ]
-            ),
-        )
+        return self._wrapped_with_expr_anchor(node, fields_doc)
 
     def _arg_doc(self, arg: ast.arg) -> Doc:
         parts: list[Doc] = [self._defined_name_doc(arg, text(arg.arg))]
@@ -2315,7 +2285,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             node,
             group(
                 [
-                    self._wrapped_with_open_anchor(
+                    self._wrapped_with_expr_anchor(
                         node,
                         self._comma_combined_doc(
                             arguments_doc,
@@ -2324,12 +2294,9 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                             if comma_anchor_info
                             else None,
                         ),
-                        close_text=")",
-                        default_builder=paren,
-                        is_empty=len(arguments_doc) == 0,
                     ),
                     space(),
-                    text("->"),
+                    self._prefix_anchor_doc(return_type, text("->")),
                     space(),
                     self._visit_doc(return_type)
                     if return_type is not None
@@ -2347,18 +2314,9 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         head_parts: list[Doc] = []
         head_parts.extend(
             [
-                self._wrapped_with_open_anchor(
+                self._wrapped_with_expr_anchor(
                     node,
                     self._arguments_doc(func_def.args, arg_comma_anchor_info),
-                    close_text=")",
-                    default_builder=paren,
-                    is_empty=(
-                        len(func_def.args.posonlyargs) == 0
-                        and len(func_def.args.args) == 0
-                        and func_def.args.vararg is None
-                        and len(func_def.args.kwonlyargs) == 0
-                        and func_def.args.kwarg is None
-                    ),
                 ),
                 space(),
             ]
@@ -2366,17 +2324,13 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         if func_def.returns is not None:
             head_parts.extend(
                 [
-                    text("->"),
+                    self._prefix_anchor_doc(func_def.returns, text("->")),
                     space(),
                     self._visit_doc(func_def.returns),
                     space(),
                 ]
             )
-        head_parts.extend(
-            [
-                self._prefix_anchor_doc(node, text("=>")),
-            ]
-        )
+        head_parts.append(self._expr_keyword_doc(node, "=>"))
         if is_function_literal_inline_return(node):
             assert len(func_def.body) == 1, (
                 "Inline return function literal must have single statement body"
@@ -2386,7 +2340,8 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     # Special case for single return value.
                     return group(head_parts + [space(), self._visit_doc(stmt.value)])
         return self._maybe_wrap_group_paren(
-            node, group(head_parts + [self._block_doc(func_def.body)])
+            node,
+            group(head_parts + [self._block_doc(func_def.body, container=func_def)]),
         )
 
     def visit_ControlComprehension(self, node: ast.Name) -> Doc:

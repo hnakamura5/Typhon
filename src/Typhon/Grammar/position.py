@@ -399,7 +399,7 @@ class TrailingBlock:
 @dataclass
 class BlockStmtAnchors:
     # Sequent of tokens beggining of the statements. (e.g. 'async' and 'def')
-    begin_token_anchors: list[ast.Name]
+    keywords: list[ast.Name]
     open_type_param_bracket_anchor: ast.Name | None
     close_type_param_bracket_anchor: ast.Name | None
     open_paren_anchor: ast.Name | None
@@ -436,7 +436,7 @@ class BlockStmtAnchors:
                 name_from_anchor_token(finally_block.keyword)
             )
         return BlockStmtAnchors(
-            begin_token_anchors=[name_from_anchor_token(k) for k in keywords],
+            keywords=[name_from_anchor_token(k) for k in keywords],
             open_type_param_bracket_anchor=(
                 name_from_anchor_token(type_param_brackets[0])
                 if type_param_brackets

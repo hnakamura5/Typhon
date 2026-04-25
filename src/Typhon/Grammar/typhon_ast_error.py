@@ -311,7 +311,6 @@ def recover_maybe_invalid_function_def_raw(
     # Detect mistake colon due to Python's block colon, or TypeScript return type colon.
     invalid_colon: TokenInfo | None,
     returns: ast.expr | None,
-    return_arrow: TokenInfo | None,
     body: list[ast.stmt],
     type_comment: str | None,
     type_params: list[ast.type_param],
@@ -366,7 +365,6 @@ def recover_maybe_invalid_function_def_raw(
             name=name,
             args=args,
             returns=returns,
-            return_arrow=return_arrow,
             body=body,
             type_comment=type_comment,
             type_params=type_params,
