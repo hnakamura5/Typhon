@@ -7,13 +7,18 @@ from Typhon.Format.attach_comments import attach_comments
 from Typhon.Format.doc_render import render_doc_to_string
 from Typhon.Format.print_to_doc import print_to_doc
 from Typhon.Grammar.parser import parse_string
+from Typhon.Grammar.syntax_errors import get_syntax_error_in_module
 from Typhon.Grammar.tokenizer_custom import source_to_tokens
+from src.Typhon.Grammar.unparse_custom import unparse_custom
 from Typhon.SourceMap.source_ast_cache import SourceAstCache
 
 
 def _parse_module(source: str) -> ast.Module:
     parsed = parse_string(source, mode="exec")
     assert isinstance(parsed, ast.Module)
+    assert not get_syntax_error_in_module(parsed), (
+        f"Syntax error found in module: {get_syntax_error_in_module(parsed)}\nSource:\n{source}\nParsed AST:\n{unparse_custom(parsed)}"
+    )
     return parsed
 
 

@@ -2,9 +2,9 @@ import ast
 
 from ..Driver.debugging import debug_verbose_print
 from ..Grammar.position import (
-    ExprCommaAnchors,
+    ExprFormatAnchors,
     get_pos_attributes,
-    set_expr_comma_anchors,
+    set_expr_format_anchors,
 )
 from ..Grammar.typhon_ast import (
     set_expr_comma_anchors_from_sequence,
@@ -198,17 +198,17 @@ class _DefinedNameRetriever(ast.NodeVisitor):
                     )
                 )
         if has_trailing_comma and node.args + node.keywords:
-            set_expr_comma_anchors(
+            set_expr_format_anchors(
                 node,
-                ExprCommaAnchors(
+                ExprFormatAnchors(
                     commas=commas[:-1],
                     trailing_comma=commas[-1],
                 ),
             )
         else:
-            set_expr_comma_anchors(
+            set_expr_format_anchors(
                 node,
-                ExprCommaAnchors(
+                ExprFormatAnchors(
                     commas=commas,
                     trailing_comma=None,
                 ),

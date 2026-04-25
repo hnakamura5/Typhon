@@ -83,7 +83,7 @@ def _debug_limit_check(*arg: object) -> bool:
     global _debug_printed
     global _debug_printed_size
     global _limit_reached_printed
-    if _debug_printed > 100000 or _debug_printed_size > 10000000:
+    if _debug_printed > 100000 or _debug_printed_size > 100000000:
         if not _limit_reached_printed:
             print("Debug print limit reached, stopping further debug prints.")
             _limit_reached_printed = True

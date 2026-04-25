@@ -9,6 +9,11 @@ from Typhon.SourceMap.source_ast_cache import SourceAstCache
 def _build_cache(source: str) -> SourceAstCache:
     parsed = parse_string(source)
     assert isinstance(parsed, ast.Module)
+    debug_verbose_print(
+        lambda: (
+            f"Parsed AST for source:\n{source}\n\nis:\n{ast.dump(parsed, indent=4)}\n"
+        )
+    )
     return SourceAstCache(parsed, source, "<string>")
 
 
@@ -106,7 +111,7 @@ def test_source_ast_cache_if_let_stmt_and_expr():
     cache = _build_cache(code_stmt_if_let)
 
     stmt = cache.source_pos_to_node(Pos(2, 5), ast.stmt)
-    assert isinstance(stmt, ast.Match)
+    assert isinstance(stmt, ast.If)
     stmt_range = Range.from_ast_node(stmt)
     assert stmt_range is not None
     assert stmt_range == Range(Pos(2, 4), Pos(6, 5))  # the whole if-else statement
@@ -144,7 +149,7 @@ def test_source_ast_cache_let_else_stmt_and_expr():
     cache = _build_cache(code_stmt_let_else)
 
     stmt = cache.source_pos_to_node(Pos(2, 5), ast.stmt)
-    assert isinstance(stmt, ast.If)
+    assert isinstance(stmt, ast.Match)
     stmt_range = Range.from_ast_node(stmt)
     assert stmt_range is not None
     assert stmt_range == Range(Pos(2, 4), Pos(4, 5))  # the whole let-else statement

@@ -19,7 +19,7 @@ from tokenize import TokenInfo
 from ..Driver.debugging import debug_print, debug_verbose_print, is_testing_reparser
 from .position import (
     BlockStmtAnchors,
-    ExprCommaAnchors,
+    ExprFormatAnchors,
     PosNode,
     PosAttributes,
     TrailingBlock,
@@ -29,18 +29,18 @@ from .position import (
     set_function_literal_arg_comma_anchors,
     set_function_type_arg_comma_anchors,
     set_function_type_param_comma_anchors,
-    get_expr_comma_anchors,
+    get_expr_format_anchors,
     get_pos_attributes,
     get_empty_pos_attributes,
     pos_attribute_to_range,
     name_from_anchor_token,
     set_block_stmt_anchors,
-    set_expr_comma_anchors,
+    set_expr_format_anchors,
     set_return_type_annotation_anchor,
     set_completion_trigger_anchor,
     get_completion_trigger_anchor,
-    set_prefix_trigger_anchor,
-    get_prefix_trigger_anchor,
+    set_prefix_format_anchor,
+    get_prefix_format_anchor,
     get_block_braces,
 )
 from .syntax_errors import add_error_node
@@ -836,7 +836,7 @@ def make_function_literal(
         func_id, args, body_stmts, [], returns, type_comment=None, **kwargs
     )
     name = set_completion_trigger_anchor_token(ast.Name(func_id, **kwargs), open_paren)
-    name = set_prefix_trigger_anchor_token(name, arrow)
+    name = set_prefix_format_anchor_token(name, arrow)
     set_function_literal_def(name, func_def)
     set_function_literal_arg_comma_anchors_from_sequence(
         name,
@@ -1152,14 +1152,6 @@ def make_if_let(
         ),
         is_let_else,
     )
-    if is_let_else and isinstance(decl_type, TokenInfo):
-        set_block_stmt_anchors(
-            result,
-            BlockStmtAnchors.make(
-                keywords=[decl_type],
-                else_block=else_block,
-            ),
-        )
     return result
 
 
@@ -1240,6 +1232,7 @@ def _make_nested_match_for_multiple_let(
         if type_error_on_failure:
             # Ignore unreachable clause error for this default case, because this is recovery for the
             # case type check can not detect a pattern mismatch (e.g. due to cast).
+            # case _:#type: ignore[all]
             set_type_ignore_node(default_case, "all")
         cases = [
             _make_if_let_single_case(
@@ -1528,17 +1521,17 @@ def maybe_copy_completion_trigger_anchor[T: ast.AST](from_node: T, to_node: T) -
     return set_completion_trigger_anchor(to_node, anchor)
 
 
-def set_prefix_trigger_anchor_token[T: ast.AST](node: T, token: TokenInfo | None) -> T:
+def set_prefix_format_anchor_token[T: ast.AST](node: T, token: TokenInfo | None) -> T:
     if token is None:
-        return set_prefix_trigger_anchor(node, None)
+        return set_prefix_format_anchor(node, None)
     anchor = name_from_anchor_token(token, ctx=ast.Load())
     set_is_internal_name(anchor)
-    return set_prefix_trigger_anchor(node, anchor)
+    return set_prefix_format_anchor(node, anchor)
 
 
-def maybe_copy_prefix_trigger_anchor[T: ast.AST](from_node: T, to_node: T) -> T:
-    anchor = get_prefix_trigger_anchor(from_node)
-    return set_prefix_trigger_anchor(to_node, anchor)
+def maybe_copy_prefix_format_anchor[T: ast.AST](from_node: T, to_node: T) -> T:
+    anchor = get_prefix_format_anchor(from_node)
+    return set_prefix_format_anchor(to_node, anchor)
 
 
 def set_stmt_prefix_separator_anchors(
@@ -1548,7 +1541,7 @@ def set_stmt_prefix_separator_anchors(
     result = [first]
     for separator, stmt in rest:
         if separator.string == ";":
-            set_prefix_trigger_anchor_token(stmt, separator)
+            set_prefix_format_anchor_token(stmt, separator)
         result.append(stmt)
     return result
 
@@ -1610,7 +1603,7 @@ def make_function_def(
     if isinstance(name, TokenInfo):
         set_defined_name_token(result, name)
     if returns is not None:
-        set_prefix_trigger_anchor_token(returns, return_arrow)
+        set_prefix_format_anchor_token(returns, return_arrow)
     if close_paren_anchor is not None:
         set_return_type_annotation_anchor(
             result,
@@ -1726,7 +1719,7 @@ def make_keyword(
     prefix: TokenInfo | None = None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.keyword:
-    result = set_prefix_trigger_anchor_token(
+    result = set_prefix_format_anchor_token(
         ast.keyword(
             arg=arg.string if arg else None,
             value=value,
@@ -2211,6 +2204,7 @@ def make_with_comp(
             ),
         ],
         returns=None,
+        return_arrow=None,
         type_comment=None,
         type_params=[],
         close_paren_anchor=None,
@@ -2272,6 +2266,7 @@ def make_try_comp(
             )
         ],
         returns=None,
+        return_arrow=None,
         type_comment=None,
         type_params=[],
         close_paren_anchor=None,
@@ -2366,6 +2361,7 @@ def make_match_comp(
             ),
         ],
         returns=None,
+        return_arrow=None,
         type_comment=None,
         type_params=[],
         close_paren_anchor=None,
@@ -2398,6 +2394,7 @@ def make_while_comp(
             ),
         ],
         returns=None,
+        return_arrow=None,
         type_comment=None,
         type_params=[],
         close_paren_anchor=None,
@@ -2418,6 +2415,7 @@ def make_if_let_comp(
     control_id = "__if_let_comp"
     func_def = make_function_def(
         is_async=False,
+        is_static=False,
         name=control_id,
         args=_empty_args(),
         body=[
@@ -2434,6 +2432,7 @@ def make_if_let_comp(
             )
         ],
         returns=None,
+        return_arrow=None,
         type_comment=None,
         type_params=[],
         close_paren_anchor=None,
@@ -2466,6 +2465,7 @@ def make_while_let_comp(
             )
         ],
         returns=None,
+        return_arrow=None,
         type_comment=None,
         type_params=[],
         close_paren_anchor=None,
@@ -2522,6 +2522,7 @@ def make_let_comp(
         args=_empty_args(),
         body=stmts,
         returns=None,
+        return_arrow=None,
         type_comment=None,
         type_params=[],
         close_paren_anchor=None,
@@ -3109,6 +3110,9 @@ def set_expr_comma_anchor_tokens[T: ast.expr](
     node: T,
     commas: list[TokenInfo],
     trailing_comma: TokenInfo | None = None,
+    keywords: list[TokenInfo] | None = None,
+    surround_open: TokenInfo | None = None,
+    surround_close: TokenInfo | None = None,
 ) -> T:
     comma_anchors = [set_is_internal_name(name_from_anchor_token(c)) for c in commas]
     trailing_comma_anchor = (
@@ -3122,9 +3126,9 @@ def set_expr_comma_anchor_tokens[T: ast.expr](
             f"commas={len(comma_anchors)}, trailing={trailing_comma_anchor is not None}"
         )
     )
-    return set_expr_comma_anchors(
+    return set_expr_format_anchors(
         node,
-        ExprCommaAnchors(
+        ExprFormatAnchors(
             commas=comma_anchors,
             trailing_comma=trailing_comma_anchor,
         ),
@@ -3135,7 +3139,7 @@ def _set_comma_anchor_tokens[T: ast.AST](
     node: T,
     commas: list[TokenInfo],
     trailing_comma: TokenInfo | None,
-    setter: Callable[[T, ExprCommaAnchors | None], T],
+    setter: Callable[[T, ExprFormatAnchors | None], T],
 ) -> T:
     comma_anchors = [set_is_internal_name(name_from_anchor_token(c)) for c in commas]
     trailing_comma_anchor = (
@@ -3145,7 +3149,7 @@ def _set_comma_anchor_tokens[T: ast.AST](
     )
     return setter(
         node,
-        ExprCommaAnchors(
+        ExprFormatAnchors(
             commas=comma_anchors,
             trailing_comma=trailing_comma_anchor,
         ),
@@ -3156,7 +3160,7 @@ def _set_comma_anchors_from_sequence[T: ast.AST](
     node: T,
     items: list[ast.AST],
     trailing_comma: TokenInfo | None,
-    setter: Callable[[T, ExprCommaAnchors | None], T],
+    setter: Callable[[T, ExprFormatAnchors | None], T],
 ) -> T:
     if not items:
         return setter(node, None)
@@ -3184,7 +3188,7 @@ def _set_comma_anchors_from_sequence[T: ast.AST](
         set_is_internal_name(trailing_comma_anchor)
         return setter(
             node,
-            ExprCommaAnchors(
+            ExprFormatAnchors(
                 commas=anchors[:-1],
                 trailing_comma=trailing_comma_anchor,
             ),
@@ -3192,7 +3196,7 @@ def _set_comma_anchors_from_sequence[T: ast.AST](
 
     return setter(
         node,
-        ExprCommaAnchors(
+        ExprFormatAnchors(
             commas=anchors,
             trailing_comma=None,
         ),
@@ -3208,7 +3212,7 @@ def set_expr_comma_anchors_from_sequence[T: ast.expr](
         node,
         cast(list[ast.AST], items),
         trailing_comma,
-        set_expr_comma_anchors,
+        set_expr_format_anchors,
     )
 
 
@@ -3351,7 +3355,7 @@ def set_call_anchors(
 
 
 def maybe_copy_expr_comma_anchors[T: ast.expr](from_node: T, to_node: T) -> T:
-    return set_expr_comma_anchors(to_node, get_expr_comma_anchors(from_node))
+    return set_expr_format_anchors(to_node, get_expr_format_anchors(from_node))
 
 
 def maybe_copy_expr_anchors[T: ast.expr](from_node: T, to_node: T) -> T:

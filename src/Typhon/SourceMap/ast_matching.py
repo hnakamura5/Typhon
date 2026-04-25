@@ -12,7 +12,7 @@ from ..Grammar.typhon_ast import (
 )
 from ..Grammar.position import (
     get_completion_trigger_anchor,
-    get_expr_comma_anchors,
+    get_expr_format_anchors,
     get_return_type_annotation_anchor,
 )
 
@@ -105,8 +105,8 @@ class MatchingVisitor(ast.NodeVisitor):
                 with self._with_right(right_completion_anchor):
                     self.visit(completion_anchor)
         if isinstance(node, ast.expr) and isinstance(right, ast.expr):
-            comma_anchors = get_expr_comma_anchors(node)
-            right_comma_anchors = get_expr_comma_anchors(right)
+            comma_anchors = get_expr_format_anchors(node)
+            right_comma_anchors = get_expr_format_anchors(right)
             if comma_anchors is not None:
                 if right_comma_anchors is not None:
                     self._visit_list(

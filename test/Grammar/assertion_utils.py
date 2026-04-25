@@ -209,7 +209,7 @@ def assert_equal_with_meta_variable(target_code: str, expected_code: str):
     print(f"\nMeta variable expanded expected code:\n\n{replaced_expected_code}")
     match = re.fullmatch(replaced_expected_code, target_code)
     assert match is not None, (
-        f"Expected code pattern '{replaced_expected_code}' does not match target code '{target_code}'"
+        f"Expected code pattern:\n{replaced_expected_code.replace('\\', '')}\n\ndoes not match target code:\n{target_code}\n\nexpected code:\n{expected_code}"
     )
     assert len(meta_varialbes) == len(match.groups()), (
         f"Expected {len(meta_varialbes)} meta variables, but regex has {len(match.groups())} groups"

@@ -10,8 +10,8 @@ from ..Grammar.position import (
     get_class_type_param_comma_anchors,
     get_block_stmt_anchors,
     get_completion_trigger_anchor,
-    get_prefix_trigger_anchor,
-    get_expr_comma_anchors,
+    get_prefix_format_anchor,
+    get_expr_format_anchors,
     get_function_arg_comma_anchors,
     get_function_literal_arg_comma_anchors,
     get_function_type_arg_comma_anchors,
@@ -28,7 +28,7 @@ from ..Grammar.typhon_ast import (
     is_function_literal,
     is_function_type,
     PythonScope,
-    set_prefix_trigger_anchor_token,
+    set_prefix_format_anchor_token,
     get_record_literal_fields,
     get_record_type_fields,
     is_internal_fallback_stmt,
@@ -147,11 +147,11 @@ class _SourceAstIndexVisitor(TyphonASTRawVisitor):
         if completion_anchor := get_completion_trigger_anchor(node):
             self._visit_anchor(completion_anchor)
 
-        if prefix_anchor := get_prefix_trigger_anchor(node):
+        if prefix_anchor := get_prefix_format_anchor(node):
             self._visit_anchor(prefix_anchor)
 
         if isinstance(node, ast.expr):
-            if comma_anchors := get_expr_comma_anchors(node):
+            if comma_anchors := get_expr_format_anchors(node):
                 for comma_anchor in comma_anchors.commas:
                     self._visit_anchor(comma_anchor)
                 if comma_anchors.trailing_comma is not None:
@@ -184,7 +184,7 @@ class _SourceAstIndexVisitor(TyphonASTRawVisitor):
                 for anchor in block_anchors.inner_separator_anchors:
                     self._visit_anchor(anchor)
             if inline_anchors := get_inline_stmt_anchor(node):
-                for anchor in inline_anchors.begin_token_anchors:
+                for anchor in inline_anchors.keywords:
                     self._visit_anchor(anchor)
                 self._visit_anchor(inline_anchors.appendix_anchor)
 
@@ -270,7 +270,7 @@ class SourceAstCache:
                     continue
                 stmt_list = value
                 for prev_stmt, next_stmt in zip(stmt_list, stmt_list[1:]):
-                    if get_prefix_trigger_anchor(next_stmt) is not None:
+                    if get_prefix_format_anchor(next_stmt) is not None:
                         continue
                     prev_pos = get_pos_attributes_if_exists(prev_stmt)
                     next_pos = get_pos_attributes_if_exists(next_stmt)
@@ -285,7 +285,7 @@ class SourceAstCache:
                         continue
                     for token in semicolon_tokens:
                         if prev_end <= token.start and token.end <= next_start:
-                            set_prefix_trigger_anchor_token(next_stmt, token)
+                            set_prefix_format_anchor_token(next_stmt, token)
                             break
 
     def _setup_parent_map(self) -> None:
@@ -309,7 +309,7 @@ class SourceAstCache:
             lambda: (
                 f"Adding to source AST interval tree: in {self.source_file_path}\n"
                 f"    range={node_range}\n"
-                f"    {ast.dump(node)}\n"
+                f"    {ast.dump(node, include_attributes=True)}\n"
                 f"    text={node_range.of_string(self.source_code)}"
             )
         )

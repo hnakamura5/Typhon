@@ -164,42 +164,85 @@ def clear_completion_trigger_anchor(node: ast.AST):
         delattr(node, _COMPLETION_TRIGGER_ANCHOR)
 
 
-_PREFIX_TRIGGER_ANCHOR = "_typh_prefix_trigger_anchor"
+_PREFIX_FORMAT_ANCHOR = "_typh_prefix_format_anchor"
 
 
-def set_prefix_trigger_anchor[T: ast.AST](node: T, anchor: ast.Name | None) -> T:
-    setattr(node, _PREFIX_TRIGGER_ANCHOR, anchor)
+def set_prefix_format_anchor[T: ast.AST](node: T, anchor: ast.Name | None) -> T:
+    setattr(node, _PREFIX_FORMAT_ANCHOR, anchor)
     return node
 
 
-def get_prefix_trigger_anchor(node: ast.AST) -> ast.Name | None:
-    return getattr(node, _PREFIX_TRIGGER_ANCHOR, None)
+def get_prefix_format_anchor(node: ast.AST) -> ast.Name | None:
+    return getattr(node, _PREFIX_FORMAT_ANCHOR, None)
 
 
-def clear_prefix_trigger_anchor(node: ast.AST):
-    if hasattr(node, _PREFIX_TRIGGER_ANCHOR):
-        delattr(node, _PREFIX_TRIGGER_ANCHOR)
+def clear_prefix_format_anchor(node: ast.AST):
+    if hasattr(node, _PREFIX_FORMAT_ANCHOR):
+        delattr(node, _PREFIX_FORMAT_ANCHOR)
 
 
 @dataclass
-class ExprCommaAnchors:
+class ExprFormatAnchors:
     commas: list[ast.Name]
     trailing_comma: ast.Name | None = None
+    keywords: list[ast.Name] | None = None
+    surround_open: ast.Name | None = None
+    surround_close: ast.Name | None = None
+
+    @staticmethod
+    def make(
+        *,
+        commas: list[TokenInfo] | None = None,
+        trailing_comma: TokenInfo | None = None,
+        keywords: list[TokenInfo] | None = None,
+        surround_open: TokenInfo | None = None,
+        surround_close: TokenInfo | None = None,
+    ) -> ExprFormatAnchors:
+        comma_anchors = (
+            [name_from_anchor_token(c) for c in commas] if commas is not None else []
+        )
+        trailing_comma_anchor = (
+            name_from_anchor_token(trailing_comma)
+            if trailing_comma is not None
+            else None
+        )
+        keyword_anchors = (
+            [name_from_anchor_token(k) for k in keywords]
+            if keywords is not None
+            else None
+        )
+        surround_open_anchor = (
+            name_from_anchor_token(surround_open) if surround_open is not None else None
+        )
+        surround_close_anchor = (
+            name_from_anchor_token(surround_close)
+            if surround_close is not None
+            else None
+        )
+        return ExprFormatAnchors(
+            commas=comma_anchors,
+            trailing_comma=trailing_comma_anchor,
+            keywords=keyword_anchors,
+            surround_open=surround_open_anchor,
+            surround_close=surround_close_anchor,
+        )
 
 
 _EXPR_COMMA_ANCHORS = "_typh_expr_comma_anchors"
 
 
-def set_expr_comma_anchors[T: ast.expr](node: T, anchors: ExprCommaAnchors | None) -> T:
+def set_expr_format_anchors[T: ast.expr](
+    node: T, anchors: ExprFormatAnchors | None
+) -> T:
     setattr(node, _EXPR_COMMA_ANCHORS, anchors)
     return node
 
 
-def get_expr_comma_anchors(node: ast.expr) -> ExprCommaAnchors | None:
+def get_expr_format_anchors(node: ast.expr) -> ExprFormatAnchors | None:
     return getattr(node, _EXPR_COMMA_ANCHORS, None)
 
 
-def clear_expr_comma_anchors(node: ast.expr):
+def clear_expr_format_anchors(node: ast.expr):
     if hasattr(node, _EXPR_COMMA_ANCHORS):
         delattr(node, _EXPR_COMMA_ANCHORS)
 
@@ -209,13 +252,13 @@ _CLASS_TYPE_PARAM_COMMA_ANCHORS = "_typh_class_type_param_comma_anchors"
 
 
 def set_class_base_comma_anchors(
-    node: ast.ClassDef, anchors: ExprCommaAnchors | None
+    node: ast.ClassDef, anchors: ExprFormatAnchors | None
 ) -> ast.ClassDef:
     setattr(node, _CLASS_BASE_COMMA_ANCHORS, anchors)
     return node
 
 
-def get_class_base_comma_anchors(node: ast.ClassDef) -> ExprCommaAnchors | None:
+def get_class_base_comma_anchors(node: ast.ClassDef) -> ExprFormatAnchors | None:
     return getattr(node, _CLASS_BASE_COMMA_ANCHORS, None)
 
 
@@ -225,7 +268,7 @@ def clear_class_base_comma_anchors(node: ast.ClassDef):
 
 
 def set_class_type_param_comma_anchors(
-    node: ast.ClassDef, anchors: ExprCommaAnchors | None
+    node: ast.ClassDef, anchors: ExprFormatAnchors | None
 ) -> ast.ClassDef:
     setattr(node, _CLASS_TYPE_PARAM_COMMA_ANCHORS, anchors)
     return node
@@ -233,7 +276,7 @@ def set_class_type_param_comma_anchors(
 
 def get_class_type_param_comma_anchors(
     node: ast.ClassDef,
-) -> ExprCommaAnchors | None:
+) -> ExprFormatAnchors | None:
     return getattr(node, _CLASS_TYPE_PARAM_COMMA_ANCHORS, None)
 
 
@@ -250,7 +293,7 @@ _FUNCTION_TYPE_ARG_COMMA_ANCHORS = "_typh_function_type_arg_comma_anchors"
 
 def set_function_arg_comma_anchors[T: ast.FunctionDef | ast.AsyncFunctionDef](
     node: T,
-    anchors: ExprCommaAnchors | None,
+    anchors: ExprFormatAnchors | None,
 ) -> T:
     setattr(node, _FUNCTION_ARG_COMMA_ANCHORS, anchors)
     return node
@@ -258,7 +301,7 @@ def set_function_arg_comma_anchors[T: ast.FunctionDef | ast.AsyncFunctionDef](
 
 def get_function_arg_comma_anchors(
     node: ast.FunctionDef | ast.AsyncFunctionDef,
-) -> ExprCommaAnchors | None:
+) -> ExprFormatAnchors | None:
     return getattr(node, _FUNCTION_ARG_COMMA_ANCHORS, None)
 
 
@@ -269,7 +312,7 @@ def clear_function_arg_comma_anchors(node: ast.FunctionDef | ast.AsyncFunctionDe
 
 def set_function_type_param_comma_anchors[T: ast.FunctionDef | ast.AsyncFunctionDef](
     node: T,
-    anchors: ExprCommaAnchors | None,
+    anchors: ExprFormatAnchors | None,
 ) -> T:
     setattr(node, _FUNCTION_TYPE_PARAM_COMMA_ANCHORS, anchors)
     return node
@@ -277,7 +320,7 @@ def set_function_type_param_comma_anchors[T: ast.FunctionDef | ast.AsyncFunction
 
 def get_function_type_param_comma_anchors(
     node: ast.FunctionDef | ast.AsyncFunctionDef,
-) -> ExprCommaAnchors | None:
+) -> ExprFormatAnchors | None:
     return getattr(node, _FUNCTION_TYPE_PARAM_COMMA_ANCHORS, None)
 
 
@@ -290,7 +333,7 @@ def clear_function_type_param_comma_anchors(
 
 def set_function_literal_arg_comma_anchors(
     node: ast.Name,
-    anchors: ExprCommaAnchors | None,
+    anchors: ExprFormatAnchors | None,
 ) -> ast.Name:
     setattr(node, _FUNCTION_LITERAL_ARG_COMMA_ANCHORS, anchors)
     return node
@@ -298,7 +341,7 @@ def set_function_literal_arg_comma_anchors(
 
 def get_function_literal_arg_comma_anchors(
     node: ast.Name,
-) -> ExprCommaAnchors | None:
+) -> ExprFormatAnchors | None:
     return getattr(node, _FUNCTION_LITERAL_ARG_COMMA_ANCHORS, None)
 
 
@@ -309,7 +352,7 @@ def clear_function_literal_arg_comma_anchors(node: ast.Name):
 
 def set_function_type_arg_comma_anchors(
     node: ast.Name,
-    anchors: ExprCommaAnchors | None,
+    anchors: ExprFormatAnchors | None,
 ) -> ast.Name:
     setattr(node, _FUNCTION_TYPE_ARG_COMMA_ANCHORS, anchors)
     return node
@@ -317,7 +360,7 @@ def set_function_type_arg_comma_anchors(
 
 def get_function_type_arg_comma_anchors(
     node: ast.Name,
-) -> ExprCommaAnchors | None:
+) -> ExprFormatAnchors | None:
     return getattr(node, _FUNCTION_TYPE_ARG_COMMA_ANCHORS, None)
 
 
@@ -426,7 +469,7 @@ class BlockStmtAnchors:
 
 @dataclass
 class InlineStmtAnchors:
-    begin_token_anchors: list[ast.Name]
+    keywords: list[ast.Name]
     appendix_anchor: ast.Name  # `else` for let-else
 
 
