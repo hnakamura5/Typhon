@@ -56,12 +56,6 @@ from ..Grammar.position import (
     ExprFormatAnchors,
     get_block_stmt_anchors,
     get_expr_format_anchors,
-    get_class_base_comma_anchors,
-    get_class_type_param_comma_anchors,
-    get_function_arg_comma_anchors,
-    get_function_literal_arg_comma_anchors,
-    get_function_type_arg_comma_anchors,
-    get_function_type_param_comma_anchors,
 )
 from Typhon.Grammar.unparse_custom import CustomUnparseHelper
 from Typhon.Transform.visitor import TyphonASTRawVisitor
@@ -2321,7 +2315,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         assert func_def is not None, (
             "FunctionLiteral must have a corresponding FunctionDef"
         )
-        arg_comma_anchor_info = get_function_literal_arg_comma_anchors(node)
+        arg_comma_anchor_info = get_expr_format_anchors(node)
         head_parts: list[Doc] = []
         head_parts.extend(
             [

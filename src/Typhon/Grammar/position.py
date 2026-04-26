@@ -247,129 +247,6 @@ def clear_expr_format_anchors(node: ast.expr):
         delattr(node, _EXPR_COMMA_ANCHORS)
 
 
-_CLASS_BASE_COMMA_ANCHORS = "_typh_class_base_comma_anchors"
-_CLASS_TYPE_PARAM_COMMA_ANCHORS = "_typh_class_type_param_comma_anchors"
-
-
-def set_class_base_comma_anchors(
-    node: ast.ClassDef, anchors: ExprFormatAnchors | None
-) -> ast.ClassDef:
-    setattr(node, _CLASS_BASE_COMMA_ANCHORS, anchors)
-    return node
-
-
-def get_class_base_comma_anchors(node: ast.ClassDef) -> ExprFormatAnchors | None:
-    return getattr(node, _CLASS_BASE_COMMA_ANCHORS, None)
-
-
-def clear_class_base_comma_anchors(node: ast.ClassDef):
-    if hasattr(node, _CLASS_BASE_COMMA_ANCHORS):
-        delattr(node, _CLASS_BASE_COMMA_ANCHORS)
-
-
-def set_class_type_param_comma_anchors(
-    node: ast.ClassDef, anchors: ExprFormatAnchors | None
-) -> ast.ClassDef:
-    setattr(node, _CLASS_TYPE_PARAM_COMMA_ANCHORS, anchors)
-    return node
-
-
-def get_class_type_param_comma_anchors(
-    node: ast.ClassDef,
-) -> ExprFormatAnchors | None:
-    return getattr(node, _CLASS_TYPE_PARAM_COMMA_ANCHORS, None)
-
-
-def clear_class_type_param_comma_anchors(node: ast.ClassDef):
-    if hasattr(node, _CLASS_TYPE_PARAM_COMMA_ANCHORS):
-        delattr(node, _CLASS_TYPE_PARAM_COMMA_ANCHORS)
-
-
-# For temporal storage of comma anchors in parser.
-_FUNCTION_ARG_COMMA_ANCHORS = "_typh_function_arg_comma_anchors"
-_FUNCTION_TYPE_PARAM_COMMA_ANCHORS = "_typh_function_type_param_comma_anchors"
-_FUNCTION_LITERAL_ARG_COMMA_ANCHORS = "_typh_function_literal_arg_comma_anchors"
-_FUNCTION_TYPE_ARG_COMMA_ANCHORS = "_typh_function_type_arg_comma_anchors"
-
-
-def set_function_arg_comma_anchors[T: ast.FunctionDef | ast.AsyncFunctionDef](
-    node: T,
-    anchors: ExprFormatAnchors | None,
-) -> T:
-    setattr(node, _FUNCTION_ARG_COMMA_ANCHORS, anchors)
-    return node
-
-
-def get_function_arg_comma_anchors(
-    node: ast.FunctionDef | ast.AsyncFunctionDef,
-) -> ExprFormatAnchors | None:
-    return getattr(node, _FUNCTION_ARG_COMMA_ANCHORS, None)
-
-
-def clear_function_arg_comma_anchors(node: ast.FunctionDef | ast.AsyncFunctionDef):
-    if hasattr(node, _FUNCTION_ARG_COMMA_ANCHORS):
-        delattr(node, _FUNCTION_ARG_COMMA_ANCHORS)
-
-
-def set_function_type_param_comma_anchors[T: ast.FunctionDef | ast.AsyncFunctionDef](
-    node: T,
-    anchors: ExprFormatAnchors | None,
-) -> T:
-    setattr(node, _FUNCTION_TYPE_PARAM_COMMA_ANCHORS, anchors)
-    return node
-
-
-def get_function_type_param_comma_anchors(
-    node: ast.FunctionDef | ast.AsyncFunctionDef,
-) -> ExprFormatAnchors | None:
-    return getattr(node, _FUNCTION_TYPE_PARAM_COMMA_ANCHORS, None)
-
-
-def clear_function_type_param_comma_anchors(
-    node: ast.FunctionDef | ast.AsyncFunctionDef,
-):
-    if hasattr(node, _FUNCTION_TYPE_PARAM_COMMA_ANCHORS):
-        delattr(node, _FUNCTION_TYPE_PARAM_COMMA_ANCHORS)
-
-
-def set_function_literal_arg_comma_anchors(
-    node: ast.Name,
-    anchors: ExprFormatAnchors | None,
-) -> ast.Name:
-    setattr(node, _FUNCTION_LITERAL_ARG_COMMA_ANCHORS, anchors)
-    return node
-
-
-def get_function_literal_arg_comma_anchors(
-    node: ast.Name,
-) -> ExprFormatAnchors | None:
-    return getattr(node, _FUNCTION_LITERAL_ARG_COMMA_ANCHORS, None)
-
-
-def clear_function_literal_arg_comma_anchors(node: ast.Name):
-    if hasattr(node, _FUNCTION_LITERAL_ARG_COMMA_ANCHORS):
-        delattr(node, _FUNCTION_LITERAL_ARG_COMMA_ANCHORS)
-
-
-def set_function_type_arg_comma_anchors(
-    node: ast.Name,
-    anchors: ExprFormatAnchors | None,
-) -> ast.Name:
-    setattr(node, _FUNCTION_TYPE_ARG_COMMA_ANCHORS, anchors)
-    return node
-
-
-def get_function_type_arg_comma_anchors(
-    node: ast.Name,
-) -> ExprFormatAnchors | None:
-    return getattr(node, _FUNCTION_TYPE_ARG_COMMA_ANCHORS, None)
-
-
-def clear_function_type_arg_comma_anchors(node: ast.Name):
-    if hasattr(node, _FUNCTION_TYPE_ARG_COMMA_ANCHORS):
-        delattr(node, _FUNCTION_TYPE_ARG_COMMA_ANCHORS)
-
-
 _RETURN_TYPE_ANNOTATION_ANCHOR = "_typh_return_type_annotation_anchor"
 
 
@@ -558,6 +435,7 @@ def clear_block_braces(body: list[ast.stmt]):
             delattr(body[0], _BLOCK_BRACES)
 
 
+# Temporal storages of comment anchors in parser.
 _ARG_FOLLOWING_COMMA_TOKEN = "_typh_arg_following_comma_token"
 _ARGS_POSONLY_SLASH_COMMA_TOKEN = "_typh_args_posonly_slash_comma_token"
 _ARGS_BARE_STAR_COMMA_TOKEN = "_typh_args_bare_star_comma_token"

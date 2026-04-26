@@ -7,7 +7,6 @@ from ..Grammar.position import (
     set_expr_format_anchors,
 )
 from ..Grammar.typhon_ast import (
-    set_expr_comma_anchors_from_sequence,
     set_defined_name,
     set_import_from_names,
     set_is_internal_name,
@@ -220,22 +219,6 @@ class _DefinedNameRetriever(ast.NodeVisitor):
         open_bracket_col = node.value.end_col_offset
         if open_bracket_col is not None:
             set_completion_trigger_anchor_at(node, pos["lineno"], open_bracket_col, "[")
-        self.generic_visit(node)
-
-    def visit_Tuple(self, node: ast.Tuple):
-        set_expr_comma_anchors_from_sequence(node, node.elts, None)
-        self.generic_visit(node)
-
-    def visit_List(self, node: ast.List):
-        set_expr_comma_anchors_from_sequence(node, node.elts, None)
-        self.generic_visit(node)
-
-    def visit_Set(self, node: ast.Set):
-        set_expr_comma_anchors_from_sequence(node, node.elts, None)
-        self.generic_visit(node)
-
-    def visit_Dict(self, node: ast.Dict):
-        set_expr_comma_anchors_from_sequence(node, node.values, None)
         self.generic_visit(node)
 
     def visit_arg(self, node: ast.arg):

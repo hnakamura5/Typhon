@@ -199,7 +199,7 @@ let f = (
 result_function_literal_params_with_comments = """
 let f = (
     a: int,  # first
-    #(second)# b: int
+    #(second)# b: int,
 ) => a + b
 """
 

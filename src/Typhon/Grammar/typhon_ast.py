@@ -24,13 +24,8 @@ from .position import (
     PosAttributes,
     TrailingBlock,
     get_arg_following_comma_token,
+    get_function_argument_comma_tokens,
     get_inner_and_trailing_comma_tokens,
-    set_class_base_comma_anchors,
-    set_class_type_param_comma_anchors,
-    set_function_arg_comma_anchors,
-    set_function_literal_arg_comma_anchors,
-    set_function_type_arg_comma_anchors,
-    set_function_type_param_comma_anchors,
     get_expr_format_anchors,
     get_pos_attributes,
     get_empty_pos_attributes,
@@ -849,23 +844,12 @@ def make_function_literal(
     name = set_completion_trigger_anchor_token(ast.Name(func_id, **kwargs), open_paren)
     name = set_prefix_format_anchor_token(name, arrow)
     set_function_literal_def(name, func_def)
-    set_function_literal_arg_comma_anchors_from_sequence(
-        name,
-        _argument_items(args),
-        None,
-    )
-    debug_verbose_print(
-        lambda: (
-            f"make_function_literal: args={args}, returns={returns}, "
-            f"body={body}, is_inline_return={is_inline_return}, "
-            f"open_paren={open_paren}, close_paren={close_paren}"
-        )
-    )
+    args_comma_info = get_function_argument_comma_tokens(args)
     set_expr_format_anchors(
         name,
         ExprFormatAnchors.make(
-            commas=None,
-            trailing_comma=None,
+            commas=args_comma_info[0] if args_comma_info else None,
+            trailing_comma=args_comma_info[1] if args_comma_info else None,
             keywords=[arrow],
             surround_open=open_paren,
             surround_close=close_paren,
@@ -971,7 +955,6 @@ def make_arrow_type(
         set_star_arg_of_function_type(result, star_etc[0])
         set_star_kwds_of_function_type(result, star_etc[1])
         anchor_items.extend([star_etc[0], star_etc[1]])
-    # set_function_type_arg_comma_anchors_from_sequence(result, anchor_items, None)
     commas_trailling = get_inner_and_trailing_comma_tokens(
         [get_arg_following_comma_token(a) for a in args]
     )
@@ -1008,12 +991,9 @@ def make_arrow_type_single_chain(
         set_args_of_function_type(result, args)
         set_return_of_function_type(result, returns[0])
         _check_arrow_type_args(args, star_etc)
-        anchor_items: list[ast.AST] = [*args]
         if star_etc:
             set_star_arg_of_function_type(result, star_etc[0])
             set_star_kwds_of_function_type(result, star_etc[1])
-            anchor_items.extend([star_etc[0], star_etc[1]])
-        set_function_type_arg_comma_anchors_from_sequence(result, anchor_items, None)
     elif len(returns) == 0:
         raise SyntaxError("Arrow type must have one or more return types")
     else:
@@ -1027,12 +1007,9 @@ def make_arrow_type_single_chain(
         set_args_of_function_type(result, args)
         set_return_of_function_type(result, return_type)
         _check_arrow_type_args(args, star_etc)
-        anchor_items: list[ast.AST] = [*args]
         if star_etc:
             set_star_arg_of_function_type(result, star_etc[0])
             set_star_kwds_of_function_type(result, star_etc[1])
-            anchor_items.extend([star_etc[0], star_etc[1]])
-        set_function_type_arg_comma_anchors_from_sequence(result, anchor_items, None)
     return result
 
 
@@ -1504,9 +1481,9 @@ def maybe_copy_defined_name[T: ast.AST](
     return to_node
 
 
-def set_defined_name_token(
-    node: DefinesName, name: TokenInfo | ast.Name, ctx: ast.expr_context = ast.Store()
-):
+def set_defined_name_token[T: DefinesName](
+    node: T, name: TokenInfo | ast.Name, ctx: ast.expr_context = ast.Store()
+) -> T:
     if isinstance(name, TokenInfo):
         name = name_from_anchor_token(name, ctx)
     setattr(node, _DEFINED_NAME, name)
@@ -2983,7 +2960,7 @@ def make_type_var(
     **kwargs: Unpack[PosAttributes],
 ) -> ast.TypeVar:
     return set_defined_name_token(
-        ast.TypeVar(name=name.string, bound=bound, **kwargs),
+        ast.TypeVar(name=name.string, bound=bound, **pos_attribute_to_range(kwargs)),
         name,
     )
 
@@ -2993,7 +2970,7 @@ def make_type_var_tuple(
     **kwargs: Unpack[PosAttributes],
 ) -> ast.TypeVarTuple:
     return set_defined_name_token(
-        ast.TypeVarTuple(name=name.string, **kwargs),
+        ast.TypeVarTuple(name=name.string, **pos_attribute_to_range(kwargs)),
         name,
     )
 
@@ -3003,7 +2980,7 @@ def make_param_spec(
     **kwargs: Unpack[PosAttributes],
 ) -> ast.ParamSpec:
     return set_defined_name_token(
-        ast.ParamSpec(name=name.string, **kwargs),
+        ast.ParamSpec(name=name.string, **pos_attribute_to_range(kwargs)),
         name,
     )
 
@@ -3109,196 +3086,6 @@ class CallArgs:
         if self.positionals:
             return self.positionals[-1]
         return None
-
-
-def set_expr_comma_anchor_tokens[T: ast.expr](
-    node: T,
-    commas: list[TokenInfo],
-    trailing_comma: TokenInfo | None = None,
-    keywords: list[TokenInfo] | None = None,
-    surround_open: TokenInfo | None = None,
-    surround_close: TokenInfo | None = None,
-) -> T:
-    comma_anchors = [set_is_internal_name(name_from_anchor_token(c)) for c in commas]
-    trailing_comma_anchor = (
-        set_is_internal_name(name_from_anchor_token(trailing_comma))
-        if trailing_comma is not None
-        else None
-    )
-    debug_verbose_print(
-        lambda: (
-            "Setting expression comma anchors: "
-            f"commas={len(comma_anchors)}, trailing={trailing_comma_anchor is not None}"
-        )
-    )
-    return set_expr_format_anchors(
-        node,
-        ExprFormatAnchors(
-            commas=comma_anchors,
-            trailing_comma=trailing_comma_anchor,
-        ),
-    )
-
-
-def _set_comma_anchor_tokens[T: ast.AST](
-    node: T,
-    commas: list[TokenInfo],
-    trailing_comma: TokenInfo | None,
-    setter: Callable[[T, ExprFormatAnchors | None], T],
-) -> T:
-    comma_anchors = [set_is_internal_name(name_from_anchor_token(c)) for c in commas]
-    trailing_comma_anchor = (
-        set_is_internal_name(name_from_anchor_token(trailing_comma))
-        if trailing_comma is not None
-        else None
-    )
-    return setter(
-        node,
-        ExprFormatAnchors(
-            commas=comma_anchors,
-            trailing_comma=trailing_comma_anchor,
-        ),
-    )
-
-
-def _set_comma_anchors_from_sequence[T: ast.AST](
-    node: T,
-    items: list[ast.AST],
-    trailing_comma: TokenInfo | None,
-    setter: Callable[[T, ExprFormatAnchors | None], T],
-) -> T:
-    if not items:
-        return setter(node, None)
-    comma_owner_count = len(items) if trailing_comma is not None else len(items) - 1
-    anchors: list[ast.Name] = []
-    for item in items[:comma_owner_count]:
-        pos = get_pos_attributes(cast(PosNode, item))
-        end_line = pos["end_lineno"] or pos["lineno"]
-        end_col = pos["end_col_offset"] or (pos["col_offset"] + 1)
-        anchors.append(
-            set_is_internal_name(
-                ast.Name(
-                    id=",",
-                    ctx=ast.Load(),
-                    lineno=end_line,
-                    col_offset=end_col,
-                    end_lineno=end_line,
-                    end_col_offset=end_col + 1,
-                )
-            )
-        )
-    if trailing_comma is not None:
-        trailing_comma_anchor = name_from_anchor_token(trailing_comma, ctx=ast.Load())
-        set_is_internal_name(trailing_comma_anchor)
-        return setter(
-            node,
-            ExprFormatAnchors(
-                commas=anchors[:-1],
-                trailing_comma=trailing_comma_anchor,
-            ),
-        )
-    return setter(
-        node,
-        ExprFormatAnchors(
-            commas=anchors,
-            trailing_comma=None,
-        ),
-    )
-
-
-def set_expr_comma_anchors_from_sequence[T: ast.expr](
-    node: T,
-    items: list[ast.expr],
-    trailing_comma: TokenInfo | None,
-) -> T:
-    return _set_comma_anchors_from_sequence(
-        node,
-        cast(list[ast.AST], items),
-        trailing_comma,
-        set_expr_format_anchors,
-    )
-
-
-def set_class_base_comma_anchors_from_sequence(
-    node: ast.ClassDef,
-    items: list[ast.AST],
-    trailing_comma: TokenInfo | None,
-) -> ast.ClassDef:
-    return _set_comma_anchors_from_sequence(
-        node,
-        items,
-        trailing_comma,
-        set_class_base_comma_anchors,
-    )
-
-
-def set_class_type_param_comma_anchors_from_sequence(
-    node: ast.ClassDef,
-    type_params: list[ast.type_param],
-    trailing_comma: TokenInfo | None,
-) -> ast.ClassDef:
-    return _set_comma_anchors_from_sequence(
-        node,
-        cast(list[ast.AST], type_params),
-        trailing_comma,
-        set_class_type_param_comma_anchors,
-    )
-
-
-def set_function_arg_comma_anchors_from_sequence[
-    T: ast.FunctionDef | ast.AsyncFunctionDef
-](
-    node: T,
-    items: list[ast.AST],
-    trailing_comma: TokenInfo | None,
-) -> T:
-    return _set_comma_anchors_from_sequence(
-        node,
-        items,
-        trailing_comma,
-        set_function_arg_comma_anchors,
-    )
-
-
-def set_function_literal_arg_comma_anchors_from_sequence(
-    node: ast.Name,
-    items: list[ast.AST],
-    trailing_comma: TokenInfo | None,
-) -> ast.Name:
-    return _set_comma_anchors_from_sequence(
-        node,
-        items,
-        trailing_comma,
-        set_function_literal_arg_comma_anchors,
-    )
-
-
-def set_function_type_arg_comma_anchors_from_sequence(
-    node: ast.Name,
-    items: list[ast.AST],
-    trailing_comma: TokenInfo | None,
-) -> ast.Name:
-    return _set_comma_anchors_from_sequence(
-        node,
-        items,
-        trailing_comma,
-        set_function_type_arg_comma_anchors,
-    )
-
-
-def set_function_type_param_comma_anchors_from_sequence[
-    T: ast.FunctionDef | ast.AsyncFunctionDef
-](
-    node: T,
-    type_params: list[ast.type_param],
-    trailing_comma: TokenInfo | None,
-) -> T:
-    return _set_comma_anchors_from_sequence(
-        node,
-        cast(list[ast.AST], type_params),
-        trailing_comma,
-        set_function_type_param_comma_anchors,
-    )
 
 
 def set_call_anchors(
