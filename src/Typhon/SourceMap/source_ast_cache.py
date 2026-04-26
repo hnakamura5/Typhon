@@ -10,7 +10,6 @@ from ..Grammar.position import (
     get_completion_trigger_anchor,
     get_prefix_format_anchor,
     get_expr_format_anchors,
-    get_inline_stmt_anchor,
     get_pos_attributes_if_exists,
     get_return_type_annotation_anchor,
 )
@@ -151,10 +150,6 @@ class _SourceAstIndexVisitor(TyphonASTRawVisitor):
                     self._visit_anchor(block_anchors.finally_close_anchor)
                 for anchor in block_anchors.inner_separator_anchors:
                     self._visit_anchor(anchor)
-            if inline_anchors := get_inline_stmt_anchor(node):
-                for anchor in inline_anchors.keywords:
-                    self._visit_anchor(anchor)
-                self._visit_anchor(inline_anchors.appendix_anchor)
 
     def visit_RecordLiteral(self, node: ast.Name):
         for field_name, field_type, field_value in (

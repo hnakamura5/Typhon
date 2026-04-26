@@ -464,16 +464,16 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         close_brace_doc: Doc = text("}")
         close_anchor_node: ast.Name | None = None
         if container is not None and isinstance(container, PosNode):
-            if anchors := get_block_stmt_anchors(container):
+            if stmt_anchors := get_block_stmt_anchors(container):
                 if block_kind == "body":
-                    open_anchor = anchors.open_brace_anchor
-                    close_anchor = anchors.close_brace_anchor
+                    open_anchor = stmt_anchors.open_brace_anchor
+                    close_anchor = stmt_anchors.close_brace_anchor
                 elif block_kind == "else":
-                    open_anchor = anchors.else_brace_open_anchor
-                    close_anchor = anchors.else_brace_close_anchor
+                    open_anchor = stmt_anchors.else_brace_open_anchor
+                    close_anchor = stmt_anchors.else_brace_close_anchor
                 else:
-                    open_anchor = anchors.finally_open_anchor
-                    close_anchor = anchors.finally_close_anchor
+                    open_anchor = stmt_anchors.finally_open_anchor
+                    close_anchor = stmt_anchors.finally_close_anchor
                 if open_anchor is not None:
                     open_brace_doc = self._visit_doc(open_anchor)
                 if close_anchor is not None:
@@ -1959,7 +1959,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
 
     def _match_case_doc(self, node: ast.match_case) -> Doc:
         head: list[Doc] = [
-            text("case"),
+            self._stmt_begin_keyword_doc(node, "case"),
             self._space_between_statement_keywords_and_paren,
             paren(self._visit_doc(node.pattern)),
         ]
@@ -1967,7 +1967,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             head.extend(
                 [
                     space(),
-                    text("if"),
+                    self._stmt_inner_separator_doc(node.guard, "if"),
                     self._space_between_statement_keywords_and_paren,
                     paren(self._visit_doc(node.guard)),
                 ]
@@ -1975,13 +1975,20 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return concat([concat(head), self._block_doc(node.body)])
 
     def visit_Match(self, node: ast.Match) -> Doc:
+        open_brace_doc: Doc = text("{")
+        close_brace_doc: Doc = text("}")
+        if stmt_anchors := get_block_stmt_anchors(node):
+            if stmt_anchors.open_brace_anchor is not None:
+                open_brace_doc = self._visit_doc(stmt_anchors.open_brace_anchor)
+            if stmt_anchors.close_brace_anchor is not None:
+                close_brace_doc = self._visit_doc(stmt_anchors.close_brace_anchor)
         return group(
             [
-                text("match"),
+                self._stmt_begin_keyword_doc(node, "match"),
                 self._space_between_statement_keywords_and_paren,
                 self._stmt_paren(node, self._visit_doc(node.subject)),
                 space(),
-                text("{"),
+                open_brace_doc,
                 indent(
                     concat(
                         [
@@ -1994,7 +2001,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     )
                 ),
                 hardline(),
-                text("}"),
+                close_brace_doc,
             ]
         )
 

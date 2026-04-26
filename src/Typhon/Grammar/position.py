@@ -373,46 +373,24 @@ class BlockStmtAnchors:
         )
 
 
-@dataclass
-class InlineStmtAnchors:
-    keywords: list[ast.Name]
-    appendix_anchor: ast.Name  # `else` for let-else
-
-
-_STMT_OPEN_PAREN_ANCHOR = "_typh_stmt_open_paren_anchor"
+_BLOCK_STMT_ANCHOR = "_typh_block_stmt_anchor"
 
 
 def set_block_stmt_anchors[T: PosNode](node: T, anchor: BlockStmtAnchors | None) -> T:
-    setattr(node, _STMT_OPEN_PAREN_ANCHOR, anchor)
+    setattr(node, _BLOCK_STMT_ANCHOR, anchor)
     return node
 
 
 def get_block_stmt_anchors(node: PosNode) -> BlockStmtAnchors | None:
-    return getattr(node, _STMT_OPEN_PAREN_ANCHOR, None)
+    return getattr(node, _BLOCK_STMT_ANCHOR, None)
 
 
 def clear_block_stmt_anchors(node: PosNode):
-    if hasattr(node, _STMT_OPEN_PAREN_ANCHOR):
-        delattr(node, _STMT_OPEN_PAREN_ANCHOR)
+    if hasattr(node, _BLOCK_STMT_ANCHOR):
+        delattr(node, _BLOCK_STMT_ANCHOR)
 
 
-_INLINE_STMT_ANCHOR = "_typh_inline_stmt_anchor"
-
-
-def set_inline_stmt_anchor[T: PosNode](node: T, anchor: InlineStmtAnchors | None) -> T:
-    setattr(node, _INLINE_STMT_ANCHOR, anchor)
-    return node
-
-
-def get_inline_stmt_anchor(node: PosNode) -> InlineStmtAnchors | None:
-    return getattr(node, _INLINE_STMT_ANCHOR, None)
-
-
-def clear_inline_stmt_anchor(node: PosNode):
-    if hasattr(node, _INLINE_STMT_ANCHOR):
-        delattr(node, _INLINE_STMT_ANCHOR)
-
-
+# Temporary storage of block braces.
 _BLOCK_BRACES = "_typh_block_braces"
 
 
@@ -435,7 +413,7 @@ def clear_block_braces(body: list[ast.stmt]):
             delattr(body[0], _BLOCK_BRACES)
 
 
-# Temporal storages of comment anchors in parser.
+# Temporary storages of comment anchors in parser.
 _ARG_FOLLOWING_COMMA_TOKEN = "_typh_arg_following_comma_token"
 _ARGS_POSONLY_SLASH_COMMA_TOKEN = "_typh_args_posonly_slash_comma_token"
 _ARGS_BARE_STAR_COMMA_TOKEN = "_typh_args_bare_star_comma_token"
