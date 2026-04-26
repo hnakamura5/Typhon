@@ -365,7 +365,10 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             else:
                 parts.append(
                     self._visit_anchor_or(
-                        comma_anchors[i] if comma_anchors else None, text(",")
+                        comma_anchors[i]
+                        if comma_anchors and i < len(comma_anchors)
+                        else None,
+                        text(","),
                     )
                 )
                 parts.append(line_or_space())
@@ -1480,14 +1483,13 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         self,
         node: ast.AST,
         type_params: list[ast.type_param],
-        comma_anchor_info: ExprFormatAnchors | None = None,
+        commas: list[ast.Name] | None = None,
+        trailing_comma: ast.Name | None = None,
     ) -> Doc:
         return self._stmt_type_param_bracket(
             node,
             self._comma_combined_doc(
-                [self._type_param_doc(p) for p in type_params],
-                comma_anchor_info.commas if comma_anchor_info else None,
-                comma_anchor_info.trailing_comma if comma_anchor_info else None,
+                [self._type_param_doc(p) for p in type_params], commas, trailing_comma
             ),
         )
 
@@ -2021,8 +2023,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 for k in node.keywords
             ]
         )
-        base_comma_anchor_info = get_class_base_comma_anchors(node)
-        type_param_comma_anchor_info = get_class_type_param_comma_anchors(node)
+        stmt_anchor = get_block_stmt_anchors(node)
         class_head = [
             self._stmt_begin_keyword_doc(node, "class"),
             space(),
@@ -2033,7 +2034,10 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 self._type_params_doc(
                     node,
                     node.type_params,
-                    type_param_comma_anchor_info,
+                    stmt_anchor.type_param_comma_anchors if stmt_anchor else None,
+                    stmt_anchor.type_param_trailing_comma_anchor
+                    if stmt_anchor
+                    else None,
                 )
             )
         if len(args) > 0:
@@ -2043,11 +2047,9 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                         node,
                         self._comma_combined_doc(
                             args,
-                            base_comma_anchor_info.commas
-                            if base_comma_anchor_info
-                            else None,
-                            base_comma_anchor_info.trailing_comma
-                            if base_comma_anchor_info
+                            stmt_anchor.param_comma_anchors if stmt_anchor else [],
+                            stmt_anchor.param_trailing_comma_anchor
+                            if stmt_anchor
                             else None,
                         ),
                     ),
@@ -2082,7 +2084,8 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     def _arguments_doc(
         self,
         args: ast.arguments,
-        comma_anchor_info: ExprFormatAnchors | None = None,
+        commas: list[ast.Name] | None = None,
+        trailing_comma: ast.Name | None = None,
     ) -> Doc:
         params: list[Doc] = []
         for arg in args.posonlyargs:
@@ -2099,8 +2102,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 params.append(self._typed_arg_doc(arg))
 
         if args.vararg is not None:
-            params.append(self._prefix_anchor_doc(args.vararg, text("*")))
-            params.append(self._typed_arg_doc(args.vararg))
+            params.append(self._typed_arg_doc(args.vararg, prefix="*"))
         elif len(args.kwonlyargs) > 0:
             params.append(text("*"))
 
@@ -2111,14 +2113,11 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 params.append(self._typed_arg_doc(kw_arg, default=kw_default))
 
         if args.kwarg is not None:
-            params.append(self._prefix_anchor_doc(args.kwarg, text("**")))
-            params.append(self._typed_arg_doc(args.kwarg))
+            params.append(self._typed_arg_doc(args.kwarg, prefix="**"))
 
         return group(
             self._comma_combined_doc(
-                params,
-                comma_anchor_info.commas if comma_anchor_info else None,
-                comma_anchor_info.trailing_comma if comma_anchor_info else None,
+                params, commas if commas is not None else [], trailing_comma
             )
         )
 
@@ -2126,8 +2125,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         self, node: ast.FunctionDef | ast.AsyncFunctionDef
     ) -> Doc:
         deco_docs = self._visit_Decorators(node.decorator_list)
-        arg_comma_anchor_info = get_function_arg_comma_anchors(node)
-        type_param_comma_anchor_info = get_function_type_param_comma_anchors(node)
+        stmt_anchor = get_block_stmt_anchors(node)
         head_parts: list[Doc] = []
         if is_static(node):
             head_parts.extend([self._stmt_begin_keyword_doc(node, "static"), space()])
@@ -2145,12 +2143,20 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 self._type_params_doc(
                     node,
                     node.type_params,
-                    type_param_comma_anchor_info,
+                    stmt_anchor.type_param_comma_anchors if stmt_anchor else None,
+                    stmt_anchor.type_param_trailing_comma_anchor
+                    if stmt_anchor
+                    else None,
                 )
             )
         head_parts.append(
             self._stmt_paren(
-                node, self._arguments_doc(node.args, arg_comma_anchor_info)
+                node,
+                self._arguments_doc(
+                    node.args,
+                    stmt_anchor.param_comma_anchors if stmt_anchor else None,
+                    stmt_anchor.param_trailing_comma_anchor if stmt_anchor else None,
+                ),
             )
         )
         if node.returns is not None:
@@ -2279,7 +2285,12 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     ]
                 )
             )
-        comma_anchor_info = get_function_type_arg_comma_anchors(node)
+        comma_anchor_info = get_expr_format_anchors(node)
+        debug_verbose_print(
+            lambda: (
+                f"FunctionType arguments doc for {ast.dump(node)}: {arguments_doc}, comma_anchor_info={comma_anchor_info}"
+            )
+        )
         return_type = get_return_of_function_type(node)
         return self._maybe_wrap_group_paren(
             node,
@@ -2316,7 +2327,13 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             [
                 self._wrapped_with_expr_anchor(
                     node,
-                    self._arguments_doc(func_def.args, arg_comma_anchor_info),
+                    self._arguments_doc(
+                        func_def.args,
+                        arg_comma_anchor_info.commas if arg_comma_anchor_info else None,
+                        arg_comma_anchor_info.trailing_comma
+                        if arg_comma_anchor_info
+                        else None,
+                    ),
                 ),
                 space(),
             ]

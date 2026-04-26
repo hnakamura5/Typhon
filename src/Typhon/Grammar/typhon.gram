@@ -29,11 +29,12 @@ from .typhon_ast import (
     make_formatted_value, make_match_class, ImportDotNames,  set_completion_trigger_anchor_token,
     set_defined_name_token,
     set_prefix_format_anchor_token, CallArgs, set_call_anchors, set_is_empty_pass,
-    set_wrapper_paren_tokens, set_constant_raw_tokens
+    set_wrapper_paren_tokens, set_constant_raw_tokens,
 )
 from .position import (
     BlockStmtAnchors, get_pos_attributes, set_block_stmt_anchors,
     set_completion_trigger_anchor, TrailingBlock, set_expr_format_anchors,ExprFormatAnchors,
+    set_arg_following_comma_token,
 )
 from .typhon_ast_error import (
     maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, recover_invalid_for, recover_invalid_try, recover_maybe_invalid_function_def_raw,
@@ -504,15 +505,13 @@ params[ast.arguments]:
 
 parameters[ast.arguments]:
     | a=slash_no_default b=param_no_default* c=param_with_default* d=[star_etc] {
-        self.check_version(
-            (3, 8), "Positional only arguments are", make_arguments(a, [], b, c, d, LOCATIONS)
-        )
+        make_arguments(a[0], [], b, c, d, posonly_slash_comma=a[1], LOCATIONS),
      }
     | a=slash_with_default b=param_with_default* c=[star_etc] {
         self.check_version(
             (3, 8),
             "Positional only arguments are",
-            make_arguments(None, a, None, b, c, LOCATIONS),
+            make_arguments(None, a[0], None, b, c, posonly_slash_comma=a[1], LOCATIONS),
         )
      }
     | a=param_no_default+ b=param_with_default* c=[star_etc] {
@@ -527,19 +526,19 @@ parameters[ast.arguments]:
 # which is because we don't support empty alternatives (yet).
 #
 
-slash_no_default[List[Tuple[ast.arg, None]]]:
-    | a=param_no_default+ '/' ',' { [(p, None) for p in a] }
-    | a=param_no_default+ '/' &')' { [(p, None) for p in a] }
-slash_with_default[List[Tuple[ast.arg, Any]]]:
-    | a=param_no_default* b=param_with_default+ '/' ',' { ([(p, None) for p in a] if a else []) + b }
-    | a=param_no_default* b=param_with_default+ '/' &')' { ([(p, None) for p in a] if a else []) + b }
+slash_no_default[Tuple[List[Tuple[ast.arg, None]], TokenInfo | None]]:
+    | a=param_no_default+ '/' c=',' { ([(p, None) for p in a], c) }
+    | a=param_no_default+ '/' &')' { ([(p, None) for p in a], None) }
+slash_with_default[Tuple[List[Tuple[ast.arg, Any]], TokenInfo | None]]:
+    | a=param_no_default* b=param_with_default+ '/' c=',' { (([(p, None) for p in a] if a else []) + b, c) }
+    | a=param_no_default* b=param_with_default+ '/' &')' { (([(p, None) for p in a] if a else []) + b, None) }
 
-star_etc[Tuple[Optional[ast.arg], List[Tuple[ast.arg, Any]], Optional[ast.arg]]]:
+star_etc[Tuple[Optional[ast.arg], List[Tuple[ast.arg, Any]], Optional[ast.arg], TokenInfo | None]]:
   #  | invalid_star_etc
-    | '*' a=param_no_default b=param_maybe_default* c=[kwds] { (a, b, c) }
-    | '*' a=param_no_default_star_annotation b=param_maybe_default* c=[kwds] { (a, b, c) }
-    | '*' ',' b=param_maybe_default+ c=[kwds] { (None, b, c) }
-    | a=kwds { (None, [], a) }
+    | '*' a=param_no_default b=param_maybe_default* c=[kwds] { (a, b, c, None) }
+    | '*' a=param_no_default_star_annotation b=param_maybe_default* c=[kwds] { (a, b, c, None) }
+    | '*' c=',' b=param_maybe_default+ d=[kwds] { (None, b, d, c) }
+    | a=kwds { (None, [], a, None) }
 
 kwds[ast.arg]:
   #  | invalid_kwds
@@ -559,17 +558,17 @@ kwds[ast.arg]:
 #
 
 param_no_default[ast.arg]:
-    | a=param ',' tc=TYPE_COMMENT? { self.set_arg_type_comment(a, tc) }
-    | a=param tc=TYPE_COMMENT? !'=' { self.set_arg_type_comment(a, tc) }
+    | a=param c=',' tc=TYPE_COMMENT? { self.set_arg_type_comment(set_arg_following_comma_token(a, c), tc) }
+    | a=param tc=TYPE_COMMENT? !'=' { self.set_arg_type_comment(set_arg_following_comma_token(a, None), tc) }
 param_no_default_star_annotation[ast.arg]:
-    | a=param_star_annotation ',' tc=TYPE_COMMENT? { self.set_arg_type_comment(a, tc) }
-    | a=param_star_annotation tc=TYPE_COMMENT? !'=' { self.set_arg_type_comment(a, tc) }
+    | a=param_star_annotation c=',' tc=TYPE_COMMENT? { self.set_arg_type_comment(set_arg_following_comma_token(a, c), tc) }
+    | a=param_star_annotation tc=TYPE_COMMENT? !'=' { self.set_arg_type_comment(set_arg_following_comma_token(a, None), tc) }
 param_with_default[Tuple[ast.arg, Any]]:
-    | a=param c=default ',' tc=TYPE_COMMENT? { (self.set_arg_type_comment(a, tc), c) }
-    | a=param c=default tc=TYPE_COMMENT? { (self.set_arg_type_comment(a, tc), c) }
+    | a=param c=default comma=',' tc=TYPE_COMMENT? { (self.set_arg_type_comment(set_arg_following_comma_token(a, comma), tc), c) }
+    | a=param c=default tc=TYPE_COMMENT? { (self.set_arg_type_comment(set_arg_following_comma_token(a, None), tc), c) }
 param_maybe_default[Tuple[ast.arg, Any]]:
-    | a=param c=default? ',' tc=TYPE_COMMENT? { (self.set_arg_type_comment(a, tc), c) }
-    | a=param c=default? tc=TYPE_COMMENT? !'=' { (self.set_arg_type_comment(a, tc), c) }
+    | a=param c=default? comma=',' tc=TYPE_COMMENT? { (self.set_arg_type_comment(set_arg_following_comma_token(a, comma), tc), c) }
+    | a=param c=default? tc=TYPE_COMMENT? !'=' { (self.set_arg_type_comment(set_arg_following_comma_token(a, None), tc), c) }
 param: a=NAME b=annotation? { make_arg(arg=a, annotation=b, LOCATIONS) }
 param_star_annotation: a=NAME b=star_annotation {
     make_arg(arg=a, annotations=b, LOCATIONS)
@@ -1287,14 +1286,16 @@ typing_arrow_param_annot_or_type[ast.arg]:
     | b=typing_expression { make_arg(arg=None, annotation=b, LOCATIONS) }
 
 typing_arrow_param[ast.arg]:
-    | a=typing_arrow_param_annot_or_type ',' { a }
+    | a=typing_arrow_param_annot_or_type c=',' {  set_arg_following_comma_token(a, c) }
     | a=typing_arrow_param_annot_or_type &')' { a }
 
 typing_arrow_kwds[ast.arg]:
     | op='**' a=typing_arrow_param { set_prefix_format_anchor_token(a, op) }
 
 typing_arrow_param_star_annotation:
-    | a=param_star_annotation ',' tc=TYPE_COMMENT? { self.set_arg_type_comment(a, tc) }
+    | a=param_star_annotation c=',' tc=TYPE_COMMENT? {
+           set_arg_following_comma_token(self.set_arg_type_comment(a, tc), c)
+     }
     | a=param_star_annotation tc=TYPE_COMMENT? &')' { self.set_arg_type_comment(a, tc) }
 
 typing_arrow_star_etc[Tuple[ast.arg, ast.arg]]:
@@ -1307,8 +1308,8 @@ typing_arrow_return_type[ast.expr]:
     | op='->' a=typing_expression { set_prefix_format_anchor_token(a, op) }
 
 typing_arrow_type[ast.expr]:
-    | lp='(' a=typing_arrow_param* c=[typing_arrow_star_etc] ')' r=typing_arrow_return_type {
-        make_arrow_type(a, c, r, open_paren=lp, LOCATIONS)
+    | lp='(' a=typing_arrow_param* c=[typing_arrow_star_etc] rp=')' r=typing_arrow_return_type {
+        make_arrow_type(a, c, r, open_paren=lp, close_paren=rp, LOCATIONS)
     }
 
 # EXPRESSIONS

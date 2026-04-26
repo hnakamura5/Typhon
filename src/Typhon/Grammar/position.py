@@ -285,6 +285,7 @@ def clear_class_type_param_comma_anchors(node: ast.ClassDef):
         delattr(node, _CLASS_TYPE_PARAM_COMMA_ANCHORS)
 
 
+# For temporal storage of comma anchors in parser.
 _FUNCTION_ARG_COMMA_ANCHORS = "_typh_function_arg_comma_anchors"
 _FUNCTION_TYPE_PARAM_COMMA_ANCHORS = "_typh_function_type_param_comma_anchors"
 _FUNCTION_LITERAL_ARG_COMMA_ANCHORS = "_typh_function_literal_arg_comma_anchors"
@@ -402,8 +403,12 @@ class BlockStmtAnchors:
     keywords: list[ast.Name]
     open_type_param_bracket_anchor: ast.Name | None
     close_type_param_bracket_anchor: ast.Name | None
+    type_param_comma_anchors: list[ast.Name]
+    type_param_trailing_comma_anchor: ast.Name | None
     open_paren_anchor: ast.Name | None
     close_paren_anchor: ast.Name | None
+    param_comma_anchors: list[ast.Name]
+    param_trailing_comma_anchor: ast.Name | None
     open_brace_anchor: ast.Name | None
     close_brace_anchor: ast.Name | None
     # for else in if-else, for-else, while-else and so on.
@@ -419,7 +424,11 @@ class BlockStmtAnchors:
         *,
         keywords: list[TokenInfo],
         type_param_brackets: tuple[TokenInfo, TokenInfo] | None = None,
+        type_param_commas: list[TokenInfo] | None = None,
+        type_param_trailing_comma: TokenInfo | None = None,
         parens: tuple[TokenInfo, TokenInfo] | None = None,
+        param_commas: list[TokenInfo] | None = None,
+        param_trailing_comma: TokenInfo | None = None,
         braces: tuple[TokenInfo, TokenInfo] | None = None,
         else_block: TrailingBlock | None = None,
         finally_block: TrailingBlock | None = None,
@@ -447,8 +456,28 @@ class BlockStmtAnchors:
                 if type_param_brackets
                 else None
             ),
+            type_param_comma_anchors=(
+                [name_from_anchor_token(c) for c in type_param_commas]
+                if type_param_commas is not None
+                else []
+            ),
+            type_param_trailing_comma_anchor=(
+                name_from_anchor_token(type_param_trailing_comma)
+                if type_param_trailing_comma is not None
+                else None
+            ),
             open_paren_anchor=name_from_anchor_token(parens[0]) if parens else None,
             close_paren_anchor=name_from_anchor_token(parens[1]) if parens else None,
+            param_comma_anchors=(
+                [name_from_anchor_token(c) for c in param_commas]
+                if param_commas is not None
+                else []
+            ),
+            param_trailing_comma_anchor=(
+                name_from_anchor_token(param_trailing_comma)
+                if param_trailing_comma is not None
+                else None
+            ),
             open_brace_anchor=name_from_anchor_token(braces[0]) if braces else None,
             close_brace_anchor=name_from_anchor_token(braces[1]) if braces else None,
             else_brace_open_anchor=name_from_anchor_token(else_braces[0])
@@ -527,3 +556,88 @@ def clear_block_braces(body: list[ast.stmt]):
     if body:
         if hasattr(body[0], _BLOCK_BRACES):
             delattr(body[0], _BLOCK_BRACES)
+
+
+_ARG_FOLLOWING_COMMA_TOKEN = "_typh_arg_following_comma_token"
+_ARGS_POSONLY_SLASH_COMMA_TOKEN = "_typh_args_posonly_slash_comma_token"
+_ARGS_BARE_STAR_COMMA_TOKEN = "_typh_args_bare_star_comma_token"
+
+
+def set_arg_following_comma_token[T: ast.arg | ast.type_param](
+    arg: T,
+    comma: TokenInfo | None,
+) -> T:
+    setattr(arg, _ARG_FOLLOWING_COMMA_TOKEN, comma)
+    return arg
+
+
+def get_arg_following_comma_token(arg: ast.arg | ast.type_param) -> TokenInfo | None:
+    return getattr(arg, _ARG_FOLLOWING_COMMA_TOKEN, None)
+
+
+def set_arguments_posonly_slash_comma_token(
+    args: ast.arguments,
+    comma: TokenInfo | None,
+) -> ast.arguments:
+    setattr(args, _ARGS_POSONLY_SLASH_COMMA_TOKEN, comma)
+    return args
+
+
+def get_arguments_posonly_slash_comma_token(
+    args: ast.arguments,
+) -> TokenInfo | None:
+    return getattr(args, _ARGS_POSONLY_SLASH_COMMA_TOKEN, None)
+
+
+def set_arguments_bare_star_comma_token(
+    args: ast.arguments,
+    comma: TokenInfo | None,
+) -> ast.arguments:
+    setattr(args, _ARGS_BARE_STAR_COMMA_TOKEN, comma)
+    return args
+
+
+def get_arguments_bare_star_comma_token(
+    args: ast.arguments,
+) -> TokenInfo | None:
+    return getattr(args, _ARGS_BARE_STAR_COMMA_TOKEN, None)
+
+
+def get_function_argument_comma_tokens(
+    args: ast.arguments,
+) -> tuple[list[TokenInfo], TokenInfo | None] | None:
+    following_tokens: list[TokenInfo | None] = []
+
+    for arg in args.posonlyargs:
+        following_tokens.append(get_arg_following_comma_token(arg))
+    if args.posonlyargs:
+        following_tokens.append(get_arguments_posonly_slash_comma_token(args))
+
+    for arg in args.args:
+        following_tokens.append(get_arg_following_comma_token(arg))
+
+    if args.vararg is not None:
+        following_tokens.append(get_arg_following_comma_token(args.vararg))
+    elif args.kwonlyargs:
+        following_tokens.append(get_arguments_bare_star_comma_token(args))
+
+    for arg in args.kwonlyargs:
+        following_tokens.append(get_arg_following_comma_token(arg))
+
+    if args.kwarg is not None:
+        following_tokens.append(get_arg_following_comma_token(args.kwarg))
+
+    return get_inner_and_trailing_comma_tokens(following_tokens)
+
+
+def get_inner_and_trailing_comma_tokens(
+    tokens: list[TokenInfo | None],
+) -> tuple[list[TokenInfo], TokenInfo | None] | None:
+    if not tokens:
+        return ([], None)
+    inter: list[TokenInfo] = []
+    for token in tokens[:-1]:
+        assert token is not None, "Missing comma token for argument"
+        inter.append(token)
+    trailling = tokens[-1]
+    return (inter, trailling)

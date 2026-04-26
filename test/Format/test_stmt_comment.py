@@ -172,7 +172,7 @@ def f(
 result_function_params_with_comments = """
 def f(
     a,  # first
-    #(second)# b
+    #(second)# b,
 ) { pass }
 """
 
@@ -224,7 +224,7 @@ def g[
     #(type u)# U,
 ](
     x,  # arg x
-    #(arg y)# y
+    #(arg y)# y,
 ) { pass }
 """
 
@@ -244,7 +244,7 @@ class Box #(before type params)#[
 }
 """
 result_class_type_param_brackets_with_comments = """
-class Box#(before type params)# [T] #(after type params)# { pass }
+class Box #(before type params)#[T] #(after type params)# { pass }
 """
 
 
@@ -263,7 +263,7 @@ def f #(before type params)#[
 }
 """
 result_function_type_param_brackets_with_comments = """
-def f#(before type params)# [T] #(after type params)#() { pass }
+def f #(before type params)#[T] #(after type params)#() { pass }
 """
 
 
@@ -300,7 +300,7 @@ type F = (
 result_function_type_args_with_comments = """
 type F = (
     a: int,  # first
-    #(second)# b: str
+    #(second)# b: str,
 ) -> bool
 """
 

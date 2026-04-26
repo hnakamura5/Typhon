@@ -23,6 +23,8 @@ from .position import (
     PosNode,
     PosAttributes,
     TrailingBlock,
+    get_arg_following_comma_token,
+    get_inner_and_trailing_comma_tokens,
     set_class_base_comma_anchors,
     set_class_type_param_comma_anchors,
     set_function_arg_comma_anchors,
@@ -42,6 +44,8 @@ from .position import (
     set_prefix_format_anchor,
     get_prefix_format_anchor,
     get_block_braces,
+    set_arguments_posonly_slash_comma_token,
+    set_arguments_bare_star_comma_token,
 )
 from .syntax_errors import add_error_node
 
@@ -951,6 +955,7 @@ def make_arrow_type(
     star_etc: Tuple[ast.arg, ast.arg] | None,
     returns: ast.expr,
     open_paren: TokenInfo | None = None,
+    close_paren: TokenInfo | None = None,
     **kwargs: Unpack[PosAttributes],
 ) -> FunctionType:
     # TODO: temporal name
@@ -966,7 +971,27 @@ def make_arrow_type(
         set_star_arg_of_function_type(result, star_etc[0])
         set_star_kwds_of_function_type(result, star_etc[1])
         anchor_items.extend([star_etc[0], star_etc[1]])
-    set_function_type_arg_comma_anchors_from_sequence(result, anchor_items, None)
+    # set_function_type_arg_comma_anchors_from_sequence(result, anchor_items, None)
+    commas_trailling = get_inner_and_trailing_comma_tokens(
+        [get_arg_following_comma_token(a) for a in args]
+    )
+    debug_verbose_print(
+        lambda: (
+            f"make_arrow_type: args={args}, star_etc={star_etc}, returns={returns}, "
+            f"open_paren={open_paren}, close_paren={close_paren}, "
+            f"commas_trailling={commas_trailling}"
+        )
+    )
+    set_expr_format_anchors(
+        result,
+        ExprFormatAnchors.make(
+            commas=commas_trailling[0] if commas_trailling else None,
+            trailing_comma=commas_trailling[1] if commas_trailling else None,
+            keywords=None,
+            surround_open=open_paren,
+            surround_close=close_paren,
+        ),
+    )
     return result
 
 
@@ -1597,9 +1622,6 @@ def make_function_def(
     type_comment: str | None,
     type_params: list[ast.type_param],
     close_paren_anchor: TokenInfo | None,
-    arg_trailing_comma: TokenInfo | None = None,
-    type_param_commas: list[TokenInfo] | None = None,
-    type_params_trailing_comma: TokenInfo | None = None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.FunctionDef | ast.AsyncFunctionDef:
     if is_async:
@@ -1630,29 +1652,6 @@ def make_function_def(
             result,
             name_from_anchor_token(close_paren_anchor, ctx=ast.Load()),
         )
-    arg_items: list[ast.AST] = [*args.posonlyargs, *args.args]
-    if args.vararg is not None:
-        arg_items.append(args.vararg)
-    arg_items.extend(args.kwonlyargs)
-    if args.kwarg is not None:
-        arg_items.append(args.kwarg)
-    result = set_function_arg_comma_anchors_from_sequence(
-        result,
-        arg_items,
-        arg_trailing_comma,
-    )
-    if type_param_commas is not None:
-        result = set_function_type_param_comma_anchor_tokens(
-            result,
-            type_param_commas,
-            type_params_trailing_comma,
-        )
-    else:
-        result = set_function_type_param_comma_anchors_from_sequence(
-            result,
-            type_params,
-            type_params_trailing_comma,
-        )
     return result
 
 
@@ -1663,10 +1662,6 @@ def make_class_def(
     body: list[ast.stmt],
     decorator_list: list[ast.expr],
     type_params: list[ast.type_param],
-    base_commas: list[TokenInfo] | None = None,
-    base_trailing_comma: TokenInfo | None = None,
-    type_param_commas: list[TokenInfo] | None = None,
-    type_params_trailing_comma: TokenInfo | None = None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.ClassDef:
     name_str = name.string if isinstance(name, TokenInfo) else name
@@ -1685,30 +1680,6 @@ def make_class_def(
         if isinstance(name, TokenInfo)
         else ast.Name(id=name, ctx=ast.Store(), **kwargs),
     )
-    if base_commas is not None:
-        result = set_class_base_comma_anchor_tokens(
-            result,
-            base_commas,
-            base_trailing_comma,
-        )
-    else:
-        result = set_class_base_comma_anchors_from_sequence(
-            result,
-            [*bases, *keywords],
-            base_trailing_comma,
-        )
-    if type_param_commas is not None:
-        result = set_class_type_param_comma_anchor_tokens(
-            result,
-            type_param_commas,
-            type_params_trailing_comma,
-        )
-    else:
-        result = set_class_type_param_comma_anchors_from_sequence(
-            result,
-            type_params,
-            type_params_trailing_comma,
-        )
     return result
 
 
@@ -3043,8 +3014,14 @@ def make_arguments(
     param_no_default: Optional[List[ast.arg]],
     param_default: Optional[List[Tuple[ast.arg, Any]]],
     after_star: Optional[
-        Tuple[Optional[ast.arg], List[Tuple[ast.arg, Any]], Optional[ast.arg]]
+        Tuple[
+            Optional[ast.arg],
+            List[Tuple[ast.arg, Any]],
+            Optional[ast.arg],
+            TokenInfo | None,
+        ]
     ],
+    posonly_slash_comma: TokenInfo | None = None,
     **kwargs: Unpack[PosAttributes],
 ) -> ast.arguments:
     """Build a function definition arguments."""
@@ -3065,20 +3042,23 @@ def make_arguments(
     )
 
     # If after_star is None, make a default tuple
-    after_star = after_star or (None, [], None)
+    after_star = after_star or (None, [], None, None)
+    vararg, kwonlyarg_pairs, kwarg, bare_star_comma = after_star
 
     node = ast.arguments(
         posonlyargs=pos_only_args,
         args=params,
         defaults=defaults,
-        vararg=after_star[0],
-        kwonlyargs=[p for p, _ in after_star[1]],
-        kw_defaults=[d for _, d in after_star[1]],
-        kwarg=after_star[2],
+        vararg=vararg,
+        kwonlyargs=[p for p, _ in kwonlyarg_pairs],
+        kw_defaults=[d for _, d in kwonlyarg_pairs],
+        kwarg=kwarg,
     )
     # Append position attributes
     for key, value in kwargs.items():
         setattr(node, key, value)
+    set_arguments_posonly_slash_comma_token(node, posonly_slash_comma)
+    set_arguments_bare_star_comma_token(node, bare_star_comma)
     return node
 
 
@@ -3239,32 +3219,6 @@ def set_expr_comma_anchors_from_sequence[T: ast.expr](
     )
 
 
-def set_class_base_comma_anchor_tokens(
-    node: ast.ClassDef,
-    commas: list[TokenInfo],
-    trailing_comma: TokenInfo | None = None,
-) -> ast.ClassDef:
-    return _set_comma_anchor_tokens(
-        node,
-        commas,
-        trailing_comma,
-        set_class_base_comma_anchors,
-    )
-
-
-def set_class_type_param_comma_anchor_tokens(
-    node: ast.ClassDef,
-    commas: list[TokenInfo],
-    trailing_comma: TokenInfo | None = None,
-) -> ast.ClassDef:
-    return _set_comma_anchor_tokens(
-        node,
-        commas,
-        trailing_comma,
-        set_class_type_param_comma_anchors,
-    )
-
-
 def set_class_base_comma_anchors_from_sequence(
     node: ast.ClassDef,
     items: list[ast.AST],
@@ -3342,21 +3296,6 @@ def set_function_type_param_comma_anchors_from_sequence[
     return _set_comma_anchors_from_sequence(
         node,
         cast(list[ast.AST], type_params),
-        trailing_comma,
-        set_function_type_param_comma_anchors,
-    )
-
-
-def set_function_type_param_comma_anchor_tokens[
-    T: ast.FunctionDef | ast.AsyncFunctionDef
-](
-    node: T,
-    commas: list[TokenInfo],
-    trailing_comma: TokenInfo | None = None,
-) -> T:
-    return _set_comma_anchor_tokens(
-        node,
-        commas,
         trailing_comma,
         set_function_type_param_comma_anchors,
     )

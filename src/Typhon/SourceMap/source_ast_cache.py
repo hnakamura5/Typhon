@@ -171,10 +171,18 @@ class _SourceAstIndexVisitor(TyphonASTRawVisitor):
                     self._visit_anchor(block_anchors.open_type_param_bracket_anchor)
                 if block_anchors.close_type_param_bracket_anchor is not None:
                     self._visit_anchor(block_anchors.close_type_param_bracket_anchor)
+                for comma_anchor in block_anchors.type_param_comma_anchors:
+                    self._visit_anchor(comma_anchor)
+                if block_anchors.type_param_trailing_comma_anchor is not None:
+                    self._visit_anchor(block_anchors.type_param_trailing_comma_anchor)
                 if block_anchors.open_paren_anchor is not None:
                     self._visit_anchor(block_anchors.open_paren_anchor)
                 if block_anchors.close_paren_anchor is not None:
                     self._visit_anchor(block_anchors.close_paren_anchor)
+                for comma_anchor in block_anchors.param_comma_anchors:
+                    self._visit_anchor(comma_anchor)
+                if block_anchors.param_trailing_comma_anchor is not None:
+                    self._visit_anchor(block_anchors.param_trailing_comma_anchor)
                 if block_anchors.open_brace_anchor is not None:
                     self._visit_anchor(block_anchors.open_brace_anchor)
                 if block_anchors.close_brace_anchor is not None:

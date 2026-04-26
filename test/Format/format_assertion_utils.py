@@ -148,7 +148,7 @@ def assert_render_pipeline(source: str, expected: str) -> None:
     assert result_from_messed_up.strip() == expected.strip(), (
         f"Formatter did not normalize messed up source. Expected:\n{expected}\n\nGot:\n{result_from_messed_up}\n\nOriginal source:\n{source}\n\nOriginal messed up source:\n{messed_up}"
     )
-    assert_comment_format_round_trip(source)  # TODO: Not OK yet
+    assert_comment_format_round_trip(source)
 
 
 def assert_render_pipeline_comment_sensitive(source: str, expected: str) -> None:

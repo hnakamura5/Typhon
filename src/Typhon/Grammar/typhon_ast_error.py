@@ -8,7 +8,6 @@ from .position import (
     PosAttributes,
     TrailingBlock,
     get_empty_pos_attributes,
-    name_from_anchor_token,
     set_block_stmt_anchors,
     unpack_pos_default,
     get_pos_attributes,
@@ -16,6 +15,7 @@ from .position import (
     unpack_pos_tuple,
     get_block_braces,
     set_block_braces,
+    get_function_argument_comma_tokens,
 )
 from .typhon_ast import (
     CallArgs,
@@ -118,15 +118,23 @@ def _set_define_block_stmt_anchors(
     type_param_brackets: tuple[TokenInfo, TokenInfo] | None,
     open_paren: TokenInfo | None,
     close_paren: TokenInfo | None,
+    arg_param_commas: list[TokenInfo] | None = None,
+    arg_trailing_comma: TokenInfo | None = None,
+    type_param_commas: list[TokenInfo] | None = None,
+    type_params_trailing_comma: TokenInfo | None = None,
     body: list[ast.stmt] | None,
 ) -> None:
     brace_anchors = get_block_braces(body) if body else None
     anchors = BlockStmtAnchors.make(
         keywords=[tok for tok in begin_tokens if tok] if begin_tokens else [],
         type_param_brackets=type_param_brackets,
+        type_param_commas=type_param_commas if type_param_commas else [],
+        type_param_trailing_comma=type_params_trailing_comma,
         parens=(open_paren, close_paren)
         if open_paren is not None and close_paren is not None
         else None,
+        param_commas=arg_param_commas if arg_param_commas else [],
+        param_trailing_comma=arg_trailing_comma,
         braces=brace_anchors,
         else_block=None,
         finally_block=None,
@@ -369,20 +377,23 @@ def recover_maybe_invalid_function_def_raw(
             type_comment=type_comment,
             type_params=type_params,
             close_paren_anchor=close_paren,
-            type_param_commas=type_param_commas,
-            type_params_trailing_comma=type_params_trailing_comma,
             **kwargs,
         ),
         open_anchor=open_anchor,
         close_anchor=close_anchor,
         begin_tokens=begin_tokens,
     )
+    arg_comma_info = get_function_argument_comma_tokens(args)
     _set_define_block_stmt_anchors(
         result,
         begin_tokens=begin_tokens,
         type_param_brackets=type_param_brackets,
         open_paren=open_paren,
         close_paren=close_paren,
+        arg_param_commas=arg_comma_info[0] if arg_comma_info else [],
+        arg_trailing_comma=arg_comma_info[1] if arg_comma_info else None,
+        type_param_commas=type_param_commas,
+        type_params_trailing_comma=type_params_trailing_comma,
         body=body,
     )
     if errors:
@@ -442,10 +453,6 @@ def recover_maybe_invalid_class_def_raw(
         body=body,
         decorator_list=decorator_list,
         type_params=type_params,
-        base_commas=call_args.commas,
-        base_trailing_comma=call_args.trailing_comma,
-        type_param_commas=type_param_commas,
-        type_params_trailing_comma=type_params_trailing_comma,
         **kwargs,
     )
     if bases:
@@ -464,6 +471,10 @@ def recover_maybe_invalid_class_def_raw(
         type_param_brackets=type_param_brackets,
         open_paren=open_paren,
         close_paren=close_paren,
+        arg_param_commas=call_args.commas,
+        arg_trailing_comma=call_args.trailing_comma,
+        type_param_commas=type_param_commas,
+        type_params_trailing_comma=type_params_trailing_comma,
         body=body,
     )
     if error:

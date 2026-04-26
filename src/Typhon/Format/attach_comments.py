@@ -64,6 +64,11 @@ def _node_attachable_comment_to(
     if not tok_range:
         return None
     tok_node = ast_cache.source_range_to_node(tok_range, filter_node_type)
+    debug_verbose_print(
+        lambda: (
+            f"    Checking token {anchor_tok} at {tok_range} for attachable node of type {filter_node_type} results in {ast.dump(tok_node, include_attributes=True) if tok_node else None}"
+        )
+    )
     if not tok_node:
         return None
     if filter_node_type is ast.stmt:
@@ -135,6 +140,12 @@ def _try_attach_to_ast_node(
                     f"  Attachable as leading comment group {comment.comment} to node {filter_node_type} type {ast.dump(after_node)} at {get_pos_attributes(after_node)}"
                 )
             )
+        else:
+            debug_verbose_print(
+                lambda: (
+                    f"  No attachable node found after comment group {comment.comment} for node type {filter_node_type}"
+                )
+            )
     before_node: ast.AST | None = None
     if before_tok := comment.before_non_comment_tok:
         before_node = _node_attachable_comment_to(
@@ -144,6 +155,12 @@ def _try_attach_to_ast_node(
             debug_verbose_print(
                 lambda: (
                     f"  Attachable as trailing comment group {comment.comment} to node {filter_node_type} type {ast.dump(before_node)} at {get_pos_attributes(before_node)}"
+                )
+            )
+        else:
+            debug_verbose_print(
+                lambda: (
+                    f"  No attachable node found before comment group {comment.comment} for node type {filter_node_type}"
                 )
             )
     if not before_node and not after_node:
@@ -176,6 +193,9 @@ def attach_comments(module: ast.Module, ast_cache: SourceAstCache) -> None:
         )
         if _try_attach_to_ast_node(ast_cache, comment, ast.stmt):
             # First try attaching to statements, which are more likely to be the intended targets for comments.
+            continue
+        if _try_attach_to_ast_node(ast_cache, comment, ast.Name):
+            # Next try ast.Name, that is used as anchor for everything.
             continue
         if _try_attach_to_ast_node(ast_cache, comment):
             # Next try other nodes, which can capture inline comments.
