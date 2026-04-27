@@ -26,7 +26,7 @@ from .typhon_ast import (
     make_record_literal, make_record_type, make_attributes_pattern, make_tuple_pattern, make_for_let_pattern, make_with_let_pattern, make_inline_with_let_pattern, make_class_def,
     make_match_case, make_alias, make_import_from, make_arguments, make_attribute,
     make_arg, make_keyword, make_type_var, make_type_var_tuple, make_param_spec,
-    make_formatted_value, make_match_class, ImportDotNames,  set_completion_trigger_anchor_token,
+    make_formatted_value, make_match_class, set_match_class_paren_anchors, ImportDotNames,  set_completion_trigger_anchor_token,
     set_defined_name_token,
     set_prefix_format_anchor_token, CallArgs, set_call_anchors, set_is_empty_pass,
     set_wrapper_paren_tokens, set_constant_raw_tokens,
@@ -840,7 +840,13 @@ guard[ast.expr]:
 
 patterns:
     | patterns=open_sequence_pattern {
-        make_tuple_pattern(patterns=patterns, LOCATIONS)
+        set_expr_format_anchors(
+            make_tuple_pattern(patterns=patterns[0], LOCATIONS),
+            ExprFormatAnchors.make(
+                commas=patterns[1],
+                trailing_comma=patterns[2],
+            ),
+        )
      }
     | pattern
 
@@ -849,8 +855,14 @@ pattern:
     | or_pattern
 
 as_pattern["ast.MatchAs"]:
-    | pattern=or_pattern 'as' target=pattern_capture_target_annot {
-        set_type_annotation(set_defined_name_token(ast.MatchAs(pattern=pattern, name=target[0].id, LOCATIONS), target[0]), target[1])
+    | pattern=or_pattern astok='as' target=pattern_capture_target_annot {
+        set_type_annotation(
+            set_expr_format_anchors(
+                set_defined_name_token(ast.MatchAs(pattern=pattern, name=target[0].id, LOCATIONS), target[0]),
+                ExprFormatAnchors.make(keywords=[astok]),
+            ),
+            target[1],
+        )
      }
     | as_pattern_with_error
 
@@ -864,9 +876,13 @@ as_pattern_with_error[NoReturn]:
      }
 
 or_pattern["ast.MatchOr"]:
-    | patterns='|'.closed_pattern+ {
-        ast.MatchOr(patterns=patterns, LOCATIONS) if len(patterns) > 1 else patterns[0]
+    | first=closed_pattern rest=(sep='|' p=closed_pattern { (sep, p) })+ {
+        set_expr_format_anchors(
+            ast.MatchOr(patterns=[first] + [p for _, p in rest], LOCATIONS),
+            ExprFormatAnchors.make(keywords=[sep for sep, _ in rest]),
+        )
      }
+    | closed_pattern
 
 closed_pattern:
     | literal_pattern
@@ -969,20 +985,59 @@ name_or_attr:
     | symbol
 
 group_pattern:
-    | '(' pattern=pattern ')' { pattern }
+    | lp='(' pattern=pattern rp=')' {
+        set_expr_format_anchors(
+            pattern,
+            ExprFormatAnchors.make(surround_open=lp, surround_close=rp),
+        )
+     }
 
 sequence_pattern["ast.MatchSequence"]:
-    | '[' patterns=maybe_sequence_pattern? ']' { ast.MatchSequence(patterns=patterns or [], LOCATIONS) }
-    | '(' patterns=open_sequence_pattern? ')' { make_tuple_pattern(patterns=patterns or [], LOCATIONS) }
+    | lb='[' patterns=maybe_sequence_pattern? rb=']' {
+        set_expr_format_anchors(
+            ast.MatchSequence(patterns=patterns[0] if patterns else [], LOCATIONS),
+            ExprFormatAnchors.make(
+                commas=patterns[1] if patterns else None,
+                trailing_comma=patterns[2] if patterns else None,
+                surround_open=lb,
+                surround_close=rb,
+            ),
+        )
+     }
+    | lp='(' patterns=open_sequence_pattern? rp=')' {
+        set_expr_format_anchors(
+            make_tuple_pattern(patterns=patterns[0] if patterns else [], LOCATIONS),
+            ExprFormatAnchors.make(
+                commas=patterns[1] if patterns else None,
+                trailing_comma=patterns[2] if patterns else None,
+                surround_open=lp,
+                surround_close=rp,
+            ),
+        )
+     }
 
-open_sequence_pattern:
-    | pattern=maybe_star_pattern ',' patterns=maybe_sequence_pattern? {
-        [pattern] + (patterns or [])
+open_sequence_pattern[Tuple[List[ast.pattern], List[TokenInfo], TokenInfo | None]]:
+    | pattern=maybe_star_pattern c=',' patterns=maybe_sequence_pattern? {
+        (
+            [pattern],
+            [],
+            c,
+        ) if patterns is None else (
+            [pattern] + patterns[0],
+            [c] + patterns[1],
+            patterns[2],
+        )
      }
      # TODO: invalid case for the case ',' does not exist?
 
-maybe_sequence_pattern:
-    | patterns=','.maybe_star_pattern+ ','? { patterns }
+maybe_sequence_pattern[Tuple[List[ast.pattern], List[TokenInfo], TokenInfo | None]]:
+    | first=maybe_star_pattern rest=(c=',' p=maybe_star_pattern { (c, p) })* t=[','] {
+        (
+            [first] + [p for _, p in rest],
+            [c for c, _ in rest],
+            t,
+        )
+     }
 
 maybe_star_pattern:
     | star_pattern
@@ -995,23 +1050,44 @@ star_pattern:
     | '*' wildcard_pattern { ast.MatchStar(name=None, LOCATIONS) }
 
 mapping_pattern:
-    | '{' '}' { ast.MatchMapping(keys=[], patterns=[], rest=None, LOCATIONS) }
-    | '{' rest=double_star_pattern ','? '}' {
-        ast.MatchMapping(keys=[], patterns=[], rest=rest, LOCATIONS) }
-    | '{' items=items_pattern ',' rest=double_star_pattern ','? '}' {
-        ast.MatchMapping(
-            keys=[k for k,_ in items],
-            patterns=[p for _, p in items],
-            rest=rest,
-            LOCATIONS,
+    | lb='{' rb='}' {
+        set_expr_format_anchors(
+            ast.MatchMapping(keys=[], patterns=[], rest=None, LOCATIONS),
+            ExprFormatAnchors.make(surround_open=lb, surround_close=rb),
         )
      }
-    | '{' items=items_pattern ','? '}' {
-        ast.MatchMapping(
-            keys=[k for k,_ in items],
-            patterns=[p for _, p in items],
-            rest=None,
-            LOCATIONS,
+    | lb='{' rest=double_star_pattern ','? rb='}' {
+        set_expr_format_anchors(
+            set_prefix_format_anchor_token(
+                ast.MatchMapping(keys=[], patterns=[], rest=rest[1], LOCATIONS),
+                rest[0],
+            ),
+            ExprFormatAnchors.make(surround_open=lb, surround_close=rb),
+        )
+     }
+    | lb='{' items=items_pattern ',' rest=double_star_pattern ','? rb='}' {
+        set_expr_format_anchors(
+            set_prefix_format_anchor_token(
+                ast.MatchMapping(
+                    keys=[k for k,_ in items],
+                    patterns=[p for _, p in items],
+                    rest=rest[1],
+                    LOCATIONS,
+                ),
+                rest[0],
+            ),
+            ExprFormatAnchors.make(surround_open=lb, surround_close=rb),
+        )
+     }
+    | lb='{' items=items_pattern ','? rb='}' {
+        set_expr_format_anchors(
+            ast.MatchMapping(
+                keys=[k for k,_ in items],
+                patterns=[p for _, p in items],
+                rest=None,
+                LOCATIONS,
+            ),
+            ExprFormatAnchors.make(surround_open=lb, surround_close=rb),
         )
      }
 
@@ -1029,44 +1105,74 @@ name_or_attr_pattern:
     | symbol
 
 key_value_pattern[Tuple[ast.expr, ast.pattern]]:
-    | key=(literal_expr | attr_pattern) ':' pattern=pattern { (key, pattern) }
+    | key=(literal_expr | attr_pattern) colon=':' pattern=pattern {
+        (key, set_prefix_format_anchor_token(pattern, colon))
+     }
 
-double_star_pattern:
-    | '**' target=pattern_capture_target { target }
+double_star_pattern[Tuple[TokenInfo, ast.Name]]:
+    | op='**' target=pattern_capture_target { (op, target) }
 
 class_pattern["ast.MatchClass"]:
     | cls=name_or_attr_pattern lp='(' rp=class_pattern_rp {
         maybe_invalid_close_paren(self, rp,
-            node=make_match_class(cls=cls, patterns=[], kwd_attrs=[], kwd_patterns=[], LOCATIONS),
+            node=set_match_class_paren_anchors(
+                make_match_class(
+                    cls=cls,
+                    patterns=[],
+                    kwd_attrs=[],
+                    kwd_patterns=[],
+                    LOCATIONS,
+                ),
+                lp,
+                rp,
+            ),
             close_anchor=cls,
         )
      }
     | cls=name_or_attr_pattern lp='(' patterns=positional_patterns ','? rp=class_pattern_rp {
         maybe_invalid_close_paren(self, rp,
-            node=make_match_class(cls=cls, patterns=patterns, kwd_attrs=[], kwd_patterns=[], LOCATIONS),
+            node=set_match_class_paren_anchors(
+                make_match_class(
+                    cls=cls,
+                    patterns=patterns,
+                    kwd_attrs=[],
+                    kwd_patterns=[],
+                    LOCATIONS,
+                ),
+                lp,
+                rp,
+            ),
             close_anchor=patterns[-1],
         )
      }
     | cls=name_or_attr_pattern lp='(' keywords=keyword_patterns ','? rp=class_pattern_rp {
         maybe_invalid_close_paren(self, rp,
-            node=make_match_class(
-                cls=cls,
-                patterns=[],
-                kwd_attrs=[k for k, _ in keywords],
-                kwd_patterns=[p for _, p in keywords],
-                LOCATIONS,
+            node=set_match_class_paren_anchors(
+                make_match_class(
+                    cls=cls,
+                    patterns=[],
+                    kwd_attrs=[k for k, _ in keywords],
+                    kwd_patterns=[p for _, p in keywords],
+                    LOCATIONS,
+                ),
+                lp,
+                rp,
             ),
             close_anchor=keywords[-1][1],
         )
      }
     | cls=name_or_attr_pattern lp='(' patterns=positional_patterns ',' keywords=keyword_patterns ','? rp=class_pattern_rp {
         maybe_invalid_close_paren(self, rp,
-            node=make_match_class(
-                cls=cls,
-                patterns=patterns,
-                kwd_attrs=[k for k, _ in keywords],
-                kwd_patterns=[p for _, p in keywords],
-                LOCATIONS,
+            node=set_match_class_paren_anchors(
+                make_match_class(
+                    cls=cls,
+                    patterns=patterns,
+                    kwd_attrs=[k for k, _ in keywords],
+                    kwd_patterns=[p for _, p in keywords],
+                    LOCATIONS,
+                ),
+                lp,
+                rp,
             ),
             close_anchor=keywords[-1][1],
         )
@@ -1088,13 +1194,27 @@ class_pattern_with_error[NoReturn]:
 class_argument_pattern_with_error[List[ast.pattern]]:
     | [positional_patterns ','] keyword_patterns ',' a=positional_patterns { a }
 
-attribute_capture_pattern[tuple[ast.Name, ast.pattern | None]]:
-    | '.' p=keyword_pattern { p }
-    | '.' a=symbol { (a, None) }
+attribute_capture_pattern[
+    tuple[TokenInfo, tuple[ast.Name, ast.pattern | None]]
+]:
+    | dot='.' p=keyword_pattern { (dot, p) }
+    | dot='.' a=symbol { (dot, (a, None)) }
 
 attributes_pattern["ast.MatchClass"]:
-    | '{' keywords=','.attribute_capture_pattern+ ','? '}' {
-        make_attributes_pattern(keywords=keywords, LOCATIONS)
+    | lb='{' first=attribute_capture_pattern rest=(c=',' z=attribute_capture_pattern { (c, z) })* t=[','] rb='}' {
+        set_expr_format_anchors(
+            make_attributes_pattern(
+                keywords=[first[1]] + [z[1] for _, z in rest],
+                LOCATIONS,
+            ),
+            ExprFormatAnchors.make(
+                commas=[c for c, _ in rest],
+                trailing_comma=t,
+                keywords=[first[0]] + [z[0] for _, z in rest],
+                surround_open=lb,
+                surround_close=rb,
+            ),
+        )
      }
 
 # positional pattern is used only in class pattern.
@@ -1113,15 +1233,25 @@ positional_pattern:
     | positional_or_pattern
 
 positional_as_pattern["ast.MatchAs"]:
-    | pattern=positional_or_pattern 'as' target=positional_pattern_capture_target_annot {
-        set_type_annotation(set_defined_name_token(ast.MatchAs(pattern=pattern, name=target[0].id, LOCATIONS), target[0]), target[1])
+    | pattern=positional_or_pattern astok='as' target=positional_pattern_capture_target_annot {
+        set_type_annotation(
+            set_expr_format_anchors(
+                set_defined_name_token(ast.MatchAs(pattern=pattern, name=target[0].id, LOCATIONS), target[0]),
+                ExprFormatAnchors.make(keywords=[astok]),
+            ),
+            target[1],
+        )
      }
     | as_pattern_with_error
 
 positional_or_pattern["ast.MatchOr"]:
-    | patterns='|'.positional_closed_pattern+ {
-        ast.MatchOr(patterns=patterns, LOCATIONS) if len(patterns) > 1 else patterns[0]
+    | first=positional_closed_pattern rest=(sep='|' p=positional_closed_pattern { (sep, p) })+ {
+        set_expr_format_anchors(
+            ast.MatchOr(patterns=[first] + [p for _, p in rest], LOCATIONS),
+            ExprFormatAnchors.make(keywords=[sep for sep, _ in rest]),
+        )
      }
+    | positional_closed_pattern
 
 positional_pattern_capture_target[str]:
     | !"_" name=NAME !('.' | '(' | '=') { name.string }
@@ -1151,7 +1281,7 @@ keyword_patterns[List[Tuple[ast.Name, ast.pattern]]]:
     | ','.keyword_pattern+
 
 keyword_pattern[Tuple[ast.Name, ast.pattern]]:
-    | arg=symbol '=' value=pattern { (arg, value) }
+    | arg=symbol eq='=' value=pattern { (arg, set_prefix_format_anchor_token(value, eq)) }
 
 # Type statement
 # ---------------

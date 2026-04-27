@@ -139,6 +139,78 @@ def test_format_match_with_attributes_pattern():
     )
 
 
+code_match_with_or_as_pattern = """
+match (value) { case (x | y as both) { ok } }
+"""
+result_match_with_or_as_pattern = """
+match (value) {
+    case (x | y as both) {
+        ok
+    }
+}
+"""
+
+
+def test_format_match_with_or_as_pattern():
+    assert_render_pipeline(
+        code_match_with_or_as_pattern, result_match_with_or_as_pattern
+    )
+
+
+code_match_with_sequence_pattern = """
+match (value) { case ([head, tail]) { seq } }
+"""
+result_match_with_sequence_pattern = """
+match (value) {
+    case ([head, tail]) {
+        seq
+    }
+}
+"""
+
+
+def test_format_match_with_sequence_pattern():
+    assert_render_pipeline(
+        code_match_with_sequence_pattern, result_match_with_sequence_pattern
+    )
+
+
+code_match_with_mapping_pattern = """
+match (value) { case ({1: m1, 2: m2, **rest}) { map } }
+"""
+result_match_with_mapping_pattern = """
+match (value) {
+    case ({1: m1, 2: m2, **rest}) {
+        map
+    }
+}
+"""
+
+
+def test_format_match_with_mapping_pattern():
+    assert_render_pipeline(
+        code_match_with_mapping_pattern, result_match_with_mapping_pattern
+    )
+
+
+code_match_with_class_pattern = """
+match (value) { case (Point(item, x = axis)) { cls } }
+"""
+result_match_with_class_pattern = """
+match (value) {
+    case (Point(item, x = axis)) {
+        cls
+    }
+}
+"""
+
+
+def test_format_match_with_class_pattern():
+    assert_render_pipeline(
+        code_match_with_class_pattern, result_match_with_class_pattern
+    )
+
+
 code_augassign_break_after_operator = """
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa += bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 """

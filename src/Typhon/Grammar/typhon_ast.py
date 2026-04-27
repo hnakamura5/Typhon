@@ -1745,6 +1745,22 @@ def make_match_class(
     return result
 
 
+def set_match_class_paren_anchors(
+    node: ast.MatchClass,
+    open_paren: TokenInfo,
+    close_paren: TokenInfo | None,
+) -> ast.MatchClass:
+    if close_paren is None:
+        return node
+    return set_expr_format_anchors(
+        node,
+        ExprFormatAnchors.make(
+            surround_open=open_paren,
+            surround_close=close_paren,
+        ),
+    )
+
+
 def make_try(
     is_star: bool,
     try_token: TokenInfo,
@@ -2727,18 +2743,28 @@ def make_attributes_pattern(
     keywords: list[tuple[ast.Name, ast.pattern | None]],
     **kwargs: Unpack[PosAttributes],
 ) -> ast.MatchClass:
-    kwd_attrs = [k.id for k, _ in keywords]
-    kwd_patterns = [
-        (
-            p
-            if p is not None
-            # Only name is given, capture by member name.
-            else ast.MatchAs(
-                pattern=None, name=k.id, **pos_attribute_to_range(get_pos_attributes(k))
-            )
+    keyword_names = [k for k, _ in keywords]
+    kwd_attrs = [k.id for k in keyword_names]
+    kwd_patterns: list[ast.pattern] = []
+    for k, p in keywords:
+        if p is not None:
+            kwd_patterns.append(p)
+            continue
+        # Only name is given, capture by member name.
+        capture = ast.MatchAs(
+            pattern=None,
+            name=k.id,
+            **pos_attribute_to_range(get_pos_attributes(k)),
         )
-        for k, p in keywords
-    ]
+        set_defined_name(
+            capture,
+            ast.Name(
+                id=k.id,
+                ctx=ast.Store(),
+                **get_pos_attributes(k),
+            ),
+        )
+        kwd_patterns.append(capture)
     cls_name = ast.Name(
         id="__attribute_pattern",
         **kwargs,
@@ -2751,6 +2777,7 @@ def make_attributes_pattern(
         kwd_patterns=kwd_patterns,
         **pos_attribute_to_range(kwargs),
     )
+    set_match_class_keyword_names(result, keyword_names)
     return result
 
 

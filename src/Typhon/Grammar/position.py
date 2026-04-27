@@ -231,14 +231,14 @@ class ExprFormatAnchors:
 _EXPR_COMMA_ANCHORS = "_typh_expr_comma_anchors"
 
 
-def set_expr_format_anchors[T: ast.expr](
+def set_expr_format_anchors[T: ast.AST](
     node: T, anchors: ExprFormatAnchors | None
 ) -> T:
     setattr(node, _EXPR_COMMA_ANCHORS, anchors)
     return node
 
 
-def get_expr_format_anchors(node: ast.expr) -> ExprFormatAnchors | None:
+def get_expr_format_anchors(node: ast.AST) -> ExprFormatAnchors | None:
     return getattr(node, _EXPR_COMMA_ANCHORS, None)
 
 

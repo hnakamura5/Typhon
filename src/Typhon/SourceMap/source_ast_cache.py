@@ -17,6 +17,7 @@ from ..Grammar.typhon_ast import (
     get_defined_name,
     get_function_literal_def,
     get_import_from_names,
+    get_match_class_keyword_names,
     get_lossless_token_info,
     is_function_literal,
     is_function_type,
@@ -97,24 +98,27 @@ class _SourceAstIndexVisitor(TyphonASTRawVisitor):
             for import_name in get_import_from_names(node):
                 self._visit_anchor(import_name)
 
+        if isinstance(node, ast.MatchClass):
+            for keyword_name in get_match_class_keyword_names(node) or []:
+                self._visit_anchor(keyword_name)
+
         # if completion_anchor := get_completion_trigger_anchor(node):
         #     self._visit_anchor(completion_anchor)
 
         if prefix_anchor := get_prefix_format_anchor(node):
             self._visit_anchor(prefix_anchor)
 
-        if isinstance(node, ast.expr):
-            if comma_anchors := get_expr_format_anchors(node):
-                for comma_anchor in comma_anchors.commas:
-                    self._visit_anchor(comma_anchor)
-                if comma_anchors.trailing_comma is not None:
-                    self._visit_anchor(comma_anchors.trailing_comma)
-                if comma_anchors.surround_open is not None:
-                    self._visit_anchor(comma_anchors.surround_open)
-                if comma_anchors.surround_close is not None:
-                    self._visit_anchor(comma_anchors.surround_close)
-                for keyword_anchor in comma_anchors.keywords or []:
-                    self._visit_anchor(keyword_anchor)
+        if comma_anchors := get_expr_format_anchors(node):
+            for comma_anchor in comma_anchors.commas:
+                self._visit_anchor(comma_anchor)
+            if comma_anchors.trailing_comma is not None:
+                self._visit_anchor(comma_anchors.trailing_comma)
+            if comma_anchors.surround_open is not None:
+                self._visit_anchor(comma_anchors.surround_open)
+            if comma_anchors.surround_close is not None:
+                self._visit_anchor(comma_anchors.surround_close)
+            for keyword_anchor in comma_anchors.keywords or []:
+                self._visit_anchor(keyword_anchor)
 
         if isinstance(node, PosNode):
             if block_anchors := get_block_stmt_anchors(node):

@@ -20,6 +20,7 @@ from Typhon.Grammar.typhon_ast import (
     get_import_from_names,
     get_leading_comments,
     get_let_pattern_body,
+    get_match_class_keyword_names,
     get_record_literal_fields,
     get_record_type_fields,
     get_return_of_function_type,
@@ -245,9 +246,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         node: ast.AST,
         content: Doc,
     ) -> Doc:
-        expr_anchors = (
-            get_expr_format_anchors(node) if isinstance(node, ast.expr) else None
-        )
+        expr_anchors = get_expr_format_anchors(node)
         debug_verbose_print(
             lambda: (
                 f"Visiting node with expr anchors: {ast.dump(node, include_attributes=True)}\n"
@@ -447,11 +446,10 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return text(keyword)
 
     def _expr_keyword_doc(self, node: ast.AST, keyword: str) -> Doc:
-        if isinstance(node, ast.expr):
-            if anchors := get_expr_format_anchors(node):
-                for token_anchor in anchors.keywords or []:
-                    if token_anchor.id == keyword:
-                        return self._visit_doc(token_anchor)
+        if anchors := get_expr_format_anchors(node):
+            for token_anchor in anchors.keywords or []:
+                if token_anchor.id == keyword:
+                    return self._visit_doc(token_anchor)
         return text(keyword)
 
     def _block_doc(
@@ -1825,12 +1823,19 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         raise ValueError(f"Unsupported singleton in match pattern: {node.value!r}")
 
     def visit_MatchSequence(self, node: ast.MatchSequence) -> Doc:
-        items = join(comma_space(), [self._visit_doc(p) for p in node.patterns])
+        anchor_info = get_expr_format_anchors(node)
+        items = self._comma_combined_doc(
+            [self._visit_doc(p) for p in node.patterns],
+            anchor_info.commas if anchor_info else None,
+            anchor_info.trailing_comma if anchor_info else None,
+        )
         if is_pattern_tuple(node):
-            if len(node.patterns) == 1:
+            if len(node.patterns) == 1 and (
+                anchor_info is None or anchor_info.trailing_comma is None
+            ):
                 items = concat([items, comma_space()])
-            return paren(items)
-        return bracket(items)
+            return self._wrapped_with_expr_anchor(node, items)
+        return self._wrapped_with_expr_anchor(node, items)
 
     def visit_MatchMapping(self, node: ast.MatchMapping) -> Doc:
         entries: list[Doc] = [
@@ -1845,10 +1850,15 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             for key, pattern in zip(node.keys, node.patterns)
         ]
         if node.rest is not None:
+            rest_name_doc: Doc
+            if isinstance(node.rest, ast.Name):
+                rest_name_doc = self._visit_doc(node.rest)
+            else:
+                rest_name_doc = text(node.rest)
             entries.append(
-                concat([self._prefix_anchor_doc(node, text("**")), text(node.rest)])
+                concat([self._prefix_anchor_doc(node, text("**")), rest_name_doc])
             )
-        return brace(join(comma_space(), entries))
+        return self._wrapped_with_expr_anchor(node, join(comma_space(), entries))
 
     def visit_MatchStar(self, node: ast.MatchStar) -> Doc:
         if node.name is None:
@@ -1894,19 +1904,55 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 ]
             )
         return concat(
-            [self._visit_doc(node.pattern), space(), text("as"), space(), capture]
+            [
+                self._visit_doc(node.pattern),
+                space(),
+                self._expr_keyword_doc(node, "as"),
+                space(),
+                capture,
+            ]
         )
 
     def visit_MatchOr(self, node: ast.MatchOr) -> Doc:
         return join(
-            concat([space(), text("|"), space()]),
+            concat([space(), self._expr_keyword_doc(node, "|"), space()]),
             [self._visit_doc(p) for p in node.patterns],
         )
 
     def _attribute_pattern_doc(self, node: ast.MatchClass) -> Doc:
         # { .attr1, .attr2=pattern, ... }
+        anchor_info = get_expr_format_anchors(node)
+        dot_anchors = anchor_info.keywords if anchor_info else None
+        comma_anchors = anchor_info.commas if anchor_info else None
+        trailing_comma = anchor_info.trailing_comma if anchor_info else None
+        open_brace_doc: Doc = (
+            self._visit_doc(anchor_info.surround_open)
+            if anchor_info and anchor_info.surround_open is not None
+            else text("{")
+        )
+        close_brace_doc: Doc = (
+            self._visit_doc(anchor_info.surround_close)
+            if anchor_info and anchor_info.surround_close is not None
+            else text("}")
+        )
+
         entries: list[Doc] = []
-        for attr, pattern in zip(node.kwd_attrs, node.kwd_patterns):
+        keyword_name_nodes = get_match_class_keyword_names(node)
+        for i, (attr, pattern) in enumerate(zip(node.kwd_attrs, node.kwd_patterns)):
+            attr_node = (
+                keyword_name_nodes[i]
+                if keyword_name_nodes is not None and i < len(keyword_name_nodes)
+                else None
+            )
+            dot_anchor = (
+                dot_anchors[i]
+                if dot_anchors is not None and i < len(dot_anchors)
+                else None
+            )
+            dot_doc = self._visit_anchor_or(dot_anchor, text("."))
+            attr_doc = (
+                self._visit_doc(attr_node) if attr_node is not None else text(attr)
+            )
             default_name_capture = (
                 isinstance(pattern, ast.MatchAs)
                 and pattern.pattern is None
@@ -1915,16 +1961,21 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             )
             if default_name_capture:
                 # The case { .attr }.
-                entries.append(concat([text("."), text(attr)]))
+                capture_doc: Doc = (
+                    self._visit_doc(pattern)
+                    if get_defined_name(pattern) is not None
+                    else attr_doc
+                )
+                entries.append(concat([dot_doc, capture_doc]))
             else:
                 # The case { .attr = pattern }.
                 entries.append(
                     concat(
                         [
-                            text("."),
-                            text(attr),
+                            dot_doc,
+                            attr_doc,
                             space(),
-                            text("="),
+                            self._prefix_anchor_doc(pattern, text("=")),
                             space(),
                             self._visit_doc(pattern),
                         ]
@@ -1932,9 +1983,9 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 )
         return concat(
             [
-                text("{"),
-                join(comma_space(), entries),
-                text("}"),
+                open_brace_doc,
+                self._comma_combined_doc(entries, comma_anchors, trailing_comma),
+                close_brace_doc,
             ]
         )
 
@@ -1942,18 +1993,38 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         if isinstance(node.cls, ast.Name) and is_attributes_pattern(node.cls):
             return self._attribute_pattern_doc(node)
         args: list[Doc] = [self._visit_doc(pattern) for pattern in node.patterns]
+        keyword_name_nodes = get_match_class_keyword_names(node)
         args.extend(
             [
                 concat(
-                    [text(attr), space(), text("="), space(), self._visit_doc(pattern)]
+                    [
+                        (
+                            self._visit_doc(keyword_name_nodes[i])
+                            if keyword_name_nodes is not None
+                            and i < len(keyword_name_nodes)
+                            else text(attr)
+                        ),
+                        space(),
+                        self._prefix_anchor_doc(pattern, text("=")),
+                        space(),
+                        self._visit_doc(pattern),
+                    ]
                 )
-                for attr, pattern in zip(node.kwd_attrs, node.kwd_patterns)
+                for i, (attr, pattern) in enumerate(
+                    zip(node.kwd_attrs, node.kwd_patterns)
+                )
             ]
         )
+        anchor_info = get_expr_format_anchors(node)
+        args_doc = join(comma_space(), args)
         return concat(
             [
                 self._visit_doc(node.cls),
-                paren(join(comma_space(), args)),
+                self._wrapped_with_expr_anchor(node, args_doc)
+                if anchor_info
+                and anchor_info.surround_open is not None
+                and anchor_info.surround_close is not None
+                else paren(args_doc),
             ]
         )
 
@@ -1961,7 +2032,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         head: list[Doc] = [
             self._stmt_begin_keyword_doc(node, "case"),
             self._space_between_statement_keywords_and_paren,
-            paren(self._visit_doc(node.pattern)),
+            self._stmt_paren(node, self._visit_doc(node.pattern)),
         ]
         if node.guard is not None:
             head.extend(
@@ -1972,7 +2043,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     paren(self._visit_doc(node.guard)),
                 ]
             )
-        return concat([concat(head), self._block_doc(node.body)])
+        return concat([concat(head), self._block_doc(node.body, container=node)])
 
     def visit_Match(self, node: ast.Match) -> Doc:
         open_brace_doc: Doc = text("{")
