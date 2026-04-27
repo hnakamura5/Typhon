@@ -7,7 +7,6 @@ from ..Driver.debugging import debug_verbose_print
 from ..Grammar.position import (
     PosNode,
     get_block_stmt_anchors,
-    get_completion_trigger_anchor,
     get_prefix_format_anchor,
     get_expr_format_anchors,
     get_pos_attributes_if_exists,
@@ -101,9 +100,6 @@ class _SourceAstIndexVisitor(TyphonASTRawVisitor):
         if isinstance(node, ast.MatchClass):
             for keyword_name in get_match_class_keyword_names(node) or []:
                 self._visit_anchor(keyword_name)
-
-        # if completion_anchor := get_completion_trigger_anchor(node):
-        #     self._visit_anchor(completion_anchor)
 
         if prefix_anchor := get_prefix_format_anchor(node):
             self._visit_anchor(prefix_anchor)

@@ -1367,7 +1367,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             as_doc: Doc = text("as")
             target_doc: Doc = text(node.asname)
             if defined_name is not None:
-                as_doc = self._completion_trigger_doc(defined_name, as_doc)
+                as_doc = self._prefix_anchor_doc(defined_name, as_doc)
                 target_doc = self._visit_doc(defined_name)
             result = concat(
                 [
@@ -1389,7 +1389,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         for alias, a in zip(aliases[1:], docs[1:], strict=False):
             parts.extend(
                 [
-                    self._completion_trigger_doc(alias, text(",")),
+                    self._prefix_anchor_doc(alias, text(",")),
                     align_to_anchor([line_or_space(), a], first_alias_anchor),
                 ]
             )
@@ -1406,13 +1406,29 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> Doc:
         module_names = get_import_from_names(node)
+        stmt_anchor = get_block_stmt_anchors(node)
+        level_doc = NIL
+        if (
+            stmt_anchor is not None
+            and node.level > 0
+            and stmt_anchor.type_param_comma_anchors
+        ):
+            level_doc = concat(
+                [
+                    self._visit_anchor_or(dot, text("."))
+                    for dot in stmt_anchor.type_param_comma_anchors
+                ]
+            )
         if module_names:
             module = concat(
                 [
-                    self._completion_trigger_doc(node, text("." * node.level)),
+                    level_doc,
                     *[
-                        self._prefixed_completion_trigger_doc(
-                            module_name, text(module_name.id)
+                        concat(
+                            [
+                                self._prefix_anchor_doc(module_name, text("")),
+                                text(module_name.id),
+                            ]
                         )
                         for module_name in module_names
                     ],
@@ -1421,7 +1437,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         else:
             module = concat(
                 [
-                    self._completion_trigger_doc(node, text("." * node.level)),
+                    level_doc,
                     text(node.module or ""),
                 ]
             )

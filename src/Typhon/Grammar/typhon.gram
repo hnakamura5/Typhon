@@ -343,7 +343,7 @@ dotted_as_names[List[ast.alias]]:
      }
 
 dotted_as_name[ast.alias]:
-    | a=dotted_name b=[ c='as' z=[NAME] { (c, z) }] {
+    | a=dot_prefixed_name b=[ c='as' z=[NAME] { (c, z) }] {
         make_alias(self, name=a,
             asname=b[1] if b else None,
             astoken=b[0] if b else None,
@@ -351,14 +351,15 @@ dotted_as_name[ast.alias]:
         )
      }
 
-# note below: the ('.' | '...') is necessary because '...' is tokenized as ELLIPSIS
+# Note below: the ('.' | '...') is necessary because '...' is tokenized as ELLIPSIS
+#             and they are anchored as type_param_commas, that is small hack.
 import_from[ast.ImportFrom]:
-    | f='from' a=('.' | '...')* b=dotted_name i='import' c=import_from_targets {
+    | f='from' a=('.' | '...')* b=dot_prefixed_name i='import' c=import_from_targets {
         set_block_stmt_anchors(
             set_completion_trigger_anchor_token(
                 make_import_from(module=b, names=c, level=self.extract_import_level(a), LOCATIONS), a[-1] if a else None
             ),
-            BlockStmtAnchors.make(keywords=[f, i]),
+            BlockStmtAnchors.make(keywords=[f, i], type_param_commas=a),
         )
      }
     | f='from' a=('.' | '...')+ i='import' b=import_from_targets {
@@ -366,16 +367,16 @@ import_from[ast.ImportFrom]:
             set_completion_trigger_anchor_token(
                 make_import_from(module=None, names=b, level=self.extract_import_level(a), LOCATIONS), a[-1]
             ),
-            BlockStmtAnchors.make(keywords=[f, i]),
+            BlockStmtAnchors.make(keywords=[f, i], type_param_commas=a),
         )
      }
 import_from_targets[List[ast.alias]]:
     | '(' a=import_from_as_names [','] ')' { a }
     | import_from_as_names !','
     | '*' { [ast.alias(name="*", asname=None, LOCATIONS)] }
-  #  | invalid_import_from_targets
+
 import_from_as_names[List[ast.alias]]:
-    | a=import_from_as_name b=(c=',' z=import_from_as_name { (c, z) })* {
+    | a=import_from_as_name b=(c=',' z=import_from_as_name { (c,  set_prefix_format_anchor_token(z, c)) })* {
         [a] + [set_completion_trigger_anchor_token(z, c) for c, z in b]
      }
 import_from_as_name[ast.alias]:
@@ -387,9 +388,9 @@ import_from_as_name[ast.alias]:
         )
      }
 
-dotted_name[ImportDotNames]:
-    | a=dotted_name dot='.' b=NAME { maybe_invalid_import_dot_names(self, a, b, dot, LOCATIONS) }
-    | a=dotted_name dot='.' !NAME { maybe_invalid_import_dot_names(self, a, None, dot, LOCATIONS) }
+dot_prefixed_name[ImportDotNames]:
+    | a=dot_prefixed_name dot='.' b=NAME { maybe_invalid_import_dot_names(self, a, b, dot, LOCATIONS) }
+    | a=dot_prefixed_name dot='.' !NAME { maybe_invalid_import_dot_names(self, a, None, dot, LOCATIONS) }
     | a=NAME { maybe_invalid_import_dot_names(self, None, a, None, LOCATIONS) }
 
 # COMPOUND STATEMENTS

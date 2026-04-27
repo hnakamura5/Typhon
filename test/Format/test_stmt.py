@@ -254,6 +254,20 @@ def test_format_import_from_alignment():
     assert_render_pipeline(code_import_from, result_import_from)
 
 
+code_import_from_parent = """
+from ....pkg.subpkg.module import aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb as cccccccccccccccccccccccccccccccccccccccc, dddddddddddddddddddddddddddddddddddddddd
+"""
+result_import_from_parent = """
+from ....pkg.subpkg.module import aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+                                  bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb as cccccccccccccccccccccccccccccccccccccccc,
+                                  dddddddddddddddddddddddddddddddddddddddd
+"""
+
+
+def test_format_import_from_parent_alignment():
+    assert_render_pipeline(code_import_from_parent, result_import_from_parent)
+
+
 code_yield_and_yield_from = """
 def gen() { yield 1;yield from [2,3] }
 """

@@ -149,7 +149,7 @@ def test_source_ast_cache_let_else_stmt_and_expr():
     cache = _build_cache(code_stmt_let_else)
 
     stmt = cache.source_pos_to_node(Pos(2, 5), ast.stmt)
-    assert isinstance(stmt, ast.Match)
+    assert isinstance(stmt, ast.If)
     stmt_range = Range.from_ast_node(stmt)
     assert stmt_range is not None
     assert stmt_range == Range(Pos(2, 4), Pos(4, 5))  # the whole let-else statement

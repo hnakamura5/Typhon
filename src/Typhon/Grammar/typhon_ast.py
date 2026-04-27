@@ -1845,6 +1845,7 @@ _TYPH_MISSING_NAME_IMPORT = "_typh_missing_name_import"
 class ImportDotNames:
     names: list[TokenInfo | None]  # None for missing name.
     dots: list[TokenInfo | None]  # Dots between names.
+    # names and dots are same length in non-error case.
     name_missing_dot_errors: list[SyntaxError]
 
     def names_as_strings(self) -> list[str]:
@@ -1866,8 +1867,9 @@ def make_import_from(
         **kwargs,
     )
     if module:
-        import_names = [
-            set_completion_trigger_anchor_token(
+        import_names: list[ast.Name] = []
+        for name, dot in zip(module.names, module.dots):
+            import_name = (
                 name_from_anchor_token(name, ctx=ast.Load())
                 if name
                 else set_is_internal_name(
@@ -1876,11 +1878,11 @@ def make_import_from(
                         **get_empty_pos_attributes(),
                         ctx=ast.Load(),
                     )
-                ),
-                dot,
+                )
             )
-            for name, dot in zip(module.names, module.dots)
-        ]
+            if dot is not None:
+                set_prefix_format_anchor_token(import_name, dot)
+            import_names.append(import_name)
         set_import_from_names(result, import_names)
         if module.name_missing_dot_errors:
             add_error_node(result, module.name_missing_dot_errors)
@@ -1903,11 +1905,13 @@ def make_alias(
         name_anchor = name_from_anchor_token(asname)
         if astoken is not None:
             set_completion_trigger_anchor_token(name_anchor, astoken)
+            set_prefix_format_anchor_token(name_anchor, astoken)
         set_defined_name(result, name_anchor)
     elif name.names and name.names[-1] is not None:
         name_anchor = name_from_anchor_token(name.names[-1])
         if name.dots and name.dots[-1] is not None:
             set_completion_trigger_anchor_token(name_anchor, name.dots[-1])
+            set_prefix_format_anchor_token(name_anchor, name.dots[-1])
         set_defined_name(result, name_anchor)
     if name.name_missing_dot_errors:
         add_error_node(result, name.name_missing_dot_errors)
