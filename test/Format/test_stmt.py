@@ -231,7 +231,8 @@ import aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 """
 result_import = """
 import aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
-       bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb as cccccccccccccccccccccccccccccccccccccccc,
+       bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb as
+       cccccccccccccccccccccccccccccccccccccccc,
        dddddddddddddddddddddddddddddddddddddddd
 """
 
@@ -245,7 +246,8 @@ from pkg.subpkg.module import aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, bbbbbbbb
 """
 result_import_from = """
 from pkg.subpkg.module import aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
-                              bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb as cccccccccccccccccccccccccccccccccccccccc,
+                              bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb as
+                              cccccccccccccccccccccccccccccccccccccccc,
                               dddddddddddddddddddddddddddddddddddddddd
 """
 
@@ -259,7 +261,8 @@ from ....pkg.subpkg.module import aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, bbbb
 """
 result_import_from_parent = """
 from ....pkg.subpkg.module import aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
-                                  bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb as cccccccccccccccccccccccccccccccccccccccc,
+                                  bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb as
+                                  cccccccccccccccccccccccccccccccccccccccc,
                                   dddddddddddddddddddddddddddddddddddddddd
 """
 

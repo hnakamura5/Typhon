@@ -1374,33 +1374,46 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     text(node.name),
                     space(),
                     as_doc,
-                    space(),
+                    line_or_space(),
                     target_doc,
                 ]
             )
         return self._doc_with_comments(node, result)
 
-    def _alias_list_doc(self, aliases: list[ast.alias]) -> Doc:
+    def _alias_list_doc(
+        self,
+        aliases: list[ast.alias],
+        comma_anchors: list[ast.Name] | None = None,
+        trailing_comma_anchor: ast.Name | None = None,
+    ) -> Doc:
         if len(aliases) == 0:
             return NIL
         first_alias_anchor = anchor()
         docs = [self._alias_doc(a) for a in aliases]
-        parts: list[Doc] = [first_alias_anchor, docs[0]]
-        for alias, a in zip(aliases[1:], docs[1:], strict=False):
-            parts.extend(
-                [
-                    self._prefix_anchor_doc(alias, text(",")),
-                    align_to_anchor([line_or_space(), a], first_alias_anchor),
-                ]
-            )
-        return group(parts)
+        combined = self._comma_combined_doc(
+            docs,
+            comma_anchors,
+            trailing_comma_anchor,
+        )
+        return group(
+            concat([first_alias_anchor, align_to_anchor(combined, first_alias_anchor)])
+        )
 
     def visit_Import(self, node: ast.Import) -> Doc:
+        stmt_anchor = get_block_stmt_anchors(node)
         return group(
             [
                 self._stmt_begin_keyword_doc(node, "import"),
                 space(),
-                self._alias_list_doc(node.names),
+                self._alias_list_doc(
+                    node.names,
+                    stmt_anchor.param_comma_anchors if stmt_anchor is not None else [],
+                    (
+                        stmt_anchor.param_trailing_comma_anchor
+                        if stmt_anchor is not None
+                        else None
+                    ),
+                ),
             ]
         )
 
@@ -1449,7 +1462,15 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                 space(),
                 self._stmt_begin_keyword_doc(node, "import"),
                 space(),
-                self._alias_list_doc(node.names),
+                self._alias_list_doc(
+                    node.names,
+                    stmt_anchor.param_comma_anchors if stmt_anchor is not None else [],
+                    (
+                        stmt_anchor.param_trailing_comma_anchor
+                        if stmt_anchor is not None
+                        else None
+                    ),
+                ),
             ]
         )
 

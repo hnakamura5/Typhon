@@ -335,11 +335,20 @@ import_stmt[ast.Import]:
 # -----------------
 
 import_name[ast.Import]: k='import' a=dotted_as_names {
-    set_block_stmt_anchors(ast.Import(names=a, LOCATIONS), BlockStmtAnchors.make(keywords=[k]))
+    set_block_stmt_anchors(
+        ast.Import(names=a[0], LOCATIONS),
+        BlockStmtAnchors.make(
+            keywords=[k],
+            param_commas=a[1],
+            param_trailing_comma=None,
+        ),
+    )
 }
-dotted_as_names[List[ast.alias]]:
+
+# aliases, commas
+dotted_as_names[Tuple[List[ast.alias], List[TokenInfo]]]:
     | a=dotted_as_name b=(c=',' z=dotted_as_name { (c, z) })* {
-        [a] + [set_completion_trigger_anchor_token(z, c) for c, z in b]
+        ([a] + [z for _, z in b], [c for c, _ in b])
      }
 
 dotted_as_name[ast.alias]:
@@ -357,27 +366,39 @@ import_from[ast.ImportFrom]:
     | f='from' a=('.' | '...')* b=dot_prefixed_name i='import' c=import_from_targets {
         set_block_stmt_anchors(
             set_completion_trigger_anchor_token(
-                make_import_from(module=b, names=c, level=self.extract_import_level(a), LOCATIONS), a[-1] if a else None
+                make_import_from(module=b, names=c[0], level=self.extract_import_level(a), LOCATIONS), a[-1] if a else None
             ),
-            BlockStmtAnchors.make(keywords=[f, i], type_param_commas=a),
+            BlockStmtAnchors.make(
+                keywords=[f, i],
+                type_param_commas=a,
+                param_commas=c[1],
+                param_trailing_comma=c[2],
+            ),
         )
      }
     | f='from' a=('.' | '...')+ i='import' b=import_from_targets {
         set_block_stmt_anchors(
             set_completion_trigger_anchor_token(
-                make_import_from(module=None, names=b, level=self.extract_import_level(a), LOCATIONS), a[-1]
+                make_import_from(module=None, names=b[0], level=self.extract_import_level(a), LOCATIONS), a[-1]
             ),
-            BlockStmtAnchors.make(keywords=[f, i], type_param_commas=a),
+            BlockStmtAnchors.make(
+                keywords=[f, i],
+                type_param_commas=a,
+                param_commas=b[1],
+                param_trailing_comma=b[2],
+            ),
         )
      }
-import_from_targets[List[ast.alias]]:
-    | '(' a=import_from_as_names [','] ')' { a }
-    | import_from_as_names !','
-    | '*' { [ast.alias(name="*", asname=None, LOCATIONS)] }
+# aliases, commas, trailing comma
+import_from_targets[Tuple[List[ast.alias], List[TokenInfo], TokenInfo | None]]:
+    | '(' a=import_from_as_names t=[','] ')' { (a[0], a[1], t) }
+    | a=import_from_as_names !',' { (a[0], a[1], None) }
+    | '*' { ([ast.alias(name="*", asname=None, LOCATIONS)], [], None) }
 
-import_from_as_names[List[ast.alias]]:
-    | a=import_from_as_name b=(c=',' z=import_from_as_name { (c,  set_prefix_format_anchor_token(z, c)) })* {
-        [a] + [set_completion_trigger_anchor_token(z, c) for c, z in b]
+# aliases, commas
+import_from_as_names[Tuple[List[ast.alias], List[TokenInfo]]]:
+    | a=import_from_as_name b=(c=',' z=import_from_as_name { (c, z) })* {
+        ([a] + [z for _, z in b], [c for c, _ in b])
      }
 import_from_as_name[ast.alias]:
     | a=NAME b=[ c='as' z=[NAME] { (c, z) }] {
