@@ -1895,7 +1895,13 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             entries.append(
                 concat([self._prefix_anchor_doc(node, text("**")), rest_name_doc])
             )
-        return self._wrapped_with_expr_anchor(node, join(comma_space(), entries))
+        if expr_anchor := get_expr_format_anchors(node):
+            entries_doc = self._comma_combined_doc(
+                entries, expr_anchor.commas, expr_anchor.trailing_comma
+            )
+        else:
+            entries_doc = join(comma_space(), entries)
+        return self._wrapped_with_expr_anchor(node, entries_doc)
 
     def visit_MatchStar(self, node: ast.MatchStar) -> Doc:
         if node.name is None:

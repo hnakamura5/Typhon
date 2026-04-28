@@ -163,6 +163,11 @@ def _try_attach_to_ast_node(
                     f"  No attachable node found before comment group {comment.comment} for node type {filter_node_type}"
                 )
             )
+    debug_verbose_print(
+        lambda: (
+            f"  Comment group {comment.comment} has attachable before node {ast.dump(before_node) if before_node else None} and after node {ast.dump(after_node) if after_node else None} for node type {filter_node_type}, before_node={before_node}, after_node={after_node}"
+        )
+    )
     if not before_node and not after_node:
         return False
     # Select the best attachment point based on proximity and node type.

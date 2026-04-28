@@ -1078,43 +1078,46 @@ mapping_pattern:
             ExprFormatAnchors.make(surround_open=lb, surround_close=rb),
         )
      }
-    | lb='{' rest=double_star_pattern ','? rb='}' {
+    | lb='{' rest=double_star_pattern t=','? rb='}' {
         set_expr_format_anchors(
             set_prefix_format_anchor_token(
                 ast.MatchMapping(keys=[], patterns=[], rest=rest[1], LOCATIONS),
                 rest[0],
             ),
-            ExprFormatAnchors.make(surround_open=lb, surround_close=rb),
+            ExprFormatAnchors.make(surround_open=lb, surround_close=rb, trailing_comma=t),
         )
      }
-    | lb='{' items=items_pattern ',' rest=double_star_pattern ','? rb='}' {
+    | lb='{' items=items_pattern c=',' rest=double_star_pattern t=','? rb='}' {
         set_expr_format_anchors(
             set_prefix_format_anchor_token(
                 ast.MatchMapping(
-                    keys=[k for k,_ in items],
-                    patterns=[p for _, p in items],
+                    keys=[k for k,_ in items[0]],
+                    patterns=[p for _, p in items[0]],
                     rest=rest[1],
                     LOCATIONS,
                 ),
                 rest[0],
             ),
-            ExprFormatAnchors.make(surround_open=lb, surround_close=rb),
+            ExprFormatAnchors.make(surround_open=lb, surround_close=rb, commas=items[1] + [c], trailing_comma=t),
         )
      }
-    | lb='{' items=items_pattern ','? rb='}' {
+    | lb='{' items=items_pattern t=','? rb='}' {
         set_expr_format_anchors(
             ast.MatchMapping(
-                keys=[k for k,_ in items],
-                patterns=[p for _, p in items],
+                keys=[k for k,_ in items[0]],
+                patterns=[p for _, p in items[0]],
                 rest=None,
                 LOCATIONS,
             ),
-            ExprFormatAnchors.make(surround_open=lb, surround_close=rb),
+            ExprFormatAnchors.make(surround_open=lb, surround_close=rb, commas=items[1], trailing_comma=t),
         )
      }
 
-items_pattern[List[Tuple[ast.expr, ast.pattern]]]:
-    | ','.key_value_pattern+
+# [(key, pattern)], commas
+items_pattern[Tuple[List[Tuple[ast.expr, ast.pattern]], List[TokenInfo]]]:
+    | a=key_value_pattern b=(c=',' k=key_value_pattern { (c, k) })* {
+        ([a] + [k for _, k in b], [c for c, _ in b])
+     }
 
 # In pattern '?.' is not allowed
 attr_pattern[ast.Attribute]:
