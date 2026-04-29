@@ -354,7 +354,7 @@ class LanguageServer(PyglsLanguageServer):
         debug_file_write(lambda: "Workspace preload completed.")
 
 
-server = LanguageServer("typhon-language-server", "v0.1.5")
+server = LanguageServer("typhon-language-server", "v0.2.0")
 client = server.backend_client
 
 
