@@ -73,7 +73,7 @@ def assert_capabilities_equal(
 async def start_typhon_connection_client(
     testing_reparser: bool = False,
 ) -> LanguageClient:
-    client = LanguageClient("typhon-language-client", "v0.1.5")
+    client = LanguageClient("typhon-language-client", "v0.2.0")
     debug_options = ["--debug-verbose"] if is_debug_verbose() else []
     if testing_reparser:  # Enable testing reparser for e2e tests.
         debug_options.append("--testing-reparser")
