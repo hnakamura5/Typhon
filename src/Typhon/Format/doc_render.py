@@ -425,8 +425,9 @@ def render_doc_to_string(
                 pass
             elif isinstance(s_current, Group):
                 stack.append((s_indent, s_mode, s_current.content))
-
-    return newline_text.join(lines)
+    # Remove the indents in empty lines to avoid trailing whitespace.
+    normalized_lines = ["" if line.strip(" \t") == "" else line for line in lines]
+    return newline_text.join(normalized_lines)
 
 
 __all__ = ["render_doc_to_string"]

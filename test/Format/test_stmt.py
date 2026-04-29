@@ -454,3 +454,37 @@ def long_type_param[
 
 def test_format_func_type_param_long():
     assert_render_pipeline(code_func_type_param_long, result_func_type_param_long)
+
+
+code_multi_statememt = """
+let x = 1; let y = 2
+def f() { return x + y + z }
+class C { let x = 1; let y = 2
+    def method(self) { return self.x + self.y }
+}
+let z = 3
+"""
+
+result_multi_statement = """
+let x = 1
+let y = 2
+
+def f() {
+    return x + y + z
+}
+
+class C {
+    let x = 1
+    let y = 2
+
+    def method(self) {
+        return self.x + self.y
+    }
+}
+
+let z = 3
+"""
+
+
+def test_format_multi_statement():
+    assert_render_pipeline(code_multi_statememt, result_multi_statement)

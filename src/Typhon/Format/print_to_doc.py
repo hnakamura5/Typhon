@@ -539,12 +539,36 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                     )
         body_docs: list[Doc] = [self._stmt_doc_with_comments(body[0])]
         prev_stmt = body[0]
-        for stmt in body[1:]:
-            separator_doc = self._stmt_separator_doc(prev_stmt, stmt)
-            body_docs.append(hardline())
-            if separator_doc is not NIL:
-                body_docs.extend([separator_doc, hardline()])
-            body_docs.append(self._stmt_doc_with_comments(stmt))
+        prev_was_top_level_newline_stmt = self._is_newline_stmt(prev_stmt)
+        for i, stmt in enumerate(body[1:]):
+            is_last = i == len(body) - 2
+            stmt_and_newline_docs: list[Doc] = []
+            stmt_and_newline_docs.append(hardline())
+            if self._is_newline_stmt(stmt):
+                if not prev_was_top_level_newline_stmt:
+                    # Insert an extra newline between statements and class/function.
+                    stmt_and_newline_docs.append(hardline())
+                prev_was_top_level_newline_stmt = True
+                stmt_and_newline_docs.append(self._stmt_separator_doc(prev_stmt, stmt))
+                stmt_and_newline_docs.append(self._stmt_doc_with_comments(stmt))
+                if not is_last:
+                    stmt_and_newline_docs.append(hardline())
+            else:
+                if prev_was_top_level_newline_stmt:
+                    # Insert an extra newline between statements and class/function.
+                    stmt_and_newline_docs.append(hardline())
+                stmt_and_newline_docs.append(self._stmt_separator_doc(prev_stmt, stmt))
+                stmt_and_newline_docs.append(self._stmt_doc_with_comments(stmt))
+                prev_was_top_level_newline_stmt = False
+            debug_verbose_print(
+                lambda: (
+                    f"Processing stmt in block: {ast.dump(stmt, include_attributes=True)}\n"
+                    f"    is_top_level_newline_stmt: {self._is_newline_stmt(stmt)}, "
+                    f"prev_was_top_level_newline_stmt: {prev_was_top_level_newline_stmt}, "
+                    f"stmt_and_newline_docs: {stmt_and_newline_docs}\n"
+                )
+            )
+            body_docs.append(concat(stmt_and_newline_docs))
             prev_stmt = stmt
         return group(
             [
@@ -747,12 +771,36 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             return parts[0]
         return concat(parts)
 
+    def _is_newline_stmt(self, node: ast.stmt) -> bool:
+        return (
+            isinstance(node, ast.FunctionDef)
+            or isinstance(node, ast.AsyncFunctionDef)
+            or isinstance(node, ast.ClassDef)
+        )
+
     def visit_Module(self, node: ast.Module) -> Doc:
         if len(node.body) == 0:
             if dangling := self._dangling_comments_doc(node):
                 return dangling
             return NIL
-        stmt_docs = [self._stmt_doc_with_comments(stmt) for stmt in node.body]
+        stmt_docs: list[Doc] = []
+        prev_was_top_level_newline_stmt = False
+        for stmt in node.body:
+            stmt_and_newline_docs: list[Doc] = []
+            if self._is_newline_stmt(stmt):
+                if not prev_was_top_level_newline_stmt:
+                    # Insert an extra newline between statements and class/function.
+                    stmt_and_newline_docs.append(hardline())
+                prev_was_top_level_newline_stmt = True
+                stmt_and_newline_docs.append(self._stmt_doc_with_comments(stmt))
+                stmt_and_newline_docs.append(hardline())
+            else:
+                if prev_was_top_level_newline_stmt:
+                    # Insert an extra newline between statements and class/function.
+                    stmt_and_newline_docs.append(hardline())
+                stmt_docs.append(self._stmt_doc_with_comments(stmt))
+                prev_was_top_level_newline_stmt = False
+            stmt_docs.append(concat(stmt_and_newline_docs))
         result = join(hardline(), stmt_docs)
         if dangling := self._dangling_comments_doc(node):
             result = concat([result, hardline(), dangling])

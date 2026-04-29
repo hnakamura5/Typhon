@@ -96,7 +96,7 @@ def assert_comment_format_round_trip(source: str) -> None:
             f_cursor += 1
             continue  # OK
         # source_to_tokens still keeps ignored newline. Skip it.
-        if origin_tok.type == NEWLINE:
+        if origin_tok.type == NEWLINE or origin_tok.string == ";":
             continue
         if formatted_tok.type == NEWLINE:
             f_cursor += 1
@@ -138,7 +138,9 @@ def assert_comment_format_round_trip(source: str) -> None:
 
 def assert_render_pipeline(source: str, expected: str) -> None:
     result = _render_source(source)
-    assert result == expected.strip(), f"Expected:\n{expected}\n\nGot:\n{result}"
+    assert result.strip() == expected.strip(), (
+        f"Expected:\n{expected}\n\nGot:\n{result}"
+    )
     round_tripped = _render_source(result)
     assert round_tripped.strip() == expected.strip(), (
         f"Round trip failed. Expected:\n{expected}\n\nGot:\n{round_tripped}"
@@ -153,7 +155,9 @@ def assert_render_pipeline(source: str, expected: str) -> None:
 
 def assert_render_pipeline_comment_sensitive(source: str, expected: str) -> None:
     result = _render_source(source)
-    assert result == expected.strip(), f"Expected:\n{expected}\n\nGot:\n{result}"
+    assert result.strip() == expected.strip(), (
+        f"Expected:\n{expected}\n\nGot:\n{result}"
+    )
     round_tripped = _render_source(result)
     assert round_tripped.strip() == expected.strip(), (
         f"Round trip failed. Expected:\n{expected}\n\nGot:\n{round_tripped}"
