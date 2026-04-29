@@ -62,6 +62,7 @@ def pos_attribute_to_range(pos: PosAttributes) -> PosRange:
 PosNode = (
     ast.stmt
     | ast.expr
+    | ast.comprehension
     | ast.alias
     | ast.arg
     | ast.type_param

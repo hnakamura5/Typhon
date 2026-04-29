@@ -869,9 +869,9 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         # the body after if/elif to break consistently.
         doc = concat(
             [
-                text(keyword),
+                self._stmt_begin_keyword_doc(node, keyword),
                 self._space_between_comprehension_keywords_and_paren,
-                paren(self._visit_doc(node.test)),
+                self._stmt_paren(node, self._visit_doc(node.test)),
                 self._anchor_to_current(
                     [
                         line_or_space(),
@@ -918,12 +918,21 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return doc
 
     def visit_IfExp(self, node: ast.IfExp) -> Doc:
+        expr_anchor = get_expr_format_anchors(node)
+        open_doc = self._visit_anchor_or(
+            expr_anchor.surround_open if expr_anchor else None,
+            text("("),
+        )
+        close_doc = self._visit_anchor_or(
+            expr_anchor.surround_close if expr_anchor else None,
+            text(")"),
+        )
         with self._comprehension_open_anchor_ctx() as open_anchor:
             parts: list[Doc] = [
                 open_anchor,
-                text("("),  # No space here
+                open_doc,
                 self._if_exp_chain_doc(node, "if"),
-                text(")"),
+                close_doc,
             ]
         return group(parts)
 
@@ -1141,7 +1150,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
 
         head = (
             [
-                text("async"),
+                self._stmt_begin_keyword_doc(node, "async"),
                 space(),
             ]
             if node.is_async
@@ -1149,16 +1158,17 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         )
         head.extend(
             [
-                text("for"),
+                self._stmt_begin_keyword_doc(node, "for"),
                 self._space_between_comprehension_keywords_and_paren,
-                paren(
+                self._stmt_paren(
+                    node,
                     [
                         target,
                         space(),
                         text("in"),
                         space(),
                         self._visit_doc(node.iter),
-                    ]
+                    ],
                 ),
             ]
         )
@@ -1167,9 +1177,9 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
             parts.extend(
                 [
                     space(),
-                    text("if"),
+                    self._stmt_begin_keyword_doc(cond, "if"),
                     self._space_between_comprehension_keywords_and_paren,
-                    paren(self._visit_doc(cond)),
+                    self._stmt_paren(cond, self._visit_doc(cond)),
                 ]
             )
         return group(parts)
@@ -1180,27 +1190,41 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
     def _comp_doc(
         self, node: ast.ListComp | ast.SetComp | ast.GeneratorExp, open: str, close: str
     ) -> Doc:
+        expr_anchor = get_expr_format_anchors(node)
+        open_doc = self._visit_anchor_or(
+            expr_anchor.surround_open if expr_anchor else None,
+            text(open),
+        )
+        close_doc = self._visit_anchor_or(
+            expr_anchor.surround_close if expr_anchor else None,
+            text(close),
+        )
+        open_len = (
+            len(expr_anchor.surround_open.id)
+            if expr_anchor is not None and expr_anchor.surround_open is not None
+            else len(open)
+        )
         with self._comprehension_open_anchor_ctx() as open_anchor:
             return group(
                 [
                     open_anchor,
-                    text(open),
+                    open_doc,
                     self._comprehension_list_doc(node.generators),
                     align_to_anchor(
                         [
                             line_or_space(),
                             group(
                                 [
-                                    text("yield"),
+                                    self._prefix_anchor_doc(node.elt, text("yield")),
                                     space(),
                                     self._visit_doc(node.elt),
                                 ]
                             ),
                         ],
                         open_anchor,
-                        DEFAULT_INDENT_WIDTH + len(open),
+                        DEFAULT_INDENT_WIDTH + open_len,
                     ),
-                    text(close),
+                    close_doc,
                 ]
             )
 
@@ -1214,16 +1238,25 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         return self._comp_doc(node, "(", ")")
 
     def visit_DictComp(self, node: ast.DictComp) -> Doc:
+        expr_anchor = get_expr_format_anchors(node)
+        open_doc = self._visit_anchor_or(
+            expr_anchor.surround_open if expr_anchor else None,
+            text("{"),
+        )
+        close_doc = self._visit_anchor_or(
+            expr_anchor.surround_close if expr_anchor else None,
+            text("}"),
+        )
         with self._comprehension_open_anchor_ctx() as open_anchor:
             return group(
                 [
                     open_anchor,
-                    text("{"),  # No space here
+                    open_doc,
                     self._comprehension_list_doc(node.generators),
                     self._anchor_to_current(
                         [
                             line_or_space(),
-                            text("yield"),
+                            self._prefix_anchor_doc(node.key, text("yield")),
                             space(),
                             self._visit_doc(node.key),
                             self._prefix_anchor_doc(node.value, text(":")),
@@ -1232,7 +1265,7 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
                         ],
                         DEFAULT_INDENT_WIDTH + 1,
                     ),
-                    text("}"),
+                    close_doc,
                 ]
             )
 
@@ -2477,14 +2510,21 @@ class _PrintToDocVisitor(TyphonASTRawVisitor):
         )
 
     def visit_ControlComprehension(self, node: ast.Name) -> Doc:
+        expr_anchor = get_expr_format_anchors(node)
         if func_def := get_control_comprehension_def(node):
             with self._comprehension_open_anchor_ctx() as open_anchor:
                 result = concat(
                     [
                         open_anchor,
-                        text("("),  # No space here
-                        self._comprehension_printer._visit_doc(func_def),
-                        text(")"),
+                        self._visit_anchor_or(
+                            expr_anchor.surround_open if expr_anchor else None,
+                            text("("),
+                        ),  # No space here
+                        self._comprehension_printer._stmt_doc_with_comments(func_def),
+                        self._visit_anchor_or(
+                            expr_anchor.surround_close if expr_anchor else None,
+                            text(")"),
+                        ),
                     ]
                 )
                 debug_verbose_print(
@@ -2514,9 +2554,9 @@ class _PrintComprehensionToDocVisitor(_PrintToDocVisitor):
         return group(
             [
                 cond_doc,
-                text(";"),
+                self._prefix_anchor_doc(body[0].value, text(";")),
                 line_or_space(),
-                self._visit_doc(body[0].value),
+                self._stmt_doc_with_comments(body[0]),
             ]
         )
 
@@ -2527,10 +2567,14 @@ class _PrintComprehensionToDocVisitor(_PrintToDocVisitor):
         debug_verbose_print(
             lambda: f"Visiting function def in comprehension body: {ast.dump(node)}"
         )
-        return join(
-            concat([text(";"), line_or_space()]),
-            [self._visit_doc(stmt) for stmt in node.body],
-        )
+        parts: list[Doc] = []
+        for i, stmt in enumerate(node.body):
+            if i > 0:  # For the case let comprehension.
+                assert isinstance(stmt, ast.Return) and stmt.value is not None
+                sep_doc = self._prefix_anchor_doc(stmt.value, text(";"))
+                parts.extend([sep_doc, line_or_space()])
+            parts.append(self._stmt_doc_with_comments(stmt))
+        return concat(parts)
 
     @override
     def visit_Return(self, node: ast.Return) -> Doc:
@@ -2560,7 +2604,7 @@ class _PrintComprehensionToDocVisitor(_PrintToDocVisitor):
         elif isinstance(stmt, ast.Yield) and stmt.value is not None:
             content = self._visit_doc(stmt.value)
         else:  # TODO: Only return?
-            content = self._visit_doc(stmt)
+            content = self._stmt_doc_with_comments(stmt)
         debug_verbose_print(
             lambda: f"Comprehension block content: {ast.dump(stmt)} -> {content}"
         )

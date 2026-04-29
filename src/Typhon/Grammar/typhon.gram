@@ -20,9 +20,7 @@ from .typhon_ast import (
     get_optional_question_node, get_force_unwrap_node, make_if_let, make_while_let,
     make_pipe_call, make_arrow_type_single_chain, if_comp_exp,
     make_genexp, make_listcomp, make_setcomp, make_dictcomp,
-    make_with_comp, make_try_comp, make_try_comp_except, make_match_comp,
-    make_match_comp_case, make_while_comp, make_if_let_comp,
-    make_while_let_comp, make_let_comp, make_try, make_except_handler,
+    make_try, make_except_handler,
     make_record_literal, make_record_type, make_attributes_pattern, make_tuple_pattern, make_for_let_pattern, make_with_let_pattern, make_inline_with_let_pattern, make_class_def,
     make_match_case, make_alias, make_import_from, make_arguments, make_attribute,
     make_arg, make_keyword, make_type_var, make_type_var_tuple, make_param_spec,
@@ -37,6 +35,9 @@ from .position import (
     set_arg_following_comma_token,
 )
 from .typhon_ast_error import (
+    make_with_comp, make_try_comp, make_try_comp_except, make_match_comp,
+    make_match_comp_case, make_while_comp, make_if_let_comp,
+    make_while_let_comp, make_let_comp,
     maybe_invalid_block, maybe_invalid_stmt, maybe_invalid_braces, recover_invalid_for, recover_invalid_try, recover_maybe_invalid_function_def_raw,
     recover_maybe_invalid_class_def_raw,
     statement_panic_skip, let_pattern_check,
@@ -2006,25 +2007,54 @@ for_if_clause[ast.comprehension]:
      }
 
 listcomp[ast.ListComp]:
-    | '[' b=for_if_clauses 'yield' ~ a=named_expression ']' { make_listcomp(elt=a, generators=b, LOCATIONS) }
+    | lb='[' b=for_if_clauses y='yield' ~ a=named_expression rb=']' {
+        set_expr_format_anchors(
+            make_listcomp(elt=set_prefix_format_anchor_token(a, y), generators=b, LOCATIONS),
+            ExprFormatAnchors.make(surround_open=lb, surround_close=rb),
+        )
+     }
 
 setcomp[ast.SetComp]:
-    | '{' b=for_if_clauses 'yield' ~ a=named_expression '}' { make_setcomp(elt=a, generators=b, LOCATIONS) }
+    | lb='{' b=for_if_clauses y='yield' ~ a=named_expression rb='}' {
+        set_expr_format_anchors(
+            make_setcomp(elt=set_prefix_format_anchor_token(a, y), generators=b, LOCATIONS),
+            ExprFormatAnchors.make(surround_open=lb, surround_close=rb),
+        )
+     }
 
 genexp_internal[ast.GeneratorExp]:
-    | b=for_if_clauses 'yield' ~ a=( assignment_expression | expression !':=')  {
-        make_genexp(elt=a, generators=b, LOCATIONS)
+    | b=for_if_clauses y='yield' ~ a=( assignment_expression | expression !':=')  {
+        make_genexp(elt=set_prefix_format_anchor_token(a, y), generators=b, LOCATIONS)
       }
 
 genexp[ast.GeneratorExp]:
-    | '(' b=genexp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
+    | lp='(' b=genexp_internal rp=[')'] {
+        maybe_invalid_close_paren(self, rp,
+            node=set_expr_format_anchors(
+                b, ExprFormatAnchors.make(surround_open=lp, surround_close=rp),
+            ),
+            close_anchor=b,
+        )
+     }
 
 # For optional call.
 question_genexp[ast.GeneratorExp]:
-    | '?(' b=genexp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
+    | lp='?(' b=genexp_internal rp=[')'] {
+        maybe_invalid_close_paren(self, rp,
+            node=set_expr_format_anchors(
+                b, ExprFormatAnchors.make(surround_open=lp, surround_close=rp),
+            ),
+            close_anchor=b,
+        )
+     }
 
 dictcomp[ast.DictComp]:
-    | '{' b=for_if_clauses 'yield' ~ a=kvpair '}' { make_dictcomp(key=a[0], value=a[1], generators=b, LOCATIONS) }
+    | lb='{' b=for_if_clauses y='yield' ~ a=kvpair rb='}' {
+        set_expr_format_anchors(
+            make_dictcomp(key=set_prefix_format_anchor_token(a[0], y), value=a[1], generators=b, LOCATIONS),
+            ExprFormatAnchors.make(surround_open=lb, surround_close=rb),
+        )
+     }
 
 if_comp_internal[ast.expr]:
     | k='if' lp=['('] b=pipe_operator rp=[')'] NEWLINE* a=expression c=if_comp_elif {
@@ -2044,23 +2074,27 @@ if_comp_internal[ast.expr]:
         )
      }
     | k='if' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=expression c=if_comp_elif {
-        maybe_invalid_stmt(self, lp, rp,
-            node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
-                node=make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
-            ),
-            open_anchor=k,
-            close_anchor=cond if cond else pat_sub[-1][1],
-            begin_tokens=[k],
+        let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+            node=make_if_let_comp(pat_sub, cond, b, c,
+                keyword_tokens=[k],
+                parens=(lp, rp),
+                parser=self,
+                open_anchor=k,
+                close_anchor=cond if cond else pat_sub[-1][1],
+                LOCATIONS,
+            )
         )
      }
     | k='if' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=expression c=[if_comp_else] {
-        maybe_invalid_stmt(self, lp, rp,
-            node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
-                node=make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
-            ),
-            open_anchor=k,
-            close_anchor=cond if cond else pat_sub[-1][1],
-            begin_tokens=[k],
+        let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+            node=make_if_let_comp(pat_sub, cond, b, c,
+                keyword_tokens=[k],
+                parens=(lp, rp),
+                parser=self,
+                open_anchor=k,
+                close_anchor=cond if cond else pat_sub[-1][1],
+                LOCATIONS,
+            )
         )
      }
 
@@ -2082,23 +2116,27 @@ if_comp_elif[ast.expr]:
         )
      }
     | k='elif' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=expression c=if_comp_elif {
-        maybe_invalid_stmt(self, lp, rp,
-            node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
-                node=make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
-            ),
-            open_anchor=k,
-            close_anchor=cond if cond else pat_sub[-1][1],
-            begin_tokens=[k],
+        let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+            node=make_if_let_comp(pat_sub, cond, b, c,
+                keyword_tokens=[k],
+                parens=(lp, rp),
+                parser=self,
+                open_anchor=k,
+                close_anchor=cond if cond else pat_sub[-1][1],
+                LOCATIONS,
+            )
         )
      }
     | k='elif' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* b=expression c=[if_comp_else] {
-        maybe_invalid_stmt(self, lp, rp,
-            node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
-                node=make_if_let_comp(pat_sub, cond, b, c, LOCATIONS)
-            ),
-            open_anchor=k,
-            close_anchor=cond if cond else pat_sub[-1][1],
-            begin_tokens=[k],
+        let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+            node=make_if_let_comp(pat_sub, cond, b, c,
+                keyword_tokens=[k],
+                parens=(lp, rp),
+                parser=self,
+                open_anchor=k,
+                close_anchor=cond if cond else pat_sub[-1][1],
+                LOCATIONS,
+            )
         )
      }
 
@@ -2106,106 +2144,220 @@ if_comp_else[ast.expr]:
     | 'else' NEWLINE* a=expression { a }
 
 if_comp_exp[ast.expr]:
-    | '(' b=if_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
+    | lp='(' b=if_comp_internal rp=[')'] {
+        maybe_invalid_close_paren(self, rp,
+            node=set_expr_format_anchors(
+                b, ExprFormatAnchors.make(surround_open=lp, surround_close=rp),
+            ),
+            close_anchor=b,
+        )
+     }
 
 question_if_comp_exp[ast.expr]:
-    | '?(' b=if_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
+    | lp='?(' b=if_comp_internal rp=[')'] {
+        maybe_invalid_close_paren(self, rp,
+            node=set_expr_format_anchors(
+                b, ExprFormatAnchors.make(surround_open=lp, surround_close=rp),
+            ),
+            close_anchor=b,
+        )
+     }
 
 with_comp_internal[ast.expr]:
     | is_async=['async'] k='with' lp=['('] a=';'.with_item+ [';'] rp=[')'] NEWLINE* b=expression {
-        maybe_invalid_stmt(self, lp, rp,
-            node=make_with_comp(is_async=is_async is not None, items=sum(a, []), body=b, LOCATIONS),
+        make_with_comp(
+            is_async=is_async is not None,
+            items=sum(a, []),
+            body=b,
+            keyword_tokens=[tok for tok in [is_async, k] if tok],
+            parens=(lp, rp),
+            parser=self,
             open_anchor=k,
             close_anchor=sum(a, [])[-1],
-            begin_tokens=[is_async, k],
+            LOCATIONS,
         )
      }
 
 with_comp[ast.expr]:
-    | '(' b=with_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
+    | lp='(' b=with_comp_internal rp=[')'] {
+        maybe_invalid_close_paren(self, rp,
+            node=set_expr_format_anchors(
+                b, ExprFormatAnchors.make(surround_open=lp, surround_close=rp),
+            ),
+            close_anchor=b,
+        )
+     }
 
 question_with_comp[ast.expr]:
-    | '?(' b=with_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
+    | lp='?(' b=with_comp_internal rp=[')'] {
+        maybe_invalid_close_paren(self, rp,
+            node=set_expr_format_anchors(
+                b, ExprFormatAnchors.make(surround_open=lp, surround_close=rp),
+            ),
+            close_anchor=b,
+        )
+     }
 
 try_comp_internal[ast.expr]:
-    |'try' NEWLINE* b=expression ex=try_comp_except* {
-        make_try_comp(b, ex, LOCATIONS)
+    |k='try' NEWLINE* b=expression ex=try_comp_except* {
+        make_try_comp(b, ex,
+            keyword_tokens=[k],
+            parens=(None, None),
+            parser=self,
+            open_anchor=k,
+            close_anchor=ex[-1] if ex else b,
+            LOCATIONS,
+        )
     }
 
 try_comp_except[ast.Name]:
     | k='except' lp=['('] e=expression t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* b=expression {
-        maybe_invalid_stmt(self, lp, rp,
-            node=make_try_comp_except(t, e, b, LOCATIONS),
+        make_try_comp_except(t, e, b,
+            keyword_tokens=[k],
+            parens=(lp, rp),
+            parser=self,
             open_anchor=k,
             close_anchor=e,
-            begin_tokens=[k],
+            report_missing_parens=True,
+            LOCATIONS,
         ) }
     | k='except' s='*' lp=['('] e=expression t=['as' z=NAME { z.string }] rp=[')'] NEWLINE* b=expression {
-        maybe_invalid_stmt(self, lp, rp,
-            node=make_try_comp_except(t, e, b, LOCATIONS),
+        make_try_comp_except(t, e, b,
+            keyword_tokens=[k, s],
+            parens=(lp, rp),
+            parser=self,
             open_anchor=s,
             close_anchor=e,
-            begin_tokens=[k, s],
+            report_missing_parens=True,
+            LOCATIONS,
         ) }
-    | 'except' NEWLINE* b=expression { make_try_comp_except(None, None, b, LOCATIONS) }
+    | k='except' NEWLINE* b=expression {
+        make_try_comp_except(None, None, b,
+            keyword_tokens=[k],
+            parens=(None, None),
+            parser=self,
+            open_anchor=k,
+            close_anchor=b,
+            report_missing_parens=False,
+            LOCATIONS,
+        ) }
 
 try_comp[ast.expr]:
-    | '(' b=try_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
+    | lp='(' b=try_comp_internal rp=[')'] {
+        maybe_invalid_close_paren(self, rp,
+            node=set_expr_format_anchors(
+                b, ExprFormatAnchors.make(surround_open=lp, surround_close=rp),
+            ),
+            close_anchor=b,
+        )
+     }
 
 question_try_comp[ast.expr]:
-    | '?(' b=try_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
+    | lp='?(' b=try_comp_internal rp=[')'] {
+        maybe_invalid_close_paren( self, rp,
+            node=set_expr_format_anchors(
+                b, ExprFormatAnchors.make(surround_open=lp, surround_close=rp),
+            ),
+            close_anchor=b,
+        )
+     }
 
 match_comp_internal[ast.expr]:
     | k="match" lp=['('] subject=subject_expr rp=[')'] NEWLINE* cases=match_comp_case+ {
-        maybe_invalid_stmt(self, lp, rp,
-            node=make_match_comp(subject, cases, LOCATIONS),
+        make_match_comp(
+            subject,
+            cases,
+            keyword_tokens=[k],
+            parens=(lp, rp),
+            parser=self,
             open_anchor=k,
             close_anchor=subject,
-            begin_tokens=[k],
+            LOCATIONS,
         )
     }
 
 match_comp[ast.expr]:
-    | '(' b=match_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
+    | lp='(' b=match_comp_internal rp=[')'] {
+        maybe_invalid_close_paren(self, rp,
+            node=set_expr_format_anchors(
+                b, ExprFormatAnchors.make(surround_open=lp, surround_close=rp),
+            ),
+            close_anchor=b,
+        )
+     }
 
 question_match_comp[ast.expr]:
-    | '?(' b=match_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
+    | lp='?(' b=match_comp_internal rp=[')'] {
+        maybe_invalid_close_paren(self, rp,
+            node=set_expr_format_anchors(
+                b, ExprFormatAnchors.make(surround_open=lp, surround_close=rp),
+            ),
+            close_anchor=b,
+        )
+     }
 
 match_comp_case[ast.Name]:
     | k="case" lp=['('] pattern=patterns rp=[')'] NEWLINE* guard=guard? NEWLINE* body=expression {
-        maybe_invalid_stmt(self, lp, rp,
-            node=make_match_comp_case(pattern, guard, body, LOCATIONS),
+        make_match_comp_case(
+            pattern,
+            guard,
+            body,
+            keyword_tokens=[k],
+            parens=(lp, rp),
+            parser=self,
             open_anchor=k,
             close_anchor=pattern,
-            begin_tokens=[k],
+            report_missing_parens=True,
+            LOCATIONS,
         )
     }
 
 while_comp_internal[ast.expr]:
     | k='while' lp=['('] a=named_expression rp=[')'] NEWLINE* 'yield' b=expression {
-        maybe_invalid_stmt(self, lp, rp,
-            node=make_while_comp(a, b, LOCATIONS),
+        make_while_comp(a, b,
+            keyword_tokens=[k],
+            parens=(lp, rp),
+            parser=self,
             open_anchor=k,
             close_anchor=a,
-            begin_tokens=[k],
+            LOCATIONS,
         )
      }
     | k='while' lp=['('] d=decl_keyword pat_sub=','.pattern_assignment+ cond=[';' a=named_expression {a}] rp=[')'] NEWLINE* 'yield' b=expression {
-        maybe_invalid_stmt(self, lp, rp,
-            node=let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
-                node=make_while_let_comp(pattern_subjects=pat_sub, cond=cond, body=b, LOCATIONS)
-            ),
-            open_anchor=k,
-            close_anchor=cond if cond else pat_sub[-1][1],
-            begin_tokens=[k],
+        let_pattern_check(self, decl_type=d, pattern_subjects=pat_sub,
+            node=make_while_let_comp(
+                pattern_subjects=pat_sub,
+                cond=cond,
+                body=b,
+                keyword_tokens=[k],
+                parens=(lp, rp),
+                parser=self,
+                open_anchor=k,
+                close_anchor=cond if cond else pat_sub[-1][1],
+                LOCATIONS,
+            )
         )
      }
 
 while_comp[ast.expr]:
-    | '(' b=while_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
+    | lp='(' b=while_comp_internal rp=[')'] {
+        maybe_invalid_close_paren(self, rp,
+            node=set_expr_format_anchors(
+                b, ExprFormatAnchors.make(surround_open=lp, surround_close=rp),
+            ),
+            close_anchor=b,
+        )
+     }
 
 question_while_comp[ast.expr]:
-    | '?(' b=while_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
+    | lp='?(' b=while_comp_internal rp=[')'] {
+        maybe_invalid_close_paren(self, rp,
+            node=set_expr_format_anchors(
+                b, ExprFormatAnchors.make(surround_open=lp, surround_close=rp),
+            ),
+            close_anchor=b,
+        )
+     }
 
 let_comp_internal[ast.expr]:
     | 'let' a=','.declaration_single_assignment+ ';' b=expression {
@@ -2218,10 +2370,24 @@ let_comp_internal[ast.expr]:
      }
 
 let_comp[ast.expr]:
-    | '(' b=let_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
+    | lp='(' b=let_comp_internal rp=[')'] {
+        maybe_invalid_close_paren(self, rp,
+            node=set_expr_format_anchors(
+                b, ExprFormatAnchors.make(surround_open=lp, surround_close=rp),
+            ),
+            close_anchor=b,
+        )
+     }
 
 question_let_comp[ast.expr]:
-    | '?(' b=let_comp_internal rp=[')'] { maybe_invalid_close_paren(self, rp, node=b, close_anchor=b) }
+    | lp='?(' b=let_comp_internal rp=[')'] {
+        maybe_invalid_close_paren(self, rp,
+            node=set_expr_format_anchors(
+                b, ExprFormatAnchors.make(surround_open=lp, surround_close=rp),
+            ),
+            close_anchor=b,
+        )
+     }
 
 comprehension_paren:
     | genexp

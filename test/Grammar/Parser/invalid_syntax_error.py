@@ -328,7 +328,10 @@ def test_try_comp_except_paren_recovery():
     assert_parse_error_recovery(
         try_comp_except_paren_recovery_code,
         try_comp_except_paren_recovery_result,
-        [],
+        [
+            ("expected '('", Range(Pos(1, 27), Pos(1, 28))),
+            ("expected ')'", Range(Pos(1, 45), Pos(1, 46))),
+        ],
     )
 
 
@@ -363,7 +366,10 @@ def test_match_comp_case_paren_recovery():
     assert_parse_error_recovery(
         match_comp_case_paren_recovery_code,
         match_comp_case_paren_recovery_result,
-        [],
+        [
+            ("expected '('", Range(Pos(1, 23), Pos(1, 24))),
+            ("expected ')'", Range(Pos(1, 25), Pos(1, 26))),
+        ],
     )
 
 

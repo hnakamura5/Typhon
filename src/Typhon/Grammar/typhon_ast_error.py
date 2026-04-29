@@ -2,12 +2,13 @@ import ast
 import copy
 from dataclasses import dataclass
 from typing import Unpack, cast
-from tokenize import TokenInfo, tokenize
+from tokenize import TokenInfo
 from .position import (
     BlockStmtAnchors,
     PosAttributes,
     TrailingBlock,
     get_empty_pos_attributes,
+    pos_attribute_to_range,
     set_block_stmt_anchors,
     unpack_pos_default,
     get_pos_attributes,
@@ -20,10 +21,15 @@ from .position import (
 from .typhon_ast import (
     CallArgs,
     ImportDotNames,
+    assign_as_declaration,
     make_arguments,
+    make_if_let,
+    make_match_case,
     make_for_let_pattern,
     make_function_def,
+    make_while_let,
     make_class_def,
+    set_control_comprehension_def,
     get_invalid_name,
     set_completion_trigger_anchor_token,
 )
@@ -31,6 +37,18 @@ from ..Driver.debugging import debug_print, debug_verbose_print
 from .parser_helper import Parser
 from .syntax_errors import set_syntax_error, add_error_node, get_error_node
 from ..Transform.visitor import TyphonASTRawVisitor
+
+
+def _empty_args() -> ast.arguments:
+    return ast.arguments(
+        posonlyargs=[],
+        args=[],
+        kwonlyargs=[],
+        kw_defaults=[],
+        defaults=[],
+        vararg=None,
+        kwarg=None,
+    )
 
 
 def maybe_invalid_block(
@@ -213,6 +231,573 @@ def maybe_invalid_close_paren[T: PosNode](
         error = parser.build_expected_error("')'", start_loc, end_loc)
         add_error_node(node, [error])
     return node
+
+
+def _set_control_comp_stmt_anchors_or_invalid_stmt(
+    node: PosNode,
+    *,
+    keyword_tokens: list[TokenInfo | None],
+    parens: tuple[TokenInfo | None, TokenInfo | None],
+    parser: Parser,
+    open_anchor: PosNode | TokenInfo,
+    close_anchor: PosNode | TokenInfo,
+    missing_parens_is_error: bool = True,  # For try comp, missing paren is not an error.
+) -> None:
+    open_paren, close_paren = parens
+    if not missing_parens_is_error and open_paren is None and close_paren is None:
+        set_block_stmt_anchors(
+            node,
+            BlockStmtAnchors.make(
+                keywords=[tok for tok in keyword_tokens if tok]
+                if keyword_tokens
+                else [],
+            ),
+        )
+        return
+    maybe_invalid_stmt(
+        parser,
+        open_paren,
+        close_paren,
+        node=node,
+        open_anchor=open_anchor,
+        close_anchor=close_anchor,
+        begin_tokens=keyword_tokens,
+    )
+
+
+def make_with_comp(
+    is_async: bool,
+    items: list[ast.withitem],
+    body: ast.expr,
+    keyword_tokens: list[TokenInfo | None],
+    parens: tuple[TokenInfo | None, TokenInfo | None],
+    parser: Parser,
+    open_anchor: PosNode | TokenInfo,
+    close_anchor: PosNode | TokenInfo,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.expr:
+    control_id = "__with_control"
+    with_stmt = ast.With(
+        items=items,
+        body=[ast.Return(value=body, **get_pos_attributes(body))],
+        **kwargs,
+    )
+    _set_control_comp_stmt_anchors_or_invalid_stmt(
+        with_stmt,
+        keyword_tokens=keyword_tokens,
+        parens=parens,
+        parser=parser,
+        open_anchor=open_anchor,
+        close_anchor=close_anchor,
+    )
+    func_def = make_function_def(
+        is_async=is_async,
+        is_static=False,
+        name=control_id,
+        args=_empty_args(),
+        body=[with_stmt],
+        returns=None,
+        type_comment=None,
+        type_params=[],
+        close_paren_anchor=None,
+        **get_pos_attributes(body),
+    )
+    result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
+    set_control_comprehension_def(result, func_def)
+    return result
+
+
+_EXCEPT_COMP = "_typh_is_try_comp_except"
+
+
+# Temporal information holder in parser.
+@dataclass
+class TryCompExceptInfo:
+    name: str | None
+    ex_type: ast.expr | None
+    body: ast.expr
+    keyword_tokens: list[TokenInfo | None]
+    parens: tuple[TokenInfo | None, TokenInfo | None]
+    parser: Parser
+    open_anchor: PosNode | TokenInfo
+    close_anchor: PosNode | TokenInfo
+    report_missing_parens: bool
+
+
+def set_try_comp_except(node: ast.Name, info: TryCompExceptInfo):
+    setattr(node, _EXCEPT_COMP, info)
+
+
+def get_try_comp_except(node: ast.Name) -> TryCompExceptInfo:
+    return getattr(node, _EXCEPT_COMP)
+
+
+def clear_try_comp_except(node: ast.Name):
+    if hasattr(node, _EXCEPT_COMP):
+        delattr(node, _EXCEPT_COMP)
+
+
+def make_try_comp_except(
+    name: str | None,
+    ex_type: ast.expr | None,
+    body: ast.expr,
+    keyword_tokens: list[TokenInfo | None],
+    parens: tuple[TokenInfo | None, TokenInfo | None],
+    parser: Parser,
+    open_anchor: PosNode | TokenInfo,
+    close_anchor: PosNode | TokenInfo,
+    report_missing_parens: bool,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.Name:
+    result = ast.Name(id=name or "", ctx=ast.Load(), **kwargs)
+    set_try_comp_except(
+        result,
+        TryCompExceptInfo(
+            name=name,
+            ex_type=ex_type,
+            body=body,
+            keyword_tokens=keyword_tokens,
+            parens=parens,
+            parser=parser,
+            open_anchor=open_anchor,
+            close_anchor=close_anchor,
+            report_missing_parens=report_missing_parens,
+        ),
+    )
+    return result
+
+
+def make_try_comp(
+    body: ast.expr,
+    handlers: list[ast.Name],
+    keyword_tokens: list[TokenInfo | None],
+    parens: tuple[TokenInfo | None, TokenInfo | None],
+    parser: Parser,
+    open_anchor: PosNode | TokenInfo,
+    close_anchor: PosNode | TokenInfo,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.expr:
+    control_id = "__try_comp"
+    if handlers:
+        handler_blocks: list[ast.ExceptHandler] = []
+        for handler in handlers:
+            info = get_try_comp_except(handler)
+            except_handler = ast.ExceptHandler(
+                type=info.ex_type,
+                name=info.name,
+                body=[
+                    ast.Return(
+                        value=info.body,
+                        **get_pos_attributes(handler),
+                    )
+                ],
+                **get_pos_attributes(handler),
+            )
+            _set_control_comp_stmt_anchors_or_invalid_stmt(
+                except_handler,
+                keyword_tokens=info.keyword_tokens,
+                parens=info.parens,
+                parser=info.parser,
+                open_anchor=info.open_anchor,
+                close_anchor=info.close_anchor,
+                missing_parens_is_error=info.report_missing_parens,
+            )
+            handler_blocks.append(except_handler)
+            clear_try_comp_except(handler)
+    else:
+        handler_blocks = [
+            ast.ExceptHandler(
+                type=None,
+                name=None,
+                body=[
+                    ast.Return(
+                        value=ast.Constant(value=None, **get_pos_attributes(body)),
+                        **get_pos_attributes(body),
+                    )
+                ],
+                **get_pos_attributes(body),
+            )
+        ]
+    try_stmt = ast.Try(
+        body=[ast.Return(value=body, **get_pos_attributes(body))],
+        handlers=handler_blocks,
+        orelse=[],
+        finalbody=[],
+        **get_pos_attributes(body),
+    )
+    _set_control_comp_stmt_anchors_or_invalid_stmt(
+        try_stmt,
+        keyword_tokens=keyword_tokens,
+        parens=parens,
+        parser=parser,
+        open_anchor=open_anchor,
+        close_anchor=close_anchor,
+        missing_parens_is_error=False,
+    )
+    func_def = make_function_def(
+        is_async=False,
+        is_static=False,
+        name=control_id,
+        args=_empty_args(),
+        body=[try_stmt],
+        returns=None,
+        type_comment=None,
+        type_params=[],
+        close_paren_anchor=None,
+        **get_pos_attributes(body),
+    )
+    result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
+    set_control_comprehension_def(result, func_def)
+    return result
+
+
+_CASE_COMP = "_typh_is_case_comp_case"
+
+
+# Temporal information holder in parser.
+@dataclass
+class CaseCompCaseInfo:
+    pattern: ast.pattern
+    guard: ast.expr | None
+    body: ast.expr
+    keyword_tokens: list[TokenInfo | None]
+    parens: tuple[TokenInfo | None, TokenInfo | None]
+    parser: Parser
+    open_anchor: PosNode | TokenInfo
+    close_anchor: PosNode | TokenInfo
+    report_missing_parens: bool
+
+
+def set_case_comp_case(
+    node: ast.Name,
+    pattern: ast.pattern,
+    guard: ast.expr | None,
+    body: ast.expr,
+    keyword_tokens: list[TokenInfo | None],
+    parens: tuple[TokenInfo | None, TokenInfo | None],
+    parser: Parser,
+    open_anchor: PosNode | TokenInfo,
+    close_anchor: PosNode | TokenInfo,
+    report_missing_parens: bool,
+):
+    setattr(
+        node,
+        _CASE_COMP,
+        CaseCompCaseInfo(
+            pattern=pattern,
+            guard=guard,
+            body=body,
+            keyword_tokens=keyword_tokens,
+            parens=parens,
+            parser=parser,
+            open_anchor=open_anchor,
+            close_anchor=close_anchor,
+            report_missing_parens=report_missing_parens,
+        ),
+    )
+
+
+def get_case_comp_case(
+    node: ast.Name,
+) -> CaseCompCaseInfo:
+    return getattr(node, _CASE_COMP)
+
+
+def clear_case_comp_case(node: ast.Name):
+    if hasattr(node, _CASE_COMP):
+        delattr(node, _CASE_COMP)
+
+
+def make_match_comp_case(
+    pattern: ast.pattern,
+    guard: ast.expr | None,
+    body: ast.expr,
+    keyword_tokens: list[TokenInfo | None],
+    parens: tuple[TokenInfo | None, TokenInfo | None],
+    parser: Parser,
+    open_anchor: PosNode | TokenInfo,
+    close_anchor: PosNode | TokenInfo,
+    report_missing_parens: bool,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.Name:
+    result = ast.Name(id="", ctx=ast.Load(), **kwargs)
+    set_case_comp_case(
+        result,
+        pattern,
+        guard,
+        body,
+        keyword_tokens,
+        parens,
+        parser,
+        open_anchor,
+        close_anchor,
+        report_missing_parens,
+    )
+    return result
+
+
+def make_match_comp(
+    subject: ast.expr,
+    cases: list[ast.Name],
+    keyword_tokens: list[TokenInfo | None],
+    parens: tuple[TokenInfo | None, TokenInfo | None],
+    parser: Parser,
+    open_anchor: PosNode | TokenInfo,
+    close_anchor: PosNode | TokenInfo,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.expr:
+    control_id = "__match_comp"
+    case_nodes: list[ast.match_case] = []
+    for case in cases:
+        info = get_case_comp_case(case)
+        case_node = make_match_case(
+            pattern=info.pattern,
+            guard=info.guard,
+            body=[
+                ast.Return(
+                    value=info.body,
+                    **get_pos_attributes(case),
+                )
+            ],
+            **get_pos_attributes(case),
+        )
+        _set_control_comp_stmt_anchors_or_invalid_stmt(
+            case_node,
+            keyword_tokens=info.keyword_tokens,
+            parens=info.parens,
+            parser=info.parser,
+            open_anchor=info.open_anchor,
+            close_anchor=info.close_anchor,
+            missing_parens_is_error=info.report_missing_parens,
+        )
+        clear_case_comp_case(case)
+        case_nodes.append(case_node)
+
+    match_stmt = ast.Match(
+        subject=subject,
+        cases=case_nodes,
+        **kwargs,
+    )
+    _set_control_comp_stmt_anchors_or_invalid_stmt(
+        match_stmt,
+        keyword_tokens=keyword_tokens,
+        parens=parens,
+        parser=parser,
+        open_anchor=open_anchor,
+        close_anchor=close_anchor,
+    )
+    func_def = make_function_def(
+        is_async=False,
+        is_static=False,
+        name=control_id,
+        args=_empty_args(),
+        body=[
+            match_stmt,
+            ast.Return(
+                value=ast.Constant(value=None, **get_pos_attributes(subject)),
+                **get_pos_attributes(subject),
+            ),
+        ],
+        returns=None,
+        type_comment=None,
+        type_params=[],
+        close_paren_anchor=None,
+        **kwargs,
+    )
+    result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
+    set_control_comprehension_def(result, func_def)
+    return result
+
+
+def make_while_comp(
+    test: ast.expr,
+    body: ast.expr,
+    keyword_tokens: list[TokenInfo | None],
+    parens: tuple[TokenInfo | None, TokenInfo | None],
+    parser: Parser,
+    open_anchor: PosNode | TokenInfo,
+    close_anchor: PosNode | TokenInfo,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.expr:
+    control_id = "__while_comp"
+    while_stmt = ast.While(
+        test=test,
+        body=[
+            ast.Expr(ast.Yield(body, **get_pos_attributes(body))),
+        ],
+        orelse=[],
+        **kwargs,
+    )
+    _set_control_comp_stmt_anchors_or_invalid_stmt(
+        while_stmt,
+        keyword_tokens=keyword_tokens,
+        parens=parens,
+        parser=parser,
+        open_anchor=open_anchor,
+        close_anchor=close_anchor,
+    )
+    func_def = make_function_def(
+        is_async=False,
+        is_static=False,
+        name=control_id,
+        args=_empty_args(),
+        body=[while_stmt],
+        returns=None,
+        type_comment=None,
+        type_params=[],
+        close_paren_anchor=None,
+        **kwargs,
+    )
+    result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
+    set_control_comprehension_def(result, func_def)
+    return result
+
+
+def make_if_let_comp(
+    pattern_subjects: list[tuple[ast.pattern, ast.expr]],
+    cond: ast.expr | None,
+    body: ast.expr,
+    orelse: ast.expr | None,
+    keyword_tokens: list[TokenInfo | None],
+    parens: tuple[TokenInfo | None, TokenInfo | None],
+    parser: Parser,
+    open_anchor: PosNode | TokenInfo,
+    close_anchor: PosNode | TokenInfo,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.expr:
+    control_id = "__if_let_comp"
+    if_stmt = make_if_let(
+        "let",
+        pattern_subjects,
+        cond,
+        [ast.Return(value=body, **get_pos_attributes(body))],
+        [ast.Return(value=orelse, **get_pos_attributes(orelse))] if orelse else [],
+        is_let_else=False,
+        **kwargs,
+    )
+    _set_control_comp_stmt_anchors_or_invalid_stmt(
+        if_stmt,
+        keyword_tokens=keyword_tokens,
+        parens=parens,
+        parser=parser,
+        open_anchor=open_anchor,
+        close_anchor=close_anchor,
+    )
+    func_def = make_function_def(
+        is_async=False,
+        is_static=False,
+        name=control_id,
+        args=_empty_args(),
+        body=[if_stmt],
+        returns=None,
+        type_comment=None,
+        type_params=[],
+        close_paren_anchor=None,
+        **kwargs,
+    )
+    result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
+    set_control_comprehension_def(result, func_def)
+    return result
+
+
+def make_while_let_comp(
+    pattern_subjects: list[tuple[ast.pattern, ast.expr]],
+    cond: ast.expr | None,
+    body: ast.expr,
+    keyword_tokens: list[TokenInfo | None],
+    parens: tuple[TokenInfo | None, TokenInfo | None],
+    parser: Parser,
+    open_anchor: PosNode | TokenInfo,
+    close_anchor: PosNode | TokenInfo,
+    **kwargs: Unpack[PosAttributes],
+) -> ast.expr:
+    control_id = "__while_let_comp"
+    while_stmt = make_while_let(
+        pattern_subjects,
+        cond,
+        [ast.Expr(ast.Yield(value=body, **get_pos_attributes(body)))],
+        [],
+        **kwargs,
+    )
+    _set_control_comp_stmt_anchors_or_invalid_stmt(
+        while_stmt,
+        keyword_tokens=keyword_tokens,
+        parens=parens,
+        parser=parser,
+        open_anchor=open_anchor,
+        close_anchor=close_anchor,
+    )
+    func_def = make_function_def(
+        is_async=False,
+        is_static=False,
+        name=control_id,
+        args=_empty_args(),
+        body=[while_stmt],
+        returns=None,
+        type_comment=None,
+        type_params=[],
+        close_paren_anchor=None,
+        **kwargs,
+    )
+    result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
+    set_control_comprehension_def(result, func_def)
+    return result
+
+
+def make_let_comp(
+    assignments: list[tuple[ast.expr, ast.expr | None, ast.expr | None]] | None,
+    body: ast.expr,
+    pattern_subjects: list[tuple[ast.pattern, ast.expr]] | None = None,
+    **kwargs: Unpack[PosAttributes],
+):
+    control_id = "__let_comp"
+    stmts: list[ast.stmt]
+    if pattern_subjects is not None:
+        stmts = [
+            make_if_let(
+                "let",
+                pattern_subjects=pattern_subjects,
+                cond=None,
+                body=[ast.Return(value=body, **get_pos_attributes(body))],
+                orelse=None,
+                is_let_else=True,
+                **kwargs,
+            )
+        ]
+    else:
+        stmts = [
+            cast(
+                ast.stmt,
+                assign_as_declaration(
+                    "let",
+                    a,
+                    bool(assignments),
+                    **pos_attribute_to_range(kwargs),
+                ),
+            )
+            for a in assignments or []
+        ]
+        stmts.append(
+            ast.Return(
+                value=body,
+                **get_pos_attributes(body),
+            )
+        )
+    func_def = make_function_def(
+        is_async=False,
+        is_static=False,
+        name=control_id,
+        args=_empty_args(),
+        body=stmts,
+        returns=None,
+        type_comment=None,
+        type_params=[],
+        close_paren_anchor=None,
+        **kwargs,
+    )
+    result = ast.Name(id=control_id, ctx=ast.Load(), **kwargs)
+    set_control_comprehension_def(result, func_def)
+    return result
 
 
 def recover_invalid_try(
